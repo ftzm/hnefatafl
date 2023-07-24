@@ -1,0 +1,159 @@
+cabal-version: 2.4
+
+-- This file has been generated from package.yaml by hpack version 0.35.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:               hnefatafl
+version:            0.0.0.2
+build-type:         Simple
+
+library
+    exposed-modules:
+        Board.Board
+        Board.Constant
+        Board.Move
+        MyLib
+    other-modules:
+        Paths_hnefatafl
+    autogen-modules:
+        Paths_hnefatafl
+    build-depends:
+        array,
+        base,
+        containers,
+        deepseq,
+        parallel,
+        raw-strings-qq,
+        relude,
+        split,
+        template-haskell,
+        vector,
+        wide-word
+    mixins:
+        base hiding (Prelude),
+        relude (Relude as Prelude)
+    hs-source-dirs:
+        src
+    default-extensions:
+        TemplateHaskell
+        OverloadedStrings
+        OverloadedRecordDot
+        OverloadedLabels
+        DuplicateRecordFields
+        LambdaCase
+        DerivingVia
+        ImportQualifiedPost
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    default-language: GHC2021
+
+executable hnefatafl
+    main-is: Main.hs
+    other-modules:
+        Paths_hnefatafl
+    autogen-modules:
+        Paths_hnefatafl
+    build-depends:
+        array,
+        base,
+        containers,
+        deepseq,
+        hnefatafl,
+        parallel,
+        raw-strings-qq,
+        relude,
+        split,
+        template-haskell,
+        vector,
+        wide-word
+    mixins:
+        base hiding (Prelude),
+        relude (Relude as Prelude)
+    hs-source-dirs:
+        app
+    default-extensions:
+        TemplateHaskell
+        OverloadedStrings
+        OverloadedRecordDot
+        OverloadedLabels
+        DuplicateRecordFields
+        LambdaCase
+        DerivingVia
+        ImportQualifiedPost
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    default-language: GHC2021
+
+test-suite test
+    type: exitcode-stdio-1.0
+    main-is: Main.hs
+    other-modules:
+        Paths_hnefatafl
+    autogen-modules:
+        Paths_hnefatafl
+    hs-source-dirs:
+        test
+    default-extensions:
+        TemplateHaskell
+        OverloadedStrings
+        OverloadedRecordDot
+        OverloadedLabels
+        DuplicateRecordFields
+        LambdaCase
+        DerivingVia
+        ImportQualifiedPost
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    build-depends:
+        array,
+        base,
+        containers,
+        deepseq,
+        hnefatafl,
+        parallel,
+        raw-strings-qq,
+        relude,
+        split,
+        template-haskell,
+        vector,
+        wide-word
+    mixins:
+        base hiding (Prelude),
+        relude (Relude as Prelude)
+    default-language: GHC2021
+
+benchmark board
+    type: exitcode-stdio-1.0
+    main-is: Main.hs
+    other-modules:
+        Paths_hnefatafl
+    autogen-modules:
+        Paths_hnefatafl
+    hs-source-dirs:
+        bench
+    default-extensions:
+        TemplateHaskell
+        OverloadedStrings
+        OverloadedRecordDot
+        OverloadedLabels
+        DuplicateRecordFields
+        LambdaCase
+        DerivingVia
+        ImportQualifiedPost
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    build-depends:
+        array,
+        base,
+        containers,
+        criterion,
+        deepseq,
+        hnefatafl,
+        parallel,
+        raw-strings-qq,
+        relude,
+        split,
+        template-haskell,
+        vector,
+        wide-word
+    mixins:
+        base hiding (Prelude),
+        relude (Relude as Prelude)
+    default-language: GHC2021
