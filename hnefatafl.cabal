@@ -45,6 +45,8 @@ library
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    c-sources:
+        src/Board/move.c
     default-language: GHC2021
 
 executable hnefatafl
@@ -81,6 +83,8 @@ executable hnefatafl
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    c-sources:
+        src/Board/move.c
     default-language: GHC2021
 
 test-suite test
@@ -102,13 +106,17 @@ test-suite test
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    c-sources:
+        src/Board/move.c
     build-depends:
+        QuickCheck,
         array,
         base,
         containers,
         deepseq,
         hnefatafl,
         parallel,
+        quickcheck-instances,
         raw-strings-qq,
         relude,
         split,
@@ -139,6 +147,8 @@ benchmark board
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    c-sources:
+        src/Board/move.c
     build-depends:
         array,
         base,

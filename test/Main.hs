@@ -2,6 +2,7 @@
 
 module Main (main) where
 
+import Test.QuickCheck
 import Board.Board
 import Board.Move
 import Data.Bits
@@ -85,6 +86,42 @@ kingTest =
  .  .  .  .  .  .  .  .  .  .  .
 |]
 
+wot1 =
+  [b|
+ .  .  .  X  X  X  X  X  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ X  .  .  .  .  O  .  X  .  .  .
+ X  .  .  .  O  O  O  .  .  .  X
+ X  X  .  O  O  #  O  .  .  X  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  .  .  .  .  O  .  .  .  .  X
+ .  .  .  .  .  .  .  O  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  X  X  X  X  X  .  .  .
+|]
+
+wot2 =
+  [b|
+ .  .  .  X  X  X  .  X  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  X  .  .  .  .
+ X  .  .  .  .  O  .  .  .  .  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  X  .  O  O  #  O  O  .  X  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ .  .  .  .  .  O  .  .  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  X  X  X  X  X  .  .  .
+|]
+
+--------------------------------------------------------------------------------
+
+-- prop_teamMovesCEqual :: Word128 -> Word128 -> Bool
+-- prop_teamMovesCEqual team occ =
+--   cTeamMoveCount team occ ==
+
 --------------------------------------------------------------------------------
 
 main :: IO ()
@@ -125,5 +162,22 @@ main = do
   -- print $ score White startBoard'
   -- print $ score White escapeBoard
   -- print $ score Black escapeBoard
-  putStrLn $ showBoard $ (\(_, b, _, _) -> b) $ minimax startBoard Black 2
+
+  -- let result = minimax startBoard Black 3
+  -- putStrLn $ showBoard $ board result
+  -- putStrLn $ show $ tally result
+
+  let resultAB = alphaBeta (0,0) startBoard Black Black 4 0 minBound maxBound
+  putStrLn $ showBoard $ board resultAB
+  putStrLn $ "tally" <> (show $ tally resultAB)
+  putStrLn $ "score" <> (show $ score resultAB)
+
+  let resultABneg = negamaxAB (0,0) startBoard Black Black 4 0 (minBound + 10) (maxBound - 10)
+  putStrLn $ showBoard $ board resultABneg
+  putStrLn $ "tally" <> (show $ tally resultABneg)
+  putStrLn $ "score" <> (show $ score resultABneg)
+
+  print $ scoreBoard Black wot1
+  print $ scoreBoard Black wot2
+
   pure ()

@@ -7,6 +7,9 @@ verbatim:
 
 language: GHC2021
 
+c-sources:
+  - "src/Board/move.c"
+
 default-extensions:
   - TemplateHaskell
   - OverloadedStrings
@@ -110,8 +113,8 @@ tests:
 #       - tasty-hspec
 #       - tasty-hunit
 #       - tasty-quickcheck
-#       - quickcheck-instances
-#       - QuickCheck
+      - quickcheck-instances
+      - QuickCheck
 
 benchmarks:
   board:
