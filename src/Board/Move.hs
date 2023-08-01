@@ -1,25 +1,24 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE Strict #-}
 
 module Board.Move where
 
-import Board.Board (Board (..), showBoard)
-import Board.Constant (corners, pawnIllegalDestinations)
+import Board.Board (Board (..), Move (..), Moves (..), showBoard)
+import Board.Constant (pawnIllegalDestinations)
 import Data.Bits (Bits (..), FiniteBits (..))
-import Data.Foldable (maximumBy)
-import Data.List (groupBy, maximum, minimum, minimumBy)
+import Data.List qualified as L
 import Data.Map qualified as M
 import Data.Vector qualified as BV
 import Data.Vector.Unboxed qualified as V
 import Data.WideWord (Word128 (..))
-import Foreign.C.Types (CInt (..), CULong (..))
-import GHC.Conc (par)
-import GHC.IO (unsafePerformIO)
-import Text.RawString.QQ (r)
+
+import Foreign.C.Types
+import Foreign.ForeignPtr
+import Foreign.Ptr
+import Foreign.Storable
+import System.IO.Unsafe
 
 --------------------------------------------------------------------------------
 
@@ -222,6 +221,11 @@ blackMoves Board{whitePawns, king, blackPawns} =
         V.filter (testBit blackPawns . fromIntegral) $
           V.fromList [0 .. 120]
 
+blackMoves' :: Board -> [(Int8, Int8)]
+blackMoves' Board{whitePawns, king, blackPawns} =
+  let occ = pawnIllegalDestinations .|. whitePawns .|. king .|. blackPawns
+   in map (\(Move orig dest) -> (orig, dest)) $ unMoves $ teamMoves blackPawns occ
+
 blackMoveCount :: Board -> Int
 blackMoveCount Board{whitePawns, king, blackPawns} =
   let occ = pawnIllegalDestinations .|. whitePawns .|. king .|. blackPawns
@@ -242,6 +246,11 @@ whiteMoves Board{whitePawns, king, blackPawns} =
         V.filter (testBit whitePawns . fromIntegral) $
           V.fromList [0 .. 120]
 
+whiteMoves' :: Board -> [(Int8, Int8)]
+whiteMoves' Board{whitePawns, king, blackPawns} =
+  let occ = pawnIllegalDestinations .|. whitePawns .|. king .|. blackPawns
+   in map (\(Move orig dest) -> (orig, dest)) $ unMoves $ teamMoves whitePawns occ
+
 whiteMoveCount :: Board -> Int
 whiteMoveCount Board{whitePawns, king, blackPawns} =
   let occ = pawnIllegalDestinations .|. whitePawns .|. king .|. blackPawns
@@ -261,6 +270,14 @@ kingMoves Board{whitePawns, king, blackPawns} =
     pieceMoves (whitePawns .|. blackPawns) $
       fromIntegral $
         countTrailingZeros king
+
+kingMoves' :: Board -> [(Int8, Int8)]
+kingMoves' Board{whitePawns, king, blackPawns} =
+  map (fromIntegral $ popCount king,) $
+    V.toList $
+      pieceMoves (whitePawns .|. blackPawns) $
+        fromIntegral $
+          countTrailingZeros king
 
 kingMoveCount :: Board -> Int
 kingMoveCount Board{whitePawns, king, blackPawns} =
@@ -334,7 +351,7 @@ nextBoardsBlack board =
    in
     V.map (uncurry applyChanges) ms
 
-nextMoveBoardsBlack :: Board -> V.Vector (Move, Board)
+nextMoveBoardsBlack :: Board -> V.Vector ((Int8, Int8), Board)
 nextMoveBoardsBlack board =
   let
     ms = blackMoves board
@@ -351,6 +368,24 @@ nextMoveBoardsBlack board =
           }
    in
     V.map (\m -> (m, uncurry applyChanges m)) ms
+
+nextMoveBoardsBlack' :: Board -> [((Int8, Int8), Board)]
+nextMoveBoardsBlack' board =
+  let
+    ms = blackMoves' board
+    opps = board.whitePawns .|. board.king
+    applyChanges :: Int8 -> Int8 -> Board
+    applyChanges orig dest =
+      let
+        departedBlacks = clearBit board.blackPawns $ fromIntegral orig
+        capturedSquares = captures departedBlacks opps dest
+       in
+        board
+          { blackPawns = setBit departedBlacks $ fromIntegral dest
+          , whitePawns = xor board.whitePawns capturedSquares
+          }
+   in
+    map (\m -> (m, uncurry applyChanges m)) ms
 
 -- nextBoardsBlack'x :: Board -> V.Vector Board
 -- nextBoardsBlack'x board =
@@ -463,7 +498,7 @@ nextBoardsWhite board =
    in
     kingChanges V.++ V.map (uncurry applyPawnChanges) pawnMs
 
-nextMoveBoardsWhite :: Board -> V.Vector (Move, Board)
+nextMoveBoardsWhite :: Board -> V.Vector ((Int8, Int8), Board)
 nextMoveBoardsWhite board =
   let
     opps = board.blackPawns
@@ -478,7 +513,7 @@ nextMoveBoardsWhite board =
           { whitePawns = setBit departed $ fromIntegral dest
           , blackPawns = xor board.blackPawns capturedSquares
           }
-    kingChanges :: V.Vector (Move, Board)
+    kingChanges :: V.Vector ((Int8, Int8), Board)
     kingChanges =
       let
         arriveAndCapture dest =
@@ -490,6 +525,34 @@ nextMoveBoardsWhite board =
         V.map (\m -> (m, arriveAndCapture . snd $ m)) $ V.convert $ kingMoves board
    in
     kingChanges V.++ V.map (\m -> (m, uncurry applyPawnChanges m)) pawnMs
+
+nextMoveBoardsWhite' :: Board -> [((Int8, Int8), Board)]
+nextMoveBoardsWhite' board =
+  let
+    opps = board.blackPawns
+    pawnMs = whiteMoves' board
+    applyPawnChanges :: Int8 -> Int8 -> Board
+    applyPawnChanges orig dest =
+      let
+        departed = clearBit board.whitePawns $ fromIntegral orig
+        capturedSquares = captures departed opps dest
+       in
+        board
+          { whitePawns = setBit departed $ fromIntegral dest
+          , blackPawns = xor board.blackPawns capturedSquares
+          }
+    kingChanges :: [((Int8, Int8), Board)]
+    kingChanges =
+      let
+        arriveAndCapture dest =
+          board
+            { king = setBit 0 $ fromIntegral dest
+            , blackPawns = xor board.blackPawns $ captures 0 opps dest
+            }
+       in
+        map (\m -> (m, arriveAndCapture . snd $ m)) $ kingMoves' board
+   in
+    kingChanges ++ map (\m -> (m, uncurry applyPawnChanges m)) pawnMs
 
 --------------------------------------------------------------------------------
 -- experimentla move list
@@ -613,12 +676,12 @@ scoreBoard t b =
       Black -> (negate, id)
     whitePoints =
       sum
-        [ whitePieceCount b * 100
+        [ whitePieceCount b * 1000
         , whiteMoveCount' b
         ]
     blackPoints =
       sum
-        [ blackPieceCount b * 100
+        [ blackPieceCount b * 1000
         , blackMoveCount' b
         ]
    in
@@ -636,8 +699,6 @@ data SearchState
 
 type Depth = Int
 
-type Move = (Int8, Int8)
-
 type Score = Int
 
 type Tally = Int
@@ -648,37 +709,37 @@ type Alpha = Int
 
 type Beta = Int
 
-data Result = Result {move :: Move, board :: Board, score :: Score, tally :: Visited}
+data Result = Result {move :: (Int8, Int8), board :: [Board], score :: Score, tally :: Visited}
 
-minimax :: Board -> Team -> Depth -> Result
-minimax b t d =
-  let
-    startBoards = case t of
-      Black -> map (\m -> (m, applyMoveBlack b m)) $ V.toList $ blackMoves b
-      White ->
-        map (\m -> (m, applyMoveKing b $ snd m)) (V.toList $ kingMoves b)
-          ++ map (\m -> (m, applyMoveWhitePawn b m)) (V.toList $ whiteMoves b)
-    judge = scoreBoard t
-    go :: Team -> Depth -> Board -> (Score, Visited)
-    go _ 0 b' = (judge b', 1)
-    go t' d' b' =
-      let order = if t' == t then V.maximumBy else V.minimumBy
-          nextBoards = case t' of
-            White -> nextBoardsBlack b'
-            Black -> nextBoardsWhite b'
-          base = V.map (go (opp t') (d' - 1)) nextBoards
-          best = order (comparing fst) base
-          visited = V.sum $ V.map snd base
-       in (snd best, visited)
-    base =
-      map
-        ( \(m, b) ->
-            let (score', visited) = go t d b
-             in Result m b score' visited
-        )
-        startBoards
-   in
-    (maximumBy (comparing score) base){tally = sum $ map tally base}
+-- minimax :: Board -> Team -> Depth -> Result
+-- minimax b t d =
+--   let
+--     startBoards = case t of
+--       Black -> map (\m -> (m, applyMoveBlack b m)) $ V.toList $ blackMoves b
+--       White ->
+--         map (\m -> (m, applyMoveKing b $ snd m)) (V.toList $ kingMoves b)
+--           ++ map (\m -> (m, applyMoveWhitePawn b m)) (V.toList $ whiteMoves b)
+--     judge = scoreBoard t
+--     go :: Team -> Depth -> Board -> (Score, Visited)
+--     go _ 0 b' = (judge b', 1)
+--     go t' d' b' =
+--       let order = if t' == t then V.maximumBy else V.minimumBy
+--           nextBoards = case t' of
+--             White -> nextBoardsBlack b'
+--             Black -> nextBoardsWhite b'
+--           base = V.map (go (opp t') (d' - 1)) nextBoards
+--           best = order (comparing fst) base
+--           visited = V.sum $ V.map snd base
+--        in (snd best, visited)
+--     base =
+--       map
+--         ( \(m, b) ->
+--             let (score', visited) = go t d b
+--              in Result m b score' visited
+--         )
+--         startBoards
+--    in
+--     (maximumBy (comparing score) base){tally = sum $ map tally base}
 
 -- minimaxAlphaBeta :: Board -> Team -> Depth -> Result
 -- minimaxAlphaBeta b t d =
@@ -711,22 +772,22 @@ minimax b t d =
 --     (maximumBy (comparing score) base){visited = sum $ map visited base}
 
 maxBy :: Ord b => (a -> b) -> a -> a -> a
-maxBy f x y = if f x > f y then x else y
+maxBy f x y = if f x >= f y then x else y
 
 minBy :: Ord b => (a -> b) -> a -> a -> a
-minBy f x y = if f x < f y then x else y
+minBy f x y = if f x <= f y then x else y
 
-alphaBeta :: Move -> Board -> Team -> Team -> Depth -> Tally -> Alpha -> Beta -> Result
+alphaBeta :: (Int8, Int8) -> [Board] -> Team -> Team -> Depth -> Tally -> Alpha -> Beta -> Result
 alphaBeta move board maximizer _ 0 tally _ _ =
-  Result move board (scoreBoard maximizer board) (tally + 1)
+  Result move board (scoreBoard maximizer (L.head board)) (tally + 1)
 alphaBeta _ board maximizer current depth tally alpha beta =
   let
-    nextBoards :: [(Move, Board)] = case current of
-      White -> V.toList $ nextMoveBoardsWhite board
-      Black -> V.toList $ nextMoveBoardsBlack board
+    nextBoards :: [((Int8, Int8), [Board])] = case current of
+      White -> map (\(m, b) -> (m, b : board)) $ V.toList $ nextMoveBoardsWhite (L.head board)
+      Black -> map (\(m, b) -> (m, b : board)) $ V.toList $ nextMoveBoardsBlack (L.head board)
 
     -- Maximize
-    maximize :: [(Move, Board)] -> Tally -> Alpha -> Beta -> Result
+    maximize :: [((Int8, Int8), [Board])] -> Tally -> Alpha -> Beta -> Result
     maximize [] _ _ _ = error "this should probably be nonempty"
     maximize [(move', board')] tally' alpha' beta' =
       alphaBeta move' board' maximizer (opp current) (depth - 1) tally' alpha' beta'
@@ -736,10 +797,10 @@ alphaBeta _ board maximizer current depth tally alpha beta =
         newAlpha = max alpha' result.score
         ~remainder = maximize ms result.tally newAlpha beta'
        in
-        if result.score > beta' then result else maxBy (.score) (result {tally = remainder.tally}) remainder
+        if result.score > beta' then result else maxBy (.score) (result{tally = remainder.tally}) remainder
 
     -- Minimize
-    minimize :: [(Move, Board)] -> Tally -> Alpha -> Beta -> Result
+    minimize :: [((Int8, Int8), [Board])] -> Tally -> Alpha -> Beta -> Result
     minimize [] _ _ _ = error "this should probably be nonempty"
     minimize [(move', board')] tally' alpha' beta' =
       alphaBeta move' board' maximizer (opp current) (depth - 1) tally' alpha' beta'
@@ -748,7 +809,7 @@ alphaBeta _ board maximizer current depth tally alpha beta =
         result = alphaBeta move' board' maximizer (opp current) (depth - 1) tally' alpha' beta'
         newBeta = min beta' result.score
         ~remainder = minimize ms result.tally alpha' newBeta
-        selected = if result.score < alpha' then result else minBy (.score) (result {tally = remainder.tally}) remainder
+        selected = if result.score < alpha' then result else minBy (.score) (result{tally = remainder.tally}) remainder
        in
         selected
    in
@@ -756,53 +817,91 @@ alphaBeta _ board maximizer current depth tally alpha beta =
       then maximize nextBoards tally alpha beta
       else minimize nextBoards tally alpha beta
 
-negamaxAB :: Move -> Board -> Team -> Team -> Depth -> Tally -> Alpha -> Beta -> Result
-negamaxAB move board _ current 0 tally _ _ =
-  Result move board (scoreBoard current board) (tally + 1)
-negamaxAB _ board maximizer current depth tally alpha beta =
+negamaxAB :: (Int8, Int8) -> [Board] -> Team -> Depth -> Tally -> Alpha -> Beta -> Result
+negamaxAB move board current 0 tally _ _ =
+  Result move board (scoreBoard current (L.head board)) (tally + 1)
+negamaxAB _ board current depth tally alpha beta =
   let
-    nextBoards :: [(Move, Board)] = case current of
-      White -> V.toList $ nextMoveBoardsWhite board
-      Black -> V.toList $ nextMoveBoardsBlack board
+    nextBoards :: [((Int8, Int8), [Board])] = case current of
+      White ->
+        map (\(m, b) -> (m, b : board)) $
+          nextMoveBoardsWhite' (L.head board)
+      Black ->
+        map (\(m, b) -> (m, b : board)) $
+          nextMoveBoardsBlack' (L.head board)
 
-    go :: [(Move, Board)] -> Tally -> Alpha -> Beta -> Result
+    negateScore result@Result{score} = result{score = negate score}
+
+    go :: [((Int8, Int8), [Board])] -> Tally -> Alpha -> Beta -> Result
     go [] _ _ _ = error "this should probably be nonempty"
     go [(move', board')] tally' alpha' beta' =
-      let orig = negamaxAB move' board' maximizer (opp current) (depth - 1) tally' (-beta') (-alpha')
-      in orig {score = negate orig.score}
+      negateScore $
+        negamaxAB
+          move'
+          board'
+          (opp current)
+          (depth - 1)
+          tally'
+          (negate beta')
+          (negate alpha')
     go ((move', board') : ms) tally' alpha' beta' =
       let
-        origResult = negamaxAB move' board' maximizer (opp current) (depth - 1) tally' (-beta') (-alpha')
-        result = origResult {score = negate origResult.score}
+        result = negateScore $ negamaxAB move' board' (opp current) (depth - 1) tally' (negate beta') (negate alpha')
         newAlpha = max alpha' result.score
         ~remainder = go ms result.tally newAlpha beta'
        in
-        if newAlpha >= beta' then result else maxBy (.score) (result {tally = remainder.tally}) remainder
-  in go nextBoards tally alpha beta
+        if newAlpha >= beta' then result else maxBy (.score) (result{tally = remainder.tally}) remainder
+   in
+    go nextBoards tally alpha beta
 
-negamaxABF :: Move -> Board -> Team -> Team -> Depth -> Tally -> Alpha -> Beta -> Result
-negamaxABF move board _ current 0 tally _ _ =
-  Result move board (scoreBoard current board) (tally + 1)
-negamaxABF _ board maximizer current depth tally alpha beta =
+{-
+negamaxABF :: (Int8, Int8) -> [Board] -> Team -> Depth -> Tally -> Alpha -> Beta -> Result
+negamaxABF move board current 0 tally _ _ =
+  Result move board (scoreBoard current (L.head board)) (tally + 1)
+negamaxABF _ board current depth tally alpha beta =
   let
-    nextBoards :: [(Move, Board)] = case current of
-      White -> V.toList $ nextMoveBoardsWhite board
-      Black -> V.toList $ nextMoveBoardsBlack board
+    nextBoards :: [((Int8, Int8), [Board])] = case current of
+      White -> map (\(m, b) -> (m, b : board)) $ V.toList $ nextMoveBoardsWhite (L.head board)
+      Black -> map (\(m, b) -> (m, b : board)) $ V.toList $ nextMoveBoardsBlack (L.head board)
+    firstResult =
+      let orig =
+            uncurry
+              negamaxAB
+              (L.head nextBoards)
+              (opp current)
+              (depth - 1)
+              tally
+              (-beta)
+              (-alpha)
+       in orig{score = negate orig.score}
+    step ::
+      ((Move, [Board]), Alpha) ->
+      (((Move, [Board]), Alpha) -> ((Move, [Board]), Alpha)) ->
+      ((Move, [Board]), Alpha) ->
+      ((Move, [Board]), Alpha)
+    step = undefined
+   in
+    -- processRemainder ::
 
-    go :: [(Move, Board)] -> Tally -> Alpha -> Beta -> Result
-    go [] _ _ _ = error "this should probably be nonempty"
-    go [(move', board')] tally' alpha' beta' =
-      let orig = negamaxAB move' board' maximizer (opp current) (depth - 1) tally' (-beta') (-alpha')
-      in orig {score = negate orig.score}
-    go ((move', board') : ms) tally' alpha' beta' =
-      let
-        origResult = negamaxAB move' board' maximizer (opp current) (depth - 1) tally' (-beta') (-alpha')
-        result = origResult {score = negate origResult.score}
-        newAlpha = max alpha' result.score
-        ~remainder = go ms result.tally newAlpha beta'
-       in
-        if newAlpha >= beta' then result else maxBy (.score) (result {tally = remainder.tally}) remainder
-  in go nextBoards tally alpha beta
+    undefined
+
+-- https://stackoverflow.com/questions/55170949/fold-thats-both-constant-space-and-short-circuiting
+-- convert to my stuff
+myProduct :: (Foldable t, Eq n, Num n) => t n -> n
+myProduct xs = foldr step id xs 1
+ where
+  step 0 f acc = 0
+  step x f acc = f $! acc * x
+
+-- https://stackoverflow.com/questions/55170949/fold-thats-both-constant-space-and-short-circuiting
+-- convert to my stuff
+-- myThing :: (Foldable t, Eq n, Num n) => t n -> n
+myThing xs = foldr step id xs "start"
+ where
+  step "two" f acc = acc
+  step x f acc = f $! acc ++ x
+
+-}
 
 --------------------------------------------------------------------------------
 -- bench
@@ -916,7 +1015,6 @@ cTeamMoveCount team occ = unsafePerformIO $ do
       (fromIntegral occ.word128Lo64)
   return (fromIntegral result)
 
-
 -- first, use bit shifting and masking to generate a board of potentially
 -- vulnerable squares.
 
@@ -933,6 +1031,41 @@ cTeamMoveCount team occ = unsafePerformIO $ do
 -- above iteration but go bottom up this time. there may also be a smarter
 -- method for this.
 
-
 -- I think there may also be a similar method for move generation, could be
 -- worth trying and benchmarking.
+
+-- Generic free function; likely must be used with castFunPtr
+foreign import ccall unsafe "stdlib.h &free" c_free_ptr :: FinalizerPtr CInt
+
+foreign import ccall "test_ffi_move" c_test_ffi_move :: IO (Ptr Move)
+
+testFfiMove :: Move
+{-# NOINLINE testFfiMove #-}
+testFfiMove = unsafePerformIO $ do
+  fptr <- c_test_ffi_move >>= newForeignPtr (castFunPtr c_free_ptr)
+  withForeignPtr fptr $ \ptr -> do
+    peek ptr
+
+testFfiMove' :: Move
+{-# NOINLINE testFfiMove' #-}
+testFfiMove' =
+  unsafePerformIO $
+    c_test_ffi_move
+      >>= newForeignPtr (castFunPtr c_free_ptr)
+      >>= flip withForeignPtr peek
+
+foreign import ccall unsafe "&free_team_moves" c_free_team_moves :: FinalizerPtr Moves
+
+foreign import ccall "team_moves" c_team_moves :: CULong -> CULong -> CULong -> CULong -> IO (Ptr Moves)
+
+teamMoves :: Word128 -> Word128 -> Moves
+{-# NOINLINE teamMoves #-}
+teamMoves team occ =
+  unsafePerformIO $
+    c_team_moves
+      (fromIntegral team.word128Hi64)
+      (fromIntegral team.word128Lo64)
+      (fromIntegral occ.word128Hi64)
+      (fromIntegral occ.word128Lo64)
+      >>= newForeignPtr c_free_team_moves
+      >>= flip withForeignPtr peek

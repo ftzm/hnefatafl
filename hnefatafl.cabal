@@ -7,6 +7,9 @@ cabal-version: 2.4
 name:               hnefatafl
 version:            0.0.0.2
 build-type:         Simple
+extra-source-files:
+    src/Board/move.c
+    src/Board/move.h
 
 library
     exposed-modules:
@@ -45,8 +48,11 @@ library
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    include-dirs:
+        src/Board/
     c-sources:
         src/Board/move.c
+        src/Board/move.h
     default-language: GHC2021
 
 executable hnefatafl
@@ -83,8 +89,11 @@ executable hnefatafl
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    include-dirs:
+        src/Board/
     c-sources:
         src/Board/move.c
+        src/Board/move.h
     default-language: GHC2021
 
 test-suite test
@@ -106,8 +115,11 @@ test-suite test
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    include-dirs:
+        src/Board/
     c-sources:
         src/Board/move.c
+        src/Board/move.h
     build-depends:
         QuickCheck,
         array,
@@ -147,8 +159,11 @@ benchmark board
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    include-dirs:
+        src/Board/
     c-sources:
         src/Board/move.c
+        src/Board/move.h
     build-depends:
         array,
         base,

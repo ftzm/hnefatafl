@@ -86,32 +86,47 @@ kingTest =
  .  .  .  .  .  .  .  .  .  .  .
 |]
 
-wot1 =
+shouldCapture =
   [b|
  .  .  .  X  X  X  X  X  .  .  .
  .  .  .  .  .  X  .  .  .  .  .
  .  .  .  .  .  .  .  .  .  .  .
- X  .  .  .  .  O  .  X  .  .  .
- X  .  .  .  O  O  O  .  .  .  X
- X  X  .  O  O  #  O  .  .  X  X
- X  .  .  .  O  O  O  .  .  .  X
- X  .  .  .  .  O  .  .  .  .  X
- .  .  .  .  .  .  .  O  .  .  .
- .  .  .  .  .  X  .  .  .  .  .
- .  .  .  X  X  X  X  X  .  .  .
-|]
-
-wot2 =
-  [b|
- .  .  .  X  X  X  .  X  .  .  .
- .  .  .  .  .  X  .  .  .  .  .
- .  .  .  .  .  .  X  .  .  .  .
  X  .  .  .  .  O  .  .  .  .  X
  X  .  .  .  O  O  O  .  .  .  X
  X  X  .  O  O  #  O  O  .  X  X
  X  .  .  .  O  O  O  .  .  .  X
  X  .  .  .  .  .  .  .  .  .  X
  .  .  .  .  .  O  .  .  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  X  X  X  X  X  .  .  .
+|]
+
+shouldCapture2 =
+  [b|
+ .  .  .  X  X  X  X  X  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ X  .  .  .  .  O  .  .  .  .  X
+ X  O  .  .  .  O  O  .  .  .  X
+ X  X  .  O  O  #  O  O  .  X  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  .  .  .  .  O  .  .  .  .  X
+ .  .  .  .  X  .  .  .  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  X  .  X  X  X  .  .  .
+|]
+
+response =
+  [b|
+ .  .  .  X  X  X  X  X  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ X  .  .  .  .  O  .  .  .  .  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  X  .  O  O  #  O  O  .  X  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
  .  .  .  .  .  X  .  .  .  .  .
  .  .  .  X  X  X  X  X  .  .  .
 |]
@@ -167,17 +182,31 @@ main = do
   -- putStrLn $ showBoard $ board result
   -- putStrLn $ show $ tally result
 
-  let resultAB = alphaBeta (0,0) startBoard Black Black 4 0 minBound maxBound
-  putStrLn $ showBoard $ board resultAB
+  let resultAB = alphaBeta (0,0) [startBoard] Black Black 3 0 minBound maxBound
+  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board resultAB
   putStrLn $ "tally" <> (show $ tally resultAB)
   putStrLn $ "score" <> (show $ score resultAB)
 
-  let resultABneg = negamaxAB (0,0) startBoard Black Black 4 0 (minBound + 10) (maxBound - 10)
-  putStrLn $ showBoard $ board resultABneg
+  let resultABneg = negamaxAB (0,0) [shouldCapture2] Black 2 0 (-1000000) (1000000)
+  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board resultABneg
   putStrLn $ "tally" <> (show $ tally resultABneg)
   putStrLn $ "score" <> (show $ score resultABneg)
 
-  print $ scoreBoard Black wot1
-  print $ scoreBoard Black wot2
+  let capP = negamaxAB (0,0) [startBoard] Black 3 0 (minBound + 10) (maxBound - 10)
+  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
+  putStrLn $ "tally" <> (show $ tally capP)
+  putStrLn $ "score" <> (show $ score capP)
+
+  let capP = negamaxAB (0,0) [startBoard] Black 5 0 (minBound + 10) (maxBound - 10)
+  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
+  putStrLn $ "tally" <> (show $ tally capP)
+  putStrLn $ "score" <> (show $ score capP)
+
+  -- let capP = negamaxAB (0,0) [response] White 3 0 (minBound + 10) (maxBound - 10)
+  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
+  -- putStrLn $ "tally" <> (show $ tally capP)
+  -- putStrLn $ "score" <> (show $ score capP)
+
+  -- print $ teamMoves (setBit 0 10) 0
 
   pure ()

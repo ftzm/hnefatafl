@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -15,6 +16,9 @@ module Board.Board (
   showWord128Board,
   b,
   bl,
+  --testFfiMove,
+  Move(..),
+  Moves(..),
 ) where
 
 import Data.Data (Data)
@@ -27,6 +31,9 @@ import Data.WideWord.Word128 (Word128 (..))
 import GHC.Bits (Bits (..))
 import Language.Haskell.TH.Quote (QuasiQuoter (..))
 import Language.Haskell.TH.Syntax (liftData)
+
+import Foreign.Storable
+import Foreign.Marshal.Array
 
 --------------------------------------------------------------------------------
 -- Board
@@ -53,21 +60,21 @@ instance U.IsoUnbox Word128 (Word64, Word64) where
 newtype instance U.MVector s Word128 = MV_Word128 (U.MVector s (Word64, Word64))
 newtype instance U.Vector Word128 = V_Word128 (U.Vector (Word64, Word64))
 deriving via (Word128 `U.As` (Word64, Word64)) instance M.MVector U.MVector Word128
-deriving via (Word128 `U.As` (Word64, Word64)) instance G.Vector  U.Vector  Word128
+deriving via (Word128 `U.As` (Word64, Word64)) instance G.Vector U.Vector Word128
 instance U.Unbox Word128
 
 --------------------------------------------------------------------------------
 
 instance U.IsoUnbox Board (Word128, Word128, Word128) where
- toURepr (Board x y z) = (x, y, z)
- fromURepr (x, y, z) = Board x y z
- {-# INLINE toURepr #-}
- {-# INLINE fromURepr #-}
+  toURepr (Board x y z) = (x, y, z)
+  fromURepr (x, y, z) = Board x y z
+  {-# INLINE toURepr #-}
+  {-# INLINE fromURepr #-}
 
 newtype instance U.MVector s Board = MV_Board (U.MVector s (Word128, Word128, Word128))
 newtype instance U.Vector Board = V_Board (U.Vector (Word128, Word128, Word128))
 deriving via (Board `U.As` (Word128, Word128, Word128)) instance M.MVector U.MVector Board
-deriving via (Board `U.As` (Word128, Word128, Word128)) instance G.Vector  U.Vector  Board
+deriving via (Board `U.As` (Word128, Word128, Word128)) instance G.Vector U.Vector Board
 instance U.Unbox Board
 
 --------------------------------------------------------------------------------
@@ -135,3 +142,47 @@ showBoard Board{..} =
         | testBit king i -> '#'
         | testBit blackPawns i -> 'X'
         | otherwise -> '.'
+
+--------------------------------------------------------------------------------
+-- Storable
+
+-- #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
+#include "move.h"
+
+-- instance Storable Board where
+--   alignment _ = #{alignment board}
+--   sizeOf _    = #{size      board}
+--
+--   peek p = do
+--
+--
+--   poke = undefined
+
+--------------------------------------------------------------------------------
+
+data Move = Move {orig :: Int8, dest :: Int8}
+  deriving Show
+
+instance Storable Move where
+   alignment _ = #{alignment move}
+   sizeOf _    = #{size      move}
+
+   peek p = Move <$> #{peek move, orig} p <*> #{peek move, dest} p
+
+   poke = undefined
+
+
+newtype Moves = Moves { unMoves :: [Move]}
+  deriving Show
+
+instance Storable Moves where
+   alignment _ = #{alignment moves_t}
+   sizeOf _    = #{size      moves_t}
+
+   peek p = do
+     len <- #{peek moves_t, num} p
+     msPtr <- #{peek moves_t, moves} p
+     ms <- peekArray len msPtr
+     pure $ Moves ms
+
+   poke = undefined

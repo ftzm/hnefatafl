@@ -7,8 +7,16 @@ verbatim:
 
 language: GHC2021
 
+include-dirs:
+  - "src/Board/"
+
 c-sources:
   - "src/Board/move.c"
+  - "src/Board/move.h"
+
+extra-source-files:
+  - "src/Board/move.c"
+  - "src/Board/move.h"
 
 default-extensions:
   - TemplateHaskell
