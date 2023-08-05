@@ -131,11 +131,58 @@ response =
  .  .  .  X  X  X  X  X  .  .  .
 |]
 
+testBoard =
+  [b|
+ .  .  .  X  X  X  X  X  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ X  .  .  .  .  O  .  .  .  .  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  X  .  O  O  #  .  O  .  X  X
+ .  .  X  .  O  O  .  .  O  .  X
+ X  .  .  .  .  O  .  .  .  .  X
+ .  .  .  .  X  .  .  .  .  .  .
+ .  .  .  .  .  X  O  .  .  .  .
+ .  .  .  X  .  X  X  X  .  .  .
+|]
+
+sameP1 =
+  [b|
+ .  .  .  X  X  X  X  X  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ X  .  .  .  .  O  .  .  .  .  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  X  .  O  O  #  O  O  .  X  X
+ X  .  O  .  .  O  O  .  .  .  X
+ X  .  .  .  .  O  .  .  .  .  X
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  X  X  X  X  X  .  .  .
+|]
+
+sameP2 =
+  [b|
+ .  .  .  X  X  X  X  X  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ X  .  .  .  .  O  .  .  .  .  X
+ X  .  .  .  O  O  O  .  .  .  X
+ X  X  .  O  O  #  O  O  .  X  X
+ X  .  .  .  O  O  .  .  .  .  X
+ X  .  .  .  .  O  .  .  .  .  X
+ .  .  .  .  .  .  O  .  .  .  .
+ .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  X  X  X  X  X  .  .  .
+|]
+
 --------------------------------------------------------------------------------
 
 -- prop_teamMovesCEqual :: Word128 -> Word128 -> Bool
 -- prop_teamMovesCEqual team occ =
 --   cTeamMoveCount team occ ==
+
+-- prop_teamMovesCEqual :: Word128 -> Word128 -> Bool
 
 --------------------------------------------------------------------------------
 
@@ -182,25 +229,25 @@ main = do
   -- putStrLn $ showBoard $ board result
   -- putStrLn $ show $ tally result
 
-  let resultAB = alphaBeta (0,0) [startBoard] Black Black 3 0 minBound maxBound
-  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board resultAB
-  putStrLn $ "tally" <> (show $ tally resultAB)
-  putStrLn $ "score" <> (show $ score resultAB)
+  -- let resultAB = alphaBeta (0,0) [startBoard] Black Black 4 0 (-1000000) (1000000)
+  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ resultAB.board
+  -- putStrLn $ "tally" <> (show resultAB.tally)
+  -- putStrLn $ "score" <> (show resultAB.score)
 
-  let resultABneg = negamaxAB (0,0) [shouldCapture2] Black 2 0 (-1000000) (1000000)
-  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board resultABneg
-  putStrLn $ "tally" <> (show $ tally resultABneg)
-  putStrLn $ "score" <> (show $ score resultABneg)
+  -- resultABneg <- negamaxAB (0,0) [startBoard] Black 4 0 (-1000000) (1000000)
+  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ resultABneg.board
+  -- putStrLn $ "tally: " <> (show resultABneg.tally)
+  -- putStrLn $ "score: " <> (show resultABneg.score)
 
-  let capP = negamaxAB (0,0) [startBoard] Black 3 0 (minBound + 10) (maxBound - 10)
-  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
-  putStrLn $ "tally" <> (show $ tally capP)
-  putStrLn $ "score" <> (show $ score capP)
+  -- let capP = negamaxAB (0,0) [startBoard] Black 3 0 (minBound + 10) (maxBound - 10)
+  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
+  -- putStrLn $ "tally" <> (show $ tally capP)
+  -- putStrLn $ "score" <> (show $ score capP)
 
-  let capP = negamaxAB (0,0) [startBoard] Black 5 0 (minBound + 10) (maxBound - 10)
-  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
-  putStrLn $ "tally" <> (show $ tally capP)
-  putStrLn $ "score" <> (show $ score capP)
+  -- capP <- negamaxAB (0,0) [startBoard] Black 5 0 (minBound + 10) (maxBound - 10)
+  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
+  -- putStrLn $ "tally" <> (show $ tally capP)
+  -- putStrLn $ "score" <> (show $ score capP)
 
   -- let capP = negamaxAB (0,0) [response] White 3 0 (minBound + 10) (maxBound - 10)
   -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
@@ -208,5 +255,29 @@ main = do
   -- putStrLn $ "score" <> (show $ score capP)
 
   -- print $ teamMoves (setBit 0 10) 0
+
+  -- (result, stats) <- runSearch startBoard Black
+  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ result.board
+  -- print stats
+  -- putStrLn $ "tally" <> (show result.tally)
+  -- putStrLn $ "score" <> (show result.score)
+
+  -- putStrLn $ showBoard testBoard
+  -- print $ scoreBoard Black testBoard
+  -- putStrLn ""
+  -- putStrLn $ showBoard $ rotateBoard90 testBoard
+  -- print $ scoreBoard Black $ rotateBoard90 testBoard
+  -- putStrLn ""
+  -- putStrLn $ showBoard $ rotateBoard180 testBoard
+  -- print $ scoreBoard Black $ rotateBoard180 testBoard
+  -- putStrLn ""
+  -- putStrLn $ showBoard $ rotateBoard270 testBoard
+  -- print $ scoreBoard Black $ rotateBoard270 testBoard
+
+  (result, stats) <- runSearch' startBoard Black
+  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ result.board
+  print stats
+  putStrLn $ "tally: " <> (show result.tally)
+  putStrLn $ "score: " <> (show result.score)
 
   pure ()

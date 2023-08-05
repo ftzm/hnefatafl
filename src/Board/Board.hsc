@@ -46,7 +46,10 @@ data Board = Board
     blackPawns :: {-# UNPACK #-} !Word128
     -- , revBlackPawns :: !Word128
   }
-  deriving (Data, Generic, NFData)
+  deriving (Data, Generic, NFData, Eq)
+
+-- instance Eq Board where
+--   a == b = showBoard a == showBoard b
 
 --------------------------------------------------------------------------------
 -- Unbox instance for word128
@@ -64,6 +67,7 @@ deriving via (Word128 `U.As` (Word64, Word64)) instance G.Vector U.Vector Word12
 instance U.Unbox Word128
 
 --------------------------------------------------------------------------------
+-- Unbox instance for word128
 
 instance U.IsoUnbox Board (Word128, Word128, Word128) where
   toURepr (Board x y z) = (x, y, z)

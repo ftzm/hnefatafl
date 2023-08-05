@@ -27,11 +27,14 @@ library
         containers,
         deepseq,
         parallel,
+        random,
         raw-strings-qq,
         relude,
         split,
+        storable-tuple,
         template-haskell,
         vector,
+        vector-hashtables,
         wide-word
     mixins:
         base hiding (Prelude),
@@ -68,11 +71,14 @@ executable hnefatafl
         deepseq,
         hnefatafl,
         parallel,
+        random,
         raw-strings-qq,
         relude,
         split,
+        storable-tuple,
         template-haskell,
         vector,
+        vector-hashtables,
         wide-word
     mixins:
         base hiding (Prelude),
@@ -129,11 +135,14 @@ test-suite test
         hnefatafl,
         parallel,
         quickcheck-instances,
+        random,
         raw-strings-qq,
         relude,
         split,
+        storable-tuple,
         template-haskell,
         vector,
+        vector-hashtables,
         wide-word
     mixins:
         base hiding (Prelude),
@@ -172,11 +181,14 @@ benchmark board
         deepseq,
         hnefatafl,
         parallel,
+        random,
         raw-strings-qq,
         relude,
         split,
+        storable-tuple,
         template-haskell,
         vector,
+        vector-hashtables,
         wide-word
     mixins:
         base hiding (Prelude),

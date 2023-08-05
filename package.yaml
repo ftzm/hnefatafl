@@ -59,6 +59,9 @@ dependencies:
   - array
   - deepseq
   - parallel
+  - random
+  - vector-hashtables
+  - storable-tuple
   # - aeson
   # - annotated-exception
   # - bytestring
