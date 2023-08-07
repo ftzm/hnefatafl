@@ -57,6 +57,7 @@ blackStart =
  .  .  .  X  X  X  X  X  .  .  .
 |]
 
+startBoard :: Board
 startBoard =
   [b|
  .  .  .  X  X  X  X  X  .  .  .

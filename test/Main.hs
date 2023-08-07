@@ -10,6 +10,8 @@ import Data.Vector qualified as BV
 import Data.Vector.Unboxed qualified as V
 import Data.WideWord.Word128
 import GHC.Conc
+import Control.Exception
+import AI.NegamaxABZ
 
 simpleCapture =
   [b|
@@ -274,7 +276,7 @@ main = do
   -- putStrLn $ showBoard $ rotateBoard270 testBoard
   -- print $ scoreBoard Black $ rotateBoard270 testBoard
 
-  (result, stats) <- runSearch' startBoard Black
+  (result, stats) <- runSearch testBoard Black
   mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ result.board
   print stats
   putStrLn $ "tally: " <> (show result.tally)

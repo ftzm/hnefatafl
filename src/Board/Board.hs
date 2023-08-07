@@ -1,6 +1,4 @@
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -16,24 +14,28 @@ module Board.Board (
   showWord128Board,
   b,
   bl,
-  --testFfiMove,
-  Move(..),
-  Moves(..),
+  Move (..),
+  Moves (..),
+  PieceType (..),
+  Team (..),
+  opp,
+  testBoardBit,
+  allVariations,
 ) where
 
 import Data.Data (Data)
 import Data.List.Split (chunksOf, splitOn)
 import Data.Vector.Generic qualified as G
 import Data.Vector.Generic.Mutable qualified as M
-import Data.Vector.Unboxed qualified as U
 import Data.Vector.Unboxed.Base qualified as U
 import Data.WideWord.Word128 (Word128 (..))
 import GHC.Bits (Bits (..))
 import Language.Haskell.TH.Quote (QuasiQuoter (..))
 import Language.Haskell.TH.Syntax (liftData)
 
-import Foreign.Storable
+import Board.Geometry (rotateIndex180, rotateIndex270, rotateIndex90)
 import Foreign.Marshal.Array
+import Foreign.Storable
 
 --------------------------------------------------------------------------------
 -- Board
@@ -50,6 +52,26 @@ data Board = Board
 
 -- instance Eq Board where
 --   a == b = showBoard a == showBoard b
+
+--------------------------------------------------------------------------------
+-- Teams
+
+data Team = White | Black
+  deriving (Show, Generic, Eq)
+  deriving anyclass (NFData)
+
+opp :: Team -> Team
+opp White = Black
+opp Black = White
+
+data PieceType = WhiteType | KingType | BlackType
+  deriving (Show, Generic, Eq)
+  deriving anyclass (NFData)
+
+--------------------------------------------------------------------------------
+
+testBoardBit :: Word128 -> Int8 -> Bool
+testBoardBit w i = testBit w $ fromIntegral i
 
 --------------------------------------------------------------------------------
 -- Unbox instance for word128
@@ -148,45 +170,81 @@ showBoard Board{..} =
         | otherwise -> '.'
 
 --------------------------------------------------------------------------------
--- Storable
-
--- #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
-#include "move.h"
-
--- instance Storable Board where
---   alignment _ = #{alignment board}
---   sizeOf _    = #{size      board}
---
---   peek p = do
---
---
---   poke = undefined
-
---------------------------------------------------------------------------------
+-- Show
 
 data Move = Move {orig :: Int8, dest :: Int8}
-  deriving Show
+  deriving (Show)
 
 instance Storable Move where
-   alignment _ = #{alignment move}
-   sizeOf _    = #{size      move}
+  alignment _ = 1
+  sizeOf _ = 2
 
-   peek p = Move <$> #{peek move, orig} p <*> #{peek move, dest} p
+  peek p = Move <$> (`peekByteOff` 0) p <*> (`peekByteOff` 1) p
 
-   poke = undefined
+  poke = error "undefined"
 
+--------------------------------------------------------------------------------
+-- FFI
 
-newtype Moves = Moves { unMoves :: [Move]}
-  deriving Show
+newtype Moves = Moves {unMoves :: [Move]}
+  deriving (Show)
 
 instance Storable Moves where
-   alignment _ = #{alignment moves_t}
-   sizeOf _    = #{size      moves_t}
+  alignment _ = 8
+  sizeOf _ = 16
 
-   peek p = do
-     len <- #{peek moves_t, num} p
-     msPtr <- #{peek moves_t, moves} p
-     ms <- peekArray len msPtr
-     pure $ Moves ms
+  peek p = do
+    len <- (`peekByteOff` 0) p
+    msPtr <- (`peekByteOff` 8) p
+    ms <- peekArray len msPtr
+    pure $ Moves ms
 
-   poke = undefined
+  poke = error "undefined"
+
+--------------------------------------------------------------------------------
+-- Rotate board
+
+rotateLayer :: (Int8 -> Int8) -> Word128 -> Word128
+rotateLayer f input =
+  foldl'
+    ( \acc i ->
+        if testBit input (fromIntegral i)
+          then setBit acc (fromIntegral $ f i)
+          else acc
+    )
+    0
+    [0 .. 120]
+
+rotateLayer90 :: Word128 -> Word128
+rotateLayer90 = rotateLayer rotateIndex90
+
+rotateLayer180 :: Word128 -> Word128
+rotateLayer180 = rotateLayer rotateIndex180
+
+rotateLayer270 :: Word128 -> Word128
+rotateLayer270 = rotateLayer rotateIndex270
+
+rotateBoard :: (Word128 -> Word128) -> Board -> Board
+rotateBoard f board =
+  Board
+    { whitePawns = f board.whitePawns
+    , king = f board.king
+    , blackPawns = f board.blackPawns
+    }
+
+rotateBoard90 :: Board -> Board
+rotateBoard90 = rotateBoard rotateLayer90
+
+rotateBoard180 :: Board -> Board
+rotateBoard180 = rotateBoard rotateLayer180
+
+rotateBoard270 :: Board -> Board
+rotateBoard270 = rotateBoard rotateLayer270
+
+allVariations :: Board -> [Board]
+allVariations board =
+  [ board
+  , rotateBoard90 board
+  , rotateBoard180 board
+  , rotateBoard270 board
+  ]

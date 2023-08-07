@@ -13,9 +13,15 @@ extra-source-files:
 
 library
     exposed-modules:
+        AI.AlphaBeta
+        AI.Assessment
+        AI.NegamaxAB
+        AI.NegamaxABZ
         Board.Board
         Board.Constant
+        Board.Geometry
         Board.Move
+        Board.Zobrist
         MyLib
     other-modules:
         Paths_hnefatafl
