@@ -62,7 +62,7 @@ dependencies:
   - random
   - vector-hashtables
   - storable-tuple
-  # - aeson
+  - aeson
   # - annotated-exception
   # - bytestring
   # - cassava
@@ -71,31 +71,32 @@ dependencies:
   # - exceptions
   # - generic-optics
   # - http-client
-  # - http-media
-  # - http-types
+  - http-media
+  - http-types
   # - katip
-  # - mtl
+  - mtl
   # - newtype-generics
   # - optics
   # - refined >= 0.7
   # - resourcet
-  # - text
-  # - servant
-  # - servant-client
-  # - servant-server >=0.4.7.0
+  - text
+  - servant
+  - servant-client
+  - servant-server
+  - servant-websockets
+  - websockets
   # - QuickCheck
   # - quickcheck-instances
-  # - vector
-  # - wai
-  # - warp
+  - wai
+  - warp
   # - some
   # - attoparsec
   # - deepseq
   # - generic-random
-  # - lucid2
+  - lucid2
   # - servant-lucid
-  # - uuid
-  # - time
+  - uuid
+  - time
 
 library:
   source-dirs: src

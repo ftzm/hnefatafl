@@ -22,25 +22,49 @@ library
         Board.Geometry
         Board.Move
         Board.Zobrist
+        Command
+        Event
+        Html.Board
+        Html.QuickGame
+        Html.Wrapper
         MyLib
+        QuickGame
+        Routes
+        ServantLucid
+        Server
     other-modules:
         Paths_hnefatafl
     autogen-modules:
         Paths_hnefatafl
     build-depends:
+        aeson,
         array,
         base,
         containers,
         deepseq,
+        http-media,
+        http-types,
+        lucid2,
+        mtl,
         parallel,
         random,
         raw-strings-qq,
         relude,
+        servant,
+        servant-client,
+        servant-server,
+        servant-websockets,
         split,
         storable-tuple,
         template-haskell,
+        text,
+        time,
+        uuid,
         vector,
         vector-hashtables,
+        wai,
+        warp,
+        websockets,
         wide-word
     mixins:
         base hiding (Prelude),
@@ -71,20 +95,35 @@ executable hnefatafl
     autogen-modules:
         Paths_hnefatafl
     build-depends:
+        aeson,
         array,
         base,
         containers,
         deepseq,
         hnefatafl,
+        http-media,
+        http-types,
+        lucid2,
+        mtl,
         parallel,
         random,
         raw-strings-qq,
         relude,
+        servant,
+        servant-client,
+        servant-server,
+        servant-websockets,
         split,
         storable-tuple,
         template-haskell,
+        text,
+        time,
+        uuid,
         vector,
         vector-hashtables,
+        wai,
+        warp,
+        websockets,
         wide-word
     mixins:
         base hiding (Prelude),
@@ -134,21 +173,36 @@ test-suite test
         src/Board/move.h
     build-depends:
         QuickCheck,
+        aeson,
         array,
         base,
         containers,
         deepseq,
         hnefatafl,
+        http-media,
+        http-types,
+        lucid2,
+        mtl,
         parallel,
         quickcheck-instances,
         random,
         raw-strings-qq,
         relude,
+        servant,
+        servant-client,
+        servant-server,
+        servant-websockets,
         split,
         storable-tuple,
         template-haskell,
+        text,
+        time,
+        uuid,
         vector,
         vector-hashtables,
+        wai,
+        warp,
+        websockets,
         wide-word
     mixins:
         base hiding (Prelude),
@@ -180,21 +234,36 @@ benchmark board
         src/Board/move.c
         src/Board/move.h
     build-depends:
+        aeson,
         array,
         base,
         containers,
         criterion,
         deepseq,
         hnefatafl,
+        http-media,
+        http-types,
+        lucid2,
+        mtl,
         parallel,
         random,
         raw-strings-qq,
         relude,
+        servant,
+        servant-client,
+        servant-server,
+        servant-websockets,
         split,
         storable-tuple,
         template-haskell,
+        text,
+        time,
+        uuid,
         vector,
         vector-hashtables,
+        wai,
+        warp,
+        websockets,
         wide-word
     mixins:
         base hiding (Prelude),

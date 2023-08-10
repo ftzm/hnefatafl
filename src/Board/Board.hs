@@ -36,6 +36,7 @@ import Language.Haskell.TH.Syntax (liftData)
 import Board.Geometry (rotateIndex180, rotateIndex270, rotateIndex90)
 import Foreign.Marshal.Array
 import Foreign.Storable
+import Data.Aeson
 
 --------------------------------------------------------------------------------
 -- Board
@@ -66,7 +67,7 @@ opp Black = White
 
 data PieceType = WhiteType | KingType | BlackType
   deriving (Show, Generic, Eq)
-  deriving anyclass (NFData)
+  deriving anyclass (NFData, ToJSON, FromJSON)
 
 --------------------------------------------------------------------------------
 

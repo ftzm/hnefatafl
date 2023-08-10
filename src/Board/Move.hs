@@ -25,6 +25,9 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable (peek))
 import Foreign.Storable.Tuple ()
 import System.IO.Unsafe (unsafePerformIO)
+import Foreign.Marshal (alloca)
+import Foreign.Marshal.Array (allocaArray)
+import Foreign (peekArray)
 
 --------------------------------------------------------------------------------
 -- Generate moves from a square
@@ -185,7 +188,10 @@ blackMoves Board{whitePawns, king, blackPawns} =
 blackMoves' :: Board -> [(Int8, Int8)]
 blackMoves' Board{whitePawns, king, blackPawns} =
   let occ = pawnIllegalDestinations .|. whitePawns .|. king .|. blackPawns
-   in map (\(Move orig dest) -> (orig, dest)) $ unMoves $ teamMoves blackPawns occ
+   in map (\(Move orig dest) -> (orig, dest)) $ unMoves $ teamMoves2 blackPawns occ
+
+blackMoves'' :: Board -> [(Int8, Int8)]
+blackMoves'' = V.toList . blackMoves
 
 whiteMoves :: Board -> V.Vector (Int8, Int8)
 whiteMoves Board{whitePawns, king, blackPawns} =
@@ -197,7 +203,10 @@ whiteMoves Board{whitePawns, king, blackPawns} =
 whiteMoves' :: Board -> [(Int8, Int8)]
 whiteMoves' Board{whitePawns, king, blackPawns} =
   let occ = pawnIllegalDestinations .|. whitePawns .|. king .|. blackPawns
-   in map (\(Move orig dest) -> (orig, dest)) $ unMoves $ teamMoves whitePawns occ
+   in map (\(Move orig dest) -> (orig, dest)) $ unMoves $ teamMoves2 whitePawns occ
+
+whiteMoves'' :: Board -> [(Int8, Int8)]
+whiteMoves'' = V.toList . whiteMoves
 
 kingMoves :: Board -> V.Vector (Int8, Int8)
 kingMoves Board{whitePawns, king, blackPawns} =
@@ -208,7 +217,7 @@ kingMoves Board{whitePawns, king, blackPawns} =
 
 kingMoves' :: Board -> [(Int8, Int8)]
 kingMoves' Board{whitePawns, king, blackPawns} =
-  map (fromIntegral $ popCount king,) $
+  map (fromIntegral $ countTrailingZeros king,) $
     V.toList $
       pieceMoves (whitePawns .|. blackPawns) $
         fromIntegral $
@@ -231,7 +240,7 @@ applyMoveBlack' board opps (orig, dest) =
 applyMoveBlack :: Board -> (Int8, Int8) -> Board
 applyMoveBlack board (orig, dest) =
   let
-    opps = board.whitePawns .|. board.king
+    opps = board.whitePawns
     departedBlacks = clearBit board.blackPawns $ fromIntegral orig
     capturedSquares = captures departedBlacks opps dest
    in
@@ -327,7 +336,8 @@ applyMoveWhitePawn board (orig, dest) =
   let
     opps = board.blackPawns
     departed = clearBit board.whitePawns $ fromIntegral orig
-    capturedSquares = captures departed opps dest
+    allies = departed .|. board.king
+    capturedSquares = captures allies opps dest
    in
     board
       { whitePawns = setBit departed $ fromIntegral dest
@@ -338,10 +348,11 @@ applyMoveKing :: Board -> Int8 -> Board
 applyMoveKing board dest =
   let
     opps = board.blackPawns
+    capturedSquares = captures board.whitePawns opps dest
    in
     board
       { king = setBit 0 $ fromIntegral dest
-      , blackPawns = xor board.blackPawns $ captures 0 opps dest
+      , blackPawns = xor board.blackPawns capturedSquares
       }
 
 nextBoardsWhite :: Board -> V.Vector Board
@@ -517,3 +528,30 @@ teamMoves team occ =
       (fromIntegral occ.word128Lo64)
       >>= newForeignPtr c_free_team_moves
       >>= flip withForeignPtr peek
+
+foreign import ccall "team_moves_ptr"
+  c_team_moves_2 ::
+    CULong ->
+    CULong ->
+    CULong ->
+    CULong ->
+    Ptr CInt ->
+    Ptr Move ->
+    IO ()
+
+teamMoves2 :: Word128 -> Word128 -> Moves
+{-# NOINLINE teamMoves2 #-}
+teamMoves2 team occ =
+  unsafePerformIO $
+    alloca $ \p1 ->
+      allocaArray 400 $ \p2 -> do
+        c_team_moves_2
+          (fromIntegral team.word128Hi64)
+          (fromIntegral team.word128Lo64)
+          (fromIntegral occ.word128Hi64)
+          (fromIntegral occ.word128Lo64)
+          p1
+          p2
+        len <- peek p1
+        ms <- peekArray (fromIntegral len) p2
+        pure $ Moves ms

@@ -38,6 +38,9 @@
             #ormolu                  # https://github.com/tweag/ormolu
             fourmolu
             hpack
+            pkgs.zlib
+            pkgs.gdb
+            pkgs.sqlite
           ];
 
           withHoogle = true;

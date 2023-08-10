@@ -226,7 +226,7 @@ moves_t *team_moves(
   };
 
   moves_t *m;
-  m = malloc(sizeof(move));
+  m = malloc(sizeof(moves_t));
   m->num = move_index;
   m->moves = moves;
 
@@ -239,6 +239,109 @@ moves_t *team_moves(
   }
 
   return m;
+}
+
+moves_t *team_moves_ptr(
+	      const uint64_t teamHi,
+	      const uint64_t teamLo,
+	      const uint64_t occHi,
+	      const uint64_t occLo,
+	      int *move_index,
+	      move *moves
+	      ) {
+
+  u128 team = {teamHi, teamLo};
+  u128 occ = {occHi, occLo};
+
+  //printf("teamHi: %d \n", teamHi);
+  //printf("teamLo: %d \n", teamLo);
+  //printf("occHi: %d \n", occHi);
+  //printf("occLo: %d \n", occLo);
+
+  *move_index = 0;
+
+  int board_index;
+  for (board_index = 0; board_index < 121; board_index++) {
+    //printf("index: %d \n", board_index);
+    if (checkBoardBit(team, board_index)) {
+
+      //printf("teamLo popCount: %d \n", __builtin_popcount(teamLo));
+      //printf("found piece at index: %d \n", board_index);
+
+
+      // for north and south
+      int i;
+
+
+      // for east and west
+      int count;
+      int limit;
+      int pos;
+
+
+      //north
+      for (i = board_index + 11; i < 121; i = i + 11) {
+        //printf("hit north\n");
+        //printf("north: %d \n", i);
+	if (checkBoardBit(occ, i)) {
+	  break;
+	}
+	moves[*move_index] = (struct move) {board_index, i};
+	(*move_index)++;
+        //printf("move_index: %d \n", move_index);
+      }
+
+
+      //printf("post north\n");
+
+      //south
+      for (i = board_index - 11; i >= 0; i = i - 11) {
+        //printf("hit south\n");
+	if (checkBoardBit(occ, i)) {
+	  break;
+	};
+	moves[*move_index] = (struct move) {board_index, i};
+	(*move_index)++;
+      }
+
+      //printf("post south\n");
+
+      //east
+      count = 0;
+      pos = board_index;
+      limit = 10 - (pos % 11);
+      while (count < limit) {
+	pos++;
+	count++;
+	if (checkBoardBit(occ, pos)) {
+	  break;
+	};
+	moves[*move_index] = (struct move) {board_index, pos};
+	(*move_index)++;
+      }
+
+      //printf("post east\n");
+
+      //west
+      count = 0;
+      pos = board_index;
+      limit = pos % 11;
+      while (count < limit) {
+	//printf("in west\n");
+	pos--;
+	count++;
+	if (checkBoardBit(occ, pos)) {
+	  break;
+	};
+	moves[*move_index] = (struct move) {board_index, pos};
+	(*move_index)++;
+      }
+
+      //printf("post west\n");
+    };
+  };
+
+  return 0;
 }
 
 void *free_team_moves(moves_t *moves) {
