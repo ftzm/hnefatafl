@@ -23,8 +23,14 @@ library
         Board.Move
         Board.Zobrist
         Command
+        DB.Game
         Event
+        Game.AI
+        Game.Hotseat
+        Html.AI
         Html.Board
+        Html.Home
+        Html.Hotseat
         Html.QuickGame
         Html.Wrapper
         MyLib
@@ -55,6 +61,7 @@ library
         servant-server,
         servant-websockets,
         split,
+        sqlite-simple,
         storable-tuple,
         template-haskell,
         text,
@@ -114,6 +121,7 @@ executable hnefatafl
         servant-server,
         servant-websockets,
         split,
+        sqlite-simple,
         storable-tuple,
         template-haskell,
         text,
@@ -193,6 +201,7 @@ test-suite test
         servant-server,
         servant-websockets,
         split,
+        sqlite-simple,
         storable-tuple,
         template-haskell,
         text,
@@ -254,6 +263,7 @@ benchmark board
         servant-server,
         servant-websockets,
         split,
+        sqlite-simple,
         storable-tuple,
         template-haskell,
         text,

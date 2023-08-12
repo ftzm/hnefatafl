@@ -9,6 +9,6 @@ wrapper title body =
   doctypehtml_ $ do
     head_ $ do
       title_ $ toHtml title
-      link_ [rel_ "stylesheet", type_ "text/css", href_ "style.css"]
+      link_ [rel_ "stylesheet", type_ "text/css", href_ "/style.css"]
     body_ [] $ do
       body

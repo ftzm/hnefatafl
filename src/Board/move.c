@@ -281,6 +281,11 @@ moves_t *team_moves_ptr(
 
       //north
       for (i = board_index + 11; i < 121; i = i + 11) {
+	//exclude throne
+	if (i == 60) {
+	  continue;
+	}
+
         //printf("hit north\n");
         //printf("north: %d \n", i);
 	if (checkBoardBit(occ, i)) {
@@ -296,6 +301,11 @@ moves_t *team_moves_ptr(
 
       //south
       for (i = board_index - 11; i >= 0; i = i - 11) {
+	//exclude throne
+	if (i == 60) {
+	  continue;
+	}
+
         //printf("hit south\n");
 	if (checkBoardBit(occ, i)) {
 	  break;
@@ -313,6 +323,12 @@ moves_t *team_moves_ptr(
       while (count < limit) {
 	pos++;
 	count++;
+
+	//exclude throne
+	if (pos == 60) {
+	  continue;
+	}
+
 	if (checkBoardBit(occ, pos)) {
 	  break;
 	};
@@ -330,6 +346,12 @@ moves_t *team_moves_ptr(
 	//printf("in west\n");
 	pos--;
 	count++;
+
+	//exclude throne
+	if (pos == 60) {
+	  continue;
+	}
+
 	if (checkBoardBit(occ, pos)) {
 	  break;
 	};

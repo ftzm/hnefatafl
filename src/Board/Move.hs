@@ -10,24 +10,24 @@ import Board.Board (
   PieceType (..),
   testBoardBit,
  )
-import Board.Constant (pawnIllegalDestinations)
+import Board.Constant (corners, pawnIllegalDestinations, throne, whiteAlliedSquares)
 import Board.Zobrist (MultiZobrist, updateMultiZobrist)
 import Data.Bits (Bits (..), FiniteBits (..))
 import Data.Vector.Unboxed qualified as V
 import Data.WideWord (Word128 (..))
+import Foreign (peekArray)
 import Foreign.C.Types (CInt, CULong (..))
 import Foreign.ForeignPtr (
   FinalizerPtr,
   newForeignPtr,
   withForeignPtr,
  )
+import Foreign.Marshal (alloca)
+import Foreign.Marshal.Array (allocaArray)
 import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable (peek))
 import Foreign.Storable.Tuple ()
 import System.IO.Unsafe (unsafePerformIO)
-import Foreign.Marshal (alloca)
-import Foreign.Marshal.Array (allocaArray)
-import Foreign (peekArray)
 
 --------------------------------------------------------------------------------
 -- Generate moves from a square
@@ -118,21 +118,21 @@ captures !friendBoard !foeBoard !dest =
             else x
     withSouthCapture x =
       let !target = dest - 11
-       in if dest > 23
+       in if dest > 21
             && testBit foeBoard (fromIntegral target)
             && testBit friendBoard (fromIntegral $ dest - 22)
             then setBit x $ fromIntegral target
             else x
     withEastCapture x =
       let !target = dest + 1
-       in if modDest < 8
+       in if modDest < 9
             && testBit foeBoard (fromIntegral target)
             && testBit friendBoard (fromIntegral $ dest + 2)
             then setBit x $ fromIntegral target
             else x
     withWestCapture x =
       let !target = dest - 1
-       in if modDest > 2
+       in if modDest > 1
             && testBit foeBoard (fromIntegral target)
             && testBit friendBoard (fromIntegral $ dest - 2)
             then setBit x $ fromIntegral target
@@ -153,21 +153,21 @@ captures' !friendBoard !foeBoard !dest =
             else x
     withSouthCapture x =
       let !target = dest - 11
-       in if dest > 23
+       in if dest > 21
             && testBit foeBoard (fromIntegral target)
             && testBit friendBoard (fromIntegral $ dest - 22)
             then target : x
             else x
     withEastCapture x =
       let !target = dest + 1
-       in if modDest < 8
+       in if modDest < 9
             && testBit foeBoard (fromIntegral target)
             && testBit friendBoard (fromIntegral $ dest + 2)
             then target : x
             else x
     withWestCapture x =
       let !target = dest - 1
-       in if modDest > 2
+       in if modDest > 1
             && testBit foeBoard (fromIntegral target)
             && testBit friendBoard (fromIntegral $ dest - 2)
             then target : x
@@ -226,26 +226,16 @@ kingMoves' Board{whitePawns, king, blackPawns} =
 --------------------------------------------------------------------------------
 -- Generate baords
 
-applyMoveBlack' :: Board -> Word128 -> (Int8, Int8) -> Board
-applyMoveBlack' board opps (orig, dest) =
-  let
-    departedBlacks = clearBit board.blackPawns $ fromIntegral orig
-    capturedSquares = captures departedBlacks opps dest
-   in
-    board
-      { blackPawns = setBit departedBlacks $ fromIntegral dest
-      , whitePawns = xor board.whitePawns capturedSquares
-      }
-
 applyMoveBlack :: Board -> (Int8, Int8) -> Board
 applyMoveBlack board (orig, dest) =
   let
     opps = board.whitePawns
-    departedBlacks = clearBit board.blackPawns $ fromIntegral orig
-    capturedSquares = captures departedBlacks opps dest
+    departed = clearBit board.blackPawns $ fromIntegral orig
+    allies = departed .|. corners
+    capturedSquares = captures allies opps dest
    in
     board
-      { blackPawns = setBit departedBlacks $ fromIntegral dest
+      { blackPawns = setBit departed $ fromIntegral dest
       , whitePawns = xor board.whitePawns capturedSquares
       }
 
@@ -257,11 +247,12 @@ nextBoardsBlack board =
     applyChanges :: Int8 -> Int8 -> Board
     applyChanges orig dest =
       let
-        departedBlacks = clearBit board.blackPawns $ fromIntegral orig
-        capturedSquares = captures departedBlacks opps dest
+        departed = clearBit board.blackPawns $ fromIntegral orig
+        allies = departed .|. corners
+        capturedSquares = captures allies opps dest
        in
         board
-          { blackPawns = setBit departedBlacks $ fromIntegral dest
+          { blackPawns = setBit departed $ fromIntegral dest
           , whitePawns = xor board.whitePawns capturedSquares
           }
    in
@@ -275,11 +266,12 @@ nextMoveBoardsBlack board =
     applyChanges :: Int8 -> Int8 -> Board
     applyChanges orig dest =
       let
-        departedBlacks = clearBit board.blackPawns $ fromIntegral orig
-        capturedSquares = captures departedBlacks opps dest
+        departed = clearBit board.blackPawns $ fromIntegral orig
+        allies = departed .|. corners
+        capturedSquares = captures allies opps dest
        in
         board
-          { blackPawns = setBit departedBlacks $ fromIntegral dest
+          { blackPawns = setBit departed $ fromIntegral dest
           , whitePawns = xor board.whitePawns capturedSquares
           }
    in
@@ -293,11 +285,12 @@ nextMoveBoardsBlack' board =
     applyChanges :: Int8 -> Int8 -> Board
     applyChanges orig dest =
       let
-        departedBlacks = clearBit board.blackPawns $ fromIntegral orig
-        capturedSquares = captures departedBlacks opps dest
+        departed = clearBit board.blackPawns $ fromIntegral orig
+        allies = departed .|. corners
+        capturedSquares = captures allies opps dest
        in
         board
-          { blackPawns = setBit departedBlacks $ fromIntegral dest
+          { blackPawns = setBit departed $ fromIntegral dest
           , whitePawns = xor board.whitePawns capturedSquares
           }
    in
@@ -314,11 +307,12 @@ nextMoveBoardsBlackZ board zobrist =
     applyChanges :: Int8 -> Int8 -> ((Int8, Int8), Board, MultiZobrist)
     applyChanges orig dest =
       let
-        departedBlacks = clearBit board.blackPawns $ fromIntegral orig
-        capturedSquares = captures' departedBlacks opps dest
+        departed = clearBit board.blackPawns $ fromIntegral orig
+        allies = departed .|. corners
+        capturedSquares = captures' allies opps dest
         updatedBoard =
           board
-            { blackPawns = setBit departedBlacks $ fromIntegral dest
+            { blackPawns = setBit departed $ fromIntegral dest
             , whitePawns = xor board.whitePawns $ foldl' (\acc x -> setBit acc $ fromIntegral x) 0 capturedSquares
             }
         zPieces =
@@ -336,7 +330,7 @@ applyMoveWhitePawn board (orig, dest) =
   let
     opps = board.blackPawns
     departed = clearBit board.whitePawns $ fromIntegral orig
-    allies = departed .|. board.king
+    allies = departed .|. board.king .|. whiteAlliedSquares
     capturedSquares = captures allies opps dest
    in
     board
@@ -348,7 +342,8 @@ applyMoveKing :: Board -> Int8 -> Board
 applyMoveKing board dest =
   let
     opps = board.blackPawns
-    capturedSquares = captures board.whitePawns opps dest
+    allies = board.whitePawns .|. whiteAlliedSquares
+    capturedSquares = captures allies opps dest
    in
     board
       { king = setBit 0 $ fromIntegral dest
@@ -364,19 +359,21 @@ nextBoardsWhite board =
     applyPawnChanges orig dest =
       let
         departed = clearBit board.whitePawns $ fromIntegral orig
-        capturedSquares = captures departed opps dest
+        allies = departed .|. board.king .|. whiteAlliedSquares
+        capturedSquares = captures allies opps dest
        in
         board
           { whitePawns = setBit departed $ fromIntegral dest
           , blackPawns = xor board.blackPawns capturedSquares
           }
+    kingAllies = board.whitePawns .|. corners
     kingChanges :: V.Vector Board
     kingChanges =
       let
         arriveAndCapture dest =
           board
             { king = setBit 0 $ fromIntegral dest
-            , blackPawns = xor board.blackPawns $ captures 0 opps dest
+            , blackPawns = xor board.blackPawns $ captures kingAllies opps dest
             }
        in
         V.map (arriveAndCapture . snd) $ V.convert $ kingMoves board
@@ -392,19 +389,21 @@ nextMoveBoardsWhite board =
     applyPawnChanges orig dest =
       let
         departed = clearBit board.whitePawns $ fromIntegral orig
-        capturedSquares = captures departed opps dest
+        allies = departed .|. board.king .|. whiteAlliedSquares
+        capturedSquares = captures allies opps dest
        in
         board
           { whitePawns = setBit departed $ fromIntegral dest
           , blackPawns = xor board.blackPawns capturedSquares
           }
+    kingAllies = board.whitePawns .|. whiteAlliedSquares
     kingChanges :: V.Vector ((Int8, Int8), Board)
     kingChanges =
       let
         arriveAndCapture dest =
           board
             { king = setBit 0 $ fromIntegral dest
-            , blackPawns = xor board.blackPawns $ captures 0 opps dest
+            , blackPawns = xor board.blackPawns $ captures kingAllies opps dest
             }
        in
         V.map (\m -> (m, arriveAndCapture . snd $ m)) $ V.convert $ kingMoves board
@@ -420,19 +419,21 @@ nextMoveBoardsWhite' board =
     applyPawnChanges orig dest =
       let
         departed = clearBit board.whitePawns $ fromIntegral orig
-        capturedSquares = captures departed opps dest
+        allies = departed .|. board.king .|. whiteAlliedSquares
+        capturedSquares = captures allies opps dest
        in
         board
           { whitePawns = setBit departed $ fromIntegral dest
           , blackPawns = xor board.blackPawns capturedSquares
           }
+    kingAllies = board.whitePawns .|. whiteAlliedSquares
     kingChanges :: [((Int8, Int8), Board)]
     kingChanges =
       let
         arriveAndCapture dest =
           board
             { king = setBit 0 $ fromIntegral dest
-            , blackPawns = xor board.blackPawns $ captures 0 opps dest
+            , blackPawns = xor board.blackPawns $ captures kingAllies opps dest
             }
        in
         map (\m -> (m, arriveAndCapture . snd $ m)) $ kingMoves' board
@@ -451,7 +452,8 @@ nextMoveBoardsWhiteZ board zobrist =
     applyPawnChanges orig dest =
       let
         departed = clearBit board.whitePawns $ fromIntegral orig
-        capturedSquares = captures' departed opps dest
+        allies = departed .|. board.king .|. whiteAlliedSquares
+        capturedSquares = captures' allies opps dest
         updatedBoard =
           board
             { whitePawns = setBit departed $ fromIntegral dest
@@ -464,11 +466,12 @@ nextMoveBoardsWhiteZ board zobrist =
         updatedZobrist = updateMultiZobrist zPieces zobrist
        in
         ((orig, dest), updatedBoard, updatedZobrist)
+    kingAllies = board.whitePawns .|. corners
     kingMs = kingMoves' board
     applyKingChanges :: Int8 -> Int8 -> ((Int8, Int8), Board, MultiZobrist)
     applyKingChanges orig dest =
       let
-        capturedSquares = captures board.whitePawns opps dest
+        capturedSquares = captures kingAllies opps dest
         updatedBoard =
           board
             { king = setBit 0 $ fromIntegral dest

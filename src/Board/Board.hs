@@ -21,6 +21,7 @@ module Board.Board (
   opp,
   testBoardBit,
   allVariations,
+  serializeBoard,
 ) where
 
 import Data.Data (Data)
@@ -34,9 +35,9 @@ import Language.Haskell.TH.Quote (QuasiQuoter (..))
 import Language.Haskell.TH.Syntax (liftData)
 
 import Board.Geometry (rotateIndex180, rotateIndex270, rotateIndex90)
+import Data.Aeson
 import Foreign.Marshal.Array
 import Foreign.Storable
-import Data.Aeson
 
 --------------------------------------------------------------------------------
 -- Board
@@ -112,7 +113,6 @@ readWord128ByChar c =
   foldl' (\acc (i, x) -> if x == c then setBit acc i else acc) 0
     . zip [0 ..]
     . concat
-    . reverse
     . filter (not . null)
     . splitOn "\n"
     . filter (' ' /=)
@@ -152,16 +152,14 @@ bl =
 showWord128Board :: Word128 -> [Char]
 showWord128Board board =
   intercalate "\n" $
-    reverse $
-      chunksOf 33 $
-        concatMap (bool " . " " X " . testBit board) [0 .. 120]
+    chunksOf 33 $
+      concatMap (bool " . " " X " . testBit board) [0 .. 120]
 
 showBoard :: Board -> [Char]
 showBoard Board{..} =
   intercalate "\n" $
-    reverse $
-      chunksOf 33 $
-        concatMap (\i -> ' ' : getChar i : [' ']) [0 .. 120]
+    chunksOf 33 $
+      concatMap (\i -> ' ' : getChar i : [' ']) [0 .. 120]
  where
   getChar i =
     if
@@ -171,7 +169,21 @@ showBoard Board{..} =
         | otherwise -> '.'
 
 --------------------------------------------------------------------------------
--- Show
+-- Serialize
+
+serializeBoard :: Board -> [Char]
+serializeBoard Board{..} =
+  map getChar [0 .. 120]
+ where
+  getChar i =
+    if
+        | testBit whitePawns i -> 'O'
+        | testBit king i -> '#'
+        | testBit blackPawns i -> 'X'
+        | otherwise -> '.'
+
+--------------------------------------------------------------------------------
+-- Move
 
 data Move = Move {orig :: Int8, dest :: Int8}
   deriving (Show)

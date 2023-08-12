@@ -2,6 +2,8 @@
 
 module Main (main) where
 
+import Prelude hiding (fromString)
+import Data.UUID (fromString, UUID)
 import Test.QuickCheck
 import Board.Board
 import Board.Move
@@ -12,6 +14,9 @@ import Data.WideWord.Word128
 import GHC.Conc
 import Control.Exception
 import AI.NegamaxABZ
+import Database.SQLite.Simple
+import Data.Maybe (fromJust)
+import DB.Game
 
 simpleCapture =
   [b|
@@ -276,10 +281,27 @@ main = do
   -- putStrLn $ showBoard $ rotateBoard270 testBoard
   -- print $ scoreBoard Black $ rotateBoard270 testBoard
 
-  (result, stats) <- runSearch testBoard Black
+  (result, stats) <- runSearch startBoard Black
   mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ result.board
   print stats
   putStrLn $ "tally: " <> (show result.tally)
   putStrLn $ "score: " <> (show result.score)
 
-  pure ()
+  -- pure ()
+
+  -- -- db test
+  -- conn <- open "db.db"
+  -- let id1 :: UUID = fromJust $ fromString "1e966faf-4de6-470c-9821-34f3341c9d74"
+  -- let game = Game id1 testBoard True
+  -- let hotseat = Hotseat id1
+  -- --insertGame conn game
+  -- --insertHotseat conn hotseat
+  -- outg <- selectGame conn id1
+  -- ouths <- selectHotseat conn id1
+  -- putStrLn $ showBoard outg.board
+  -- putStrLn $ showBoard ouths.board
+
+  -- _ <- updateBoard conn id1 startBoard
+
+  -- ouths' <- selectHotseat conn id1
+  -- putStrLn $ showBoard ouths'.board

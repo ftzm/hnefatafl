@@ -38,6 +38,9 @@ throne =
  .  .  .  .  .  .  .  .  .  .  .
 |]
 
+whiteAlliedSquares :: Word128
+whiteAlliedSquares = corners .|. throne
+
 pawnIllegalDestinations :: Word128
 pawnIllegalDestinations = corners .|. throne
 
