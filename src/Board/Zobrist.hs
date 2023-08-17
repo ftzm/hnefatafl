@@ -226,10 +226,10 @@ updateMultiZobrist pieces zobrist = foldl' (\acc (t, i) -> updateForPiece t i ac
           , rotated90 = xor z.rotated90 (whitePawnMasks90 V.! fromIntegral i)
           , rotated180 = xor z.rotated180 (whitePawnMasks180 V.! fromIntegral i)
           , rotated270 = xor z.rotated270 (whitePawnMasks270 V.! fromIntegral i)
-          , flippedHorizontal = xor zobrist.flippedHorizontal (whitePawnMasksFlippedHorizontal V.! fromIntegral i)
-          , flippedVertical = xor zobrist.flippedVertical (whitePawnMasksFlippedVertical V.! fromIntegral i)
-          , flippedSouthEast = xor zobrist.flippedSouthEast (whitePawnMasksFlippedSouthEast V.! fromIntegral i)
-          , flippedSouthWest = xor zobrist.flippedSouthWest (whitePawnMasksFlippedSouthWest V.! fromIntegral i)
+          , flippedHorizontal = xor z.flippedHorizontal (whitePawnMasksFlippedHorizontal V.! fromIntegral i)
+          , flippedVertical = xor z.flippedVertical (whitePawnMasksFlippedVertical V.! fromIntegral i)
+          , flippedSouthEast = xor z.flippedSouthEast (whitePawnMasksFlippedSouthEast V.! fromIntegral i)
+          , flippedSouthWest = xor z.flippedSouthWest (whitePawnMasksFlippedSouthWest V.! fromIntegral i)
           }
       KingType ->
         MultiZobrist
@@ -237,10 +237,10 @@ updateMultiZobrist pieces zobrist = foldl' (\acc (t, i) -> updateForPiece t i ac
           , rotated90 = xor z.rotated90 (kingMasks90 V.! fromIntegral i)
           , rotated180 = xor z.rotated180 (kingMasks180 V.! fromIntegral i)
           , rotated270 = xor z.rotated270 (kingMasks270 V.! fromIntegral i)
-          , flippedHorizontal = xor zobrist.flippedHorizontal (kingMasksFlippedHorizontal V.! fromIntegral i)
-          , flippedVertical = xor zobrist.flippedVertical (kingMasksFlippedVertical V.! fromIntegral i)
-          , flippedSouthEast = xor zobrist.flippedSouthEast (kingMasksFlippedSouthEast V.! fromIntegral i)
-          , flippedSouthWest = xor zobrist.flippedSouthWest (kingMasksFlippedSouthWest V.! fromIntegral i)
+          , flippedHorizontal = xor z.flippedHorizontal (kingMasksFlippedHorizontal V.! fromIntegral i)
+          , flippedVertical = xor z.flippedVertical (kingMasksFlippedVertical V.! fromIntegral i)
+          , flippedSouthEast = xor z.flippedSouthEast (kingMasksFlippedSouthEast V.! fromIntegral i)
+          , flippedSouthWest = xor z.flippedSouthWest (kingMasksFlippedSouthWest V.! fromIntegral i)
           }
       BlackType ->
         MultiZobrist
@@ -248,10 +248,10 @@ updateMultiZobrist pieces zobrist = foldl' (\acc (t, i) -> updateForPiece t i ac
           , rotated90 = xor z.rotated90 (blackPawnMasks90 V.! fromIntegral i)
           , rotated180 = xor z.rotated180 (blackPawnMasks180 V.! fromIntegral i)
           , rotated270 = xor z.rotated270 (blackPawnMasks270 V.! fromIntegral i)
-          , flippedHorizontal = xor zobrist.flippedHorizontal (blackPawnMasksFlippedHorizontal V.! fromIntegral i)
-          , flippedVertical = xor zobrist.flippedVertical (blackPawnMasksFlippedVertical V.! fromIntegral i)
-          , flippedSouthEast = xor zobrist.flippedSouthEast (blackPawnMasksFlippedSouthEast V.! fromIntegral i)
-          , flippedSouthWest = xor zobrist.flippedSouthWest (blackPawnMasksFlippedSouthWest V.! fromIntegral i)
+          , flippedHorizontal = xor z.flippedHorizontal (blackPawnMasksFlippedHorizontal V.! fromIntegral i)
+          , flippedVertical = xor z.flippedVertical (blackPawnMasksFlippedVertical V.! fromIntegral i)
+          , flippedSouthEast = xor z.flippedSouthEast (blackPawnMasksFlippedSouthEast V.! fromIntegral i)
+          , flippedSouthWest = xor z.flippedSouthWest (blackPawnMasksFlippedSouthWest V.! fromIntegral i)
           }
 
 selectZobrist :: MultiZobrist -> Word64

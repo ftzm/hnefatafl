@@ -2,21 +2,24 @@
 
 module Main (main) where
 
-import Prelude hiding (fromString)
-import Data.UUID (fromString, UUID)
-import Test.QuickCheck
+import AI.NegamaxABZ
+import AI.NegamaxAB
 import Board.Board
 import Board.Move
+import Board.Zobrist
+import Control.Exception
+import DB.Game
 import Data.Bits
+import Data.List qualified as L
+import Data.Maybe (fromJust)
+import Data.UUID (UUID, fromString)
 import Data.Vector qualified as BV
 import Data.Vector.Unboxed qualified as V
 import Data.WideWord.Word128
-import GHC.Conc
-import Control.Exception
-import AI.NegamaxABZ
 import Database.SQLite.Simple
-import Data.Maybe (fromJust)
-import DB.Game
+import GHC.Conc
+import Test.QuickCheck
+import Prelude hiding (fromString)
 
 simpleCapture =
   [b|
@@ -89,6 +92,21 @@ kingTest =
  .  .  .  .  .  .  .  .  .  .  .
  .  .  .  .  .  .  .  .  .  .  .
  .  .  .  .  .  X  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+|]
+
+shouldEscape =
+  [b|
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  #  .  .  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  .  .  .  O  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  .  .  .  .  .  .  .  .
+ .  .  .  .  .  X  .  .  X  .  .
  .  .  .  .  .  .  .  .  .  .  .
  .  .  .  .  .  .  .  .  .  .  .
 |]
@@ -256,10 +274,13 @@ main = do
   -- putStrLn $ "tally" <> (show $ tally capP)
   -- putStrLn $ "score" <> (show $ score capP)
 
-  -- let capP = negamaxAB (0,0) [response] White 3 0 (minBound + 10) (maxBound - 10)
-  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ board capP
-  -- putStrLn $ "tally" <> (show $ tally capP)
-  -- putStrLn $ "score" <> (show $ score capP)
+  -- capP <- negamaxAB (0,0) [shouldEscape] White 4 0 (minBound + 10) (maxBound - 10)
+  -- forM_ (reverse $ (capP.board)) $ \b -> do
+  --   putStrLn ""
+  --   let boardString :: String = showBoard b
+  --   putStrLn boardString
+  -- putStrLn $ "tally" <> (show @String (capP.tally :: Int))
+  -- putStrLn $ "score" <> (show @String (capP.score :: Int))
 
   -- print $ teamMoves (setBit 0 10) 0
 
@@ -282,26 +303,35 @@ main = do
   -- print $ scoreBoard Black $ rotateBoard270 testBoard
 
   (result, stats) <- runSearch startBoard Black
-  mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ result.board
+  -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ result.board
   print stats
   putStrLn $ "tally: " <> (show result.tally)
+  -- looking for 12068
   putStrLn $ "score: " <> (show result.score)
+  putStrLn $ "best move: " <> (show result.move)
+  let nextMoveBoards = nextMoveBoardsBlack' startBoard
+  putStrLn $ showBoard $ fromJust $ L.lookup result.move nextMoveBoards
 
-  -- pure ()
+  -- let startZobrist = boardToMultiZobrist shouldEscape True
+  -- let nmb = nextMoveBoardsWhite' shouldEscape
+  -- forM_ nmb $ \(_, b) -> do
+  --   putStrLn ""
+  --   putStrLn $ showBoard b
+-- pure ()
 
-  -- -- db test
-  -- conn <- open "db.db"
-  -- let id1 :: UUID = fromJust $ fromString "1e966faf-4de6-470c-9821-34f3341c9d74"
-  -- let game = Game id1 testBoard True
-  -- let hotseat = Hotseat id1
-  -- --insertGame conn game
-  -- --insertHotseat conn hotseat
-  -- outg <- selectGame conn id1
-  -- ouths <- selectHotseat conn id1
-  -- putStrLn $ showBoard outg.board
-  -- putStrLn $ showBoard ouths.board
+-- -- db test
+-- conn <- open "db.db"
+-- let id1 :: UUID = fromJust $ fromString "1e966faf-4de6-470c-9821-34f3341c9d74"
+-- let game = Game id1 testBoard True
+-- let hotseat = Hotseat id1
+-- --insertGame conn game
+-- --insertHotseat conn hotseat
+-- outg <- selectGame conn id1
+-- ouths <- selectHotseat conn id1
+-- putStrLn $ showBoard outg.board
+-- putStrLn $ showBoard ouths.board
 
-  -- _ <- updateBoard conn id1 startBoard
+-- _ <- updateBoard conn id1 startBoard
 
-  -- ouths' <- selectHotseat conn id1
-  -- putStrLn $ showBoard ouths'.board
+-- ouths' <- selectHotseat conn id1
+-- putStrLn $ showBoard ouths'.board

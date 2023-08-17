@@ -38,6 +38,7 @@ import Board.Geometry (rotateIndex180, rotateIndex270, rotateIndex90)
 import Data.Aeson
 import Foreign.Marshal.Array
 import Foreign.Storable
+import GHC.Show (Show (..))
 
 --------------------------------------------------------------------------------
 -- Board
@@ -51,6 +52,15 @@ data Board = Board
     -- , revBlackPawns :: !Word128
   }
   deriving (Data, Generic, NFData, Eq)
+
+instance Show Board where
+  show = ('\n' :) . showBoard
+
+instance ToJSON Board where
+  toJSON = String . toText . ('\n' :) . showBoard
+
+instance FromJSON Board where
+  parseJSON = withText "Board" (pure . readBoard . toString)
 
 -- instance Eq Board where
 --   a == b = showBoard a == showBoard b

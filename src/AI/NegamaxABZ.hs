@@ -4,14 +4,16 @@
 module AI.NegamaxABZ where
 
 import AI.Assessment (scoreBoard)
-import Board.Board (Board, Team (..), opp)
+import Board.Board (Board, Team (..), opp, showBoard)
 import Board.Move (nextMoveBoardsBlack', nextMoveBoardsBlackZ, nextMoveBoardsWhite', nextMoveBoardsWhiteZ)
 import Board.Zobrist (MultiZobrist (..), boardToMultiZobrist, selectZobrist)
 import Data.List qualified as L
 import Data.Map qualified as M
+import Data.Maybe (fromJust)
 import Data.Vector.Hashtables as VH
 import Data.Vector.Storable.Mutable qualified as VM
 import Data.Vector.Unboxed qualified as V
+import System.IO.Unsafe (unsafePerformIO)
 
 maxBy :: Ord b => (a -> b) -> a -> a -> a
 maxBy f x y = if f x >= f y then x else y
@@ -41,7 +43,7 @@ data ZobristStats = ZobristStats
 
 data ZobristResult = ZobristResult
   { move :: (Int8, Int8)
-  , board :: [Board]
+  , board :: Board
   , score :: Score
   , tally :: Visited
   , zobrist :: MultiZobrist
@@ -49,7 +51,7 @@ data ZobristResult = ZobristResult
 
 negamaxABZ ::
   (Int8, Int8) ->
-  [Board] ->
+  Board ->
   Team ->
   Depth ->
   Tally ->
@@ -68,7 +70,7 @@ negamaxABZ move board current depth tally alpha beta z zsr htr =
             ZobristResult
               move
               board
-              (scoreBoard current (L.head board))
+              (scoreBoard current board)
               (tally + 1)
               z
       | otherwise =
@@ -77,26 +79,23 @@ negamaxABZ move board current depth tally alpha beta z zsr htr =
               if depth > 1
                 then case current of
                   White ->
-                    map (\(m, b, z') -> (m, b : board, z')) $
-                      nextMoveBoardsWhiteZ (L.head board) z
+                    map (\(m, b, z') -> (m, b, z')) $
+                      nextMoveBoardsWhiteZ board z
                   Black ->
-                    map (\(m, b, z') -> (m, b : board, z')) $
-                      nextMoveBoardsBlackZ (L.head board) z
+                    map (\(m, b, z') -> (m, b, z')) $
+                      nextMoveBoardsBlackZ board z
                 else case current of
                   White ->
-                    map (\(m, b) -> (m, b : board, z)) $
-                      nextMoveBoardsWhite' (L.head board)
+                    map (\(m, b) -> (m, b, z)) $
+                      nextMoveBoardsWhite' board
                   Black ->
-                    map (\(m, b) -> (m, b : board, z)) $
-                      nextMoveBoardsBlack' (L.head board)
-
-            negateScore :: ZobristResult -> ZobristResult
-            negateScore result = result{score = negate result.score}
+                    map (\(m, b) -> (m, b, z)) $
+                      nextMoveBoardsBlack' board
 
             initial =
-              L.head nextBoards & \(move', board', zobrist') ->
-                negateScore
-                  <$> negamaxABZ
+              L.head nextBoards & \(move', board', zobrist') -> do
+                result <-
+                  negamaxABZ
                     move'
                     board'
                     (opp current)
@@ -107,10 +106,11 @@ negamaxABZ move board current depth tally alpha beta z zsr htr =
                     zobrist'
                     zsr
                     htr
+                pure $ ZobristResult move' board' (negate result.score) result.tally zobrist'
 
             go ::
               ZobristResult ->
-              [((Int8, Int8), [Board], MultiZobrist)] ->
+              [((Int8, Int8), Board, MultiZobrist)] ->
               Alpha ->
               Beta ->
               IO ZobristResult
@@ -120,19 +120,19 @@ negamaxABZ move board current depth tally alpha beta z zsr htr =
               if newAlpha >= beta'
                 then pure prev
                 else do
-                  result <-
-                    negateScore
-                      <$> negamaxABZ
-                        move'
-                        board'
-                        (opp current)
-                        (depth - 1)
-                        prev.tally
-                        (negate innerBeta)
-                        (negate newAlpha)
-                        zobrist'
-                        zsr
-                        htr
+                  deepResult <-
+                    negamaxABZ
+                      move'
+                      board'
+                      (opp current)
+                      (depth - 1)
+                      prev.tally
+                      (negate innerBeta)
+                      (negate newAlpha)
+                      zobrist'
+                      zsr
+                      htr
+                  let result = ZobristResult move' board' (negate deepResult.score) deepResult.tally zobrist'
                   let best = maxBy (.score) (prev{tally = result.tally} :: ZobristResult) result
                   go best ms newAlpha beta'
            in
@@ -140,6 +140,7 @@ negamaxABZ move board current depth tally alpha beta z zsr htr =
               i' <- initial
               result <- go i' (L.tail nextBoards) innerAlpha innerBeta
               pure $ ZobristResult result.move result.board result.score result.tally z
+
     getTransposition :: IO (Maybe Int, Int, Int)
     getTransposition = do
       let
@@ -147,8 +148,12 @@ negamaxABZ move board current depth tally alpha beta z zsr htr =
         isRotatedHash = selectedHash /= z.rotated0
       ht <- readIORef htr
       VH.lookup ht selectedHash >>= \case
-        Just (cachedDepth, cachedScore, flag, cachedBoard) | cachedDepth >= depth ->
+        Just (cachedDepth, cachedScore, flag, cachedBoard, cachedBestMove) | cachedDepth >= depth ->
           do
+            -- putStrLn "--------------------------------------------"
+            -- putStrLn $ showBoard board
+            -- putStrLn ""
+            -- putStrLn $ showBoard cachedBoard
             modifyIORef
               zsr
               ( \zs' ->
@@ -198,12 +203,12 @@ negamaxABZ move board current depth tally alpha beta z zsr htr =
                       | otherwise -> 2
              in do
                   ht <- readIORef htr
-                  VH.insert ht (selectZobrist z) (depth, result.score, flag, L.head board)
+                  VH.insert ht (selectZobrist z) (depth, result.score, flag, board, result.move)
 
           pure result
 
--- | (depth, score, 1 = lowerbound | 2 = exact | 3 = upperbound, board)
-type VectorHashTable = VH.Dictionary (PrimState IO) VM.MVector Word64 V.MVector (Int, Int, Int, Board)
+-- | (depth, score, 1 = lowerbound | 2 = exact | 3 = upperbound, board, best move)
+type VectorHashTable = VH.Dictionary (PrimState IO) VM.MVector Word64 V.MVector (Int, Int, Int, Board, (Int8, Int8))
 
 runSearch :: Board -> Team -> IO (ZobristResult, ZobristStats)
 runSearch board team = do
@@ -211,6 +216,14 @@ runSearch board team = do
   htr <- newIORef ht
   zsr <- newIORef $ ZobristStats 0 0 0 mempty
   let startZobrist = boardToMultiZobrist board True
-  result <- negamaxABZ (0, 0) [board] team 5 0 (minBound + 10) (maxBound - 10) startZobrist zsr htr
+  result <- negamaxABZ (0, 0) board team 4 0 (minBound + 10) (maxBound - 10) startZobrist zsr htr
   statResults <- readIORef zsr
   pure (result, statResults)
+
+nextBoardNABZ :: Board -> Team -> Board
+nextBoardNABZ board team = unsafePerformIO $ do
+  result <- fst <$> runSearch board team
+  let nextBoards = case team of
+        Black -> nextMoveBoardsBlack' board
+        White -> nextMoveBoardsWhite' board
+  pure $ fromJust $ L.lookup result.move nextBoards

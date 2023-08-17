@@ -37,6 +37,7 @@ library
         QuickGame
         Routes
         ServantLucid
+        ServantWebSocket
         Server
     other-modules:
         Paths_hnefatafl
@@ -45,6 +46,7 @@ library
     build-depends:
         aeson,
         array,
+        async,
         base,
         containers,
         deepseq,
@@ -56,6 +58,7 @@ library
         random,
         raw-strings-qq,
         relude,
+        resourcet,
         servant,
         servant-client,
         servant-server,
@@ -66,10 +69,12 @@ library
         template-haskell,
         text,
         time,
+        unagi-chan,
         uuid,
         vector,
         vector-hashtables,
         wai,
+        wai-websockets,
         warp,
         websockets,
         wide-word
@@ -104,6 +109,7 @@ executable hnefatafl
     build-depends:
         aeson,
         array,
+        async,
         base,
         containers,
         deepseq,
@@ -116,6 +122,7 @@ executable hnefatafl
         random,
         raw-strings-qq,
         relude,
+        resourcet,
         servant,
         servant-client,
         servant-server,
@@ -126,10 +133,12 @@ executable hnefatafl
         template-haskell,
         text,
         time,
+        unagi-chan,
         uuid,
         vector,
         vector-hashtables,
         wai,
+        wai-websockets,
         warp,
         websockets,
         wide-word
@@ -183,6 +192,7 @@ test-suite test
         QuickCheck,
         aeson,
         array,
+        async,
         base,
         containers,
         deepseq,
@@ -196,6 +206,7 @@ test-suite test
         random,
         raw-strings-qq,
         relude,
+        resourcet,
         servant,
         servant-client,
         servant-server,
@@ -206,10 +217,12 @@ test-suite test
         template-haskell,
         text,
         time,
+        unagi-chan,
         uuid,
         vector,
         vector-hashtables,
         wai,
+        wai-websockets,
         warp,
         websockets,
         wide-word
@@ -245,6 +258,7 @@ benchmark board
     build-depends:
         aeson,
         array,
+        async,
         base,
         containers,
         criterion,
@@ -258,6 +272,7 @@ benchmark board
         random,
         raw-strings-qq,
         relude,
+        resourcet,
         servant,
         servant-client,
         servant-server,
@@ -268,10 +283,12 @@ benchmark board
         template-haskell,
         text,
         time,
+        unagi-chan,
         uuid,
         vector,
         vector-hashtables,
         wai,
+        wai-websockets,
         warp,
         websockets,
         wide-word

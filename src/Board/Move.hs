@@ -210,7 +210,7 @@ whiteMoves'' = V.toList . whiteMoves
 
 kingMoves :: Board -> V.Vector (Int8, Int8)
 kingMoves Board{whitePawns, king, blackPawns} =
-  V.map (fromIntegral $ popCount king,) $
+  V.map (fromIntegral $ countTrailingZeros king,) $
     pieceMoves (whitePawns .|. blackPawns) $
       fromIntegral $
         countTrailingZeros king
@@ -262,7 +262,7 @@ nextMoveBoardsBlack :: Board -> V.Vector ((Int8, Int8), Board)
 nextMoveBoardsBlack board =
   let
     ms = blackMoves board
-    opps = board.whitePawns .|. board.king
+    opps = board.whitePawns
     applyChanges :: Int8 -> Int8 -> Board
     applyChanges orig dest =
       let
@@ -281,7 +281,7 @@ nextMoveBoardsBlack' :: Board -> [((Int8, Int8), Board)]
 nextMoveBoardsBlack' board =
   let
     ms = blackMoves' board
-    opps = board.whitePawns .|. board.king
+    opps = board.whitePawns
     applyChanges :: Int8 -> Int8 -> Board
     applyChanges orig dest =
       let

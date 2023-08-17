@@ -2,26 +2,37 @@ module Server where
 
 import Servant
 
+import Board.Board (Team (..))
 import Board.Constant (startBoard)
-import Command (Command)
-import DB.Game (AIGame (..), Game (..), createAI, createHotseat, insertGame, selectHotseat, updateGame, selectAI)
+import Command (Command (..))
+import Control.Concurrent.Async
+import Control.Concurrent.Chan.Unagi (newChan, readChan, writeChan)
+import DB.Game (AIGame (..), Game (..), createAI, createHotseat, insertGame, selectAI, selectHotseat, updateGame)
+import Event (Event (..))
+
 import Data.Aeson (decode)
 import Data.Aeson.Text (encodeToLazyText)
+import Data.Text qualified as T
 import Data.UUID (UUID)
 import Data.UUID.V4 (nextRandom)
 import Database.SQLite.Simple (open)
-import Game.Hotseat qualified as Hotseat
+import GHC.Conc (threadDelay)
+import Game.AI (runLoop)
 import Game.AI qualified as AI
+import Game.Hotseat qualified as Hotseat
+import Html.AI (aiPage)
 import Html.Home (homePage)
 import Html.Hotseat (hotseatPage)
-import Html.AI (aiPage)
 import Html.QuickGame
 import Lucid (Html)
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.Warp (defaultSettings, run, runSettings, setPort, setTimeout)
+import Network.WebSockets (Connection, ControlMessage (..), Message (..), WebSocketsData (..))
 import Network.WebSockets qualified as WS
+import Network.WebSockets.Connection (send)
 import QuickGame qualified
 import Routes
 import Servant.Server.Generic (AsServer, genericServe)
+import Control.Exception (handle)
 
 handlers :: Routes AsServer
 handlers =
@@ -34,7 +45,7 @@ handlers =
     , hotseatWs = hotseatWsHandler
     , startAi = startAIHandler
     , ai = aiHandler
-    , aiWs = aiWsHandler
+    , aiWs = aiWsHandler'
     , home = return homePage
     , static = serveDirectoryWebApp "."
     }
@@ -140,25 +151,76 @@ aiGameToGameState game =
 
 aiWsHandler :: UUID -> WS.Connection -> Handler ()
 aiWsHandler hotseatId c =
-  liftIO $ WS.withPingThread c 30 (pure ()) $ do
+  liftIO $ WS.withPingThread c 10 (putStrLn "ws ping") $ do
     conn <- liftIO $ open "db.db"
     aiGame <- liftIO $ selectAI conn hotseatId
     gsr <- newIORef $ aiGameToGameState aiGame
-    forever $ do
-      gs <- readIORef gsr
+    threadDelay 1000000
+
+-- forever $ do
+--   gs <- readIORef gsr
+--   input <- WS.receiveData c
+--   _ <- case decode @Command input of
+--     Nothing -> putStrLn $ "invalid command: " <> show input
+--     Just command -> do
+--       putStrLn $ show @String command
+--       case AI.handleCommand gs command of
+--         Left err -> print err
+--         Right (newGsO, events) -> do
+--           unless (null events) (WS.sendTextData c . toStrict . encodeToLazyText $ events)
+--           for_ newGsO $ \newGs -> do
+--             writeIORef gsr newGs
+--             updateGame conn hotseatId (AI.board newGs) (AI.isBlackTurn newGs)
+--   pure ()
+
+withAsync' :: IO a -> IO b -> IO b
+withAsync' action inner = withAsync action $ const inner
+
+aiWsHandler' :: UUID -> WS.Connection -> Handler ()
+aiWsHandler' aiId c = liftIO $ do
+  conn <- open "db.db"
+  aiGame <- selectAI conn aiId
+  let gs = aiGameToGameState aiGame
+  gsr <- newIORef gs
+  (commandIn, commandOut) <- newChan
+  (eventIn, eventOut) <- newChan
+
+  let
+    aiTeam = if aiGame.humanIsBlack then White else Black
+    saveGame gameState = updateGame conn aiId (AI.board gameState) (AI.isBlackTurn gameState)
+    aiLoop = runLoop saveGame aiTeam gsr commandIn commandOut eventIn
+    handleCommands = forever $ do
+      putStrLn "handleCommands"
       input <- WS.receiveData c
-      _ <- case decode @Command input of
+      case decode @Command input of
         Nothing -> putStrLn $ "invalid command: " <> show input
-        Just command -> do
-          putStrLn $ show @String command
-          case AI.handleCommand gs command of
-            Left err -> print err
-            Right (newGsO, events) -> do
-              unless (null events) (WS.sendTextData c . toStrict . encodeToLazyText $ events)
-              for_ newGsO $ \newGs -> do
-                writeIORef gsr newGs
-                updateGame conn hotseatId (AI.board newGs) (AI.isBlackTurn newGs)
-      pure ()
+        Just command -> writeChan commandIn command
+    handleEvents = forever $ do
+      putStrLn "handleEvents"
+      event <- readChan eventOut
+      WS.sendTextData c . toStrict . encodeToLazyText $ event
+
+  aiLoop
+    `race_` handleEvents
+    `race_` handleCommands
+    `race_` (pingThread c 10 (putStrLn "ping") >> putStrLn "pingExit")
+  putStrLn "finishRequest"
+
+
+sendPing :: WebSocketsData a => Connection -> a -> IO ()
+sendPing conn = send conn . ControlMessage . Ping . toLazyByteString
+
+pingThread :: Connection -> Int -> IO () -> IO ()
+pingThread conn n action
+  | n <= 0 = return ()
+  | otherwise = go 1
+ where
+  go :: Int -> IO ()
+  go i = do
+    threadDelay (n * 1000 * 1000)
+    (\(e :: SomeException) -> putStrLn "crashed ping") `handle` sendPing conn (T.pack $ show i)
+    action
+    go (i + 1)
 
 app :: Application
 app = genericServe handlers

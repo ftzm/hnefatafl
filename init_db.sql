@@ -15,6 +15,8 @@ CREATE TABLE hotseat (
 -- table for vs games online
 CREATE TABLE vs (
   id UUID NOT NULL,
+  black_id UUID NOT NULL,
+  white_id UUID NOT NULL,
   PRIMARY KEY (id),
   FOREIGN KEY (id) REFERENCES game(id)
 );

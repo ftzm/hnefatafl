@@ -51,53 +51,57 @@ dependencies:
     mixin:
       - (Relude as Prelude)
 
-  - wide-word
-  - split
-  - raw-strings-qq
-  - template-haskell
-  - vector
-  - array
-  - deepseq
-  - parallel
-  - random
-  - vector-hashtables
-  - storable-tuple
   - aeson
-  # - annotated-exception
-  # - bytestring
-  # - cassava
+  - array
+  - async
   - containers
-  # - envparse
-  # - exceptions
-  # - generic-optics
-  # - http-client
+  - deepseq
   - http-media
   - http-types
-  # - katip
+  - lucid2
   - mtl
-  # - newtype-generics
-  # - optics
-  # - refined >= 0.7
-  # - resourcet
-  - text
+  - parallel
+  - random
+  - raw-strings-qq
   - servant
   - servant-client
   - servant-server
   - servant-websockets
-  - websockets
-  # - QuickCheck
-  # - quickcheck-instances
+  - split
+  - sqlite-simple
+  - storable-tuple
+  - template-haskell
+  - text
+  - time
+  - unagi-chan
+  - uuid
+  - vector
+  - vector-hashtables
   - wai
   - warp
-  # - some
+  - websockets
+  - wide-word
+  - wai-websockets
+  - resourcet
+  # - QuickCheck
+  # - annotated-exception
   # - attoparsec
+  # - bytestring
+  # - cassava
   # - deepseq
+  # - envparse
+  # - exceptions
+  # - generic-optics
   # - generic-random
-  - lucid2
+  # - http-client
+  # - katip
+  # - newtype-generics
+  # - optics
+  # - quickcheck-instances
+  # - refined >= 0.7
+  # - resourcet
   # - servant-lucid
-  - uuid
-  - time
-  - sqlite-simple
+  # - some
 
 library:
   source-dirs: src

@@ -22,6 +22,7 @@ scoreBoard t b =
       sum
         [ whitePieceCount b * 1000
         , whiteMoveCount b
+        , kingMoveCount b * 100
         ]
     blackPoints =
       sum
@@ -40,7 +41,7 @@ scoreBoard t b =
 kingEscaped :: Board -> Bool
 kingEscaped b =
   let kingIndex = countTrailingZeros b.king
-   in kingIndex == 0 || kingIndex == 10 || kingIndex == 109 || kingIndex == 120
+   in kingIndex == 0 || kingIndex == 10 || kingIndex == 110 || kingIndex == 120
 
 kingCaptured :: Board -> Bool
 kingCaptured b =
