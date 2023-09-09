@@ -4,7 +4,8 @@ module Routes where
 
 import Lucid (Html)
 import Servant
-import Servant.API.WebSocket
+--import Servant.API.WebSocket
+import ServantWebSocket
 import ServantLucid
 import Data.UUID (UUID)
 
@@ -18,6 +19,7 @@ data Routes route = Routes
   , startAi :: route :- "start-ai" :> Capture "humanIsBlack" Bool :> Get '[HTML] (Html ())
   , ai :: route :- "ai" :> Capture "aiId" UUID :> Get '[HTML] (Html ())
   , aiWs :: route :- "aiws" :> Capture "aiId" UUID :> WebSocket
+  , startVs :: route :- "start-vs" :> Capture "initiatorIsBlack" Bool :> Get '[HTML] (Html ())
   , home :: route :- Get '[HTML] (Html ())
   , static :: route :- Raw
   }

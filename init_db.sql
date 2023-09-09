@@ -1,5 +1,5 @@
 CREATE TABLE game (
-  id UUID NOT NULL,
+  id UUID NOT NULL UNIQUE,
   board TEXT NOT NULL,
   is_black_turn BOOLEAN NOT NULL,
   PRIMARY KEY (Id)
@@ -7,23 +7,23 @@ CREATE TABLE game (
 
 -- table for persisted local games (hotseat)
 CREATE TABLE hotseat (
-  id UUID NOT NULL,
+  id UUID NOT NULL UNIQUE,
   PRIMARY KEY (id),
   FOREIGN KEY (id) REFERENCES game(id)
 );
 
 -- table for vs games online
 CREATE TABLE vs (
-  id UUID NOT NULL,
-  black_id UUID NOT NULL,
-  white_id UUID NOT NULL,
-  PRIMARY KEY (id),
-  FOREIGN KEY (id) REFERENCES game(id)
+  game_id UUID NOT NULL UNIQUE,
+  white_id UUID NOT NULL UNIQUE,
+  black_id UUID NOT NULL UNIQUE,
+  FOREIGN KEY (game_id) REFERENCES game(id),
+  PRIMARY KEY (white_id, black_id)
 );
 
 -- table for against ai games
 CREATE TABLE ai (
-  id UUID NOT NULL,
+  id UUID NOT NULL UNIQUE,
   human_is_black BOOLEAN NOT NULL,
   PRIMARY KEY (id),
   FOREIGN KEY (id) REFERENCES game(id)

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module DB.Game where
@@ -32,15 +33,32 @@ instance FromField Board where
 instance ToField Board where
   toField = toField . serializeBoard
 
-data Game = Game {id :: UUID, board :: Board, isBlackTurn :: Bool}
+data Game = Game
+  { id :: UUID
+  , board :: Board
+  , isBlackTurn :: Bool
+  }
+  deriving (Generic)
+deriving anyclass instance FromRow Game
 
-data AIGame = AIGame {id :: UUID, board :: Board, isBlackTurn :: Bool, humanIsBlack :: Bool}
+data AIGame = AIGame
+  { id :: UUID
+  , board :: Board
+  , isBlackTurn :: Bool
+  , humanIsBlack :: Bool
+  }
+  deriving (Generic)
+deriving anyclass instance FromRow AIGame
 
-instance FromRow Game where
-  fromRow = Game <$> field <*> field <*> field
-
-instance FromRow AIGame where
-  fromRow = AIGame <$> field <*> field <*> field <*> field
+data VsGame = VsGame
+  { gameId :: UUID
+  , whiteId :: UUID
+  , blackId :: UUID
+  , board :: Board
+  , isBlackTurn :: Bool
+  }
+  deriving (Generic)
+deriving anyclass instance FromRow VsGame
 
 --------------------------------------------------------------------------------
 -- utils
@@ -127,3 +145,33 @@ createAI :: Connection -> Game -> Bool -> IO ()
 createAI conn game humanIsBlack = withTransaction conn $ do
   insertGame conn game
   insertAI conn game.id humanIsBlack
+
+--------------------------------------------------------------------------------
+-- ai
+
+insertVs :: Connection -> UUID -> UUID -> UUID -> IO ()
+insertVs c gameId whiteId blackId =
+  execute
+    c
+    "INSERT INTO vs (game_id, white_id, black_id) VALUES (?, ?, ?)"
+    (gameId, whiteId, blackId)
+
+selectVs :: Connection -> Bool -> UUID -> IO VsGame
+selectVs c isBlack playerId =
+  selectSingle
+    c
+    ( ql
+        [ "SELECT g.id, vs.white_id, vs.black_id, g.board, g.is_black_turn"
+        , "FROM game g "
+        , "JOIN vs on vs.game_id = g.id "
+        , "WHERE vs.? = ?"
+        ]
+    )
+    (playerColor, playerId)
+ where
+  playerColor :: Text = if isBlack then "black_id" else "white_id"
+
+createVs :: Connection -> Game -> UUID -> UUID -> IO ()
+createVs conn game whiteId blackId = do
+  insertGame conn game
+  insertVs conn game.id whiteId blackId

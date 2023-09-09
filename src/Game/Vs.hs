@@ -2,11 +2,10 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE Strict #-}
 
-module Game.AI where
+module Game.Vs where
 
 import AI.Assessment (blackVictory, whiteVictory)
-import AI.NegamaxABZ (nextBoardNABZ)
-import Board.Board (Board, PieceType (..), Team (..))
+import Board.Board (Board, PieceType (..))
 import Board.Constant (startBoard)
 import Board.Move (
   applyMoveBlack,
@@ -14,20 +13,16 @@ import Board.Move (
   applyMoveWhitePawn,
   blackMoves',
   kingMoves',
-  nextMoveBoardsBlack',
-  nextMoveBoardsWhite',
   whiteMoves'',
  )
 import Command (Command (..), IndexedMove (..), Move (..))
-import Control.Concurrent.Async (withAsync)
-import Control.Concurrent.Chan.Unagi (InChan, OutChan, newChan, readChan, writeChan, writeList2Chan)
 import Data.Aeson.Text (encodeToLazyText)
 import Data.List qualified as L
 import Data.Map qualified as M
 import Event (BoardUpdate (..), Event (..), Resolution (..))
 import Html.Board (renderBoard)
 import Lucid (Attributes, Html, renderText)
-import Lucid.Html5 hiding (for_)
+import Lucid.Html5
 
 --------------------------------------------------------------------------------
 -- Game state
@@ -36,11 +31,11 @@ data GameState = GameState
   { board :: Board
   , isBlackTurn :: Bool
   , moves :: Map Int [IndexedMove]
-  , humanIsBlack :: Bool
+  , messages :: [Text]
   }
 
-initialGameState :: Bool -> GameState
-initialGameState = GameState startBoard True (getBlackMoves startBoard)
+initialGameState :: GameState
+initialGameState = GameState startBoard True (getBlackMoves startBoard) []
 
 --------------------------------------------------------------------------------
 -- Moves
@@ -95,13 +90,6 @@ movesMapBoard pt commandSquares contentSquares gs =
     KingType -> div_ [class_ "circle king faded"] " "
     BlackType -> div_ [class_ "circle blackPiece faded"] " "
 
-
--- actually I don't really need to send a map of moves over to the javascript side
--- and then send it back; I can just keep the command map server side and send an
--- index over the socket, and look up the command via the index. Since there's
--- only one potentialy on-click action per square I don't need to be specific
--- about what to do, I only need to specify the square and the rest can be inferred.
-
 --------------------------------------------------------------------------------
 -- Make Move
 
@@ -120,7 +108,7 @@ makeMove gs m =
         if gs.isBlackTurn
           then getWhiteMoves newBoard
           else getBlackMoves newBoard
-    , humanIsBlack = gs.humanIsBlack
+    , messages = []
     }
  where
   newBoard = updateBoard gs.board m
@@ -158,34 +146,25 @@ handleCommand g c = case c of
               seeMovesMapBoard g
         ]
       )
-  CommitAiMove board ->
+  MakeMove move ->
     let
-      newGameState =
-        GameState
-          board
-          (not g.isBlackTurn)
-          ( if g.isBlackTurn
-              then getWhiteMoves board
-              else getBlackMoves board
-          )
-          g.humanIsBlack
+      newGameState = makeMove g move
       resolutionO =
         if
-            | whiteVictory board -> Just WhiteVictory
-            | blackVictory board -> Just BlackVictory
+            | whiteVictory newGameState.board -> Just WhiteVictory
+            | blackVictory newGameState.board -> Just BlackVictory
             | otherwise -> Nothing
       events =
         case resolutionO of
           Nothing ->
-            let a = 1
-             in [ UpdateBoard $
-                    BoardUpdate (toSeeMovesMap newGameState.moves) $
-                      seeMovesMapBoard newGameState
-                , UpdateStatus $
-                    if newGameState.isBlackTurn
-                      then "Black to move"
-                      else "White to move"
-                ]
+            [ UpdateBoard $
+                BoardUpdate (toSeeMovesMap newGameState.moves) $
+                  seeMovesMapBoard newGameState
+            , UpdateStatus $
+                if newGameState.isBlackTurn
+                  then "Black to move"
+                  else "White to move"
+            ]
           Just resolution ->
             [ UpdateBoard $
                 BoardUpdate mempty $
@@ -199,105 +178,6 @@ handleCommand g c = case c of
         ( Just newGameState
         , events
         )
-  MakeMove move ->
-    let
-      postMoveGameState = makeMove g move
-      postMoveResolutionO =
-        if
-            | whiteVictory postMoveGameState.board -> Just WhiteVictory
-            | blackVictory postMoveGameState.board -> Just BlackVictory
-            | otherwise -> Nothing
-      events =
-        case postMoveResolutionO of
-          Nothing ->
-            let a = 1
-             in [ UpdateBoard $
-                    BoardUpdate mempty $
-                      toStrict $
-                        renderText $
-                          renderBoard postMoveGameState.board mempty mempty
-                , UpdateStatus "Waiting for AI..."
-                , AwaitingAi
-                ]
-          Just resolution ->
-            [ UpdateBoard $
-                BoardUpdate mempty $
-                  toStrict $
-                    renderText $
-                      renderBoard postMoveGameState.board mempty mempty
-            , UpdateStatus $ show resolution
-            ]
-     in
-      Right
-        ( Just postMoveGameState
-        , events
-        )
   Concede -> undefined
-
-runLoop ::
-  (GameState -> IO ()) ->
-  Team ->
-  IORef GameState ->
-  InChan Command ->
-  OutChan Command ->
-  InChan Event ->
-  IO ()
-runLoop saveState team gameStateRef commandInChan commandOutChan eventChan = do
-  (moveRequestIn, moveRequestOut) <- newChan @Board
-
-  -- Perform the first move when the player is white
-  gs <- readIORef gameStateRef
-  when (not gs.humanIsBlack && gs.isBlackTurn) $ do
-    let boardUpdate =
-          UpdateBoard $
-            BoardUpdate mempty $
-              toStrict $
-                renderText $
-                  renderBoard gs.board mempty mempty
-    writeChan eventChan boardUpdate
-    let aiResult = nextBoardNABZ gs.board team
-    let newGameState =
-          GameState
-            aiResult
-            (not gs.isBlackTurn)
-            ( if gs.isBlackTurn
-                then getWhiteMoves aiResult
-                else getBlackMoves aiResult
-            )
-            gs.humanIsBlack
-    let newBoardUpdate =
-          UpdateBoard $
-            BoardUpdate (toSeeMovesMap newGameState.moves) $
-              seeMovesMapBoard newGameState
-    let newStatus =
-          UpdateStatus $
-            if newGameState.isBlackTurn
-              then "Black to move"
-              else "White to move"
-    writeIORef gameStateRef newGameState
-    writeList2Chan eventChan [newBoardUpdate, newStatus]
-
-  let
-    aiService = forever $ do
-      putStrLn "aiService"
-      req <- readChan moveRequestOut
-      let result = nextBoardNABZ req team
-      writeChan commandInChan $ CommitAiMove result
-
-  withAsync aiService $ const $ forever $ do
-    putStrLn "runloop"
-    gameState <- readIORef gameStateRef
-    command <- readChan commandOutChan
-    print command
-    case handleCommand gameState command of
-      Left err -> print err
-      Right (newGsO, events) -> do
-        writeList2Chan eventChan events
-        when
-          (AwaitingAi `elem` events)
-          (writeChan moveRequestIn $ maybe gameState.board (.board) newGsO)
-        for_ newGsO $ \newGs -> do
-          writeIORef gameStateRef newGs
-          saveState newGs
 
 --------------------------------------------------------------------------------

@@ -27,11 +27,13 @@ library
         Event
         Game.AI
         Game.Hotseat
+        Game.Vs
         Html.AI
         Html.Board
         Html.Home
         Html.Hotseat
         Html.QuickGame
+        Html.Vs
         Html.Wrapper
         MyLib
         QuickGame
@@ -39,6 +41,7 @@ library
         ServantLucid
         ServantWebSocket
         Server
+        WebSocketPong
     other-modules:
         Paths_hnefatafl
     autogen-modules:
@@ -50,8 +53,10 @@ library
         base,
         containers,
         deepseq,
+        generic-lens,
         http-media,
         http-types,
+        lens,
         lucid2,
         mtl,
         parallel,
@@ -65,6 +70,7 @@ library
         servant-websockets,
         split,
         sqlite-simple,
+        stm,
         storable-tuple,
         template-haskell,
         text,
@@ -113,9 +119,11 @@ executable hnefatafl
         base,
         containers,
         deepseq,
+        generic-lens,
         hnefatafl,
         http-media,
         http-types,
+        lens,
         lucid2,
         mtl,
         parallel,
@@ -129,6 +137,7 @@ executable hnefatafl
         servant-websockets,
         split,
         sqlite-simple,
+        stm,
         storable-tuple,
         template-haskell,
         text,
@@ -196,9 +205,11 @@ test-suite test
         base,
         containers,
         deepseq,
+        generic-lens,
         hnefatafl,
         http-media,
         http-types,
+        lens,
         lucid2,
         mtl,
         parallel,
@@ -213,6 +224,7 @@ test-suite test
         servant-websockets,
         split,
         sqlite-simple,
+        stm,
         storable-tuple,
         template-haskell,
         text,
@@ -263,9 +275,11 @@ benchmark board
         containers,
         criterion,
         deepseq,
+        generic-lens,
         hnefatafl,
         http-media,
         http-types,
+        lens,
         lucid2,
         mtl,
         parallel,
@@ -279,6 +293,7 @@ benchmark board
         servant-websockets,
         split,
         sqlite-simple,
+        stm,
         storable-tuple,
         template-haskell,
         text,

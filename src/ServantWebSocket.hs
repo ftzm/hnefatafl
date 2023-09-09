@@ -1,44 +1,71 @@
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeFamilies #-}
+
+-- slight modification of servant-websockets
 
 module ServantWebSocket where
 
-import Control.Monad                              (void, (>=>))
-import Control.Monad.IO.Class                     (liftIO)
-import Control.Monad.Trans.Resource               (runResourceT)
-import Data.Proxy                                 (Proxy (..))
-import Network.Wai.Handler.WebSockets             (websocketsOr)
-import Network.WebSockets                         (Connection, PendingConnection, acceptRequest, defaultConnectionOptions)
-import Servant.Server                             (HasServer (..), ServerError (..), ServerT, runHandler)
-import Servant.Server.Internal.Router             (leafRouter)
-import Servant.Server.Internal.RouteResult        (RouteResult (..))
-import Servant.Server.Internal.Delayed            (runDelayed)
-
+import Control.Monad.Trans.Resource (runResourceT)
+import Data.Time (UTCTime, getCurrentTime)
+import Data.Time.Clock (NominalDiffTime)
+import Data.Time.Clock.POSIX (getPOSIXTime)
+import Network.Wai (Request, Response, ResponseReceived)
+import Network.Wai.Handler.WebSockets (websocketsOr)
+import Network.WebSockets (Connection, ConnectionOptions (..), acceptRequest, defaultConnectionOptions)
+import Network.WebSockets.Connection (PendingConnection)
+import Servant (Handler, HasContextEntry, getContextEntry)
+import Servant.Server (HasServer (..), ServerError (..), ServerT, runHandler)
+import Servant.Server.Internal.Delayed (runDelayed)
+import Servant.Server.Internal.RouteResult (RouteResult (..))
+import Servant.Server.Internal.Router (leafRouter)
+import WebSocketPong (pongHandler)
 
 data WebSocket
 
-instance HasServer WebSocket ctx where
+instance (HasContextEntry ctx ConnectionOptions) => HasServer WebSocket ctx where
+  type ServerT WebSocket m = Connection -> IORef NominalDiffTime -> m ()
 
-  type ServerT WebSocket m = Connection -> m ()
-
-#if MIN_VERSION_servant_server(0,12,0)
-  hoistServerWithContext _ _ nat svr = nat . svr
-#endif
-
-  route Proxy _ app = leafRouter $ \env request respond -> runResourceT $
-    runDelayed app env request >>= liftIO . go request respond
+  route Proxy context app = leafRouter $ \env request respond ->
+    runResourceT $
+      runDelayed app env request >>= liftIO . go request respond
    where
-    go request respond (Route app') =
-      websocketsOr defaultConnectionOptions (runApp app') (backupApp respond) request (respond . Route)
-    go _ respond (Fail e) = respond $ Fail e
-    go _ respond (FailFatal e) = respond $ FailFatal e
+    connectionOptions = getContextEntry context
 
-    runApp a = acceptRequest >=> \c -> void (runHandler $ a c)
+    go ::
+      Request ->
+      (RouteResult Response -> IO ResponseReceived) ->
+      RouteResult (Connection -> IORef NominalDiffTime -> Handler ()) ->
+      IO ResponseReceived
+    go request respond routeResult = case routeResult of
+      (Route app') -> do
+        currentTime <- getPOSIXTime
+        lastPongRef <- newIORef currentTime
+        websocketsOr
+          (connectionOptions{connectionOnPong = pongHandler lastPongRef})
+          (runApp lastPongRef app')
+          (backupApp respond)
+          request
+          (respond . Route)
+      (Fail e) -> respond $ Fail e
+      (FailFatal e) -> respond $ FailFatal e
 
-    backupApp respond _ _ = respond $ Fail ServerError { errHTTPCode = 426
-                                                       , errReasonPhrase = "Upgrade Required"
-                                                       , errBody = mempty
-                                                       , errHeaders = mempty
-                                                       }
+    runApp ::
+      IORef NominalDiffTime ->
+      (Connection -> IORef NominalDiffTime -> Handler a) ->
+      PendingConnection ->
+      IO ()
+    runApp lastPongRef a pendingConnection = do
+      connection <- acceptRequest pendingConnection
+      void (runHandler $ a connection lastPongRef)
+
+    backupApp respond _ _ =
+      respond $
+        Fail
+          ServerError
+            { errHTTPCode = 426
+            , errReasonPhrase = "Upgrade Required"
+            , errBody = mempty
+            , errHeaders = mempty
+            }
+
+  hoistServerWithContext _ _ nat svr conn lastPong = nat $ svr conn lastPong
