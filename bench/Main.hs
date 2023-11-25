@@ -12,6 +12,8 @@ import Data.Bits (Bits (..))
 import Data.Vector qualified as BV
 import Data.Vector.Unboxed qualified as V
 import Data.WideWord (Word128)
+import AI.Assessment
+import AI.NegamaxABZ
 
 simpleCapture =
   [b|
@@ -19,8 +21,8 @@ simpleCapture =
  .  .  O  .  .  .  .  .  X  .  .
  X  O  .  .  .  .  .  .  .  X  O
  .  .  O  .  .  .  .  .  X  .  .
- .  .  X  .  .  .  .  .  O  .  .
- X  .  .  .  .  X  O  .  .  .  O
+ #  .  X  .  .  .  .  .  O  .  .
+ X  .  .  .  .  .  O  .  .  .  O
  O  .  .  .  .  .  .  .  .  .  X
  .  .  .  .  .  .  .  .  .  .  .
  .  .  .  .  .  .  .  .  .  .  .
@@ -68,5 +70,10 @@ main = do
         -- , bench "nextBoardsBlack4" $ nf nextBoardsBlack4 startBoard
         -- , bench "nextBoards4Sum" $ nf nextBoards4Sum startBoard
         -- , bench "nextBoards5Sum" $ nf nextBoards5Sum startBoard
+        ]
+    , bgroup
+        "negamaxABZ"
+        [ bench "candidate" $ nfIO $ runSearch' startBoard Black
+        , bench "current" $ nfIO $ runSearch startBoard Black
         ]
     ]

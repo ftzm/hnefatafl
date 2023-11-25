@@ -86,6 +86,7 @@ dependencies:
   - wai-websockets
   - resourcet
   - lens
+  - storable-record
   # - QuickCheck
   # - annotated-exception
   # - attoparsec

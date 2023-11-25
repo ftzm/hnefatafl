@@ -304,13 +304,17 @@ main = do
 
   (result, stats) <- runSearch startBoard Black
   -- mapM_ ((\b -> putStrLn "" >> putStrLn b) . showBoard) $ reverse $ result.board
-  print stats
-  putStrLn $ "tally: " <> (show result.tally)
-  -- looking for 12068
-  putStrLn $ "score: " <> (show result.score)
-  putStrLn $ "best move: " <> (show result.move)
-  let nextMoveBoards = nextMoveBoardsBlack' startBoard
-  putStrLn $ showBoard $ fromJust $ L.lookup result.move nextMoveBoards
+  -- print stats
+  -- putStrLn $ "tally: " <> (show result.tally)
+  -- -- looking for 12068
+  -- putStrLn $ "score: " <> (show result.score)
+  -- putStrLn $ "best move: " <> (show result.move)
+  -- let nextMoveBoards = nextMoveBoardsBlack' startBoard
+  -- putStrLn $ showBoard $ fromJust $ L.lookup result.move nextMoveBoards
+
+  (result', stats') <- runSearch' startBoard Black
+
+  print $ result.score == result'.score
 
   -- let startZobrist = boardToMultiZobrist shouldEscape True
   -- let nmb = nextMoveBoardsWhite' shouldEscape

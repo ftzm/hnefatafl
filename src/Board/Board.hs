@@ -24,12 +24,15 @@ module Board.Board (
   serializeBoard,
 ) where
 
+import Control.Applicative (liftA3)
 import Data.Data (Data)
 import Data.List.Split (chunksOf, splitOn)
 import Data.Vector.Generic qualified as G
 import Data.Vector.Generic.Mutable qualified as M
 import Data.Vector.Unboxed.Base qualified as U
 import Data.WideWord.Word128 (Word128 (..))
+import Foreign.Storable (Storable (..))
+import Foreign.Storable.Record as Store
 import GHC.Bits (Bits (..))
 import Language.Haskell.TH.Quote (QuasiQuoter (..))
 import Language.Haskell.TH.Syntax (liftData)
@@ -51,7 +54,8 @@ data Board = Board
     blackPawns :: {-# UNPACK #-} !Word128
     -- , revBlackPawns :: !Word128
   }
-  deriving (Data, Generic, NFData, Eq)
+  deriving stock (Data, Generic, Eq)
+  deriving anyclass (NFData)
 
 instance Show Board where
   show = ('\n' :) . showBoard
@@ -64,6 +68,21 @@ instance FromJSON Board where
 
 -- instance Eq Board where
 --   a == b = showBoard a == showBoard b
+
+store :: Store.Dictionary Board
+store =
+  Store.run $
+    liftA3
+      Board
+      (Store.element whitePawns)
+      (Store.element king)
+      (Store.element blackPawns)
+
+instance Storable Board where
+  sizeOf = Store.sizeOf store
+  alignment = Store.alignment store
+  peek = Store.peek store
+  poke = Store.poke store
 
 --------------------------------------------------------------------------------
 -- Teams
@@ -96,8 +115,14 @@ instance U.IsoUnbox Word128 (Word64, Word64) where
 
 newtype instance U.MVector s Word128 = MV_Word128 (U.MVector s (Word64, Word64))
 newtype instance U.Vector Word128 = V_Word128 (U.Vector (Word64, Word64))
-deriving via (Word128 `U.As` (Word64, Word64)) instance M.MVector U.MVector Word128
-deriving via (Word128 `U.As` (Word64, Word64)) instance G.Vector U.Vector Word128
+deriving via
+  (Word128 `U.As` (Word64, Word64))
+  instance
+    M.MVector U.MVector Word128
+deriving via
+  (Word128 `U.As` (Word64, Word64))
+  instance
+    G.Vector U.Vector Word128
 instance U.Unbox Word128
 
 --------------------------------------------------------------------------------
@@ -111,8 +136,14 @@ instance U.IsoUnbox Board (Word128, Word128, Word128) where
 
 newtype instance U.MVector s Board = MV_Board (U.MVector s (Word128, Word128, Word128))
 newtype instance U.Vector Board = V_Board (U.Vector (Word128, Word128, Word128))
-deriving via (Board `U.As` (Word128, Word128, Word128)) instance M.MVector U.MVector Board
-deriving via (Board `U.As` (Word128, Word128, Word128)) instance G.Vector U.Vector Board
+deriving via
+  (Board `U.As` (Word128, Word128, Word128))
+  instance
+    M.MVector U.MVector Board
+deriving via
+  (Board `U.As` (Word128, Word128, Word128))
+  instance
+    G.Vector U.Vector Board
 instance U.Unbox Board
 
 --------------------------------------------------------------------------------

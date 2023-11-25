@@ -11,7 +11,7 @@ import Board.Board (
   testBoardBit,
  )
 import Board.Constant (corners, pawnIllegalDestinations, throne, whiteAlliedSquares)
-import Board.Zobrist (MultiZobrist, updateMultiZobrist)
+import Board.Zobrist (MultiZobrist, Zobrist, updateMultiZobrist, updateZobrist)
 import Data.Bits (Bits (..), FiniteBits (..))
 import Data.Vector.Unboxed qualified as V
 import Data.WideWord (Word128 (..))
@@ -325,6 +325,35 @@ nextMoveBoardsBlackZ board zobrist =
    in
     map (uncurry applyChanges) ms
 
+nextMoveBoardsBlackZ' ::
+  Board ->
+  Zobrist ->
+  [((Int8, Int8), Board, Zobrist)]
+nextMoveBoardsBlackZ' board zobrist =
+  let
+    ms = blackMoves' board
+    opps = board.whitePawns .|. board.king
+    applyChanges :: Int8 -> Int8 -> ((Int8, Int8), Board, Zobrist)
+    applyChanges orig dest =
+      let
+        departed = clearBit board.blackPawns $ fromIntegral orig
+        allies = departed .|. corners
+        capturedSquares = captures' allies opps dest
+        updatedBoard =
+          board
+            { blackPawns = setBit departed $ fromIntegral dest
+            , whitePawns = xor board.whitePawns $ foldl' (\acc x -> setBit acc $ fromIntegral x) 0 capturedSquares
+            }
+        zPieces =
+          (BlackType, dest)
+            : (BlackType, orig)
+            : map (WhiteType,) capturedSquares
+        updatedZobrist = updateZobrist zPieces zobrist
+       in
+        ((orig, dest), updatedBoard, updatedZobrist)
+   in
+    map (uncurry applyChanges) ms
+
 applyMoveWhitePawn :: Board -> (Int8, Int8) -> Board
 applyMoveWhitePawn board (orig, dest) =
   let
@@ -457,7 +486,12 @@ nextMoveBoardsWhiteZ board zobrist =
         updatedBoard =
           board
             { whitePawns = setBit departed $ fromIntegral dest
-            , blackPawns = xor board.blackPawns $ foldl' (\acc x -> setBit acc $ fromIntegral x) 0 capturedSquares
+            , blackPawns =
+                xor board.blackPawns $
+                  foldl'
+                    (\acc x -> setBit acc $ fromIntegral x)
+                    0
+                    capturedSquares
             }
         zPieces =
           (WhiteType, dest)
@@ -482,6 +516,59 @@ nextMoveBoardsWhiteZ board zobrist =
             : (KingType, orig)
             : [(BlackType, i) | i <- [0 .. 120], testBoardBit capturedSquares i]
         updatedZobrist = updateMultiZobrist zPieces zobrist
+       in
+        ((orig, dest), updatedBoard, updatedZobrist)
+   in
+    map (uncurry applyKingChanges) kingMs
+      ++ map (uncurry applyPawnChanges) pawnMs
+
+nextMoveBoardsWhiteZ' ::
+  Board ->
+  Zobrist ->
+  [((Int8, Int8), Board, Zobrist)]
+nextMoveBoardsWhiteZ' board zobrist =
+  let
+    opps = board.blackPawns
+    pawnMs = whiteMoves' board
+    applyPawnChanges :: Int8 -> Int8 -> ((Int8, Int8), Board, Zobrist)
+    applyPawnChanges orig dest =
+      let
+        departed = clearBit board.whitePawns $ fromIntegral orig
+        allies = departed .|. board.king .|. whiteAlliedSquares
+        capturedSquares = captures' allies opps dest
+        updatedBoard =
+          board
+            { whitePawns = setBit departed $ fromIntegral dest
+            , blackPawns =
+                xor board.blackPawns $
+                  foldl'
+                    (\acc x -> setBit acc $ fromIntegral x)
+                    0
+                    capturedSquares
+            }
+        zPieces =
+          (WhiteType, dest)
+            : (WhiteType, orig)
+            : map (BlackType,) capturedSquares
+        updatedZobrist = updateZobrist zPieces zobrist
+       in
+        ((orig, dest), updatedBoard, updatedZobrist)
+    kingAllies = board.whitePawns .|. corners
+    kingMs = kingMoves' board
+    applyKingChanges :: Int8 -> Int8 -> ((Int8, Int8), Board, Zobrist)
+    applyKingChanges orig dest =
+      let
+        capturedSquares = captures kingAllies opps dest
+        updatedBoard =
+          board
+            { king = setBit 0 $ fromIntegral dest
+            , blackPawns = xor board.blackPawns capturedSquares
+            }
+        zPieces =
+          (KingType, dest)
+            : (KingType, orig)
+            : [(BlackType, i) | i <- [0 .. 120], testBoardBit capturedSquares i]
+        updatedZobrist = updateZobrist zPieces zobrist
        in
         ((orig, dest), updatedBoard, updatedZobrist)
    in

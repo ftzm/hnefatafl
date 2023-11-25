@@ -1,9 +1,13 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE MultiWayIf #-}
 
 module Board.Zobrist (
   MultiZobrist (..),
+  Zobrist (..),
   boardToMultiZobrist,
+  boardToSingleZobrist,
   updateMultiZobrist,
+  updateZobrist,
   selectZobrist,
 ) where
 
@@ -21,6 +25,7 @@ import Data.Vector.Unboxed qualified as V
 import System.Random (Random (random), mkStdGen)
 
 import Board.Board (Board (..), PieceType (..))
+import Data.Data (Data)
 import Data.Foldable (maximum)
 
 --------------------------------------------------------------------------------
@@ -35,6 +40,8 @@ data MultiZobrist = MultiZobrist
   , flippedSouthEast :: Word64
   , flippedSouthWest :: Word64
   }
+  deriving stock (Data, Generic, Eq)
+  deriving anyclass (NFData)
 
 --------------------------------------------------------------------------------
 
@@ -266,3 +273,25 @@ selectZobrist z =
     , z.flippedSouthEast
     , z.flippedSouthWest
     ]
+
+--------------------------------------------------------------------------------
+
+newtype Zobrist = Zobrist {unZobrist :: Word64}
+  deriving stock (Data, Generic, Eq)
+  deriving anyclass (NFData)
+
+updateZobrist :: [(PieceType, Int8)] -> Zobrist -> Zobrist
+updateZobrist pieces (Zobrist zobrist) =
+  Zobrist $ foldl' (\acc (t, i) -> updateForPiece t i acc) turnToggled pieces
+ where
+  turnToggled = xor zobrist blackTurnMask
+  updateForPiece :: PieceType -> Int8 -> Word64 -> Word64
+  updateForPiece t i z =
+    case t of
+      WhiteType -> xor z (whitePawnMasks V.! fromIntegral i)
+      KingType -> xor z (kingMasks V.! fromIntegral i)
+      BlackType -> xor z (blackPawnMasks V.! fromIntegral i)
+
+boardToSingleZobrist :: Board -> Bool -> Zobrist
+boardToSingleZobrist board isBlackTurn =
+  Zobrist $ boardToZobrist0 board isBlackTurn
