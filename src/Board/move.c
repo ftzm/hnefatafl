@@ -1,25 +1,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <limits.h>
 
 #include "move.h"
+#include "u128.h"
 
-uint64_t checkBoardBit(const u128 board, const int bit) {
-  ////printf("checkBoardBit: %d \n", bit);
-  if (bit<64) {
-    return board.lo & ((uint64_t) 1 << bit);
-  } else {
-    return board.hi & ((uint64_t) 1 << (bit - 64));
-  }
-}
+// TODO: const everywhere applicable
+// TODO: hide u128 internals
 
-void setBoardBit(u128 *board, const int bit) {
-  if (bit<64) {
-    board->lo = board->lo | ((uint64_t) 1 << bit);
-  } else {
-    board->hi = board->hi | ((uint64_t)1 << (bit - 64));
-  }
-}
 
 //int northMoveCount(const uint64_t hi, const uint64_t lo, int pos) {
 int northMoveCount(const u128 occ, const int pos) {
@@ -27,7 +18,7 @@ int northMoveCount(const u128 occ, const int pos) {
   int i;
   for (i = pos + 11; i < 121; i = i + 11) {
     ////printf("C: %d \n",i);
-    if (checkBoardBit(occ, i)) {
+    if (u128_check_bit(occ, i)) {
       break;
     };
     count++;
@@ -41,7 +32,7 @@ int southMoveCount(const u128 occ, int pos) {
   int i;
   for (i = pos - 11; i >= 0; i = i - 11) {
     ////printf("C: %d \n",i);
-    if (checkBoardBit(occ, i)) {
+    if (u128_check_bit(occ, i)) {
       break;
     };
     count++;
@@ -56,7 +47,7 @@ int eastMoveCount(const u128 occ, int pos) {
   while (count < limit) {
     pos++;
     ////printf("east pos: %d \n",pos);
-    if (checkBoardBit(occ, pos)) {
+    if (u128_check_bit(occ, pos)) {
       break;
     };
     count++;
@@ -70,7 +61,7 @@ int westMoveCount(const u128 occ, int pos) {
   int limit = pos % 11;
   while (count < limit) {
     pos--;
-    if (checkBoardBit(occ, pos)) {
+    if (u128_check_bit(occ, pos)) {
       break;
     };
     count++;
@@ -116,19 +107,116 @@ int teamMoveCount(
   u128 team = {teamHi, teamLo};
   int i, result = 0;
   for (i = 0; i < 121; i++) {
-    if (checkBoardBit(team, i)) {
+    if (u128_check_bit(team, i)) {
       result += pieceMoveCount2(occ, i);
     };
   };
   return result;
 }
 
-moves_t *team_moves(
-	      const uint64_t teamHi,
-	      const uint64_t teamLo,
-	      const uint64_t occHi,
-	      const uint64_t occLo
+int team_move_count(
+	      const u128 team,
+	      const u128 occ
 	      ) {
+  int i, result = 0;
+  for (i = 0; i < 121; i++) {
+    if (u128_check_bit(team, i)) {
+      result += pieceMoveCount2(occ, i);
+    };
+  };
+  return result;
+}
+
+int team_move_count_2(const u128 team, const u128 occ) {
+  bool north_allies[11] = {false, false, false, false, false, false,
+                           false, false, false, false, false};
+  int vertical_tallies[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  bool left_ally;
+  int line_tally, line_index, row_index;
+  int total, total_index  = 0;
+  for (row_index = 0; row_index < 11; row_index++) {
+    line_tally = 0;
+    bool left_ally = false;
+    if (row_index == 5) {
+      for (line_index = 0; line_index < 11; line_index++) {
+	if (u128_check_bit(team, total_index)) {
+	  // encountered an ally
+	  //handle horizontal
+	  total += line_tally;
+	  total += line_tally*left_ally;
+	  line_tally = 0;
+	  left_ally = true;
+	  //handle vertical
+	  total += vertical_tallies[line_index];
+	  total += vertical_tallies[line_index]*north_allies[line_index];
+	  vertical_tallies[line_index] = 0;
+	  north_allies[line_index] = true;
+	  // total
+	} else if (u128_check_bit(occ, total_index)) {
+	  // encountered an occupied (non ally) square
+	  //handle horizontal
+	  total += line_tally*left_ally;
+	  line_tally = 0;
+	  left_ally = false;
+	  //handle vertical
+	  total += vertical_tallies[line_index]*north_allies[line_index];
+	  vertical_tallies[line_index] = 0;
+	  north_allies[line_index] = false;
+	} else {
+	  // empty square
+	  vertical_tallies[line_index]++;
+	  line_tally++;
+	}
+	total_index++;
+      }
+    } else {
+      for (line_index = 0; line_index < 11; line_index++) {
+	if (u128_check_bit(team, total_index)) {
+	  // encountered an ally
+	  //handle horizontal
+	  total += line_tally;
+	  total += line_tally*left_ally;
+	  line_tally = 0;
+	  left_ally = true;
+	  //handle vertical
+	  total += vertical_tallies[line_index];
+	  total += vertical_tallies[line_index]*north_allies[line_index];
+	  vertical_tallies[line_index] = 0;
+	  north_allies[line_index] = true;
+	  // total
+	} else if (u128_check_bit(occ, total_index)) {
+	  // encountered an occupied (non ally) square
+	  //handle horizontal
+	  total += line_tally*left_ally;
+	  line_tally = 0;
+	  left_ally = false;
+	  //handle vertical
+	  total += vertical_tallies[line_index]*north_allies[line_index];
+	  vertical_tallies[line_index] = 0;
+	  north_allies[line_index] = false;
+	} else {
+	  // empty square
+	  vertical_tallies[line_index]++;
+	  line_tally++;
+	}
+	total_index++;
+      }
+    }
+    if (left_ally) {
+      total += line_tally;
+    }
+  }
+  for (line_index = 0; line_index < 11; line_index++) {
+    if (north_allies[line_index]) {
+      total += vertical_tallies[line_index];
+    }
+  }
+
+  return total;
+}
+
+moves_t *team_moves(const uint64_t teamHi, const uint64_t teamLo,
+                    const uint64_t occHi, const uint64_t occLo) {
 
   u128 team = {teamHi, teamLo};
   u128 occ = {occHi, occLo};
@@ -147,7 +235,7 @@ moves_t *team_moves(
   int board_index;
   for (board_index = 0; board_index < 121; board_index++) {
     //printf("index: %d \n", board_index);
-    if (checkBoardBit(team, board_index)) {
+    if (u128_check_bit(team, board_index)) {
 
       //printf("teamLo popCount: %d \n", __builtin_popcount(teamLo));
       //printf("found piece at index: %d \n", board_index);
@@ -167,7 +255,7 @@ moves_t *team_moves(
       for (i = board_index + 11; i < 121; i = i + 11) {
         //printf("hit north\n");
         //printf("north: %d \n", i);
-	if (checkBoardBit(occ, i)) {
+	if (u128_check_bit(occ, i)) {
 	  break;
 	}
 	moves[move_index] = (struct move) {board_index, i};
@@ -181,7 +269,7 @@ moves_t *team_moves(
       //south
       for (i = board_index - 11; i >= 0; i = i - 11) {
         //printf("hit south\n");
-	if (checkBoardBit(occ, i)) {
+	if (u128_check_bit(occ, i)) {
 	  break;
 	};
 	moves[move_index] = (struct move) {board_index, i};
@@ -197,7 +285,7 @@ moves_t *team_moves(
       while (count < limit) {
 	pos++;
 	count++;
-	if (checkBoardBit(occ, pos)) {
+	if (u128_check_bit(occ, pos)) {
 	  break;
 	};
 	moves[move_index] = (struct move) {board_index, pos};
@@ -214,7 +302,7 @@ moves_t *team_moves(
 	//printf("in west\n");
 	pos--;
 	count++;
-	if (checkBoardBit(occ, pos)) {
+	if (u128_check_bit(occ, pos)) {
 	  break;
 	};
 	moves[move_index] = (struct move) {board_index, pos};
@@ -241,14 +329,9 @@ moves_t *team_moves(
   return m;
 }
 
-moves_t *team_moves_ptr(
-	      const uint64_t teamHi,
-	      const uint64_t teamLo,
-	      const uint64_t occHi,
-	      const uint64_t occLo,
-	      int *move_index,
-	      move *moves
-	      ) {
+moves_t *team_moves_ptr(const uint64_t teamHi, const uint64_t teamLo,
+                        const uint64_t occHi, const uint64_t occLo,
+                        int *move_index, move *moves) {
 
   u128 team = {teamHi, teamLo};
   u128 occ = {occHi, occLo};
@@ -263,7 +346,7 @@ moves_t *team_moves_ptr(
   int board_index;
   for (board_index = 0; board_index < 121; board_index++) {
     //printf("index: %d \n", board_index);
-    if (checkBoardBit(team, board_index)) {
+    if (u128_check_bit(team, board_index)) {
 
       //printf("teamLo popCount: %d \n", __builtin_popcount(teamLo));
       //printf("found piece at index: %d \n", board_index);
@@ -288,7 +371,7 @@ moves_t *team_moves_ptr(
 
         //printf("hit north\n");
         //printf("north: %d \n", i);
-	if (checkBoardBit(occ, i)) {
+	if (u128_check_bit(occ, i)) {
 	  break;
 	}
 	moves[*move_index] = (struct move) {board_index, i};
@@ -307,7 +390,7 @@ moves_t *team_moves_ptr(
 	}
 
         //printf("hit south\n");
-	if (checkBoardBit(occ, i)) {
+	if (u128_check_bit(occ, i)) {
 	  break;
 	};
 	moves[*move_index] = (struct move) {board_index, i};
@@ -329,7 +412,7 @@ moves_t *team_moves_ptr(
 	  continue;
 	}
 
-	if (checkBoardBit(occ, pos)) {
+	if (u128_check_bit(occ, pos)) {
 	  break;
 	};
 	moves[*move_index] = (struct move) {board_index, pos};
@@ -352,7 +435,7 @@ moves_t *team_moves_ptr(
 	  continue;
 	}
 
-	if (checkBoardBit(occ, pos)) {
+	if (u128_check_bit(occ, pos)) {
 	  break;
 	};
 	moves[*move_index] = (struct move) {board_index, pos};
@@ -366,7 +449,7 @@ moves_t *team_moves_ptr(
   return 0;
 }
 
-void *free_team_moves(moves_t *moves) {
+void free_team_moves(moves_t *moves) {
   free(moves->moves);
   free(moves);
 }
@@ -380,6 +463,7 @@ size_t length(const char *s) {
   return i;
 }
 
+/*
 int max(const size_t n, const int *a) {
   int m;
   size_t i;
@@ -397,6 +481,7 @@ int max(const size_t n, const int *a) {
 
   return m;
 }
+*/
 
 uint64_t bump(const uint64_t lower, const uint64_t upper) {
   return lower << 1;
@@ -411,38 +496,411 @@ u128 captures(const u128 friendBoard, const u128 foeBoard, const int dest) {
   //northCapture
   target = dest + 11;
   if (dest < 99 &&
-      checkBoardBit(foeBoard, target) &&
-      checkBoardBit(friendBoard, dest + 22))
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest + 22))
     {
-      setBoardBit(&captures, target);
+      u128_set_bit(&captures, target);
   }
 
   //southCapture
   target = dest - 11;
   if (dest > 23 &&
-      checkBoardBit(foeBoard, target) &&
-      checkBoardBit(friendBoard, dest - 22))
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest - 22))
     {
-      setBoardBit(&captures, target);
+      u128_set_bit(&captures, target);
   }
 
   //eastCapture
   target = dest + 1;
   if (modDest < 8 &&
-      checkBoardBit(foeBoard, target) &&
-      checkBoardBit(friendBoard, dest + 2))
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest + 2))
     {
-      setBoardBit(&captures, target);
+      u128_set_bit(&captures, target);
   }
 
   //westCapture
   target = dest - 1;
   if (modDest > 2 &&
-      checkBoardBit(foeBoard, target) &&
-      checkBoardBit(friendBoard, dest - 2))
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest - 2))
     {
-      setBoardBit(&captures, target);
+      u128_set_bit(&captures, target);
   }
 
   return captures;
+}
+
+int *captures_array(const u128 friendBoard, const u128 foeBoard, const int dest,
+                    int *output, size_t *count) {
+
+  *count = 0;
+  int modDest = dest % 11;
+
+  int target;
+
+  //northCapture
+  target = dest + 11;
+  if (dest < 99 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest + 22))
+    {
+      output[*count] = target;
+      (*count)++;
+  }
+
+  //southCapture
+  target = dest - 11;
+  if (dest > 23 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest - 22))
+    {
+      output[*count] = target;
+      (*count)++;
+  }
+
+  //eastCapture
+  target = dest + 1;
+  if (modDest < 8 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest + 2))
+    {
+      output[*count] = target;
+      (*count)++;
+  }
+
+  //westCapture
+  target = dest - 1;
+  if (modDest > 2 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest - 2))
+    {
+      output[*count] = target;
+      (*count)++;
+  }
+
+  return output;
+}
+
+// ----------------------------------------------------------------------
+// Port of Haskell stuff to C
+
+
+void board_to_string(board board, char *string) {
+  // initialize empty string
+  memset(string, ' ', 373);
+  string[373] = '\0';
+
+  int i;
+
+  // insert newlines
+  for (i = 33; i < 373; i+=34) {
+    string[i] = '\n';
+  }
+
+  // set board positions with the appropriate char
+  for (i = 0; i < 121; i++) {
+    int newline_offset = i / 11;
+    int index = ((i * 3) + 1) + newline_offset;
+    if (u128_check_bit(board.white_pawns, i)) {
+      string[index] = 'O';
+    } else if (u128_check_bit(board.king, i)) {
+      string[index] = '#';
+    } else if (u128_check_bit(board.black_pawns, i)) {
+      string[index] = 'X';
+    } else {
+      string[index] = '.';
+    }
+  }
+}
+
+move_board_zobrist *next_move_board_zobrists_black(board board, size_t *count) {
+  u128 occ = u128_or(
+      PAWN_ILLEGAL_DESTINATIONS,
+      u128_or(board.king, u128_or(board.white_pawns, board.black_pawns)));
+
+  int pawn_move_count;
+  move pawn_moves[400]; // consider 400 the max possible movecount for a board
+  team_moves_ptr(board.black_pawns.hi, board.black_pawns.lo, occ.hi, occ.lo,
+                 &pawn_move_count, pawn_moves);
+
+  int i;
+
+  for (i = 0; i < pawn_move_count; i++) {
+    move m = pawn_moves[i];
+    /*
+    printf("%d\n", m.orig);
+    printf("%d\n", m.dest);
+    printf("\n");
+    */
+  };
+
+  move_board_zobrist *output = malloc(sizeof(move_board_zobrist) * pawn_move_count);
+  for (i = 0; i < pawn_move_count; i++) {
+    move move = pawn_moves[i];
+    struct board new_board = board;
+
+    // clear piece from origin square and set at destination
+    u128_clear_bit(&new_board.black_pawns, move.orig);
+    u128_set_bit(&new_board.black_pawns, move.dest);
+
+    // get array of capture indexes
+    u128 allies = u128_or(new_board.black_pawns, u128_or(new_board.king, CORNERS));
+    int captures[4];
+    size_t capture_count;
+    captures_array(allies, new_board.white_pawns, move.dest, captures, &capture_count);
+
+    //remove captures from the board
+    int capture;
+    for (capture = 0; capture < capture_count; capture++) {
+      u128_clear_bit(&new_board.white_pawns, captures[capture]);
+    }
+
+    /*
+    char new_board_string[374];
+    board_to_string(new_board, new_board_string);
+    puts(new_board_string);
+    printf("\n");
+    */
+
+    struct move_board_zobrist entry = {move, new_board, 0};
+    output[i] = entry;
+  };
+
+  // handle king
+
+  (*count) = pawn_move_count;
+  return output;
+}
+
+move_board_zobrist *next_move_board_zobrists_white(board board, size_t *count) {
+  // handle pawns
+  int pawn_move_count;
+  move pawn_moves[400]; // consider 400 the max possible movecount for a board
+  u128 occ = u128_or(
+      PAWN_ILLEGAL_DESTINATIONS,
+      u128_or(board.king, u128_or(board.white_pawns, board.black_pawns)));
+
+  team_moves_ptr(board.white_pawns.hi, board.white_pawns.lo, occ.hi, occ.lo,
+                 &pawn_move_count, pawn_moves);
+
+  int i;
+
+  for (i = 0; i < pawn_move_count; i++) {
+    move m = pawn_moves[i];
+    /*
+    printf("%d\n", m.orig);
+    printf("%d\n", m.dest);
+    printf("\n");
+    */
+  };
+
+  move_board_zobrist *output = malloc(sizeof(move_board_zobrist) * pawn_move_count);
+  for (i = 0; i < pawn_move_count; i++) {
+    move move = pawn_moves[i];
+    struct board new_board = board;
+    // clear piece from origin square and set at destination
+    u128_clear_bit(&new_board.white_pawns, move.orig);
+    u128_set_bit(&new_board.white_pawns, move.dest);
+
+    // get array of capture indexes
+    u128 allies = u128_or(new_board.white_pawns, u128_or(new_board.king, WHITE_ALLIED_SQUARES));
+    int captures[4];
+    size_t capture_count;
+    captures_array(allies, new_board.black_pawns, move.dest, captures, &capture_count);
+
+    //remove captures from the board
+    int capture;
+    for (capture = 0; capture < capture_count; capture++) {
+      u128_clear_bit(&new_board.black_pawns, captures[capture]);
+    }
+
+    /*
+    char new_board_string[374];
+    board_to_string(new_board, new_board_string);
+    puts(new_board_string);
+    printf("\n");
+    */
+
+    struct move_board_zobrist entry = {move, new_board, 0};
+    output[i] = entry;
+  };
+
+  // handle king
+
+  (*count) = pawn_move_count;
+  return output;
+}
+
+// ----------------------------------------------------------------------
+
+// score
+
+int white_pawn_count(const board *board) {
+  return u128_popcount(board->white_pawns);
+}
+
+int white_pawn_move_count(const board *board) {
+  u128 occ = u128_or(
+      PAWN_ILLEGAL_DESTINATIONS,
+      u128_or(board->white_pawns, u128_or(board->king, board->black_pawns)));
+  return team_move_count_2(board->white_pawns, occ);
+}
+
+int king_move_count(const board *board) {
+  u128 occ = u128_or(PAWN_ILLEGAL_DESTINATIONS,
+                     u128_or(board->white_pawns, board->black_pawns));
+  return pieceMoveCount2(occ, u128_ctz(&(board->king)));
+}
+
+int black_pawn_count(const board *board) {
+  return u128_popcount(board->black_pawns);
+}
+
+int black_pawn_move_count(const board *board) {
+  u128 occ = u128_or(
+      PAWN_ILLEGAL_DESTINATIONS,
+      u128_or(board->white_pawns, u128_or(board->king, board->black_pawns)));
+  return team_move_count_2(board->black_pawns, occ);
+}
+
+bool king_escaped(const board *board) {
+  return u128_popcount(u128_and(board->king, CORNERS)) == 1;
+}
+
+bool king_captured(const board *board) {
+  int king_index = u128_ctz(&(board->king));
+  if (u128_popcount(u128_and(board->king, INSIDE))) {
+    u128 surround_mask = u128_zero;
+    u128_set_bit(&surround_mask, king_index + 1);
+    u128_set_bit(&surround_mask, king_index - 1);
+    u128_set_bit(&surround_mask, king_index + 11);
+    u128_set_bit(&surround_mask, king_index - 11);
+    return u128_popcount(u128_and(surround_mask, board->black_pawns)) == 4;
+  } else {
+    return false;
+  }
+}
+
+int score_board(const board *board, const bool is_black_turn) {
+  int white_score;
+  if (king_escaped(board)) {
+    white_score = 1000000;
+  } else {
+    white_score = (white_pawn_count(board) * 1000) + white_pawn_move_count(board) +
+      (king_move_count(board) * 100);
+  }
+  int black_score;
+  if (king_captured(board)) {
+    black_score = 1000000;
+  } else {
+    black_score = (black_pawn_count(board) * 1000) + black_pawn_move_count(board);
+  }
+  if (is_black_turn) {
+    return black_score - white_score;
+  } else {
+    return white_score - black_score;
+  }
+}
+
+// ----------------------------------------------------------------------
+
+typedef int score;
+
+typedef struct negamax_result {
+  move move;
+  board board;
+  score score;
+} negamax_result;
+
+negamax_result negamax_ab(move move, board board, bool is_black_turn, int depth,
+                          int alpha, int beta) {
+  //printf("depth: %d\n", depth);
+  if (depth == 0) {
+    return (negamax_result) { move, board, score_board(&board, is_black_turn) };
+  } else {
+    //printf("non-zero case\n");
+    size_t next_boards_count;
+    move_board_zobrist *next_boards;
+    //printf("getting boards\n");
+    if (is_black_turn) {
+      next_boards = next_move_board_zobrists_black(board, &next_boards_count);
+    } else {
+      next_boards = next_move_board_zobrists_white(board, &next_boards_count);
+    }
+    //printf("got boards\n");
+
+    // start with a bogus best
+    negamax_result best = {move, board, INT_MIN};
+    int i;
+    for (i = 0; i < next_boards_count; i++) {
+
+      move_board_zobrist next = next_boards[i];
+
+      // calcualte result and negate score
+      negamax_result next_result = negamax_ab(next.move, next.board, !is_black_turn, depth - 1, -beta, -alpha);
+      next_result.score = -next_result.score;
+
+      if (next_result.score > best.score) {
+	best = next_result;
+      }
+      if (best.score > alpha) {
+	alpha = best.score;
+      }
+      if (alpha > beta) {
+	break;
+      }
+    }
+
+    //printf("free");
+    free(next_boards);
+    return best;
+  }
+}
+
+// ----------------------------------------------------------------------
+
+  /*
+  for (r = 0; r < count; r++) {
+    struct move_board_zobrist result = move_board_zobrists_white[r];
+    char r_board_string[374];
+    board_to_string(result.board, r_board_string);
+    puts(r_board_string);
+    printf("\n");
+  }
+  // */
+
+int main(int argc, char **argv) {
+  printf("Running test\n");
+
+  //print startBoard
+  char board_string[374];
+  board_to_string(START_BOARD, board_string);
+  puts(board_string);
+
+  //nextMoveBoardZobristsWhite
+  size_t count;
+  move_board_zobrist *move_board_zobrists_white = next_move_board_zobrists_white(START_BOARD, &count);
+  printf("%ld\n", count);
+  int r;
+  //printf("%ld", count);
+
+  //nextMoveBoardZobristsBlack
+  move_board_zobrist *move_board_zobrists_black = next_move_board_zobrists_black(START_BOARD, &count);
+  printf("%ld\n", count);
+  //printf("%ld", count);
+
+  //test score
+  int start_board_score_black = score_board(&START_BOARD, true);
+  printf("%d\n", start_board_score_black);
+  int start_board_score_white = score_board(&START_BOARD, false);
+  printf("%d\n", start_board_score_white);
+
+
+  //test negamax
+  negamax_result negamax_result = negamax_ab((move){0, 0}, START_BOARD,true, 5, INT_MIN, INT_MAX);
+  printf("score: %d\n", negamax_result.score);
+
+  return 0;
 }

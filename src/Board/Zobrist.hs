@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE StrictData #-}
 
 module Board.Zobrist (
   MultiZobrist (..),
@@ -262,17 +263,7 @@ updateMultiZobrist pieces zobrist = foldl' (\acc (t, i) -> updateForPiece t i ac
           }
 
 selectZobrist :: MultiZobrist -> Word64
-selectZobrist z =
-  maximum
-    [ z.rotated0
-    , z.rotated90
-    , z.rotated180
-    , z.rotated270
-    , z.flippedHorizontal
-    , z.flippedVertical
-    , z.flippedSouthEast
-    , z.flippedSouthWest
-    ]
+selectZobrist z = z.rotated0
 
 --------------------------------------------------------------------------------
 

@@ -4,7 +4,7 @@ module Board.Constant where
 
 import Board.Board
 import Data.Bits (Bits (..))
-import Data.WideWord (Word128)
+import Data.WideWord (Word128(..))
 
 corners :: Word128
 corners =
@@ -36,6 +36,22 @@ throne =
  .  .  .  .  .  .  .  .  .  .  .
  .  .  .  .  .  .  .  .  .  .  .
  .  .  .  .  .  .  .  .  .  .  .
+|]
+
+outside :: Word128
+outside =
+  [bl|
+ X  X  X  X  X  X  X  X  X  X  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  .  .  .  .  .  .  .  .  .  X
+ X  X  X  X  X  X  X  X  X  X  X
 |]
 
 whiteAlliedSquares :: Word128

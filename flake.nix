@@ -41,6 +41,11 @@
             pkgs.zlib
             pkgs.gdb
             pkgs.sqlite
+
+            # C
+            pkgs.clang-tools
+            pkgs.ccls
+            pkgs.bear
           ];
 
           withHoogle = true;

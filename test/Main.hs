@@ -312,9 +312,10 @@ main = do
   -- let nextMoveBoards = nextMoveBoardsBlack' startBoard
   -- putStrLn $ showBoard $ fromJust $ L.lookup result.move nextMoveBoards
 
-  (result', stats') <- runSearch' startBoard Black
+  -- (result', stats') <- runSearch' startBoard Black
 
-  print $ result.score == result'.score
+  -- print $ result.score == result'.score
+  print result.score
 
   -- let startZobrist = boardToMultiZobrist shouldEscape True
   -- let nmb = nextMoveBoardsWhite' shouldEscape
