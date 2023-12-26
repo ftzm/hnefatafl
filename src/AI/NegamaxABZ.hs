@@ -311,7 +311,7 @@ runSearch board team = do
       (0, 0)
       board
       team
-      2
+      5
       0
       (minBound + 10)
       (maxBound - 10)

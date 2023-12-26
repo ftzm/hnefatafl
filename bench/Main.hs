@@ -74,7 +74,7 @@ main = do
     , bgroup
         "negamaxABZ"
         [ bench "current" $ nfIO $ runSearch simpleCapture Black
-        , bench "candidate" $ nfIO $ runSearch' simpleCapture Black
-        , bench "candidate 2" $ nfIO $ runSearch'' simpleCapture Black
+        -- , bench "candidate" $ nfIO $ runSearch' simpleCapture Black
+        -- , bench "candidate 2" $ nfIO $ runSearch'' simpleCapture Black
         ]
     ]

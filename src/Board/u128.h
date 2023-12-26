@@ -6,8 +6,6 @@ typedef struct u128{
   uint64_t lo;
 } u128;
 
-typedef __uint128_t u1282;
-
 /*
 u128 u128_or(const u128 x, const u128 y);
 
