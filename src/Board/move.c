@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
+#include <time.h>
+
 
 #include "move.h"
 #include "u128.h"
@@ -556,6 +558,33 @@ int *captures_array(const u128 friendBoard, const u128 foeBoard, const int dest,
 // ----------------------------------------------------------------------
 // Port of Haskell stuff to C
 
+void print_layer(u128 layer) {
+  // initialize empty string
+  char string[374];
+  memset(string, ' ', 373);
+  string[373] = '\0';
+
+  int i;
+
+  // insert newlines
+  for (i = 33; i < 373; i+=34) {
+    string[i] = '\n';
+  }
+
+  // set board positions with the appropriate char
+  for (i = 0; i < 121; i++) {
+    int newline_offset = i / 11;
+    int index = ((i * 3) + 1) + newline_offset;
+    if (u128_check_bit(layer, i)) {
+      string[index] = 'X';
+    } else {
+      string[index] = '.';
+    }
+  }
+
+  puts(string);
+}
+
 
 void board_to_string(board board, char *string) {
   // initialize empty string
@@ -786,7 +815,7 @@ int score_board(const board *board, const bool is_black_turn) {
 
 // ----------------------------------------------------------------------
 
-u128 read_layer(const char *string) {
+u128 read_layer(const char *string, char symbol) {
   u128 output = u128_zero;
   int len = strlen(string);
   int i;
@@ -794,16 +823,15 @@ u128 read_layer(const char *string) {
   int index = 0;
   for (i = 0; i < len; i++) {
     char c = string[i];
-    if (c == '.') {
-      printf("hit . index %d\n", index);
-      index++;
-    } else if (c == 'X') {
-      printf("hit X index %d\n", index);
+    if (c == symbol) {
+      //printf("hit X index %d\n", index);
       u128_set_bit(&output, index);
       index++;
+    } else if (c == ' ') {
+      // skip space
     } else {
-
-      // do nothing
+      // skip other chars but increment
+      index++;
     }
   }
   return output;
@@ -895,4 +923,82 @@ negamax_result negamax_ab(move move, board board, bool is_black_turn, int depth,
     free(next_boards);
     return best;
   }
+}
+
+const char* start_board_string =
+  " .  .  .  X  X  X  X  X  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  .  .  .  .  .  .  . "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  X  .  O  O  #  O  O  .  X  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " .  .  .  .  .  .  .  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  X  X  X  X  X  .  .  . ";
+
+int main(int argc, char **argv) {
+  printf("Running test\n");
+
+  // read and verify boards
+  u128 corners = read_layer(corners_string, 'X');
+  print_layer(corners);
+  printf("\n");
+  u128 black = read_layer(start_board_string, 'X');
+  print_layer(black);
+  printf("\n");
+  u128 white = read_layer(start_board_string, 'O');
+  print_layer(white);
+  printf("\n");
+  u128 occ = u128_or(corners, u128_or(black, white));
+  print_layer(occ);
+  printf("\n");
+
+  // begin time
+  clock_t start, end;
+  double cpu_time_used;
+  start = clock();
+
+  // setup
+  // none
+
+  /*
+  */
+
+  // run for result
+  int pawn_move_count;
+  move pawn_moves[400]; // consider 400 the max possible movecount for a board
+  team_moves_ptr(black.hi, black.lo, occ.hi, occ.lo, &pawn_move_count, pawn_moves);
+  printf("move_count: %d\n", pawn_move_count);
+
+
+  // run for bench
+  int bench_count = 5000000;
+  while (bench_count) { 
+    team_moves_ptr(black.hi, black.lo, occ.hi, occ.lo, &pawn_move_count, pawn_moves);
+    bench_count--;
+  }
+  /*
+
+
+  // run for result
+  int pawn_move_count;
+  pawn_move_count = team_move_count_2(black, occ);
+  printf("move_count: %d\n", pawn_move_count);
+
+
+  // run for bench
+  int bench_count = 25000000;
+  while (bench_count) { 
+    pawn_move_count = team_move_count_2(black, occ);
+    bench_count--;
+  }
+
+  */
+
+  // end time
+  end = clock();
+  cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+  printf("bench took %f seconds to execute \n", cpu_time_used); 
 }

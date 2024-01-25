@@ -1,4 +1,4 @@
-#include "../board.c"
+ #include "../board.c"
 
 const char* empty =
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -751,8 +751,8 @@ int main(int argc, char **argv) {
 
   printf("Testing capture!...\n");
 
-  gen_foe_masks();
-  gen_ally_masks();
+  // gen_foe_masks();
+  // gen_ally_masks();
 
   //test_capture(capture_l, l_input, l_expected, 38);
   //test_capture(capture_u, u_input, u_expected, 93);
@@ -777,9 +777,21 @@ int main(int argc, char **argv) {
   //test_capture(capture_ne, ne_input, ne_expected, 115);
   //test_capture(capture_nw, nw_input, nw_expected, 115);
   //test_all_captures();
-  bench_all_captures(10000000);
+  // bench_all_captures(10000000);
   //bench_all_captures_niave(10000000);
 
+  /*
+  uint8_t results[32] = {0};
+  results[0] = 5;
+  results[3] = 3;
+  results[12] = 1;
+  results[16] = 222;
+  results[22] = 222;
+  short r = hsum_epu64_scalar(hsum_epu8_epu64(_mm256_load_si256((__m256i*)&results[0])));
+  printf("r: %d\n", r);
+  */
+
+  bench();
 
   return code;
 }

@@ -83,3 +83,9 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+typedef struct layer {
+  uint64_t lo;
+  uint15_t mid;
+  uint64_t hi;
+}
