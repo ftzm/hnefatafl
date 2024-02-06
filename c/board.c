@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -151,14 +152,132 @@ void print_layer(layer layer) {
  ******************************************************************************/
 
 typedef struct board {
-  layer white_pawns;
+  layer black;
+  layer black_r;
+  layer white;
+  layer white_r;
+  // king can maybe also just be a char
   layer king;
-  layer black_pawns;
+  layer king_r;
 } board;
 
+board read_board(const char *string) {
+  board board = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}}; 
+  read_layer(string, 'X', board.black);
+  read_layer(string, 'O', board.white);
+  read_layer(string, '#', board.king);
+  rotate_layer(board.black, board.black_r);
+  rotate_layer(board.white, board.white_r);
+  rotate_layer(board.king, board.king_r);
+  return board;
+}
+
+void print_board(board board) {
+  char string[374];
+
+  // initialize empty string
+  memset(string, ' ', 373);
+  string[373] = '\0';
+
+
+  // insert newlines
+  for (int i = 33; i < 373; i+=34) {
+    string[i] = '\n';
+  }
+
+  // set board positions with the appropriate unsigned char
+  for (int i = 0; i < 121; i++) {
+    int newline_offset = i / 11;
+    int index = ((i * 3) + 1) + newline_offset;
+    if (board.black[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
+      string[index] = 'X';
+    } else if (board.white[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
+      string[index] = 'O';
+    } else if (board.king[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
+      string[index] = '#';
+    } else {
+      string[index] = '.';
+    }
+  }
+
+  puts(string);
+  printf("\n");
+}
+
+void print_board_r(board board) {
+  char string[374];
+
+  // initialize empty string
+  memset(string, ' ', 373);
+  string[373] = '\0';
+
+
+  // insert newlines
+  for (int i = 33; i < 373; i+=34) {
+    string[i] = '\n';
+  }
+
+  // set board positions with the appropriate unsigned char
+  for (int i = 0; i < 121; i++) {
+    int newline_offset = i / 11;
+    int index = ((i * 3) + 1) + newline_offset;
+    if (board.black_r[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
+      string[index] = 'X';
+    } else if (board.white_r[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
+      string[index] = 'O';
+    } else if (board.king_r[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
+      string[index] = '#';
+    } else {
+      string[index] = '.';
+    }
+  }
+
+  puts(string);
+  printf("\n");
+}
+
+layer corners = {1025, 72127962782105600};
+
 /*******************************************************************************
- * Capture
+ * # Capture
  * 
+
+There are two types of captures we need to account for: 1) normal
+captures, where a piece is sandwiched vertically or horizontally
+between two pieces or squares, and 2) shield wall captures, where a
+row of pieces along the wall are surrounded by enemy pieces. There are
+several implementations of each kind of check; the motivations for
+these are described below
+
+# normal captures
+
+To find normal captures, we need to check if any squares around the
+arrival square contain opposing pieces (foes), and if the squares
+behind those contain allied pieces (allies). To accomplish this, we
+pre-generate two lookup tables: one containing foe
+position masks for each position, and the other containing corresponding
+ally masks. We use pext (parallel bit extract) with the foe layer and
+mask to move the relevant 4 bits to the bottom, and do the same with
+the ally layer and mask. After a bitwise and on these 2 sets of 4
+bits, any remaining 1s represent captures. We use pdep (parallel bit deposit) on
+the result and the foe mask to move the captures back into
+position, producing a result that can be used to update the board or
+extract capture indices.
+
+The above description elided the compicating factor that each layer is
+made up of two sub-layer ints. If a mask is split over both sub-layers
+then at best we have to duplicate the check on each half, and at worst
+we additionally need to shuffle bits between halves so that
+corresponding foes and allies are together. Thankfully most masks fall
+entirely on one half of either the standard or rotated layers, and
+only for captures in the middle of the board do we need to do more
+complicated checks. We thus have several normal capture functions,
+each of which does the most efficient possible check for a given
+section of the board.
+
+# shield wall captures
+
+
  * Many capture functions are defined in order to do the most
  * efficient check given the location on the board. The specific
  * considerations are as follows:
@@ -234,43 +353,55 @@ uint64_t foe_masks_r[120][2];
 void gen_foe_masks() {
   int i, modDest, target, target_r;
   for (i = 0; i < 120; i++) {
-    //printf("-------------------------------------------------\n");
-    //printf("i: %d\n", i);
+    // printf("-------------------------------------------------\n");
+    // printf("i: %d\n", i);
     modDest = i % 11;
-    //printf("modDest: %d\n", modDest);
+    // printf("modDest: %d\n", modDest);
     if (i < 99) {
-      //printf("north\n");
+      // printf("north\n");
       target = i + 11;
-      //printf("target: %d\n", target);
-      foe_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      // printf("target: %d\n", target);
+      foe_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      //printf("target_r: %d\n", target_r);
-      foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
-      //foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r - sub_layer_offset[target_r]));
+      // printf("target_r: %d\n", target_r);
+      foe_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+      // foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r -
+      // sub_layer_offset[target_r]));
     }
     if (i > 21) {
       target = i - 11;
-      foe_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      foe_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
-      //foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r - sub_layer_offset[target_r]));
+      foe_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+      // foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r -
+      // sub_layer_offset[target_r]));
     }
     if (modDest < 9) {
       target = i + 1;
-      foe_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      foe_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
-      //foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r - sub_layer_offset[target_r]));
+      foe_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+      // foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r -
+      // sub_layer_offset[target_r]));
     }
     if (modDest > 1) {
       target = i - 1;
-      foe_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      foe_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
-      //foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r - sub_layer_offset[target_r]));
+      foe_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+      // foe_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << (target_r -
+      // sub_layer_offset[target_r]));
     }
-    //print_layer(foe_masks[i]);
-    //print_layer(foe_masks_r[i]);
+    // print_layer(foe_masks[i]);
+    // print_layer(foe_masks_r[i]);
   }
 }
 
@@ -283,35 +414,38 @@ void gen_ally_masks() {
     modDest = i % 11;
     if (i < 99) {
       target = i + 22;
-      ally_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      ally_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      ally_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      ally_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
     }
     if (i > 21) {
       target = i - 22;
-      ally_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      ally_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      ally_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      ally_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest < 9) {
       target = i + 2;
-      ally_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      ally_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      ally_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      ally_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest > 1) {
       target = i - 2;
-      ally_masks[i][sub_layer[target]] |= ((uint64_t) 1 << (target - sub_layer_offset[target]));
+      ally_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
       target_r = rotate_right[target];
-      ally_masks_r[i][sub_layer[target_r]] |= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      ally_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
     }
   }
 }
-
-typedef struct ally_layers {
-  layer allies;
-  layer allies_r;
-} ally_layers;
 
 //******************************************************************************
 // Capture functions
@@ -323,91 +457,103 @@ typedef struct ally_layers {
  * lowest 4 bits, do bitwise and, and then move the result back into
  * position.
  */
-void capture_l(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_l(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
+  (void)allies_r;
   const uint64_t *foe_mask = foe_masks[pos];
-  const uint64_t attackers_0 = _pext_u64(ally_layers.allies[0], ally_masks[pos][0]);
-  const uint64_t attackees_ext_0 = _pext_u64(foes[0], foe_mask[0]) & attackers_0;
-  uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
-  if (attackees_dep_0) {
+  const uint64_t attackers_0 = _pext_u64(allies[0], ally_masks[pos][0]);
+  const uint64_t attackees_ext_0 =
+      _pext_u64(foes[0], foe_mask[0]) & attackers_0;
+  if (attackees_ext_0) {
+    uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
     foes[0] -= attackees_dep_0;
     unsigned char r;
     while (attackees_dep_0) {
       r = rotate_right[_tzcnt_u64(attackees_dep_0)];
-      foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
-      //foes_r[sub_layer[r]] -= ((uint64_t) 1 << (r - sub_layer_offset[r]));
+      foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
       attackees_dep_0 = _blsr_u64(attackees_dep_0);
     }
   }
 }
 
-void capture_u(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_u(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
   const uint64_t *foe_mask = foe_masks[pos];
 
-  const uint64_t attackers_1 = _pext_u64(ally_layers.allies[1], ally_masks[pos][1]);
-  const uint64_t attackees_ext_1 = _pext_u64(foes[1], foe_mask[1]) & attackers_1;
-  uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
-  if (attackees_dep_1) {
+  const uint64_t attackers_1 = _pext_u64(allies[1], ally_masks[pos][1]);
+  const uint64_t attackees_ext_1 =
+      _pext_u64(foes[1], foe_mask[1]) & attackers_1;
+  if (attackees_ext_1) {
+    uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
     foes[1] -= attackees_dep_1;
 
     unsigned char r;
     while (attackees_dep_1) {
-      // TODO: could have a rotate lookup that is already offset by 64. though zobrist needs the real index so maybe a moot point.
+      // TODO: could have a rotate lookup that is already offset by 64. though
+      // zobrist needs the real index so maybe a moot point.
       r = rotate_right[_tzcnt_u64(attackees_dep_1) + 64];
-      foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
-      //foes_r[sub_layer[r]] -= ((uint64_t) 1 << (r - sub_layer_offset[r]));
+      foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
+      // foes_r[sub_layer[r]] -= ((uint64_t) 1 << (r - sub_layer_offset[r]));
       attackees_dep_1 = _blsr_u64(attackees_dep_1);
     }
   }
 }
 
-void capture_x(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_x(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
   uint64_t *foe_mask = foe_masks[pos];
   uint64_t *ally_mask = ally_masks[pos];
 
-  const uint64_t attackers_0 = _pext_u64(ally_layers.allies[0], ally_mask[0]);
-  const uint64_t attackees_ext_0 = _pext_u64(foes[0], foe_mask[0]) & attackers_0;
+  const uint64_t attackers_0 = _pext_u64(allies[0], ally_mask[0]);
+  const uint64_t attackees_ext_0 =
+      _pext_u64(foes[0], foe_mask[0]) & attackers_0;
   uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
   foes[0] -= attackees_dep_0;
 
   unsigned char r;
   while (attackees_dep_0) {
     r = rotate_right[_tzcnt_u64(attackees_dep_0)];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_0 = _blsr_u64(attackees_dep_0);
   }
 
-  const uint64_t attackers_1 = _pext_u64(ally_layers.allies[1], ally_mask[1]);
-  const uint64_t attackees_ext_1 = _pext_u64(foes[1], foe_mask[1]) & attackers_1;
+  const uint64_t attackers_1 = _pext_u64(allies[1], ally_mask[1]);
+  const uint64_t attackees_ext_1 =
+      _pext_u64(foes[1], foe_mask[1]) & attackers_1;
   uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
   foes[1] -= attackees_dep_1;
 
   while (attackees_dep_1) {
-    // TODO: could have a rotate lookup that is already offset by 64. though zobrist needs the real index so maybe a moot point.
+    // TODO: could have a rotate lookup that is already offset by 64. though
+    // zobrist needs the real index so maybe a moot point.
     r = rotate_right[_tzcnt_u64(attackees_dep_1) + 64];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_1 = _blsr_u64(attackees_dep_1);
   }
 }
 
-void capture_y(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_y(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
 
-  //print_layer(ally_layers.allies);
+  // print_layer(ally_layers.allies);
 
-  //printf("foe_mask\n");
+  // printf("foe_mask\n");
   uint64_t *foe_mask = foe_masks_r[pos];
   uint64_t *ally_mask = ally_masks_r[pos];
 
-  //print_layer(foe_mask);
-  //print_layer(ally_mask);
+  // print_layer(foe_mask);
+  // print_layer(ally_mask);
 
-  const uint64_t attackers_0 = _pext_u64(ally_layers.allies_r[0], ally_mask[0]);
-  //print_row(attackers_0);
-  const uint64_t attackees_ext_0 = _pext_u64(foes_r[0], foe_mask[0]) & attackers_0;
+  const uint64_t attackers_0 = _pext_u64(allies_r[0], ally_mask[0]);
+  // print_row(attackers_0);
+  const uint64_t attackees_ext_0 =
+      _pext_u64(foes_r[0], foe_mask[0]) & attackers_0;
   uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
   foes_r[0] -= attackees_dep_0;
 
-  const uint64_t attackers_1 = _pext_u64(ally_layers.allies_r[1], ally_mask[1]);
-  const uint64_t attackees_ext_1 = _pext_u64(foes_r[1], foe_mask[1]) & attackers_1;
+  const uint64_t attackers_1 = _pext_u64(allies_r[1], ally_mask[1]);
+  const uint64_t attackees_ext_1 =
+      _pext_u64(foes_r[1], foe_mask[1]) & attackers_1;
   uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
   foes_r[1] -= attackees_dep_1;
 
@@ -423,81 +569,85 @@ void capture_y(ally_layers ally_layers, layer foes, layer foes_r, const unsigned
   unsigned char r;
   while (attackees_dep_0) {
     r = rotate_left[_tzcnt_u64(attackees_dep_0)];
-    foes[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_0 = _blsr_u64(attackees_dep_0);
   }
 
-
   while (attackees_dep_1) {
     r = rotate_left[_tzcnt_u64(attackees_dep_1) + 64];
-    foes[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_1 = _blsr_u64(attackees_dep_1);
   }
   /*
-  */
-
+   */
 }
 
-void capture_r(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_r(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
 
   uint64_t *foe_mask = foe_masks_r[pos];
   uint64_t *ally_mask = ally_masks_r[pos];
 
-  const uint64_t attackers_1 = _pext_u64(ally_layers.allies_r[1], ally_mask[1]);
-  const uint64_t attackees_ext_1 = _pext_u64(foes_r[1], foe_mask[1]) & attackers_1;
-  uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
-  if (attackees_dep_1) {
+  const uint64_t attackers_1 = _pext_u64(allies_r[1], ally_mask[1]);
+  const uint64_t attackees_ext_1 =
+      _pext_u64(foes_r[1], foe_mask[1]) & attackers_1;
+  if (attackees_ext_1) {
+    uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
     foes_r[1] -= attackees_dep_1;
-    
+
     unsigned char r;
     while (attackees_dep_1) {
       r = rotate_left[_tzcnt_u64(attackees_dep_1) + 64];
-      foes[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+      foes[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
       attackees_dep_1 = _blsr_u64(attackees_dep_1);
     }
   }
 }
 
-void capture_R(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_R(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
 
   uint64_t *foe_mask = foe_masks_r[pos];
   uint64_t *ally_mask = ally_masks_r[pos];
 
-  const uint64_t attackers_0 = _pext_u64(ally_layers.allies_r[0], ally_mask[0]);
-  const uint64_t attackees_ext_0 = _pext_u64(foes_r[0], foe_mask[0]) & attackers_0;
-  uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
-  if (attackees_dep_0) {
+  const uint64_t attackers_0 = _pext_u64(allies_r[0], ally_mask[0]);
+  const uint64_t attackees_ext_0 =
+      _pext_u64(foes_r[0], foe_mask[0]) & attackers_0;
+  if (attackees_ext_0) {
+    uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
     foes_r[0] -= attackees_dep_0;
 
     unsigned char r;
     while (attackees_dep_0) {
       r = rotate_left[_tzcnt_u64(attackees_dep_0)];
-      foes[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+      foes[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
       attackees_dep_0 = _blsr_u64(attackees_dep_0);
     }
   }
-
 }
-void capture_b(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_b(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
   uint64_t *foe_mask = foe_masks[pos];
   uint64_t *ally_mask = ally_masks[pos];
 
-  const uint64_t attackers_0 = _pext_u64(ally_layers.allies[0], ally_mask[0]);
-  const uint64_t attackers_1 = _pext_u64(ally_layers.allies[1], ally_mask[1]);
+  const uint64_t attackers_0 = _pext_u64(allies[0], ally_mask[0]);
+  const uint64_t attackers_1 = _pext_u64(allies[1], ally_mask[1]);
   const uint64_t attackers_all = attackers_0 | (attackers_1 << 3);
-  const uint64_t attackees_ext_0 = _pext_u64(foes[0], foe_mask[0]) & attackers_all;
+  const uint64_t attackees_ext_0 =
+      _pext_u64(foes[0], foe_mask[0]) & attackers_all;
   uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
   foes[0] -= attackees_dep_0;
 
   unsigned char r;
   while (attackees_dep_0) {
     r = rotate_right[_tzcnt_u64(attackees_dep_0)];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_0 = _blsr_u64(attackees_dep_0);
   }
 }
 
-void capture_B(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_B(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
 
   /*
   printf("allies\n");
@@ -516,10 +666,11 @@ void capture_B(ally_layers ally_layers, layer foes, layer foes_r, const unsigned
   print_layer(ally_mask);
   */
 
-  const uint64_t attackers_0 = _pext_u64(ally_layers.allies[0], ally_mask[0]);
-  const uint64_t attackers_1 = _pext_u64(ally_layers.allies[1], ally_mask[1]);
+  const uint64_t attackers_0 = _pext_u64(allies[0], ally_mask[0]);
+  const uint64_t attackers_1 = _pext_u64(allies[1], ally_mask[1]);
   const uint64_t attackers_all = attackers_0 | (attackers_1 << 1);
-  const uint64_t attackees_ext_1 = _pext_u64(foes[1], foe_mask[1]) & attackers_all;
+  const uint64_t attackees_ext_1 =
+      _pext_u64(foes[1], foe_mask[1]) & attackers_all;
   uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
   foes[1] -= attackees_dep_1;
 
@@ -535,12 +686,13 @@ void capture_B(ally_layers ally_layers, layer foes, layer foes_r, const unsigned
   unsigned char r;
   while (attackees_dep_1) {
     r = rotate_right[_tzcnt_u64(attackees_dep_1) + 64];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_1 = _blsr_u64(attackees_dep_1);
   }
 }
 
-void capture_62(ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_62(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
 
   /*
   printf("allies\n");
@@ -559,15 +711,17 @@ void capture_62(ally_layers ally_layers, layer foes, layer foes_r, const unsigne
   print_layer(ally_mask);
   */
 
-  const uint64_t attackers_0 = _pext_u64(ally_layers.allies[0], ally_mask[0]);
-  const uint64_t attackers_1 = _pext_u64(ally_layers.allies[1], ally_mask[1]);
+  const uint64_t attackers_0 = _pext_u64(allies[0], ally_mask[0]);
+  const uint64_t attackers_1 = _pext_u64(allies[1], ally_mask[1]);
 
   const uint64_t borrowed = (attackers_1 & 1) << 2;
-  const uint64_t attackees_ext_0 = _pext_u64(foes[0], foe_mask[0]) & (attackers_0 | borrowed);
+  const uint64_t attackees_ext_0 =
+      _pext_u64(foes[0], foe_mask[0]) & (attackers_0 | borrowed);
   uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
   foes[0] -= attackees_dep_0;
 
-  const uint64_t attackees_ext_1 = _pext_u64(foes[1], foe_mask[1]) & (attackers_1 >> 1);
+  const uint64_t attackees_ext_1 =
+      _pext_u64(foes[1], foe_mask[1]) & (attackers_1 >> 1);
   uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
   foes[1] -= attackees_dep_1;
 
@@ -583,33 +737,32 @@ void capture_62(ally_layers ally_layers, layer foes, layer foes_r, const unsigne
   unsigned char r;
   while (attackees_dep_0) {
     r = rotate_right[_tzcnt_u64(attackees_dep_0)];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_0 = _blsr_u64(attackees_dep_0);
   }
 
-
   while (attackees_dep_1) {
-    // TODO: could have a rotate lookup that is already offset by 64. though zobrist needs the real index so maybe a moot point.
+    // TODO: could have a rotate lookup that is already offset by 64. though
+    // zobrist needs the real index so maybe a moot point.
     r = rotate_right[_tzcnt_u64(attackees_dep_1) + 64];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     attackees_dep_1 = _blsr_u64(attackees_dep_1);
   }
   /*
-  */
-
+   */
 }
 
 //******************************************************************************
 // Components
 
-inline uint64_t half_captures(const layer allies,
-			      const layer foes,
-			      const unsigned char pos,
-			      const unsigned char half) {
+inline uint64_t half_captures(const layer allies, const layer foes,
+                              const unsigned char pos,
+                              const unsigned char half) {
   const uint64_t *foe_mask = foe_masks[pos];
   const uint64_t *ally_mask = ally_masks[pos];
   const uint64_t attackers = _pext_u64(allies[half], ally_mask[half]);
-  const uint64_t attackees_ext = _pext_u64(foes[half], foe_mask[half]) & attackers;
+  const uint64_t attackees_ext =
+      _pext_u64(foes[half], foe_mask[half]) & attackers;
   return _pdep_u64(attackees_ext, foe_mask[half]);
 }
 
@@ -621,7 +774,7 @@ inline void distribute_lower_right(uint64_t captures, layer foes_r) {
   unsigned char r;
   while (captures) {
     r = rotate_right[_tzcnt_u64(captures)];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     captures = _blsr_u64(captures);
   }
 }
@@ -634,7 +787,7 @@ inline void distribute_lower_left(uint64_t captures, layer foes_r) {
   unsigned char r;
   while (captures) {
     r = rotate_left[_tzcnt_u64(captures)];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     captures = _blsr_u64(captures);
   }
 }
@@ -643,7 +796,7 @@ inline void distribute_upper_right(uint64_t captures, layer foes_r) {
   unsigned char r;
   while (captures) {
     r = rotate_right[_tzcnt_u64(captures) + 64];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     captures = _blsr_u64(captures);
   }
 }
@@ -652,28 +805,19 @@ inline void distribute_upper_left(uint64_t captures, layer foes_r) {
   unsigned char r;
   while (captures) {
     r = rotate_left[_tzcnt_u64(captures) + 64];
-    foes_r[sub_layer[r]] -= ((uint64_t) 1 << sub_layer_offset_direct[r]);
+    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
     captures = _blsr_u64(captures);
   }
 }
 
-
 inline void lower_right_shield_captures(const unsigned short flank,
-				 const unsigned short wall,
-				 const unsigned short foes,
-				 const unsigned char pos,
-				 uint64_t *captures) {
+                                        const unsigned short wall,
+                                        const unsigned short foes,
+                                        const unsigned char pos,
+                                        uint64_t *captures) {
   static const unsigned short lowers[10] = {
-    0b00000000000,
-    0b00000000001,
-    0b00000000011,
-    0b00000000111,
-    0b00000001111,
-    0b00000011111,
-    0b00000111111,
-    0b00001111111,
-    0b00011111111,
-    0b00111111111,
+      0b00000000000, 0b00000000001, 0b00000000011, 0b00000000111, 0b00000001111,
+      0b00000011111, 0b00000111111, 0b00001111111, 0b00011111111, 0b00111111111,
   };
   const unsigned short rightward = lowers[pos];
   const unsigned short blockers = flank & rightward;
@@ -685,149 +829,128 @@ inline void lower_right_shield_captures(const unsigned short flank,
   }
 }
 
-
 inline void lower_left_shield_captures(const unsigned short flank,
-				const unsigned short wall,
-				const unsigned short foes,
-				const unsigned char pos,
-				uint64_t *captures) {
+                                       const unsigned short wall,
+                                       const unsigned short foes,
+                                       const unsigned char pos,
+                                       uint64_t *captures) {
   static const unsigned short uppers[11] = {
-    0b11111111110,
-    0b11111111100,
-    0b11111111000,
-    0b11111110000,
-    0b11111100000,
-    0b11111000000,
-    0b11110000000,
-    0b11100000000,
-    0b11000000000,
-    0b10000000000,
-    0b00000000000,
+      0b11111111110, 0b11111111100, 0b11111111000, 0b11111110000,
+      0b11111100000, 0b11111000000, 0b11110000000, 0b11100000000,
+      0b11000000000, 0b10000000000, 0b00000000000,
   };
   const unsigned short leftward = uppers[pos];
-  //printf("leftward\n");
-  //print_row(leftward);
+  // printf("leftward\n");
+  // print_row(leftward);
   const unsigned short blockers = flank & leftward;
-  //printf("blockers\n");
-  //print_row(blockers);
+  // printf("blockers\n");
+  // print_row(blockers);
   const unsigned short until = (blockers & -blockers) - 1;
-  //printf("until\n");
-  //print_row(until);
+  // printf("until\n");
+  // print_row(until);
   const unsigned short mask = leftward & until;
-  //printf("mask\n");
-  //print_row(mask);
+  // printf("mask\n");
+  // print_row(mask);
   const unsigned short candidates = mask & foes & wall;
-  //printf("candidates\n");
-  //print_row(candidates);
+  // printf("candidates\n");
+  // print_row(candidates);
   if (mask == candidates) {
     (*captures) |= mask;
   }
 }
 
 inline void upper_right_shield_captures(const uint64_t allies,
-					const uint64_t foes,
-					const unsigned char pos,
-					uint64_t *captures) {
+                                        const uint64_t foes,
+                                        const unsigned char pos,
+                                        uint64_t *captures) {
   static const unsigned short lowers[10] = {
-    0b00000000000,
-    0b00000000001,
-    0b00000000011,
-    0b00000000111,
-    0b00000001111,
-    0b00000011111,
-    0b00000111111,
-    0b00001111111,
-    0b00011111111,
-    0b00111111111,
+      0b00000000000, 0b00000000001, 0b00000000011, 0b00000000111, 0b00000001111,
+      0b00000011111, 0b00000111111, 0b00001111111, 0b00011111111, 0b00111111111,
   };
-  //printf("adjust pos: %d\n", pos - 110);
-  //print_row(allies >> 35);
-  //print_row(foes >> 46);
+  // printf("adjust pos: %d\n", pos - 110);
+  // print_row(allies >> 35);
+  // print_row(foes >> 46);
   const unsigned short rightward = lowers[pos - 110];
-  //printf("rightward\n");
-  //print_row(rightward);
+  // printf("rightward\n");
+  // print_row(rightward);
   const unsigned short blockers = (allies >> 46) & rightward;
-  //printf("blockers\n");
-  //print_row(blockers);
+  // printf("blockers\n");
+  // print_row(blockers);
   const unsigned short blocked = 0xFFFF >> __lzcnt16(blockers);
-  //printf("blocked\n");
-  //print_row(blocked);
+  // printf("blocked\n");
+  // print_row(blocked);
   const unsigned short mask = (rightward - blocked);
-  //printf("mask\n");
-  //print_row(mask);
+  // printf("mask\n");
+  // print_row(mask);
   const unsigned short candidates = mask & (foes >> 46) & (allies >> 35);
   if (mask == candidates) {
-    (*captures) |= ((uint64_t) mask << 46);
+    (*captures) |= ((uint64_t)mask << 46);
   }
 }
 
 inline void upper_left_shield_captures(const uint64_t allies,
-				       const uint64_t foes,
-				       const unsigned char pos,
-				       uint64_t *captures) {
+                                       const uint64_t foes,
+                                       const unsigned char pos,
+                                       uint64_t *captures) {
   static const unsigned short uppers[11] = {
-    0b11111111110,
-    0b11111111100,
-    0b11111111000,
-    0b11111110000,
-    0b11111100000,
-    0b11111000000,
-    0b11110000000,
-    0b11100000000,
-    0b11000000000,
-    0b10000000000,
-    0b00000000000,
+      0b11111111110, 0b11111111100, 0b11111111000, 0b11111110000,
+      0b11111100000, 0b11111000000, 0b11110000000, 0b11100000000,
+      0b11000000000, 0b10000000000, 0b00000000000,
   };
-  const unsigned short leftward = uppers[pos-110];
-  //printf("leftward\n");
-  //print_row(leftward);
+  const unsigned short leftward = uppers[pos - 110];
+  // printf("leftward\n");
+  // print_row(leftward);
   const unsigned short blockers = (allies >> 46) & leftward;
-  //printf("blockers\n");
-  //print_row(blockers);
+  // printf("blockers\n");
+  // print_row(blockers);
   const unsigned short until = (blockers & -blockers) - 1;
-  //printf("until\n");
-  //print_row(until);
+  // printf("until\n");
+  // print_row(until);
   const unsigned short mask = leftward & until;
-  //printf("mask\n");
-  //print_row(mask);
+  // printf("mask\n");
+  // print_row(mask);
   const unsigned short candidates = mask & (foes >> 46) & (allies >> 35);
-  //printf("candidates\n");
-  //print_row(candidates);
+  // printf("candidates\n");
+  // print_row(candidates);
   if (mask == candidates) {
-    (*captures) |= ((uint64_t) mask << 46);
+    (*captures) |= ((uint64_t)mask << 46);
   }
 }
-
-
 
 //******************************************************************************
 // side captures
 
-
 //**************************************
 // south
 
-void capture_s(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(ally_layers.allies, foes, pos, 0);
-  const uint64_t ally_lower = ally_layers.allies[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos, &captures);
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos, &captures);
+void capture_s(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
+  uint64_t captures = half_captures(allies, foes, pos, 0);
+  const uint64_t ally_lower = allies[0];
+  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
+                             &captures);
+  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
+                              &captures);
   foes[0] -= captures;
   distribute_lower_right(captures, foes_r);
 }
 
-void capture_se(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(ally_layers.allies, foes, pos, 0);
-  const uint64_t ally_lower = ally_layers.allies[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos, &captures);
+void capture_se(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
+  uint64_t captures = half_captures(allies, foes, pos, 0);
+  const uint64_t ally_lower = allies[0];
+  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
+                             &captures);
   foes[0] -= captures;
   distribute_lower_right(captures, foes_r);
 }
 
-void capture_sw(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(ally_layers.allies, foes, pos, 0);
-  const uint64_t ally_lower = ally_layers.allies[0];
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos, &captures);
+void capture_sw(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
+  uint64_t captures = half_captures(allies, foes, pos, 0);
+  const uint64_t ally_lower = allies[0];
+  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
+                              &captures);
   foes[0] -= captures;
   distribute_lower_right(captures, foes_r);
 }
@@ -835,30 +958,37 @@ void capture_sw(const ally_layers ally_layers, layer foes, layer foes_r, const u
 //**************************************
 // east
 
-void capture_e(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_e(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
   const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(ally_layers.allies_r, foes_r, pos_r, 0);
-  const uint64_t ally_lower = ally_layers.allies_r[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r, &captures);
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r, &captures);
+  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 0);
+  const uint64_t ally_lower = allies_r[0];
+  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
+                             &captures);
+  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
+                              &captures);
   foes_r[0] -= captures;
   distribute_lower_left(captures, foes);
 }
 
-void capture_en(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_en(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
   const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(ally_layers.allies_r, foes_r, pos_r, 0);
-  const uint64_t ally_lower = ally_layers.allies_r[0];
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r, &captures);
+  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 0);
+  const uint64_t ally_lower = allies_r[0];
+  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
+                              &captures);
   foes_r[0] -= captures;
   distribute_lower_left(captures, foes);
 }
 
-void capture_es(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_es(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
   const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(ally_layers.allies_r, foes_r, pos_r, 0);
-  const uint64_t ally_lower = ally_layers.allies_r[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r, &captures);
+  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 0);
+  const uint64_t ally_lower = allies_r[0];
+  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
+                             &captures);
   foes_r[0] -= captures;
   distribute_lower_left(captures, foes);
 }
@@ -866,29 +996,32 @@ void capture_es(const ally_layers ally_layers, layer foes, layer foes_r, const u
 //**************************************
 // west
 
-void capture_w(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_w(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
   const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(ally_layers.allies_r, foes_r, pos_r, 1);
-  const uint64_t ally_upper = ally_layers.allies_r[1];
+  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 1);
+  const uint64_t ally_upper = allies_r[1];
   upper_left_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
   upper_right_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
   foes_r[1] -= captures;
   distribute_upper_left(captures, foes);
 }
 
-void capture_wn(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_wn(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
   const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(ally_layers.allies_r, foes_r, pos_r, 1);
-  const uint64_t ally_upper = ally_layers.allies_r[1];
+  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 1);
+  const uint64_t ally_upper = allies_r[1];
   upper_right_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
   foes_r[1] -= captures;
   distribute_upper_left(captures, foes);
 }
 
-void capture_ws(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
+void capture_ws(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
   const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(ally_layers.allies_r, foes_r, pos_r, 1);
-  const uint64_t ally_upper = ally_layers.allies_r[1];
+  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 1);
+  const uint64_t ally_upper = allies_r[1];
   upper_left_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
   foes_r[1] -= captures;
   distribute_upper_left(captures, foes);
@@ -897,175 +1030,177 @@ void capture_ws(const ally_layers ally_layers, layer foes, layer foes_r, const u
 //**************************************
 // north
 
-void capture_n(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(ally_layers.allies, foes, pos, 1);
-  const uint64_t ally_upper = ally_layers.allies[1];
+void capture_n(const layer allies, const layer allies_r, layer foes,
+               layer foes_r, const unsigned char pos) {
+  uint64_t captures = half_captures(allies, foes, pos, 1);
+  const uint64_t ally_upper = allies[1];
   upper_left_shield_captures(ally_upper, foes[1], pos, &captures);
   upper_right_shield_captures(ally_upper, foes[1], pos, &captures);
   foes[1] -= captures;
   distribute_upper_right(captures, foes_r);
 }
 
-void capture_ne(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(ally_layers.allies, foes, pos, 1);
-  const uint64_t ally_upper = ally_layers.allies[1];
+void capture_ne(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
+  uint64_t captures = half_captures(allies, foes, pos, 1);
+  const uint64_t ally_upper = allies[1];
   upper_right_shield_captures(ally_upper, foes[1], pos, &captures);
   foes[1] -= captures;
   distribute_upper_right(captures, foes_r);
 }
 
-void capture_nw(const ally_layers ally_layers, layer foes, layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(ally_layers.allies, foes, pos, 1);
-  const uint64_t ally_upper = ally_layers.allies[1];
+void capture_nw(const layer allies, const layer allies_r, layer foes,
+                layer foes_r, const unsigned char pos) {
+  uint64_t captures = half_captures(allies, foes, pos, 1);
+  const uint64_t ally_upper = allies[1];
   upper_left_shield_captures(ally_upper, foes[1], pos, &captures);
   foes[1] -= captures;
   distribute_upper_right(captures, foes_r);
 }
-
 
 //******************************************************************************
 
-void (*index_functions[121])(const ally_layers, layer, layer, const unsigned char) = {
-  // 0
-  capture_se,
-  capture_se,
-  capture_se,
-  capture_s,
-  capture_s,
-  capture_s,
-  capture_s,
-  capture_s,
-  capture_sw,
-  capture_sw,
-  capture_sw,
-  // 11
-  capture_es,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_ws,
-  // 22 
-  capture_es,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_ws,
-  // 33 
-  capture_e,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_l,
-  capture_r,
-  capture_w,
-  // 44 
-  capture_e,
-  capture_R,
-  capture_R,
-  capture_R,
-  capture_b,
-  capture_y,
-  capture_y,
-  capture_b,
-  capture_r,
-  capture_r,
-  capture_w,
-  // 55 
-  capture_e,
-  capture_R,
-  capture_R,
-  capture_R,
-  capture_x,
-  capture_x,
-  capture_x,
-  capture_62,
-  capture_r,
-  capture_r,
-  capture_w,
-  // 66
-  capture_e,
-  capture_R,
-  capture_R,
-  capture_R,
-  capture_x,
-  capture_x,
-  capture_x,
-  capture_x,
-  capture_r,
-  capture_r,
-  capture_w,
-  // 77
-  capture_e,
-  capture_R,
-  capture_R,
-  capture_R,
-  capture_B,
-  capture_y,
-  capture_y,
-  capture_B,
-  capture_r,
-  capture_u,
-  capture_w,
-  // 88
-  capture_en,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_wn,
-  // 99
-  capture_en,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_u,
-  capture_wn,
-  // 110
-  capture_ne,
-  capture_ne,
-  capture_ne,
-  capture_n,
-  capture_n,
-  capture_n,
-  capture_n,
-  capture_n,
-  capture_nw,
-  capture_nw,
-  capture_nw,
+void (*capture_functions[121])(const layer, const layer, layer, layer,
+                               const unsigned char) = {
+    // 0
+    capture_se,
+    capture_se,
+    capture_se,
+    capture_s,
+    capture_s,
+    capture_s,
+    capture_s,
+    capture_s,
+    capture_sw,
+    capture_sw,
+    capture_sw,
+    // 11
+    capture_es,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_ws,
+    // 22
+    capture_es,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_ws,
+    // 33
+    capture_e,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_r,
+    capture_w,
+    // 44
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_b,
+    capture_y,
+    capture_y,
+    capture_b,
+    capture_r,
+    capture_r,
+    capture_w,
+    // 55
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_x,
+    capture_x,
+    capture_x,
+    capture_62,
+    capture_r,
+    capture_r,
+    capture_w,
+    // 66
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_x,
+    capture_x,
+    capture_x,
+    capture_x,
+    capture_r,
+    capture_r,
+    capture_w,
+    // 77
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_B,
+    capture_y,
+    capture_y,
+    capture_B,
+    capture_r,
+    capture_u,
+    capture_w,
+    // 88
+    capture_en,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_wn,
+    // 99
+    capture_en,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_wn,
+    // 110
+    capture_ne,
+    capture_ne,
+    capture_ne,
+    capture_n,
+    capture_n,
+    capture_n,
+    capture_n,
+    capture_n,
+    capture_nw,
+    capture_nw,
+    capture_nw,
 };
-
 
 /*
  capture map
 
   (rotated 180)
- 
+
   00 | _,  se, se, s,  s,  s,  s,  s,  sw, sw, _,
   11 | es, l,  l,  l,  l,  l,  l,  l,  l,  l,  ws,
    2 | es, l,  l,  l,  l,  l,  l,  l,  l,  l,  ws,
@@ -1090,12 +1225,14 @@ e: R + east shield wall check both directions
 w: r + west shield wall check both directions
 x: capture check on both [0] and [1]
 y: rotated x
-b: capture check on lower, ally check on above and overlay the maybe present bit from upper position in highest spot
-B: capture check on upper, ally check on ally and overlay the maybe present bit from lower position in lowest spot, shifting to make space
-62: here the north capture is entirely in [1], but the ally for the west capture also is, so we need to move that down.
+b: capture check on lower, ally check on above and overlay the maybe present bit
+from upper position in highest spot B: capture check on upper, ally check on
+ally and overlay the maybe present bit from lower position in lowest spot,
+shifting to make space 62: here the north capture is entirely in [1], but the
+ally for the west capture also is, so we need to move that down.
 */
 
-void apply_captures_niave(layer friends, layer foes, layer output, int dest) {
+void apply_captures_niave(const layer friends, layer foes, layer output, int dest) {
   int modDest = dest % 11;
   int target;
   int behind;
@@ -1144,6 +1281,152 @@ void apply_captures_niave(layer friends, layer foes, layer output, int dest) {
       output[sub_layer[target]] &= ~((uint64_t) 1 << sub_layer_offset_direct[target]);
   }
 }
+
+inline void dispatch_capture(const layer allies, const layer allies_r, layer foes, layer foes_r, const unsigned char pos) {
+  switch (pos) {
+  case 0:
+    capture_se(allies, allies_r, foes, foes_r, pos);
+    break;
+  default:
+    apply_captures_niave(allies, foes, foes, pos);
+    break;
+  }
+  /*
+    // 0
+    capture_se,
+    capture_se,
+    capture_se,
+    capture_s,
+    capture_s,
+    capture_s,
+    capture_s,
+    capture_s,
+    capture_sw,
+    capture_sw,
+    capture_sw,
+    // 11
+    capture_es,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_ws,
+    // 22
+    capture_es,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_ws,
+    // 33
+    capture_e,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_l,
+    capture_r,
+    capture_w,
+    // 44
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_b,
+    capture_y,
+    capture_y,
+    capture_b,
+    capture_r,
+    capture_r,
+    capture_w,
+    // 55
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_x,
+    capture_x,
+    capture_x,
+    capture_62,
+    capture_r,
+    capture_r,
+    capture_w,
+    // 66
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_x,
+    capture_x,
+    capture_x,
+    capture_x,
+    capture_r,
+    capture_r,
+    capture_w,
+    // 77
+    capture_e,
+    capture_R,
+    capture_R,
+    capture_R,
+    capture_B,
+    capture_y,
+    capture_y,
+    capture_B,
+    capture_r,
+    capture_u,
+    capture_w,
+    // 88
+    capture_en,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_wn,
+    // 99
+    capture_en,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_u,
+    capture_wn,
+    // 110
+    capture_ne,
+    capture_ne,
+    capture_ne,
+    capture_n,
+    capture_n,
+    capture_n,
+    capture_n,
+    capture_n,
+    capture_nw,
+    capture_nw,
+    capture_nw,
+  */
+};
+
 /*******************************************************************************
  * Moves
  *
@@ -1329,6 +1612,244 @@ inline void get_all_row_moves(const uint64_t team, const uint64_t occ,
   }
 }
 
+inline void get_next_row_boards_black_s(const int index, const unsigned char sub_index, const uint64_t occ,
+			       const board base_board, const int row_offset,
+			       int *total, move *moves, board *boards) {
+  for (int i = 0; i < 11; i++) {
+  }
+
+
+
+
+
+  unsigned short movers = (base_board.black[index] >> row_offset) & 0b11111111111;
+  uint64_t row_moves;
+  unsigned char row_orig, sub_orig, orig, orig_r, sub_dest, dest, dest_r;
+  while (movers) {
+    row_orig = _tzcnt_u16(movers);
+    sub_orig = row_offset + row_orig;
+    orig = sub_orig + sub_index;
+    orig_r = rotate_right[orig];
+    const unsigned short blockers = ((uint64_t)occ >> row_offset) & 0b11111111111;
+    row_moves = (uint64_t)row_moves_table[blockers][row_orig] << row_offset;
+    while (row_moves) {
+      // get destination
+      sub_dest = _tzcnt_u64(row_moves);
+      // printf("sub_dest: %d\n", sub_dest);
+      dest = sub_dest + sub_index;
+      // printf("sub_index: %d\n", sub_index);
+      // printf("dest: %d\n", dest);
+      dest_r = rotate_right[dest];
+
+      // register move
+      moves[*total] = (struct move){orig, dest};
+
+      // Generate board
+      board new_board = base_board;
+      // TODO: move orig removal out and bench to see if it's faster
+      new_board.black[index] -= (uint64_t)1 << sub_orig;
+      new_board.black[index] |= (uint64_t)1 << sub_dest;
+      new_board.black_r[sub_layer[orig_r]] -=
+          (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
+      new_board.black_r[sub_layer[dest_r]] |=
+          (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
+      // printf("dest: %d\n", dest);
+      capture_functions[dest](new_board.black, new_board.black_r,
+                              new_board.white, new_board.white_r, dest);
+      boards[*total] = new_board;
+      (*total)++;
+      // printf("--------------------------------------------------\n");
+
+      // increment
+      // todo: use "faster" version of this and bench
+      // row_moves &= row_moves - 1;
+      row_moves = _blsr_u64(row_moves);
+    }
+    movers &= movers - 1;
+  }
+}
+
+
+// ----------------------------------------------------------------------
+// Integrated
+
+//inline void get_next_row_boards_black(const uint64_t team, const uint64_t occ,
+void get_next_row_boards_black(const int index, const unsigned char sub_index, const uint64_t occ,
+			       const board base_board, const int row_offset,
+			       int *total, move *moves, board *boards) {
+  unsigned short movers = (base_board.black[index] >> row_offset) & 0b11111111111;
+  uint64_t row_moves;
+  unsigned char row_orig, sub_orig, orig, orig_r, sub_dest, dest, dest_r;
+  while (movers) {
+    row_orig = _tzcnt_u16(movers);
+    sub_orig = row_offset + row_orig;
+    orig = sub_orig + sub_index;
+    orig_r = rotate_right[orig];
+    const unsigned short blockers = ((uint64_t)occ >> row_offset) & 0b11111111111;
+    row_moves = (uint64_t)row_moves_table[blockers][row_orig] << row_offset;
+    // const unsigned short blockers = ((uint64_t)occ >> row_offset);
+    // row_moves = (uint64_t)get_row_moves(blockers, row_orig) << row_offset;
+    while (row_moves) {
+      // get destination
+      sub_dest = _tzcnt_u64(row_moves);
+      // printf("sub_dest: %d\n", sub_dest);
+      dest = sub_dest + sub_index;
+      // printf("sub_index: %d\n", sub_index);
+      // printf("dest: %d\n", dest);
+      dest_r = rotate_right[dest];
+
+      // register move
+      moves[*total] = (struct move){orig, dest};
+
+      // Generate board
+      board new_board = base_board;
+      // TODO: move orig removal out and bench to see if it's faster
+      new_board.black[index] -= (uint64_t)1 << sub_orig;
+      new_board.black[index] |= (uint64_t)1 << sub_dest;
+      new_board.black_r[sub_layer[orig_r]] -=
+          (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
+      new_board.black_r[sub_layer[dest_r]] |=
+          (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
+      // printf("dest: %d\n", dest);
+      capture_functions[dest](new_board.black, new_board.black_r,
+                              new_board.white, new_board.white_r, dest);
+      // dispatch_capture(new_board.black, new_board.black_r,
+      //                         new_board.white, new_board.white_r, dest);
+      // apply_captures_niave(new_board.black, new_board.white, new_board.black, dest);
+      boards[*total] = new_board;
+      (*total)++;
+      // printf("--------------------------------------------------\n");
+
+      // increment
+      // todo: use "faster" version of this and bench
+      // row_moves &= row_moves - 1;
+      row_moves = _blsr_u64(row_moves);
+    }
+    movers &= movers - 1;
+  }
+}
+
+void get_next_row_boards_black_i(const int index, const unsigned char sub_index, const uint64_t occ,
+			       const board base_board, const int row_offset,
+			       int *total, move *moves, board *boards) {
+  int current;
+  unsigned char orig_r, dest_r;
+
+  int stack[10];
+  int stack_count = 0;
+  bool should_add = false;
+  for (int file = row_offset; file < row_offset + 11; file++) {
+    if (base_board.black[index] & ((uint64_t)1 << file)) {
+      // printf("black\n");
+      current = file;
+      orig_r = rotate_right[current];
+      should_add = true;
+      while (stack_count) {
+        stack_count--;
+	int dest = stack[stack_count];
+        dest_r = rotate_right[dest];
+        board new_board = base_board;
+
+        moves[*total] = (struct move){current, dest};
+
+        new_board.black[index] -= (uint64_t)1 << current;
+        new_board.black[index] |= (uint64_t)1 << dest;
+        new_board.black_r[sub_layer[orig_r]] -=
+            (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
+        new_board.black_r[sub_layer[dest_r]] |=
+            (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
+
+        // TODO: capture
+
+        boards[*total] = new_board;
+        (*total)++;
+      }
+    } else if ((occ & ((uint64_t)1 << file))) {
+      // printf("white\n");
+      should_add = false;
+      stack_count = 0;
+    } else if (should_add) {
+      // printf("empty dest\n");
+      dest_r = rotate_right[file];
+      board new_board = base_board;
+
+      moves[*total] = (struct move){current, file};
+
+      new_board.black[index] -= (uint64_t)1 << current;
+      new_board.black[index] |= (uint64_t)1 << file;
+      new_board.black_r[sub_layer[orig_r]] -=
+          (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
+      new_board.black_r[sub_layer[dest_r]] |=
+          (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
+
+      // TODO: capture
+
+      boards[*total] = new_board;
+      (*total)++;
+
+      stack[stack_count] = file;
+      stack_count++;
+    } else {
+      // printf("empty unclaimed\n");
+      stack[stack_count] = file;
+      stack_count++;
+    }
+    // printf("\n");
+  }
+}
+
+inline void get_next_row_boards_black_r(const int index, const int sub_offset, const uint64_t occ,
+                                        const board base_board,
+                                        const int offset, int *total,
+                                        move *moves, board *boards) {
+  unsigned short movers = (base_board.black_r[index] >> offset) & 0b11111111111;
+  // const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
+  uint64_t row_moves;
+  unsigned char local_orig, orig, orig_r, dest, dest_r;
+  while (movers) {
+    local_orig = _tzcnt_u16(movers);
+    orig_r = offset + local_orig;
+    orig = rotate_left[orig_r + sub_offset];
+    const unsigned short blockers = ((uint64_t)occ >> offset) & 0b11111111111;
+    row_moves = (uint64_t)row_moves_table[blockers][local_orig] << offset;
+    // const unsigned short blockers = ((uint64_t)occ >> offset);
+    // row_moves = (uint64_t)get_row_moves(blockers, local_orig) << offset;
+    while (row_moves) {
+      // get destination
+      dest_r = _tzcnt_u64(row_moves);
+      dest = rotate_left[dest_r + sub_offset];
+
+      // register move
+      moves[*total] = (struct move){orig, dest};
+
+      // Generate board
+      board new_board = base_board;
+      // TODO: move orig removal out and bench to see if it's faster
+      new_board.black_r[index] ^= (uint64_t)1 << orig_r;
+      new_board.black_r[index] |= (uint64_t)1 << dest_r;
+      new_board.black[sub_layer[orig]] ^= (uint64_t)1
+                                          << (orig - sub_layer_offset[orig]);
+      new_board.black[sub_layer[dest]] |= (uint64_t)1
+                                          << (dest - sub_layer_offset[dest]);
+      // capture_functions[dest](new_board.black, new_board.black_r,
+      //                         new_board.white, new_board.white_r, dest);
+      apply_captures_niave(new_board.black, new_board.white, new_board.black, dest);
+      boards[*total] = new_board;
+      (*total)++;
+
+      // increment
+      // todo: use "faster" version of this and bench
+      // row_moves &= row_moves - 1;
+      /*
+      */
+      row_moves = _blsr_u64(row_moves);
+    }
+    movers &= movers - 1;
+  }
+}
+
+// ----------------------------------------------------------------------
+
 inline void get_all_row_moves_r(const uint64_t team, const uint64_t occ,
 				const int offset, int *total, move *moves, move *moves_r) {
   unsigned short movers = ((uint64_t) team >> offset) & 0b11111111111;
@@ -1425,6 +1946,96 @@ void get_team_moves(const layer occ, const layer team,
     movers &= movers - 1;
   }
 }
+
+// -----------------------------------------------------------------------------
+// integrated
+
+void get_team_moves_black(const board current, int *total, move *moves, board *boards) {
+  *total = 0;
+  const layer occ = {
+      current.black[0] | current.white[0] | current.king[0] | corners[0],
+      current.black[1] | current.white[1] | current.king[1] | corners[1]};
+  const layer occ_r = {
+      current.black_r[0] | current.white_r[0] | current.king_r[0] | corners[0],
+      current.black_r[1] | current.white_r[1] | current.king_r[1] | corners[1]};
+
+  // upper 5 rows
+  get_next_row_boards_black_i(0, 0, occ[0], current, 0, total, moves, boards);
+  get_next_row_boards_black_i(0, 0, occ[0], current, 11, total, moves, boards);
+  get_next_row_boards_black_i(0, 0, occ[0], current, 22, total, moves, boards);
+  get_next_row_boards_black_i(0, 0, occ[0], current, 33, total, moves, boards);
+  get_next_row_boards_black_i(0, 0, occ[0], current, 44, total, moves, boards);
+
+  // lower 5 rows
+  get_next_row_boards_black_i(1, 64, occ[1], current, 2, total, moves, boards);
+  get_next_row_boards_black_i(1, 64, occ[1], current, 13, total, moves, boards);
+  get_next_row_boards_black_i(1, 64, occ[1], current, 24, total, moves, boards);
+  get_next_row_boards_black_i(1, 64, occ[1], current, 35, total, moves, boards);
+  get_next_row_boards_black_i(1, 64, occ[1], current, 46, total, moves, boards);
+
+  // upper 5 rows
+  get_next_row_boards_black_r(0, 0, occ_r[0], current, 0, total, moves, boards);
+  get_next_row_boards_black_r(0, 0, occ_r[0], current, 11, total, moves, boards);
+  get_next_row_boards_black_r(0, 0, occ_r[0], current, 22, total, moves, boards);
+  get_next_row_boards_black_r(0, 0, occ_r[0], current, 33, total, moves, boards);
+  get_next_row_boards_black_r(0, 0, occ_r[0], current, 44, total, moves, boards);
+
+  // // lower 5 rows
+  get_next_row_boards_black_r(1, 64, occ_r[1], current, 2, total, moves, boards);
+  get_next_row_boards_black_r(1, 64, occ_r[1], current, 13, total, moves, boards);
+  get_next_row_boards_black_r(1, 64, occ_r[1], current, 24, total, moves, boards);
+  get_next_row_boards_black_r(1, 64, occ_r[1], current, 35, total, moves, boards);
+  get_next_row_boards_black_r(1, 64, occ_r[1], current, 46, total, moves, boards);
+
+  unsigned short movers, row_moves;
+  unsigned char local_orig, orig, orig_r, dest;
+
+  // center horizontal
+  movers = (current.black[0] >> 55) | (((current.black[1] & 0x3) << 9) & 0b11111111111);
+  while (movers) {
+    local_orig = _tzcnt_u16(movers);
+    orig = local_orig + 55;
+    orig_r = rotate_right[orig];
+    const unsigned short blockers_h =
+      (occ[0] >> 55) | (((occ[1] & 0x3) << 9) & 0b11111111111);
+    row_moves = center_row_moves_table[blockers_h][_tzcnt_u16(movers)];
+    while (row_moves) {
+      dest = _tzcnt_u16(row_moves) + 55;
+      // pawns can't land on the throne
+      if (dest == 60) {
+        continue;
+      }
+      moves[*total] = (struct move){orig, dest};
+      (*total)++;
+      row_moves &= row_moves - 1;
+    }
+    movers &= movers - 1;
+  }
+
+  // center vertical
+  movers = ((current.black_r[0] >> 55) | ((current.black_r[1] & 0x3) << 9)) & 0b11111111111;
+  while (movers) {
+    local_orig = _tzcnt_u16(movers);
+    orig = local_orig + 55;
+    orig_r = rotate_left[orig];
+    const unsigned short blockers_v =
+      ((occ_r[0] >> 55) | ((occ_r[1] & 0x3) << 9)) & 0b11111111111;
+    row_moves = center_row_moves_table[blockers_v][local_orig];
+    while (row_moves) {
+      dest = _tzcnt_u16(row_moves) + 55;
+      // pawns can't land on the throne
+      if (dest == 60) {
+        continue;
+      }
+      moves[*total] = (struct move) {orig_r, rotate_left[dest]};
+      (*total)++;
+      row_moves &= row_moves - 1;
+    }
+    movers &= movers - 1;
+  }
+}
+
+// -----------------------------------------------------------------------------
 
 uint8_t get_team_move_count(const layer occ, const layer team,
 			const layer occ_90, const layer team_90) {
@@ -1618,7 +2229,7 @@ uint8_t get_team_move_count_3(const layer occ, const layer team,
 //******************************************************************************
 
 
-const char* start_board_string =
+const char* start_board_string = \
   " .  .  .  X  X  X  X  X  .  .  . "
   " .  .  .  .  .  X  .  .  .  .  . "
   " .  .  .  .  .  .  .  .  .  .  . "
@@ -1700,7 +2311,6 @@ void bench() {
     get_team_moves(occ, black, occ, black, &total, moves, moves_r);
     bench_count--;
   }
-  /*
   */
 
 
@@ -1708,16 +2318,12 @@ void bench() {
   short total = get_team_move_count_3(occ, black, occ, black);
   printf("move_count: %d\n", total);
 
-
   // run for bench
   int bench_count = 25000000;
   while (bench_count) { 
     get_team_move_count_3(occ, black, occ, black);
     bench_count--;
   }
-
-  /*
-  */
 
   // end time
   end = clock();

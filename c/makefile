@@ -1,10 +1,15 @@
 TARGET = board
 #LIBS = -lm
-CC = gcc
-# CC = clang
-CFLAGS = -g -mbmi -mbmi2 -mlzcnt -mavx -mavx2 
+# CC = gcc
+CC = clang
+CFLAGS = -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2
 
 board: 
+
+board_2: 
+
+run_board_2: board_2
+	./board_2
 
 test_capture: board.c tests/capture.c
 	$(CC) $(CFLAGS) tests/capture.c -Wall -o $@

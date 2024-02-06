@@ -1,0 +1,25 @@
+* Good resources
+** https://www.josherv.in/2022/12/17/chess-2/
+* Engine improvements to implement
+** Null moves (non-game-specific alpha beta pruning tweak)
+** Store principal variation in TT
+*** It is possible to lose the trail of PVs down to the max depth if PVs get overwritten
+The explanation of what can happen is in the paper linked below
+**** paper on how to avoid this with a solution I don't entirely understand
+https://www.researchgate.net/publication/279331940_A_Solution_to_Short_PVS_Caused_by_Exact_Hash_Matches
+thread where the paper was mentioned: https://chess.stackexchange.com/questions/42858/search-returns-pv-that-has-depth-reduced-by-null-move-reduction
+** Quiescence search
+What exactly constitutes quiescence in Hnefatafl needs investigation
+* Things worth investigation
+** principla variation search / negascout
+* Chess techniques to skip
+** MVV-LVA - Most Valuable Victim, Least Valuable Attacked
+all our pieces are of the same type (excluding the king), so this doesn't really make sense
+
+* Notes
+** handle king in shield walls
+- adjust capture functions to do ~sub-layer ^= captures~ (doesn't matter as much now that I'm hiding it behind a check in most cases)
+- make a layer mask for the king being in a position to be part of a shield wall capture
+- check if the king is in that mask at the beginning of the black move generation and set a flag by it
+- at the beginning, if the flag is true, add the king to the white layers of the base board 
+- at the end, if the flag is true, iterate over the generated boards and remove the king from them. Doing a second iteration is in itself inefficient, however considering that the king will probably rarely be in a position to be part of a shield wall capture, it's probably better to hide the handling behind a singile check which is rarely true than force every board generation step to account for it.

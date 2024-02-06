@@ -528,8 +528,8 @@ int *captures_array(const u128 friendBoard, const u128 foeBoard, const int dest,
       u128_check_bit(foeBoard, target) &&
       u128_check_bit(friendBoard, dest - 22))
     {
-      output[*count] = target;
-      (*count)++;
+       output[*count] = target;
+       (*count)++;
   }
 
   //eastCapture
@@ -553,6 +553,49 @@ int *captures_array(const u128 friendBoard, const u128 foeBoard, const int dest,
   }
 
   return output;
+}
+
+void handle_captures(const u128 friendBoard, const u128 foeBoard, const int dest) {
+
+  int modDest = dest % 11;
+
+  int target;
+
+  //northCapture
+  target = dest + 11;
+  if (dest < 99 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest + 22))
+    {
+      // u128_clear_bit(&foeBoard, target);
+  }
+
+  //southCapture
+  target = dest - 11;
+  if (dest > 23 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest - 22))
+    {
+      // u128_clear_bit(&foeBoard, target);
+  }
+
+  //eastCapture
+  target = dest + 1;
+  if (modDest < 8 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest + 2))
+    {
+      // u128_clear_bit(&foeBoard, target);
+  }
+
+  //westCapture
+  target = dest - 1;
+  if (modDest > 2 &&
+      u128_check_bit(foeBoard, target) &&
+      u128_check_bit(friendBoard, dest - 2))
+    {
+      // u128_clear_bit(&foeBoard, target);
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -614,7 +657,7 @@ void board_to_string(board board, char *string) {
   }
 }
 
-move_board_zobrist *next_move_board_zobrists_black(board board, size_t *count) {
+void next_move_board_zobrists_black(board board, size_t *count, move_board_zobrist *output) {
   u128 occ = u128_or(
       PAWN_ILLEGAL_DESTINATIONS,
       u128_or(board.king, u128_or(board.white_pawns, board.black_pawns)));
@@ -626,16 +669,15 @@ move_board_zobrist *next_move_board_zobrists_black(board board, size_t *count) {
 
   int i;
 
+  /*
   for (i = 0; i < pawn_move_count; i++) {
     move m = pawn_moves[i];
-    /*
     printf("%d\n", m.orig);
     printf("%d\n", m.dest);
     printf("\n");
-    */
   };
+  */
 
-  move_board_zobrist *output = malloc(sizeof(move_board_zobrist) * pawn_move_count);
   for (i = 0; i < pawn_move_count; i++) {
     move move = pawn_moves[i];
     struct board new_board = board;
@@ -644,6 +686,9 @@ move_board_zobrist *next_move_board_zobrists_black(board board, size_t *count) {
     u128_clear_bit(&new_board.black_pawns, move.orig);
     u128_set_bit(&new_board.black_pawns, move.dest);
 
+    u128 allies = u128_or(new_board.black_pawns, u128_or(new_board.king, CORNERS));
+    // handle_captures(allies, new_board.white_pawns, move.dest);
+    /*
     // get array of capture indexes
     u128 allies = u128_or(new_board.black_pawns, u128_or(new_board.king, CORNERS));
     int captures[4];
@@ -655,6 +700,7 @@ move_board_zobrist *next_move_board_zobrists_black(board board, size_t *count) {
     for (capture = 0; capture < capture_count; capture++) {
       u128_clear_bit(&new_board.white_pawns, captures[capture]);
     }
+    */
 
     /*
     char new_board_string[374];
@@ -670,7 +716,6 @@ move_board_zobrist *next_move_board_zobrists_black(board board, size_t *count) {
   // handle king
 
   (*count) = pawn_move_count;
-  return output;
 }
 
 move_board_zobrist *next_move_board_zobrists_white(board board, size_t *count) {
@@ -873,6 +918,7 @@ int cmp_score(const void *a, const void *b) {
   return ((move_board_zobrist *)b)->score - ((move_board_zobrist *)a)->score;
 }
 
+/*
 negamax_result negamax_ab(move move, board board, bool is_black_turn, int depth,
                           int alpha, int beta, int *tally) {
   //printf("depth: %d\n", depth);
@@ -924,6 +970,7 @@ negamax_result negamax_ab(move move, board board, bool is_black_turn, int depth,
     return best;
   }
 }
+*/
 
 const char* start_board_string =
   " .  .  .  X  X  X  X  X  .  .  . "
@@ -961,11 +1008,38 @@ int main(int argc, char **argv) {
   start = clock();
 
   // setup
+  board b = {white, {0,0}, black};
+  move_board_zobrist output[400];
+  move_board_zobrist output_2[400];
   // none
 
-  /*
-  */
+  // run for bench
+  int bench_count = 1000;
 
+  int sum = 0;
+  while (bench_count) { 
+    size_t count = 0;
+    next_move_board_zobrists_black(b, &count, output);
+    for (int i = 0; i < count; i++) {
+      size_t count_2 = 0;
+      next_move_board_zobrists_black(output[i].board, &count_2, output_2);
+      /*
+      for (int j = 0; j < count_2; j++) {
+	board b2 = output_2[j].board;
+	//print_layer(b2.black_pawns);
+	// u128 occ = u128_and(b2.black_pawns, u128_and(b2.white_pawns, CORNERS));
+	// int c = team_move_count(b2.black_pawns, occ);
+	// printf("moves here: %d\n", c);
+	// sum += c;
+      }
+      */
+      sum += count_2;
+    }
+    bench_count--;
+  }
+  printf("all moves: %d\n", sum);
+
+  /*
   // run for result
   int pawn_move_count;
   move pawn_moves[400]; // consider 400 the max possible movecount for a board
@@ -979,7 +1053,6 @@ int main(int argc, char **argv) {
     team_moves_ptr(black.hi, black.lo, occ.hi, occ.lo, &pawn_move_count, pawn_moves);
     bench_count--;
   }
-  /*
 
 
   // run for result
