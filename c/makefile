@@ -1,7 +1,7 @@
 TARGET = board
 #LIBS = -lm
-# CC = gcc
-CC = clang
+CC = gcc
+# CC = clang
 CFLAGS = -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2
 
 board: 

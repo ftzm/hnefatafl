@@ -6,8 +6,6 @@
 #include <limits.h>
 #include <time.h>
 #include <x86intrin.h>
-#include <immintrin.h>
-#include <avx2intrin.h>
 
 /*******************************************************************************
  * Layer
@@ -1674,7 +1672,7 @@ inline void get_next_row_boards_black_s(const int index, const unsigned char sub
 // Integrated
 
 //inline void get_next_row_boards_black(const uint64_t team, const uint64_t occ,
-void get_next_row_boards_black(const int index, const unsigned char sub_index, const uint64_t occ,
+inline __attribute__((always_inline)) void get_next_row_boards_black(const int index, const unsigned char sub_index, const uint64_t occ,
 			       const board base_board, const int row_offset,
 			       int *total, move *moves, board *boards) {
   unsigned short movers = (base_board.black[index] >> row_offset) & 0b11111111111;
@@ -1798,7 +1796,7 @@ void get_next_row_boards_black_i(const int index, const unsigned char sub_index,
   }
 }
 
-inline void get_next_row_boards_black_r(const int index, const int sub_offset, const uint64_t occ,
+inline __attribute__((always_inline)) void get_next_row_boards_black_r(const int index, const int sub_offset, const uint64_t occ,
                                         const board base_board,
                                         const int offset, int *total,
                                         move *moves, board *boards) {
@@ -1831,9 +1829,9 @@ inline void get_next_row_boards_black_r(const int index, const int sub_offset, c
                                           << (orig - sub_layer_offset[orig]);
       new_board.black[sub_layer[dest]] |= (uint64_t)1
                                           << (dest - sub_layer_offset[dest]);
-      // capture_functions[dest](new_board.black, new_board.black_r,
-      //                         new_board.white, new_board.white_r, dest);
-      apply_captures_niave(new_board.black, new_board.white, new_board.black, dest);
+      capture_functions[dest](new_board.black, new_board.black_r,
+                              new_board.white, new_board.white_r, dest);
+      // apply_captures_niave(new_board.black, new_board.white, new_board.black, dest);
       boards[*total] = new_board;
       (*total)++;
 
@@ -1950,7 +1948,7 @@ void get_team_moves(const layer occ, const layer team,
 // -----------------------------------------------------------------------------
 // integrated
 
-void get_team_moves_black(const board current, int *total, move *moves, board *boards) {
+inline __attribute__((always_inline)) void get_team_moves_black(const board current, int *total, move *moves, board *boards) {
   *total = 0;
   const layer occ = {
       current.black[0] | current.white[0] | current.king[0] | corners[0],
@@ -1960,18 +1958,18 @@ void get_team_moves_black(const board current, int *total, move *moves, board *b
       current.black_r[1] | current.white_r[1] | current.king_r[1] | corners[1]};
 
   // upper 5 rows
-  get_next_row_boards_black_i(0, 0, occ[0], current, 0, total, moves, boards);
-  get_next_row_boards_black_i(0, 0, occ[0], current, 11, total, moves, boards);
-  get_next_row_boards_black_i(0, 0, occ[0], current, 22, total, moves, boards);
-  get_next_row_boards_black_i(0, 0, occ[0], current, 33, total, moves, boards);
-  get_next_row_boards_black_i(0, 0, occ[0], current, 44, total, moves, boards);
+  get_next_row_boards_black(0, 0, occ[0], current, 0, total, moves, boards);
+  get_next_row_boards_black(0, 0, occ[0], current, 11, total, moves, boards);
+  get_next_row_boards_black(0, 0, occ[0], current, 22, total, moves, boards);
+  get_next_row_boards_black(0, 0, occ[0], current, 33, total, moves, boards);
+  get_next_row_boards_black(0, 0, occ[0], current, 44, total, moves, boards);
 
   // lower 5 rows
-  get_next_row_boards_black_i(1, 64, occ[1], current, 2, total, moves, boards);
-  get_next_row_boards_black_i(1, 64, occ[1], current, 13, total, moves, boards);
-  get_next_row_boards_black_i(1, 64, occ[1], current, 24, total, moves, boards);
-  get_next_row_boards_black_i(1, 64, occ[1], current, 35, total, moves, boards);
-  get_next_row_boards_black_i(1, 64, occ[1], current, 46, total, moves, boards);
+  get_next_row_boards_black(1, 64, occ[1], current, 2, total, moves, boards);
+  get_next_row_boards_black(1, 64, occ[1], current, 13, total, moves, boards);
+  get_next_row_boards_black(1, 64, occ[1], current, 24, total, moves, boards);
+  get_next_row_boards_black(1, 64, occ[1], current, 35, total, moves, boards);
+  get_next_row_boards_black(1, 64, occ[1], current, 46, total, moves, boards);
 
   // upper 5 rows
   get_next_row_boards_black_r(0, 0, occ_r[0], current, 0, total, moves, boards);

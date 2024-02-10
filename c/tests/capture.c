@@ -778,19 +778,20 @@ void bench_board_gen(int count) {
     for (int i = 0; i < total; i++) {
       int total_2 = 0;
       get_team_moves_black(boards[i], &total_2, moves_2, boards_2);
-      /*
       for (int j = 0; j < total_2; j++) {
 	board b2 = boards_2[j];
-	const layer occ = {
-	  b2.black[0] | b2.white[0] | b2.king[0] | corners[0],
-	  b2.black[1] | b2.white[1] | b2.king[1] | corners[1]};
-	const layer occ_r = {
-	  b2.black_r[0] | b2.white_r[0] | b2.king_r[0] | corners[0],
-	  b2.black_r[1] | b2.white_r[1] | b2.king_r[1] | corners[1]};
-	sum += get_team_move_count(occ, b2.black, occ_r, b2.black_r);
+	// const layer occ = {
+	//   b2.black[0] | b2.white[0] | b2.king[0] | corners[0],
+	//   b2.black[1] | b2.white[1] | b2.king[1] | corners[1]};
+	// const layer occ_r = {
+	//   b2.black_r[0] | b2.white_r[0] | b2.king_r[0] | corners[0],
+	//   b2.black_r[1] | b2.white_r[1] | b2.king_r[1] | corners[1]};
+	// sum += get_team_move_count(occ, b2.black, occ_r, b2.black_r);
+	sum += __builtin_popcountll(b2.black[0]) + __builtin_popcountll(b2.black[1]);
       }
+      /*
       */
-      sum += total_2;
+      // sum += total_2;
     }
     count--;
   }

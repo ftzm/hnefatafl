@@ -657,7 +657,7 @@ void board_to_string(board board, char *string) {
   }
 }
 
-void next_move_board_zobrists_black(board board, size_t *count, move_board_zobrist *output) {
+inline __attribute((always_inline)) void next_move_board_zobrists_black(board board, size_t *count, move_board_zobrist *output) {
   u128 occ = u128_or(
       PAWN_ILLEGAL_DESTINATIONS,
       u128_or(board.king, u128_or(board.white_pawns, board.black_pawns)));
@@ -686,9 +686,8 @@ void next_move_board_zobrists_black(board board, size_t *count, move_board_zobri
     u128_clear_bit(&new_board.black_pawns, move.orig);
     u128_set_bit(&new_board.black_pawns, move.dest);
 
-    u128 allies = u128_or(new_board.black_pawns, u128_or(new_board.king, CORNERS));
+    // u128 allies = u128_or(new_board.black_pawns, u128_or(new_board.king, CORNERS));
     // handle_captures(allies, new_board.white_pawns, move.dest);
-    /*
     // get array of capture indexes
     u128 allies = u128_or(new_board.black_pawns, u128_or(new_board.king, CORNERS));
     int captures[4];
@@ -700,6 +699,7 @@ void next_move_board_zobrists_black(board board, size_t *count, move_board_zobri
     for (capture = 0; capture < capture_count; capture++) {
       u128_clear_bit(&new_board.white_pawns, captures[capture]);
     }
+    /*
     */
 
     /*
@@ -1023,21 +1023,24 @@ int main(int argc, char **argv) {
     for (int i = 0; i < count; i++) {
       size_t count_2 = 0;
       next_move_board_zobrists_black(output[i].board, &count_2, output_2);
-      /*
       for (int j = 0; j < count_2; j++) {
-	board b2 = output_2[j].board;
-	//print_layer(b2.black_pawns);
+	// board b2 = output_2[j].board;
+	// // printf("-------------------------------------------\n");
+	// // print_layer(b2.white_pawns);
+	// // print_layer(b2.black_pawns);
 	// u128 occ = u128_and(b2.black_pawns, u128_and(b2.white_pawns, CORNERS));
-	// int c = team_move_count(b2.black_pawns, occ);
-	// printf("moves here: %d\n", c);
+	// int c = team_move_count_2(b2.black_pawns, occ);
+	// // printf("moves here: %d\n", c);
 	// sum += c;
+	sum += u128_popcount(b.black_pawns);
       }
-      */
-      sum += count_2;
+      // sum += count_2;
     }
     bench_count--;
   }
   printf("all moves: %d\n", sum);
+      /*
+      */
 
   /*
   // run for result
@@ -1057,10 +1060,12 @@ int main(int argc, char **argv) {
 
   // run for result
   int pawn_move_count;
-  pawn_move_count = team_move_count_2(black, occ);
+  pawn_move_count = team_move_count(black, occ);
   printf("move_count: %d\n", pawn_move_count);
 
+  */
 
+  /*
   // run for bench
   int bench_count = 25000000;
   while (bench_count) { 
