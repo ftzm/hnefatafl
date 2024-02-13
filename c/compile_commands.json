@@ -1,19 +1,22 @@
 [
   {
     "arguments": [
-      "/nix/store/1qa12idg59nlxjjdrw4hfyxdkhfd3nrq-clang-wrapper-11.1.0/bin/clang",
+      "/nix/store/1qa12idg59nlxjjdrw4hfyxdkhfd3nrq-clang-wrapper-11.1.0/bin/clang++",
       "-c",
       "-O3",
       "-mbmi",
       "-mbmi2",
       "-mlzcnt",
+      "-mavx",
+      "-mavx2",
+      "-std=c++17",
       "-Wall",
       "-o",
       "test_capture",
-      "tests/capture.c"
+      "tests/capture.cpp"
     ],
     "directory": "/home/ftzm/dev/hnefatafl/c",
-    "file": "/home/ftzm/dev/hnefatafl/c/tests/capture.c",
+    "file": "/home/ftzm/dev/hnefatafl/c/tests/capture.cpp",
     "output": "/home/ftzm/dev/hnefatafl/c/test_capture"
   },
   {
@@ -44,6 +47,10 @@
       "+bmi2",
       "-target-feature",
       "+lzcnt",
+      "-target-feature",
+      "+avx",
+      "-target-feature",
+      "+avx2",
       "-fno-split-dwarf-inlining",
       "-debugger-tuning=gdb",
       "-nostdsysteminc",
@@ -81,6 +88,10 @@
       "/nix/store/i9338y5xiyq2zv3fvnimm3s1n4fm1316-clang-11.1.0-dev/include",
       "-isystem",
       "/nix/store/s37kar3lx65q9xsqilpyq4gddab123ph-compiler-rt-libc-11.1.0-dev/include",
+      "-isystem",
+      "/nix/store/6vwsydq4nzr1l8j7fyg5r61nknwq6w60-gcc-12.3.0/include/c++/12.3.0",
+      "-isystem",
+      "/nix/store/6vwsydq4nzr1l8j7fyg5r61nknwq6w60-gcc-12.3.0/include/c++/12.3.0/x86_64-unknown-linux-gnu",
       "-U",
       "_FORTIFY_SOURCE",
       "-D",
@@ -92,6 +103,8 @@
       "-Wformat-security",
       "-Werror=format-security",
       "-Wall",
+      "-std=c++17",
+      "-fdeprecated-macro",
       "-fdebug-compilation-dir",
       "/home/ftzm/dev/hnefatafl/c",
       "-ferror-limit",
@@ -102,18 +115,20 @@
       "-stack-protector-buffer-size",
       "4",
       "-fgnuc-version=4.2.1",
+      "-fcxx-exceptions",
+      "-fexceptions",
       "-fcolor-diagnostics",
       "-vectorize-loops",
       "-vectorize-slp",
       "-faddrsig",
       "-x",
-      "c",
+      "c++",
       "-o",
-      "/tmp/capture-d3fd50.o",
-      "tests/capture.c"
+      "/tmp/capture-65068c.o",
+      "tests/capture.cpp"
     ],
     "directory": "/home/ftzm/dev/hnefatafl/c",
-    "file": "/home/ftzm/dev/hnefatafl/c/tests/capture.c",
-    "output": "/tmp/capture-d3fd50.o"
+    "file": "/home/ftzm/dev/hnefatafl/c/tests/capture.cpp",
+    "output": "/tmp/capture-65068c.o"
   }
 ]

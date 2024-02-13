@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +7,8 @@
 #include <limits.h>
 #include <time.h>
 #include <x86intrin.h>
+
+#include <array>
 
 /*******************************************************************************
  * Layer
@@ -16,9 +19,11 @@
  * "lower" and the one at index 1 being "upper".
  ******************************************************************************/
 
-typedef uint64_t layer[2];
+// typedef uint64_t layer[2];
 
-const unsigned char sub_layer[121] = {
+typedef std::array<uint64_t, 2> layer;
+
+constexpr unsigned char sub_layer[121] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -32,7 +37,7 @@ const unsigned char sub_layer[121] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-const unsigned int sub_layer_offset[121] = {
+constexpr unsigned int sub_layer_offset[121] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -60,7 +65,7 @@ const unsigned int sub_layer_offset_direct[121] = {
   46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
 };
 
-const unsigned char rotate_right[121] = {
+constexpr unsigned char rotate_right[121] = {
   10, 21, 32, 43, 54, 65, 76, 87, 98, 109, 120,
   9,  20, 31, 42, 53, 64, 75, 86, 97, 108, 119,
   8,  19, 30, 41, 52, 63, 74, 85, 96, 107, 118,
@@ -90,18 +95,20 @@ const unsigned char rotate_left[121] = {
 
 const uint64_t inverted_throne_mask = 0b11111011111;
 
-void rotate_layer(const layer input, layer output) {
-  int i, r;
-   for (i = 0; i < 121; i++) {
-     if (input[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
-       r = rotate_right[i];
-       output[sub_layer[r]] |= ((uint64_t) 1 << (r - sub_layer_offset[r]));
-     }
+constexpr layer rotate_layer(const layer input) {
+  layer output = {0};
+  for (int i = 0; i < 121; i++) {
+    if (input[sub_layer[i]] & ((uint64_t)1 << (i - sub_layer_offset[i]))) {
+      int r = rotate_right[i];
+      output[sub_layer[r]] |= ((uint64_t)1 << (r - sub_layer_offset[r]));
+    }
   }
+  return output;
 }
 
-void read_layer(const char *string, unsigned char symbol, layer output) {
-  int len = strlen(string);
+constexpr layer read_layer(const char *string, unsigned char symbol) {
+  layer output = {0};
+  int len = std::char_traits<char>::length(string);
   int index = 0;
   for (int i = 0; i < len; i++) {
     char c = string[i];
@@ -114,6 +121,7 @@ void read_layer(const char *string, unsigned char symbol, layer output) {
       index++; // skip other chars but increment
     }
   }
+  return output;
 }
 
 void print_layer(layer layer) {
@@ -159,14 +167,14 @@ typedef struct board {
   layer king_r;
 } board;
 
-board read_board(const char *string) {
-  board board = {{0,0},{0,0},{0,0},{0,0},{0,0},{0,0}}; 
-  read_layer(string, 'X', board.black);
-  read_layer(string, 'O', board.white);
-  read_layer(string, '#', board.king);
-  rotate_layer(board.black, board.black_r);
-  rotate_layer(board.white, board.white_r);
-  rotate_layer(board.king, board.king_r);
+constexpr board read_board(const char *string) {
+  layer black = read_layer(string, 'X');
+  layer white = read_layer(string, 'O');
+  layer king = read_layer(string, '#');
+  layer black_r = rotate_layer(black);
+  layer white_r = rotate_layer(white);
+  layer king_r = rotate_layer(king);
+  board board = {black, black_r, white, white_r, king, king_r};
   return board;
 }
 
@@ -345,8 +353,8 @@ section of the board.
 
  ******************************************************************************/
 
-uint64_t foe_masks[120][2];
-uint64_t foe_masks_r[120][2];
+layer foe_masks[120];
+layer foe_masks_r[120];
 
 void gen_foe_masks() {
   int i, modDest, target, target_r;
@@ -403,8 +411,8 @@ void gen_foe_masks() {
   }
 }
 
-uint64_t ally_masks[120][2];
-uint64_t ally_masks_r[120][2];
+layer ally_masks[120];
+layer ally_masks_r[120];
 
 void gen_ally_masks() {
   int i, modDest, target, target_r;
@@ -448,6 +456,12 @@ void gen_ally_masks() {
 //******************************************************************************
 // Capture functions
 
+#define foes_dir(is_rotated) (is_rotated ? foes_r : foes)
+#define allies_dir(is_rotated) (is_rotated ? allies_r : allies)
+#define foe_masks_dir(is_rotated) (is_rotated ? foe_masks_r : foe_masks)
+#define ally_masks_dir(is_rotated) (is_rotated ? ally_masks_r : ally_masks)
+#define rotate_table_dir(is_rotated) (is_rotated ? rotate_left : rotate_right)
+
 /**
  * One might expect that it would be faster to repostion the ally bits
  * to the position of the foe bits and then do the bitwise and there,
@@ -455,52 +469,40 @@ void gen_ally_masks() {
  * lowest 4 bits, do bitwise and, and then move the result back into
  * position.
  */
-void capture_l(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  (void)allies_r;
-  const uint64_t *foe_mask = foe_masks[pos];
-  const uint64_t attackers_0 = _pext_u64(allies[0], ally_masks[pos][0]);
-  const uint64_t attackees_ext_0 =
-      _pext_u64(foes[0], foe_mask[0]) & attackers_0;
-  if (attackees_ext_0) {
-    uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
-    foes[0] -= attackees_dep_0;
+template <int sub_index, int sub_offset, bool is_rotated>
+void capture_d(const layer &allies, const layer &allies_r, layer &foes,
+               layer &foes_r, const unsigned char pos) {
+  const layer foe_mask = foe_masks_dir(is_rotated)[pos];
+  const layer ally_mask = ally_masks_dir(is_rotated)[pos];
+
+  const uint64_t attackers =
+      _pext_u64(allies_dir(is_rotated)[sub_index], ally_mask[sub_index]);
+  const uint64_t attackees_ext =
+      _pext_u64(foes_dir(is_rotated)[sub_index], foe_mask[sub_index]) &
+      attackers;
+  if (attackees_ext) {
+    uint64_t attackees_dep = _pdep_u64(attackees_ext, foe_mask[sub_index]);
+    foes_dir(is_rotated)[sub_index] -= attackees_dep;
+
     unsigned char r;
-    while (attackees_dep_0) {
-      r = rotate_right[_tzcnt_u64(attackees_dep_0)];
-      foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
-      attackees_dep_0 = _blsr_u64(attackees_dep_0);
+    while (attackees_dep) {
+      r = rotate_table_dir(is_rotated)[_tzcnt_u64(attackees_dep) + sub_offset];
+      foes_dir(!is_rotated)[sub_layer[r]] -=
+          ((uint64_t)1 << sub_layer_offset_direct[r]);
+      attackees_dep = _blsr_u64(attackees_dep);
     }
   }
 }
 
-void capture_u(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  const uint64_t *foe_mask = foe_masks[pos];
+#define capture_l (capture_d<0, 0, false>)
+#define capture_u (capture_d<1, 64, false>)
+#define capture_r (capture_d<1, 64, true>)
+#define capture_R (capture_d<0, 0, true>)
 
-  const uint64_t attackers_1 = _pext_u64(allies[1], ally_masks[pos][1]);
-  const uint64_t attackees_ext_1 =
-      _pext_u64(foes[1], foe_mask[1]) & attackers_1;
-  if (attackees_ext_1) {
-    uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
-    foes[1] -= attackees_dep_1;
-
-    unsigned char r;
-    while (attackees_dep_1) {
-      // TODO: could have a rotate lookup that is already offset by 64. though
-      // zobrist needs the real index so maybe a moot point.
-      r = rotate_right[_tzcnt_u64(attackees_dep_1) + 64];
-      foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
-      // foes_r[sub_layer[r]] -= ((uint64_t) 1 << (r - sub_layer_offset[r]));
-      attackees_dep_1 = _blsr_u64(attackees_dep_1);
-    }
-  }
-}
-
-void capture_x(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  uint64_t *foe_mask = foe_masks[pos];
-  uint64_t *ally_mask = ally_masks[pos];
+void capture_x(const layer &allies, const layer &allies_r, layer &foes,
+               layer &foes_r, const unsigned char pos) {
+  const layer foe_mask = foe_masks[pos];
+  const layer ally_mask = ally_masks[pos];
 
   const uint64_t attackers_0 = _pext_u64(allies[0], ally_mask[0]);
   const uint64_t attackees_ext_0 =
@@ -530,14 +532,14 @@ void capture_x(const layer allies, const layer allies_r, layer foes,
   }
 }
 
-void capture_y(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
+void capture_y(const layer &allies, const layer &allies_r, layer &foes,
+               layer &foes_r, const unsigned char pos) {
 
   // print_layer(ally_layers.allies);
 
   // printf("foe_mask\n");
-  uint64_t *foe_mask = foe_masks_r[pos];
-  uint64_t *ally_mask = ally_masks_r[pos];
+  const layer foe_mask = foe_masks_r[pos];
+  const layer ally_mask = ally_masks_r[pos];
 
   // print_layer(foe_mask);
   // print_layer(ally_mask);
@@ -580,53 +582,10 @@ void capture_y(const layer allies, const layer allies_r, layer foes,
    */
 }
 
-void capture_r(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-
-  uint64_t *foe_mask = foe_masks_r[pos];
-  uint64_t *ally_mask = ally_masks_r[pos];
-
-  const uint64_t attackers_1 = _pext_u64(allies_r[1], ally_mask[1]);
-  const uint64_t attackees_ext_1 =
-      _pext_u64(foes_r[1], foe_mask[1]) & attackers_1;
-  if (attackees_ext_1) {
-    uint64_t attackees_dep_1 = _pdep_u64(attackees_ext_1, foe_mask[1]);
-    foes_r[1] -= attackees_dep_1;
-
-    unsigned char r;
-    while (attackees_dep_1) {
-      r = rotate_left[_tzcnt_u64(attackees_dep_1) + 64];
-      foes[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
-      attackees_dep_1 = _blsr_u64(attackees_dep_1);
-    }
-  }
-}
-
-void capture_R(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-
-  uint64_t *foe_mask = foe_masks_r[pos];
-  uint64_t *ally_mask = ally_masks_r[pos];
-
-  const uint64_t attackers_0 = _pext_u64(allies_r[0], ally_mask[0]);
-  const uint64_t attackees_ext_0 =
-      _pext_u64(foes_r[0], foe_mask[0]) & attackers_0;
-  if (attackees_ext_0) {
-    uint64_t attackees_dep_0 = _pdep_u64(attackees_ext_0, foe_mask[0]);
-    foes_r[0] -= attackees_dep_0;
-
-    unsigned char r;
-    while (attackees_dep_0) {
-      r = rotate_left[_tzcnt_u64(attackees_dep_0)];
-      foes[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
-      attackees_dep_0 = _blsr_u64(attackees_dep_0);
-    }
-  }
-}
-void capture_b(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  uint64_t *foe_mask = foe_masks[pos];
-  uint64_t *ally_mask = ally_masks[pos];
+void capture_b(const layer &allies, const layer &allies_r, layer &foes,
+               layer &foes_r, const unsigned char pos) {
+  const layer foe_mask = foe_masks[pos];
+  const layer ally_mask = ally_masks[pos];
 
   const uint64_t attackers_0 = _pext_u64(allies[0], ally_mask[0]);
   const uint64_t attackers_1 = _pext_u64(allies[1], ally_mask[1]);
@@ -644,8 +603,8 @@ void capture_b(const layer allies, const layer allies_r, layer foes,
   }
 }
 
-void capture_B(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
+void capture_B(const layer &allies, const layer &allies_r, layer &foes,
+               layer &foes_r, const unsigned char pos) {
 
   /*
   printf("allies\n");
@@ -654,8 +613,8 @@ void capture_B(const layer allies, const layer allies_r, layer foes,
   print_layer(foes);
   */
 
-  uint64_t *foe_mask = foe_masks[pos];
-  uint64_t *ally_mask = ally_masks[pos];
+  layer foe_mask = foe_masks[pos];
+  layer ally_mask = ally_masks[pos];
 
   /*
   printf("foe mask\n");
@@ -689,8 +648,8 @@ void capture_B(const layer allies, const layer allies_r, layer foes,
   }
 }
 
-void capture_62(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
+void capture_62(const layer &allies, const layer &allies_r, layer &foes,
+                layer &foes_r, const unsigned char pos) {
 
   /*
   printf("allies\n");
@@ -699,8 +658,8 @@ void capture_62(const layer allies, const layer allies_r, layer foes,
   print_layer(foes);
   */
 
-  uint64_t *foe_mask = foe_masks[pos];
-  uint64_t *ally_mask = ally_masks[pos];
+  layer foe_mask = foe_masks[pos];
+  layer ally_mask = ally_masks[pos];
 
   /*
   printf("foe mask\n");
@@ -753,57 +712,23 @@ void capture_62(const layer allies, const layer allies_r, layer foes,
 //******************************************************************************
 // Components
 
-inline uint64_t half_captures(const layer allies, const layer foes,
-                              const unsigned char pos,
-                              const unsigned char half) {
-  const uint64_t *foe_mask = foe_masks[pos];
-  const uint64_t *ally_mask = ally_masks[pos];
+template<int half>
+inline uint64_t half_captures(const layer &allies, const layer &foes,
+                              const unsigned char pos) {
+  const layer foe_mask = foe_masks[pos];
+  const layer ally_mask = ally_masks[pos];
   const uint64_t attackers = _pext_u64(allies[half], ally_mask[half]);
   const uint64_t attackees_ext =
       _pext_u64(foes[half], foe_mask[half]) & attackers;
   return _pdep_u64(attackees_ext, foe_mask[half]);
 }
 
-/**
-   Given an unrotated lower layer half holding captures, rotate and
-   apply those captures to a foe layer.
- */
-inline void distribute_lower_right(uint64_t captures, layer foes_r) {
+template<bool is_rotated, int sub_offset>
+inline void distribute_rotated(uint64_t captures, layer &foes) {
   unsigned char r;
   while (captures) {
-    r = rotate_right[_tzcnt_u64(captures)];
-    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
-    captures = _blsr_u64(captures);
-  }
-}
-
-/**
-   Given a rotated lower layer half holding captures, rotate left and
-   apply those captures to a foe layer.
- */
-inline void distribute_lower_left(uint64_t captures, layer foes_r) {
-  unsigned char r;
-  while (captures) {
-    r = rotate_left[_tzcnt_u64(captures)];
-    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
-    captures = _blsr_u64(captures);
-  }
-}
-
-inline void distribute_upper_right(uint64_t captures, layer foes_r) {
-  unsigned char r;
-  while (captures) {
-    r = rotate_right[_tzcnt_u64(captures) + 64];
-    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
-    captures = _blsr_u64(captures);
-  }
-}
-
-inline void distribute_upper_left(uint64_t captures, layer foes_r) {
-  unsigned char r;
-  while (captures) {
-    r = rotate_left[_tzcnt_u64(captures) + 64];
-    foes_r[sub_layer[r]] -= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    r = rotate_table_dir(is_rotated)[_tzcnt_u64(captures) + sub_offset];
+    foes[sub_layer[r]] ^= ((uint64_t)1 << sub_layer_offset_direct[r]);
     captures = _blsr_u64(captures);
   }
 }
@@ -838,20 +763,10 @@ inline void lower_left_shield_captures(const unsigned short flank,
       0b11000000000, 0b10000000000, 0b00000000000,
   };
   const unsigned short leftward = uppers[pos];
-  // printf("leftward\n");
-  // print_row(leftward);
   const unsigned short blockers = flank & leftward;
-  // printf("blockers\n");
-  // print_row(blockers);
   const unsigned short until = (blockers & -blockers) - 1;
-  // printf("until\n");
-  // print_row(until);
   const unsigned short mask = leftward & until;
-  // printf("mask\n");
-  // print_row(mask);
   const unsigned short candidates = mask & foes & wall;
-  // printf("candidates\n");
-  // print_row(candidates);
   if (mask == candidates) {
     (*captures) |= mask;
   }
@@ -865,21 +780,10 @@ inline void upper_right_shield_captures(const uint64_t allies,
       0b00000000000, 0b00000000001, 0b00000000011, 0b00000000111, 0b00000001111,
       0b00000011111, 0b00000111111, 0b00001111111, 0b00011111111, 0b00111111111,
   };
-  // printf("adjust pos: %d\n", pos - 110);
-  // print_row(allies >> 35);
-  // print_row(foes >> 46);
   const unsigned short rightward = lowers[pos - 110];
-  // printf("rightward\n");
-  // print_row(rightward);
   const unsigned short blockers = (allies >> 46) & rightward;
-  // printf("blockers\n");
-  // print_row(blockers);
   const unsigned short blocked = 0xFFFF >> __lzcnt16(blockers);
-  // printf("blocked\n");
-  // print_row(blocked);
   const unsigned short mask = (rightward - blocked);
-  // printf("mask\n");
-  // print_row(mask);
   const unsigned short candidates = mask & (foes >> 46) & (allies >> 35);
   if (mask == candidates) {
     (*captures) |= ((uint64_t)mask << 46);
@@ -896,20 +800,10 @@ inline void upper_left_shield_captures(const uint64_t allies,
       0b11000000000, 0b10000000000, 0b00000000000,
   };
   const unsigned short leftward = uppers[pos - 110];
-  // printf("leftward\n");
-  // print_row(leftward);
   const unsigned short blockers = (allies >> 46) & leftward;
-  // printf("blockers\n");
-  // print_row(blockers);
   const unsigned short until = (blockers & -blockers) - 1;
-  // printf("until\n");
-  // print_row(until);
   const unsigned short mask = leftward & until;
-  // printf("mask\n");
-  // print_row(mask);
   const unsigned short candidates = mask & (foes >> 46) & (allies >> 35);
-  // printf("candidates\n");
-  // print_row(candidates);
   if (mask == candidates) {
     (*captures) |= ((uint64_t)mask << 46);
   }
@@ -921,144 +815,62 @@ inline void upper_left_shield_captures(const uint64_t allies,
 //**************************************
 // south
 
-void capture_s(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(allies, foes, pos, 0);
-  const uint64_t ally_lower = allies[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
-                             &captures);
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
-                              &captures);
-  foes[0] -= captures;
-  distribute_lower_right(captures, foes_r);
+#define noop ((void)0)
+
+#define lower_left_wall(cond)                                                  \
+  (cond ? lower_left_shield_captures(sub_allies, sub_allies >> 11, sub_foes,   \
+                                     pos, &captures)                           \
+        : noop)
+
+#define lower_right_wall(cond)                                                 \
+  (cond ? lower_right_shield_captures(sub_allies, sub_allies >> 11, sub_foes,  \
+                                      pos, &captures)                          \
+        : noop)
+
+#define upper_left_wall(cond)                                                  \
+  (cond ? upper_left_shield_captures(sub_allies, sub_foes, pos, &captures)     \
+        : noop)
+
+#define upper_right_wall(cond)                                                 \
+  (cond ? upper_right_shield_captures(sub_allies, sub_foes, pos, &captures)    \
+        : noop)
+
+#define rotate_pos(cond) (cond ? rotate_right[pos] : pos)
+
+template <bool left, bool right, int sub_index, int sub_offset, bool is_rotated>
+void capture_edge(const layer &allies, const layer &allies_r, layer &foes,
+                  layer &foes_r, unsigned char pos) {
+  pos = rotate_pos(is_rotated);
+  uint64_t captures = half_captures<sub_index>(allies_dir(is_rotated),
+                                               foes_dir(is_rotated), pos);
+  const uint64_t sub_allies = allies_dir(is_rotated)[sub_index];
+  const uint64_t sub_foes = foes_dir(is_rotated)[sub_index];
+
+  lower_left_wall(left && !sub_index);
+  lower_right_wall(right && !sub_index);
+  upper_left_wall(left && sub_index);
+  upper_right_wall(right && sub_index);
+
+  foes_dir(is_rotated)[sub_index] -= captures;
+  distribute_rotated<is_rotated, sub_offset>(captures, foes_dir(!is_rotated));
 }
 
-void capture_se(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(allies, foes, pos, 0);
-  const uint64_t ally_lower = allies[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
-                             &captures);
-  foes[0] -= captures;
-  distribute_lower_right(captures, foes_r);
-}
-
-void capture_sw(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(allies, foes, pos, 0);
-  const uint64_t ally_lower = allies[0];
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes[0], pos,
-                              &captures);
-  foes[0] -= captures;
-  distribute_lower_right(captures, foes_r);
-}
-
-//**************************************
-// east
-
-void capture_e(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 0);
-  const uint64_t ally_lower = allies_r[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
-                             &captures);
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
-                              &captures);
-  foes_r[0] -= captures;
-  distribute_lower_left(captures, foes);
-}
-
-void capture_en(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 0);
-  const uint64_t ally_lower = allies_r[0];
-  lower_right_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
-                              &captures);
-  foes_r[0] -= captures;
-  distribute_lower_left(captures, foes);
-}
-
-void capture_es(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 0);
-  const uint64_t ally_lower = allies_r[0];
-  lower_left_shield_captures(ally_lower, ally_lower >> 11, foes_r[0], pos_r,
-                             &captures);
-  foes_r[0] -= captures;
-  distribute_lower_left(captures, foes);
-}
-
-//**************************************
-// west
-
-void capture_w(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 1);
-  const uint64_t ally_upper = allies_r[1];
-  upper_left_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
-  upper_right_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
-  foes_r[1] -= captures;
-  distribute_upper_left(captures, foes);
-}
-
-void capture_wn(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 1);
-  const uint64_t ally_upper = allies_r[1];
-  upper_right_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
-  foes_r[1] -= captures;
-  distribute_upper_left(captures, foes);
-}
-
-void capture_ws(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  const unsigned char pos_r = rotate_right[pos];
-  uint64_t captures = half_captures(allies_r, foes_r, pos_r, 1);
-  const uint64_t ally_upper = allies_r[1];
-  upper_left_shield_captures(ally_upper, foes_r[1], pos_r, &captures);
-  foes_r[1] -= captures;
-  distribute_upper_left(captures, foes);
-}
-
-//**************************************
-// north
-
-void capture_n(const layer allies, const layer allies_r, layer foes,
-               layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(allies, foes, pos, 1);
-  const uint64_t ally_upper = allies[1];
-  upper_left_shield_captures(ally_upper, foes[1], pos, &captures);
-  upper_right_shield_captures(ally_upper, foes[1], pos, &captures);
-  foes[1] -= captures;
-  distribute_upper_right(captures, foes_r);
-}
-
-void capture_ne(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(allies, foes, pos, 1);
-  const uint64_t ally_upper = allies[1];
-  upper_right_shield_captures(ally_upper, foes[1], pos, &captures);
-  foes[1] -= captures;
-  distribute_upper_right(captures, foes_r);
-}
-
-void capture_nw(const layer allies, const layer allies_r, layer foes,
-                layer foes_r, const unsigned char pos) {
-  uint64_t captures = half_captures(allies, foes, pos, 1);
-  const uint64_t ally_upper = allies[1];
-  upper_left_shield_captures(ally_upper, foes[1], pos, &captures);
-  foes[1] -= captures;
-  distribute_upper_right(captures, foes_r);
-}
+#define capture_s (capture_edge<true, true, 0, 0, false>)
+#define capture_se (capture_edge<true, false, 0, 0, false>)
+#define capture_sw (capture_edge<false, true, 0, 0, false>)
+#define capture_e (capture_edge<true, true, 0, 0, true>)
+#define capture_en (capture_edge<false, true, 0, 0, true>)
+#define capture_es (capture_edge<true, false, 0, 0, true>)
+#define capture_n (capture_edge<true, true, 1, 64, false>)
+#define capture_ne (capture_edge<true, true, 1, 64, false>)
+#define capture_nw (capture_edge<true, true, 1, 64, false>)
+#define capture_w (capture_edge<true, true, 1, 64, true>)
+#define capture_wn (capture_edge<false, true, 1, 64, true>)
+#define capture_ws (capture_edge<true, false, 1, 64, true>)
 
 //******************************************************************************
 
-void (*capture_functions[121])(const layer, const layer, layer, layer,
+void (*capture_functions[121])(const layer &, const layer &, layer &, layer &,
                                const unsigned char) = {
     // 0
     capture_se,
@@ -1194,43 +1006,7 @@ void (*capture_functions[121])(const layer, const layer, layer, layer,
     capture_nw,
 };
 
-/*
- capture map
-
-  (rotated 180)
-
-  00 | _,  se, se, s,  s,  s,  s,  s,  sw, sw, _,
-  11 | es, l,  l,  l,  l,  l,  l,  l,  l,  l,  ws,
-   2 | es, l,  l,  l,  l,  l,  l,  l,  l,  l,  ws,
-   3 | e,  l,  l,  l,  l,  l,  l,  l,  l,  r,  w,
-   4 | e,  R,  R,  R,  b,  y,  y,  b,  r,  r,  w,
-   5 | e,  R,  R,  R,  x,  x,  x,  62, r,  r,  w,
-   6 | e,  R,  R,  R,  x,  x,  x,  x,  r,  r,  w,
-   7 | e,  R,  R,  R,  B,  y,  y,  B,  r,  u,  w,
-   8 | en, u,  u,  u,  u,  u,  u,  u,  u,  u,  wn,
-   9 | en, u,  u,  u,  u,  u,  u,  u,  u,  u,  wn,
-  10 | _,  ne, ne, n,  n,  n,  n,  n,  nw, nw, _,
-
-l: capture check on [0] only
-u: capture check on [1] only
-n: u + north shield wall check both directions
-ne: u + north shield wall check westwards
-nw: u + north shield wall check eastwards
-s: l + south shield wall check both directions
-r: rotated u
-R: rotated l
-e: R + east shield wall check both directions
-w: r + west shield wall check both directions
-x: capture check on both [0] and [1]
-y: rotated x
-b: capture check on lower, ally check on above and overlay the maybe present bit
-from upper position in highest spot B: capture check on upper, ally check on
-ally and overlay the maybe present bit from lower position in lowest spot,
-shifting to make space 62: here the north capture is entirely in [1], but the
-ally for the west capture also is, so we need to move that down.
-*/
-
-void apply_captures_niave(const layer friends, layer foes, layer output, int dest) {
+inline void apply_captures_niave(const layer friends, layer foes, layer output, int dest) {
   int modDest = dest % 11;
   int target;
   int behind;
@@ -1284,6 +1060,69 @@ inline void dispatch_capture(const layer allies, const layer allies_r, layer foe
   switch (pos) {
   case 0:
     capture_se(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 1:
+    capture_se(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 2:
+    capture_se(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 3:
+    capture_s(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 4:
+    capture_s(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 5:
+    capture_s(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 6:
+    capture_s(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 7:
+    capture_s(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 8:
+    capture_sw(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 9:
+    capture_sw(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 10:
+    capture_sw(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 110:
+    capture_ne(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 111:
+    capture_ne(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 112:
+    capture_ne(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 113:
+    capture_n(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 114:
+    capture_n(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 115:
+    capture_n(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 116:
+    capture_n(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 117:
+    capture_n(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 118:
+    capture_nw(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 119:
+    capture_nw(allies, allies_r, foes, foes_r, pos);
+    break;
+  case 120:
+    capture_nw(allies, allies_r, foes, foes_r, pos);
     break;
   default:
     apply_captures_niave(allies, foes, foes, pos);
@@ -1429,6 +1268,28 @@ inline void dispatch_capture(const layer allies, const layer allies_r, layer foe
  * Moves
  *
  ******************************************************************************/
+constexpr uint8_t clz(uint16_t input) {
+  uint8_t sum = 0;
+  for (int i = 15; i >= 0; i--) {
+    if (input & ((uint16_t)1 << i)) {
+      break;
+    }
+    sum++;
+  }
+  return sum;
+}
+
+constexpr uint8_t leading_zero(uint16_t x)
+{
+    uint8_t n = 0;
+    if (x == 0 ) {return 16;}
+    if (x <= 0x00ff) n +=  8, x <<= 8;
+    if (x <= 0x0fff) n +=  4, x <<= 4;
+    if (x <= 0x3fff) n +=  2, x <<= 2;
+    if (x <= 0x7fff) n ++;
+    return n;
+}
+
 
 unsigned short get_row_moves(const unsigned short occ, const unsigned char pos) {
   static const unsigned short lowers[12] = {
@@ -1464,10 +1325,51 @@ unsigned short get_row_moves(const unsigned short occ, const unsigned char pos) 
   */
   unsigned short lower = occ & lowers[pos];
   unsigned short upper = occ & (0b11111111110 << pos);
-  unsigned short rightward = lowers[_tzcnt_u16(upper | 0x800)];
+  unsigned short rightward = lowers[__tzcnt_u16(upper | 0x800)];
+  // unsigned short rightward = lowers[__builtin_ctz(upper | 0x800)];
   unsigned short blocked = 0xFFFF >> __lzcnt16(lower);
+  // unsigned short blocked = 0xFFFF >> leading_zero(lower);
   return (rightward - blocked) ^ (1 << pos);
 }
+
+unsigned short get_row_moves_2(const unsigned short occ, const unsigned char pos) {
+  static const unsigned short lowers[12] = {
+    0b00000000000,
+    0b00000000001,
+    0b00000000011,
+    0b00000000111,
+    0b00000001111,
+    0b00000011111,
+    0b00000111111,
+    0b00001111111,
+    0b00011111111,
+    0b00111111111,
+    0b01111111111,
+    // The below is never used as a mask, only by `rightward` when
+    // `upper` is empty
+    0b11111111111
+  };
+  /*
+  static const unsigned short uppers[11] = {
+    0b11111111110,
+    0b11111111100,
+    0b11111111000,
+    0b11111110000,
+    0b11111100000,
+    0b11111000000,
+    0b11110000000,
+    0b11100000000,
+    0b11000000000,
+    0b10000000000,
+    0b00000000000
+  };
+  */
+  uint16_t lower_barrier = 0b10000000000000000 >> __lzcnt16(lowers[pos] & occ);
+  // return lower_barrier;
+  uint16_t capped_occ = 0b100000000000 | occ;
+  return capped_occ ^ (capped_occ | (capped_occ - lower_barrier - (1 << pos)));
+}
+
 
 typedef struct move {
   unsigned char orig;
@@ -1480,13 +1382,13 @@ typedef struct moves {
 } moves;
 
 void print_row(unsigned short row) {
-  char output[12];
-  memset(output, '0', 11);
-  output[11] = '\0';
+  char output[17];
+  memset(output, '0', 16);
+  output[16] = '\0';
   int index;
   while (row) {
     index = _tzcnt_u16(row);
-    output[10 - index] = '1';
+    output[15 - index] = '1';
     row &= ~(1 << index);
   }
   puts(output);
@@ -1530,8 +1432,27 @@ void gen_center_row_moves() {
   }
 }
 
+/*
+// -------------
+// Testing
+
+constexpr std::array<std::array<uint8_t, 11>, 2048> gen_row_move_counts_c() {
+  std::array<std::array<uint8_t, 11>, 2048> res{};
+  for (uint16_t row = 0; row < 2048; row++) {
+    for (uint8_t pos = 0; pos < 11; pos++) {
+      res[row][pos] = __builtin_popcount(get_row_moves(row, pos));
+    }
+  }
+  return res;
+}
+
+constexpr std::array<std::array<uint8_t, 11>, 2048> test_row_move_count_table = gen_row_move_counts_c();
+
+// -------------
+*/
 
 uint8_t row_move_count_table[2048][11];
+
 uint8_t center_row_move_count_table[2048][11];
 
 void gen_row_move_counts() {
@@ -1556,126 +1477,26 @@ void gen_center_row_move_counts() {
   }
 }
  
-inline void get_row_total_moves(const uint64_t team, const uint64_t occ,
-			        const int offset, uint8_t *total) {
-  unsigned short movers = ((uint64_t) team >> offset) & 0b11111111111;
-  const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
+template <int OFFSET>
+void get_row_total_moves(const uint64_t *team, const uint64_t *occ, uint8_t *total) {
+  uint16_t movers = ((uint64_t) *team >> OFFSET) & 0b11111111111;
+  const uint16_t blockers = ((uint64_t) *occ >> OFFSET) & 0b11111111111;
   while (movers) {
     (*total) += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 }
-
-inline void get_row_total_moves_2(const uint64_t team, const uint64_t occ, const int offset, uint8_t *total) {
-  unsigned short movers = ((uint64_t) team >> offset) & 0b11111111111;
-  const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
-  while (movers) {
-    (*total) += row_move_count_table[blockers][_tzcnt_u16(movers)];
-    movers &= movers - 1;
-  }
-}
-
-inline uint8_t get_row_total_moves_3(const uint64_t team, const uint64_t occ, const int offset) {
-  uint8_t total = 0;
-  unsigned short movers = ((uint64_t) team >> offset) & 0b11111111111;
-  const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
-  while (movers) {
-    total += row_move_count_table[blockers][_tzcnt_u16(movers)];
-    movers &= movers - 1;
-  }
-  return total;
-}
-
-inline void get_all_row_moves(const uint64_t team, const uint64_t occ,
-			      const int offset, int *total, move *moves, move *moves_r) {
-  unsigned short movers = ((uint64_t) team >> offset) & 0b11111111111;
-  //const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
-  uint64_t row_moves;
-  unsigned char local_orig, orig, orig_r, dest;
-  while (movers) {
-    local_orig = _tzcnt_u16(movers);
-    orig = offset + local_orig;
-    orig_r = rotate_right[orig];
-    const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
-    row_moves = (uint64_t) row_moves_table[blockers][local_orig] << offset;
-    while (row_moves) {
-      dest = _tzcnt_u16(row_moves);
-      moves[*total] = (struct move) {orig, dest};
-      moves_r[*total] = (struct move) {orig_r, rotate_right[dest]};
-      (*total)++;
-      // todo: use "faster" version of this and bench
-      row_moves &= row_moves - 1;
-    }
-    movers &= movers - 1;
-  }
-}
-
-inline void get_next_row_boards_black_s(const int index, const unsigned char sub_index, const uint64_t occ,
-			       const board base_board, const int row_offset,
-			       int *total, move *moves, board *boards) {
-  for (int i = 0; i < 11; i++) {
-  }
-
-
-
-
-
-  unsigned short movers = (base_board.black[index] >> row_offset) & 0b11111111111;
-  uint64_t row_moves;
-  unsigned char row_orig, sub_orig, orig, orig_r, sub_dest, dest, dest_r;
-  while (movers) {
-    row_orig = _tzcnt_u16(movers);
-    sub_orig = row_offset + row_orig;
-    orig = sub_orig + sub_index;
-    orig_r = rotate_right[orig];
-    const unsigned short blockers = ((uint64_t)occ >> row_offset) & 0b11111111111;
-    row_moves = (uint64_t)row_moves_table[blockers][row_orig] << row_offset;
-    while (row_moves) {
-      // get destination
-      sub_dest = _tzcnt_u64(row_moves);
-      // printf("sub_dest: %d\n", sub_dest);
-      dest = sub_dest + sub_index;
-      // printf("sub_index: %d\n", sub_index);
-      // printf("dest: %d\n", dest);
-      dest_r = rotate_right[dest];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = base_board;
-      // TODO: move orig removal out and bench to see if it's faster
-      new_board.black[index] -= (uint64_t)1 << sub_orig;
-      new_board.black[index] |= (uint64_t)1 << sub_dest;
-      new_board.black_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
-      new_board.black_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
-      // printf("dest: %d\n", dest);
-      capture_functions[dest](new_board.black, new_board.black_r,
-                              new_board.white, new_board.white_r, dest);
-      boards[*total] = new_board;
-      (*total)++;
-      // printf("--------------------------------------------------\n");
-
-      // increment
-      // todo: use "faster" version of this and bench
-      // row_moves &= row_moves - 1;
-      row_moves = _blsr_u64(row_moves);
-    }
-    movers &= movers - 1;
-  }
-}
-
 
 // ----------------------------------------------------------------------
 // Integrated
 
 //inline void get_next_row_boards_black(const uint64_t team, const uint64_t occ,
-inline __attribute__((always_inline)) void get_next_row_boards_black(const int index, const unsigned char sub_index, const uint64_t occ,
-			       const board base_board, const int row_offset,
-			       int *total, move *moves, board *boards) {
-  unsigned short movers = (base_board.black[index] >> row_offset) & 0b11111111111;
+template <int index, unsigned char sub_index, int row_offset>
+inline __attribute__((always_inline)) void
+get_next_row_boards_black(const uint64_t occ, const board &base_board,
+                          int *total, move *moves, board *boards) {
+  unsigned short movers =
+      (base_board.black[index] >> row_offset) & 0b11111111111;
   uint64_t row_moves;
   unsigned char row_orig, sub_orig, orig, orig_r, sub_dest, dest, dest_r;
   while (movers) {
@@ -1685,15 +1506,9 @@ inline __attribute__((always_inline)) void get_next_row_boards_black(const int i
     orig_r = rotate_right[orig];
     const unsigned short blockers = ((uint64_t)occ >> row_offset) & 0b11111111111;
     row_moves = (uint64_t)row_moves_table[blockers][row_orig] << row_offset;
-    // const unsigned short blockers = ((uint64_t)occ >> row_offset);
-    // row_moves = (uint64_t)get_row_moves(blockers, row_orig) << row_offset;
     while (row_moves) {
-      // get destination
       sub_dest = _tzcnt_u64(row_moves);
-      // printf("sub_dest: %d\n", sub_dest);
       dest = sub_dest + sub_index;
-      // printf("sub_index: %d\n", sub_index);
-      // printf("dest: %d\n", dest);
       dest_r = rotate_right[dest];
 
       // register move
@@ -1701,117 +1516,45 @@ inline __attribute__((always_inline)) void get_next_row_boards_black(const int i
 
       // Generate board
       board new_board = base_board;
-      // TODO: move orig removal out and bench to see if it's faster
       new_board.black[index] -= (uint64_t)1 << sub_orig;
       new_board.black[index] |= (uint64_t)1 << sub_dest;
       new_board.black_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
+	  // (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
+          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
       new_board.black_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
-      // printf("dest: %d\n", dest);
+	  // (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
+          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+
+      // handle captures
       capture_functions[dest](new_board.black, new_board.black_r,
                               new_board.white, new_board.white_r, dest);
       // dispatch_capture(new_board.black, new_board.black_r,
       //                         new_board.white, new_board.white_r, dest);
-      // apply_captures_niave(new_board.black, new_board.white, new_board.black, dest);
+
       boards[*total] = new_board;
       (*total)++;
-      // printf("--------------------------------------------------\n");
 
       // increment
-      // todo: use "faster" version of this and bench
-      // row_moves &= row_moves - 1;
       row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
 
-void get_next_row_boards_black_i(const int index, const unsigned char sub_index, const uint64_t occ,
-			       const board base_board, const int row_offset,
-			       int *total, move *moves, board *boards) {
-  int current;
-  unsigned char orig_r, dest_r;
-
-  int stack[10];
-  int stack_count = 0;
-  bool should_add = false;
-  for (int file = row_offset; file < row_offset + 11; file++) {
-    if (base_board.black[index] & ((uint64_t)1 << file)) {
-      // printf("black\n");
-      current = file;
-      orig_r = rotate_right[current];
-      should_add = true;
-      while (stack_count) {
-        stack_count--;
-	int dest = stack[stack_count];
-        dest_r = rotate_right[dest];
-        board new_board = base_board;
-
-        moves[*total] = (struct move){current, dest};
-
-        new_board.black[index] -= (uint64_t)1 << current;
-        new_board.black[index] |= (uint64_t)1 << dest;
-        new_board.black_r[sub_layer[orig_r]] -=
-            (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
-        new_board.black_r[sub_layer[dest_r]] |=
-            (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
-
-        // TODO: capture
-
-        boards[*total] = new_board;
-        (*total)++;
-      }
-    } else if ((occ & ((uint64_t)1 << file))) {
-      // printf("white\n");
-      should_add = false;
-      stack_count = 0;
-    } else if (should_add) {
-      // printf("empty dest\n");
-      dest_r = rotate_right[file];
-      board new_board = base_board;
-
-      moves[*total] = (struct move){current, file};
-
-      new_board.black[index] -= (uint64_t)1 << current;
-      new_board.black[index] |= (uint64_t)1 << file;
-      new_board.black_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (orig_r - sub_layer_offset[orig_r]);
-      new_board.black_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (dest_r - sub_layer_offset[dest_r]);
-
-      // TODO: capture
-
-      boards[*total] = new_board;
-      (*total)++;
-
-      stack[stack_count] = file;
-      stack_count++;
-    } else {
-      // printf("empty unclaimed\n");
-      stack[stack_count] = file;
-      stack_count++;
-    }
-    // printf("\n");
-  }
-}
-
-inline __attribute__((always_inline)) void get_next_row_boards_black_r(const int index, const int sub_offset, const uint64_t occ,
-                                        const board base_board,
-                                        const int offset, int *total,
-                                        move *moves, board *boards) {
-  unsigned short movers = (base_board.black_r[index] >> offset) & 0b11111111111;
-  // const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
+template <int index, unsigned char sub_offset, int row_offset>
+inline __attribute__((always_inline)) void
+get_next_row_boards_black_r(const uint64_t occ, const board base_board,
+                            int *total, move *moves,
+                            board *boards) {
+  unsigned short movers = (base_board.black_r[index] >> row_offset) & 0b11111111111;
   uint64_t row_moves;
   unsigned char local_orig, orig, orig_r, dest, dest_r;
   while (movers) {
     local_orig = _tzcnt_u16(movers);
-    orig_r = offset + local_orig;
+    orig_r = row_offset + local_orig;
     orig = rotate_left[orig_r + sub_offset];
-    const unsigned short blockers = ((uint64_t)occ >> offset) & 0b11111111111;
-    row_moves = (uint64_t)row_moves_table[blockers][local_orig] << offset;
-    // const unsigned short blockers = ((uint64_t)occ >> offset);
-    // row_moves = (uint64_t)get_row_moves(blockers, local_orig) << offset;
+    const unsigned short blockers = ((uint64_t)occ >> row_offset) & 0b11111111111;
+    row_moves = (uint64_t)row_moves_table[blockers][local_orig] << row_offset;
     while (row_moves) {
       // get destination
       dest_r = _tzcnt_u64(row_moves);
@@ -1831,115 +1574,12 @@ inline __attribute__((always_inline)) void get_next_row_boards_black_r(const int
                                           << (dest - sub_layer_offset[dest]);
       capture_functions[dest](new_board.black, new_board.black_r,
                               new_board.white, new_board.white_r, dest);
-      // apply_captures_niave(new_board.black, new_board.white, new_board.black, dest);
+      // dispatch_capture(new_board.black, new_board.black_r,
+      //                         new_board.white, new_board.white_r, dest);
       boards[*total] = new_board;
       (*total)++;
 
-      // increment
-      // todo: use "faster" version of this and bench
-      // row_moves &= row_moves - 1;
-      /*
-      */
       row_moves = _blsr_u64(row_moves);
-    }
-    movers &= movers - 1;
-  }
-}
-
-// ----------------------------------------------------------------------
-
-inline void get_all_row_moves_r(const uint64_t team, const uint64_t occ,
-				const int offset, int *total, move *moves, move *moves_r) {
-  unsigned short movers = ((uint64_t) team >> offset) & 0b11111111111;
-  unsigned short row_moves;
-  unsigned char local_orig, orig, orig_r, dest;
-  while (movers) {
-    local_orig = _tzcnt_u16(movers);
-    orig = offset + local_orig;
-    orig_r = rotate_left[orig];
-    const unsigned short blockers = ((uint64_t) occ >> offset) & 0b11111111111;
-    row_moves = row_moves_table[blockers][local_orig];
-    while (row_moves) {
-      dest = offset + _tzcnt_u16(row_moves);
-      moves[*total] = (struct move) {orig_r, rotate_left[dest]};
-      moves_r[*total] = (struct move) {orig, dest};
-      (*total)++;
-      row_moves &= row_moves - 1;
-    }
-    movers &= movers - 1;
-  }
-}
-
-void get_team_moves(const layer occ, const layer team,
-		    const layer occ_90, const layer team_90,
-		    int *total, move *moves, move *moves_r) {
-  *total = 0;
-
-  // upper 5 rows
-  get_all_row_moves(team[0], occ[0], 0, total, moves, moves_r);
-  get_all_row_moves(team[0], occ[0], 11, total, moves, moves_r);
-  get_all_row_moves(team[0], occ[0], 22, total, moves, moves_r);
-  get_all_row_moves(team[0], occ[0], 33, total, moves, moves_r);
-  get_all_row_moves(team[0], occ[0], 44, total, moves, moves_r);
-
-  // lower 5 rows
-  get_all_row_moves(team[1], occ[1], 2, total, moves, moves_r);
-  get_all_row_moves(team[1], occ[1], 13, total, moves, moves_r);
-  get_all_row_moves(team[1], occ[1], 24, total, moves, moves_r);
-  get_all_row_moves(team[1], occ[1], 35, total, moves, moves_r);
-  get_all_row_moves(team[1], occ[1], 46, total, moves, moves_r);
-
-  // upper 5 rows
-  get_all_row_moves_r(team_90[0], occ_90[0], 0, total, moves, moves_r);
-  get_all_row_moves_r(team_90[0], occ_90[0], 11, total, moves, moves_r);
-  get_all_row_moves_r(team_90[0], occ_90[0], 22, total, moves, moves_r);
-  get_all_row_moves_r(team_90[0], occ_90[0], 33, total, moves, moves_r);
-  get_all_row_moves_r(team_90[0], occ_90[0], 44, total, moves, moves_r);
-
-  // lower 5 rows
-  get_all_row_moves_r(team_90[1], occ_90[1], 2, total, moves, moves_r);
-  get_all_row_moves_r(team_90[1], occ_90[1], 13, total, moves, moves_r);
-  get_all_row_moves_r(team_90[1], occ_90[1], 24, total, moves, moves_r);
-  get_all_row_moves_r(team_90[1], occ_90[1], 35, total, moves, moves_r);
-  get_all_row_moves_r(team_90[1], occ_90[1], 46, total, moves, moves_r);
-
-  unsigned short movers, row_moves;
-  unsigned char local_orig, orig, orig_r, dest;
-
-  // center horizontal
-  movers = (team[0] >> 55) | (((team[1] & 0x3) << 9) & 0b11111111111);
-  while (movers) {
-    local_orig = _tzcnt_u16(movers);
-    orig = local_orig + 55;
-    orig_r = rotate_right[orig];
-    const unsigned short blockers_h =
-      (occ[0] >> 55) | (((occ[1] & 0x3) << 9) & 0b11111111111);
-    row_moves = center_row_moves_table[blockers_h][_tzcnt_u16(movers)];
-    while (row_moves) {
-      dest = _tzcnt_u16(row_moves) + 55;
-      moves[*total] = (struct move) {orig, dest};
-      moves_r[*total] = (struct move) {orig_r, rotate_right[dest]};
-      (*total)++;
-      row_moves &= row_moves - 1;
-    }
-    movers &= movers - 1;
-  }
-
-  // center vertical
-  movers = ((team_90[0] >> 55) | ((team_90[1] & 0x3) << 9)) & 0b11111111111;
-  while (movers) {
-    local_orig = _tzcnt_u16(movers);
-    orig = local_orig + 55;
-    orig_r = rotate_left[orig];
-    const unsigned short blockers_v =
-      ((occ_90[0] >> 55) | ((occ_90[1] & 0x3) << 9)) & 0b11111111111;
-    row_moves = center_row_moves_table[blockers_v][local_orig];
-    while (row_moves) {
-      dest = _tzcnt_u16(row_moves) + 55;
-      moves[*total] = (struct move) {orig_r, rotate_left[dest]};
-      moves_r[*total] = (struct move) {orig, dest};
-      (*total)++;
-      row_moves &= row_moves - 1;
     }
     movers &= movers - 1;
   }
@@ -1948,42 +1588,46 @@ void get_team_moves(const layer occ, const layer team,
 // -----------------------------------------------------------------------------
 // integrated
 
-inline __attribute__((always_inline)) void get_team_moves_black(const board current, int *total, move *moves, board *boards) {
+inline __attribute__((always_inline)) void
+get_team_moves_black(const board current, int *total, move *moves,
+                     board *boards) {
   *total = 0;
+
   const layer occ = {
       current.black[0] | current.white[0] | current.king[0] | corners[0],
       current.black[1] | current.white[1] | current.king[1] | corners[1]};
+
+  // lower 5 rows
+  get_next_row_boards_black<0, 0, 0>(occ[0], current,  total, moves, boards);
+  get_next_row_boards_black<0, 0, 11>(occ[0], current, total, moves, boards);
+  get_next_row_boards_black<0, 0, 22>(occ[0], current, total, moves, boards);
+  get_next_row_boards_black<0, 0, 33>(occ[0], current, total, moves, boards);
+  get_next_row_boards_black<0, 0, 44>(occ[0], current, total, moves, boards);
+
+  // upper 5 rows
+  get_next_row_boards_black<1, 64, 2>(occ[1], current,  total, moves, boards);
+  get_next_row_boards_black<1, 64, 13>(occ[1], current, total, moves, boards);
+  get_next_row_boards_black<1, 64, 24>(occ[1], current, total, moves, boards);
+  get_next_row_boards_black<1, 64, 35>(occ[1], current, total, moves, boards);
+  get_next_row_boards_black<1, 64, 46>(occ[1], current, total, moves, boards);
+
   const layer occ_r = {
       current.black_r[0] | current.white_r[0] | current.king_r[0] | corners[0],
       current.black_r[1] | current.white_r[1] | current.king_r[1] | corners[1]};
 
-  // upper 5 rows
-  get_next_row_boards_black(0, 0, occ[0], current, 0, total, moves, boards);
-  get_next_row_boards_black(0, 0, occ[0], current, 11, total, moves, boards);
-  get_next_row_boards_black(0, 0, occ[0], current, 22, total, moves, boards);
-  get_next_row_boards_black(0, 0, occ[0], current, 33, total, moves, boards);
-  get_next_row_boards_black(0, 0, occ[0], current, 44, total, moves, boards);
-
   // lower 5 rows
-  get_next_row_boards_black(1, 64, occ[1], current, 2, total, moves, boards);
-  get_next_row_boards_black(1, 64, occ[1], current, 13, total, moves, boards);
-  get_next_row_boards_black(1, 64, occ[1], current, 24, total, moves, boards);
-  get_next_row_boards_black(1, 64, occ[1], current, 35, total, moves, boards);
-  get_next_row_boards_black(1, 64, occ[1], current, 46, total, moves, boards);
+  get_next_row_boards_black_r<0, 0, 0>(occ_r[0], current, total, moves, boards);
+  get_next_row_boards_black_r<0, 0, 11>(occ_r[0], current, total, moves, boards);
+  get_next_row_boards_black_r<0, 0, 22>(occ_r[0], current, total, moves, boards);
+  get_next_row_boards_black_r<0, 0, 33>(occ_r[0], current, total, moves, boards);
+  get_next_row_boards_black_r<0, 0, 44>(occ_r[0], current, total, moves, boards);
 
-  // upper 5 rows
-  get_next_row_boards_black_r(0, 0, occ_r[0], current, 0, total, moves, boards);
-  get_next_row_boards_black_r(0, 0, occ_r[0], current, 11, total, moves, boards);
-  get_next_row_boards_black_r(0, 0, occ_r[0], current, 22, total, moves, boards);
-  get_next_row_boards_black_r(0, 0, occ_r[0], current, 33, total, moves, boards);
-  get_next_row_boards_black_r(0, 0, occ_r[0], current, 44, total, moves, boards);
-
-  // // lower 5 rows
-  get_next_row_boards_black_r(1, 64, occ_r[1], current, 2, total, moves, boards);
-  get_next_row_boards_black_r(1, 64, occ_r[1], current, 13, total, moves, boards);
-  get_next_row_boards_black_r(1, 64, occ_r[1], current, 24, total, moves, boards);
-  get_next_row_boards_black_r(1, 64, occ_r[1], current, 35, total, moves, boards);
-  get_next_row_boards_black_r(1, 64, occ_r[1], current, 46, total, moves, boards);
+  // // upper 5 rows
+  get_next_row_boards_black_r<1, 64, 2>( occ_r[1], current,  total, moves, boards);
+  get_next_row_boards_black_r<1, 64, 13>( occ_r[1], current, total, moves, boards);
+  get_next_row_boards_black_r<1, 64, 24>( occ_r[1], current, total, moves, boards);
+  get_next_row_boards_black_r<1, 64, 35>( occ_r[1], current, total, moves, boards);
+  get_next_row_boards_black_r<1, 64, 46>( occ_r[1], current, total, moves, boards);
 
   unsigned short movers, row_moves;
   unsigned char local_orig, orig, orig_r, dest;
@@ -2032,10 +1676,9 @@ inline __attribute__((always_inline)) void get_team_moves_black(const board curr
     movers &= movers - 1;
   }
 }
-
 // -----------------------------------------------------------------------------
 
-uint8_t get_team_move_count(const layer occ, const layer team,
+inline uint8_t get_team_move_count(const layer occ, const layer team,
 			const layer occ_90, const layer team_90) {
 
   uint16_t prog;
@@ -2046,32 +1689,32 @@ uint8_t get_team_move_count(const layer occ, const layer team,
 
   //TODO: try having these functions assign to a single int and then extract positions at the end rather than doing it for each row
   // upper 5 rows
-  get_row_total_moves(team[0], occ[0], 0, &total);
-  get_row_total_moves(team[0], occ[0], 11, &total);
-  get_row_total_moves(team[0], occ[0], 22, &total);
-  get_row_total_moves(team[0], occ[0], 33, &total);
-  get_row_total_moves(team[0], occ[0], 44, &total);
+  get_row_total_moves<0>(&team[0], &occ[0],  &total);
+  get_row_total_moves<11>(&team[0], &occ[0], &total);
+  get_row_total_moves<22>(&team[0], &occ[0], &total);
+  get_row_total_moves<33>(&team[0], &occ[0], &total);
+  get_row_total_moves<44>(&team[0], &occ[0], &total);
 
   // lower 5 rows
-  get_row_total_moves(team[1], occ[1], 2, &total);
-  get_row_total_moves(team[1], occ[1], 13, &total);
-  get_row_total_moves(team[1], occ[1], 24, &total);
-  get_row_total_moves(team[1], occ[1], 35, &total);
-  get_row_total_moves(team[1], occ[1], 46, &total);
+  get_row_total_moves<2>(&team[1], &occ[1], &total);
+  get_row_total_moves<13>(&team[1], &occ[1],  &total);
+  get_row_total_moves<24>(&team[1], &occ[1],  &total);
+  get_row_total_moves<35>(&team[1], &occ[1],  &total);
+  get_row_total_moves<46>(&team[1], &occ[1],  &total);
 
   // upper 5 rows rotated
-  get_row_total_moves(team_90[0], occ_90[0], 0, &total);
-  get_row_total_moves(team_90[0], occ_90[0], 11, &total);
-  get_row_total_moves(team_90[0], occ_90[0], 22, &total);
-  get_row_total_moves(team_90[0], occ_90[0], 33, &total);
-  get_row_total_moves(team_90[0], occ_90[0], 44, &total);
+  get_row_total_moves<0>(&team_90[0], &occ_90[0], &total);
+  get_row_total_moves<11>(&team_90[0], &occ_90[0],  &total);
+  get_row_total_moves<22>(&team_90[0], &occ_90[0],  &total);
+  get_row_total_moves<33>(&team_90[0], &occ_90[0],  &total);
+  get_row_total_moves<44>(&team_90[0], &occ_90[0],  &total);
 
   // lower 5 rows rotated
-  get_row_total_moves(team_90[1], occ_90[1], 2, &total);
-  get_row_total_moves(team_90[1], occ_90[1], 13, &total);
-  get_row_total_moves(team_90[1], occ_90[1], 24, &total);
-  get_row_total_moves(team_90[1], occ_90[1], 35, &total);
-  get_row_total_moves(team_90[1], occ_90[1], 46, &total);
+  get_row_total_moves<2>(&team_90[1], &occ_90[1], &total);
+  get_row_total_moves<13>(&team_90[1], &occ_90[1], &total);
+  get_row_total_moves<24>(&team_90[1], &occ_90[1], &total);
+  get_row_total_moves<35>(&team_90[1], &occ_90[1], &total);
+  get_row_total_moves<46>(&team_90[1], &occ_90[1], &total);
 
   // center horizontal
   row = ((occ[0] >> 55) | ((occ[1] & 0x3) << 9));
@@ -2092,137 +1735,6 @@ uint8_t get_team_move_count(const layer occ, const layer team,
   return total;
 }
 static inline
-
-// -----------------
-// https://stackoverflow.com/questions/54541129/how-to-count-character-occurrences-using-simd
-__m256i hsum_epu8_epu64(__m256i v) {
-    return _mm256_sad_epu8(v, _mm256_setzero_si256());  // SAD against zero is a handy trick
-}
-
-static inline
-uint64_t hsum_epu64_scalar(__m256i v) {
-    __m128i lo = _mm256_castsi256_si128(v);
-    __m128i hi = _mm256_extracti128_si256(v, 1);
-    __m128i sum2x64 = _mm_add_epi64(lo, hi);   // narrow to 128
-
-    hi = _mm_unpackhi_epi64(sum2x64, sum2x64);
-    __m128i sum = _mm_add_epi64(hi, sum2x64);  // narrow to 64
-    return _mm_cvtsi128_si64(sum);
-}
-// -----------------
-
-short get_team_move_count_2(const layer occ, const layer team,
-			  const layer occ_90, const layer team_90) {
-
-  uint16_t prog;
-  uint8_t results[32] = {0};
-  unsigned short row;
-
-  //TODO: try having these functions assign to a single int and then extract positions at the end rather than doing it for each row
-  // upper 5 rows
-  get_row_total_moves_2(team[0], occ[0], 0,  &results[0]);
-  get_row_total_moves_2(team[0], occ[0], 11, &results[1]);
-  get_row_total_moves_2(team[0], occ[0], 22, &results[2]);
-  get_row_total_moves_2(team[0], occ[0], 33, &results[3]);
-  get_row_total_moves_2(team[0], occ[0], 44, &results[4]);
-
-  // lower 5 rows
-  get_row_total_moves_2(team[1], occ[1], 2,  &results[5]);
-  get_row_total_moves_2(team[1], occ[1], 13, &results[6]);
-  get_row_total_moves_2(team[1], occ[1], 24, &results[7]);
-  get_row_total_moves_2(team[1], occ[1], 35, &results[8]);
-  get_row_total_moves_2(team[1], occ[1], 46, &results[9]);
-
-  // upper 5 rows rotated
-  get_row_total_moves_2(team_90[0], occ_90[0], 0,  &results[10]);
-  get_row_total_moves_2(team_90[0], occ_90[0], 11, &results[11]);
-  get_row_total_moves_2(team_90[0], occ_90[0], 22, &results[12]);
-  get_row_total_moves_2(team_90[0], occ_90[0], 33, &results[13]);
-  get_row_total_moves_2(team_90[0], occ_90[0], 44, &results[14]);
-
-  // lower 5 rows rotated
-  get_row_total_moves_2(team_90[1], occ_90[1], 2,  &results[15]);
-  get_row_total_moves_2(team_90[1], occ_90[1], 13, &results[16]);
-  get_row_total_moves_2(team_90[1], occ_90[1], 24, &results[17]);
-  get_row_total_moves_2(team_90[1], occ_90[1], 35, &results[18]);
-  get_row_total_moves_2(team_90[1], occ_90[1], 46, &results[19]);
-
-  // center horizontal
-  row = ((occ[0] >> 55) | ((occ[1] & 0x3) << 9));
-  prog = (team[0] >> 55) | ((team[1] & 0x3) << 9);
-  while (prog) {
-    results[20] += center_row_move_count_table[row][_tzcnt_u16(prog)];
-    prog &= prog - 1;
-  }
-
-  // center vertical
-  row = ((occ_90[0] >> 55) | ((occ_90[1] & 0x3) << 9));
-  prog = (team_90[0] >> 55) | ((team_90[1] & 0x3) << 9);
-  while (prog) {
-    results[21] += center_row_move_count_table[row][_tzcnt_u16(prog)];
-    prog &= prog - 1;
-  }
-
-  return hsum_epu64_scalar(hsum_epu8_epu64(_mm256_load_si256((__m256i*)&results[0])));
-}
-
-uint8_t get_team_move_count_3(const layer occ, const layer team,
-			const layer occ_90, const layer team_90) {
-
-  uint16_t prog;
-  unsigned short row;
-
-
-  //TODO: try having these functions assign to a single int and then extract positions at the end rather than doing it for each row
-  // upper 5 rows
-  uint8_t r0 = get_row_total_moves_3(team[0], occ[0], 0);
-  uint8_t r1 = get_row_total_moves_3(team[0], occ[0], 11);
-  uint8_t r2 = get_row_total_moves_3(team[0], occ[0], 22);
-  uint8_t r3 = get_row_total_moves_3(team[0], occ[0], 33);
-  uint8_t r4 = get_row_total_moves_3(team[0], occ[0], 44);
-
-  // lower 5 rows
-  uint8_t r5 = get_row_total_moves_3(team[1], occ[1], 2);
-  uint8_t r6 = get_row_total_moves_3(team[1], occ[1], 13);
-  uint8_t r7 = get_row_total_moves_3(team[1], occ[1], 24);
-  uint8_t r8 = get_row_total_moves_3(team[1], occ[1], 35);
-  uint8_t r9 = get_row_total_moves_3(team[1], occ[1], 46);
-
-  // upper 5 rows rotated
-  uint8_t r10 = get_row_total_moves_3(team_90[0], occ_90[0], 0);
-  uint8_t r11 = get_row_total_moves_3(team_90[0], occ_90[0], 11);
-  uint8_t r12 = get_row_total_moves_3(team_90[0], occ_90[0], 22);
-  uint8_t r13 = get_row_total_moves_3(team_90[0], occ_90[0], 33);
-  uint8_t r14 = get_row_total_moves_3(team_90[0], occ_90[0], 44);
-
-  // lower 5 rows rotated
-  uint8_t r15 = get_row_total_moves_3(team_90[1], occ_90[1], 2);
-  uint8_t r16 = get_row_total_moves_3(team_90[1], occ_90[1], 13);
-  uint8_t r17 = get_row_total_moves_3(team_90[1], occ_90[1], 24);
-  uint8_t r18 = get_row_total_moves_3(team_90[1], occ_90[1], 35);
-  uint8_t r19 = get_row_total_moves_3(team_90[1], occ_90[1], 46);
-
-  // center horizontal
-  row = ((occ[0] >> 55) | ((occ[1] & 0x3) << 9));
-  prog = (team[0] >> 55) | ((team[1] & 0x3) << 9);
-  uint8_t r20 = 0;
-  while (prog) {
-    r20 += center_row_move_count_table[row][_tzcnt_u16(prog)];
-    prog &= prog - 1;
-  }
-
-  // center vertical
-  row = ((occ_90[0] >> 55) | ((occ_90[1] & 0x3) << 9));
-  prog = (team_90[0] >> 55) | ((team_90[1] & 0x3) << 9);
-  uint8_t r21 = 0;
-  while (prog) {
-    r21 += center_row_move_count_table[row][_tzcnt_u16(prog)];
-    prog &= prog - 1;
-  }
-
-  return (r0 + r1 + r2 + r3 + r4 + r5 + r6 + r7 + r8 + r9 + r10 + r11 + r12 + r13 + r14 + r15 + r16 + r17 + r18 + r19 + r20 + r21);
-}
-
 
 //******************************************************************************
 
@@ -2259,72 +1771,72 @@ const char* corners_string =
   "X  .  .  .  .  .  .  .  .  .  X";
 
 
-void bench() {
-  printf("New 2: Running test\n");
-
-  // read and verify boards
-  layer corners = {0,0};
-  read_layer(corners_string, 'X', corners);
-  print_layer(corners);
-  layer black = {0,0};
-  read_layer(start_board_string, 'X', black);
-  print_layer(black);
-  printf("\n");
-  layer white = {0,0};
-  read_layer(start_board_string, 'O', white);
-  print_layer(white);
-  printf("\n");
-  layer occ = {0,0};
-  layer_or(occ, corners);
-  layer_or(occ, black);
-  layer_or(occ, white);
-  print_layer(occ);
-  printf("\n");
-  /*
-  */
-
-  // begin time
-  clock_t start, end;
-  double cpu_time_used;
-  start = clock();
-
-  // setup
-  //gen_row_moves();
-  //gen_center_row_moves();
-  gen_row_move_counts();
-  gen_center_row_move_counts();
-
-
-  /*
-  move moves[235]; // 235 is a generous max move count
-  move moves_r[235]; // 235 is a generous max move count
-  int total;
-  get_team_moves(occ, black, occ, black, &total, moves, moves_r);
-  printf("move_count: %d\n", total);
-
-
-  // run for bench
-  int bench_count = 5000000;
-  while (bench_count) { 
-    get_team_moves(occ, black, occ, black, &total, moves, moves_r);
-    bench_count--;
-  }
-  */
-
-
-  // run for result
-  short total = get_team_move_count_3(occ, black, occ, black);
-  printf("move_count: %d\n", total);
-
-  // run for bench
-  int bench_count = 25000000;
-  while (bench_count) { 
-    get_team_move_count_3(occ, black, occ, black);
-    bench_count--;
-  }
-
-  // end time
-  end = clock();
-  cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-  printf("bench took %f seconds to execute \n", cpu_time_used); 
-}
+// void bench() {
+//   printf("New 2: Running test\n");
+// 
+//   // read and verify boards
+//   layer corners = {0,0};
+//   read_layer(corners_string, 'X', corners);
+//   print_layer(corners);
+//   layer black = {0,0};
+//   read_layer(start_board_string, 'X', black);
+//   print_layer(black);
+//   printf("\n");
+//   layer white = {0,0};
+//   read_layer(start_board_string, 'O', white);
+//   print_layer(white);
+//   printf("\n");
+//   layer occ = {0,0};
+//   layer_or(occ, corners);
+//   layer_or(occ, black);
+//   layer_or(occ, white);
+//   print_layer(occ);
+//   printf("\n");
+//   /*
+//   */
+// 
+//   // begin time
+//   clock_t start, end;
+//   double cpu_time_used;
+//   start = clock();
+// 
+//   // setup
+//   gen_row_moves();
+//   gen_center_row_moves();
+//   gen_row_move_counts();
+//   gen_center_row_move_counts();
+// 
+// 
+//   /*
+//   move moves[235]; // 235 is a generous max move count
+//   move moves_r[235]; // 235 is a generous max move count
+//   int total;
+//   get_team_moves(occ, black, occ, black, &total, moves, moves_r);
+//   printf("move_count: %d\n", total);
+// 
+// 
+//   // run for bench
+//   int bench_count = 5000000;
+//   while (bench_count) { 
+//     get_team_moves(occ, black, occ, black, &total, moves, moves_r);
+//     bench_count--;
+//   }
+//   */
+// 
+// 
+//   // run for result
+//   short total = get_team_move_count(occ, black, occ, black);
+//   printf("move_count: %d\n", total);
+// 
+//   // run for bench
+//   int bench_count = 25000000;
+//   while (bench_count) { 
+//     get_team_move_count(occ, black, occ, black);
+//     bench_count--;
+//   }
+// 
+//   // end time
+//   end = clock();
+//   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+//   printf("bench took %f seconds to execute \n", cpu_time_used); 
+// }
