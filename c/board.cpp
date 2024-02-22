@@ -106,19 +106,21 @@ constexpr layer rotate_layer(const layer input) {
   return output;
 }
 
+/** This implementation reads layer strings from top left to bottom right, but starts at index 120 and works down, 
+ */
 constexpr layer read_layer(const char *string, unsigned char symbol) {
   layer output = {0};
   int len = std::char_traits<char>::length(string);
-  int index = 0;
+  int index = 120;
   for (int i = 0; i < len; i++) {
     char c = string[i];
     if (c == symbol) {
       output[sub_layer[index]] |= ((uint64_t) 1 << (index - sub_layer_offset[index]));
-      index++;
+      index--;
     } else if (c == ' ') {
       // skip space
     } else {
-      index++; // skip other chars but increment
+      index--; // skip other chars but increment
     }
   }
   return output;
@@ -140,7 +142,7 @@ void print_layer(layer layer) {
   // set board positions with the appropriate unsigned char
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
-    int index = ((i * 3) + 1) + newline_offset;
+    int index = 373 - (((i * 3) + 1) + newline_offset);
     if (layer[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
       string[index] = 'X';
     } else {
@@ -150,6 +152,57 @@ void print_layer(layer layer) {
 
   puts(string);
   printf("\n");
+}
+
+
+inline __attribute__((always_inline)) layer layer_or(const layer a,
+                                                     const layer b) {
+  return {a[0] | b[0], a[1] | b[1]};
+}
+
+inline __attribute__((always_inline)) layer operator|(const layer a,
+                                                     const layer b) {
+  return {a[0] | b[0], a[1] | b[1]};
+}
+
+inline __attribute__((always_inline)) layer layer_and(const layer a,
+                                                      const layer b) {
+  return {a[0] & b[0], a[1] & b[1]};
+}
+
+inline __attribute__((always_inline)) layer operator&(const layer a,
+                                                      const layer b) {
+  return {a[0] & b[0], a[1] & b[1]};
+}
+
+inline __attribute__((always_inline)) layer layer_negate(const layer a) {
+  return {~a[0], ~a[1]};
+}
+
+inline __attribute__((always_inline)) layer operator~(const layer a) {
+  return {~a[0], ~a[1]};
+}
+
+template <int n>
+inline __attribute__((always_inline)) layer layer_shiftl(const layer input) {
+  constexpr int upper_offset = 64 - n;
+  return {input[0] << n, (input[1] << n) | (input[0] >> upper_offset)};
+}
+
+inline __attribute__((always_inline)) constexpr layer operator<<(const layer input, const int n) {
+  int upper_offset = 64 - n;
+  return {input[0] << n, (input[1] << n) | (input[0] >> upper_offset)};
+}
+
+template <int n>
+inline __attribute__((always_inline)) layer layer_shiftr(const layer input) {
+  constexpr int lower_offset = 64 - n;
+  return {(input[0] >> n) | (input[1] << lower_offset), input[1] >> n};
+}
+
+inline __attribute__((always_inline)) constexpr layer operator>>(const layer input, const int n) {
+  int lower_offset = 64 - n;
+  return {(input[0] >> n) | (input[1] << lower_offset), input[1] >> n};
 }
 
 /*******************************************************************************
@@ -226,7 +279,7 @@ void print_board_r(board board) {
   // set board positions with the appropriate unsigned char
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
-    int index = ((i * 3) + 1) + newline_offset;
+    int index = 373 - (((i * 3) + 1) + newline_offset);
     if (board.black_r[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
       string[index] = 'X';
     } else if (board.white_r[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
@@ -472,6 +525,7 @@ void gen_ally_masks() {
 template <int sub_index, int sub_offset, bool is_rotated>
 void capture_d(const layer &allies, const layer &allies_r, layer &foes,
                layer &foes_r, const unsigned char pos) {
+
   const layer foe_mask = foe_masks_dir(is_rotated)[pos];
   const layer ally_mask = ally_masks_dir(is_rotated)[pos];
 
@@ -837,9 +891,7 @@ inline void upper_left_shield_captures(const uint64_t allies,
 
 #define rotate_pos(cond) (cond ? rotate_right[pos] : pos)
 
-template <bool left, bool right, int sub_index, int sub_offset, bool is_rotated>
-void capture_edge(const layer &allies, const layer &allies_r, layer &foes,
-                  layer &foes_r, unsigned char pos) {
+template <bool left, bool right, int sub_index, int sub_offset, bool is_rotated> void capture_edge(const layer &allies, const layer &allies_r, layer &foes, layer &foes_r, unsigned char pos) {
   pos = rotate_pos(is_rotated);
   uint64_t captures = half_captures<sub_index>(allies_dir(is_rotated),
                                                foes_dir(is_rotated), pos);
@@ -1395,6 +1447,7 @@ void print_row(unsigned short row) {
   printf("\n");
 }
 
+/*
 const unsigned char row_indexes[121] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
@@ -1408,6 +1461,7 @@ const unsigned char row_indexes[121] = {
   99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99,
   110, 110, 110, 110, 110, 110, 110, 110, 110, 110, 110
 }; 
+*/
 
 uint16_t row_moves_table[2048][11];
 uint16_t center_row_moves_table[2048][11];
@@ -1629,51 +1683,92 @@ get_team_moves_black(const board current, int *total, move *moves,
   get_next_row_boards_black_r<1, 64, 35>( occ_r[1], current, total, moves, boards);
   get_next_row_boards_black_r<1, 64, 46>( occ_r[1], current, total, moves, boards);
 
-  unsigned short movers, row_moves;
-  unsigned char local_orig, orig, orig_r, dest;
-
   // center horizontal
-  movers = (current.black[0] >> 55) | (((current.black[1] & 0x3) << 9) & 0b11111111111);
-  while (movers) {
-    local_orig = _tzcnt_u16(movers);
-    orig = local_orig + 55;
-    orig_r = rotate_right[orig];
-    const unsigned short blockers_h =
-      (occ[0] >> 55) | (((occ[1] & 0x3) << 9) & 0b11111111111);
-    row_moves = center_row_moves_table[blockers_h][_tzcnt_u16(movers)];
-    while (row_moves) {
-      dest = _tzcnt_u16(row_moves) + 55;
-      // pawns can't land on the throne
-      if (dest == 60) {
-        continue;
+  {
+    uint16_t movers = (current.black[0] >> 55) |
+                      (((current.black[1] & 0x3) << 9) & 0b11111111111);
+    while (movers) {
+      uint8_t local_orig = _tzcnt_u16(movers);
+      uint8_t orig = local_orig + 55;
+      uint8_t orig_r = rotate_right[orig];
+      const unsigned short blockers_h =
+          (occ[0] >> 55) | (((occ[1] & 0x3) << 9) & 0b11111111111);
+      uint16_t row_moves =
+          center_row_moves_table[blockers_h][_tzcnt_u16(movers)];
+      while (row_moves) {
+        uint8_t dest = _tzcnt_u16(row_moves) + 55;
+        // pawns can't land on the throne
+        if (dest == 60) {
+          continue;
+        }
+        uint8_t dest_r = rotate_right[dest];
+
+        moves[*total] = (struct move){orig, dest};
+
+        // Generate board
+        board new_board = current;
+        new_board.black[sub_layer[orig]] -= (uint64_t)1
+                                            << (sub_layer_offset_direct[orig]);
+        new_board.black[sub_layer[dest]] |= (uint64_t)1
+                                            << (sub_layer_offset_direct[dest]);
+        new_board.black_r[sub_layer[orig_r]] -=
+            (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
+        new_board.black_r[sub_layer[dest_r]] |=
+            (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+
+        capture_functions[dest](new_board.black, new_board.black_r,
+                                new_board.white, new_board.white_r, dest);
+
+        boards[*total] = new_board;
+        (*total)++;
+
+        row_moves &= row_moves - 1;
       }
-      moves[*total] = (struct move){orig, dest};
-      (*total)++;
-      row_moves &= row_moves - 1;
+      movers &= movers - 1;
     }
-    movers &= movers - 1;
   }
 
   // center vertical
-  movers = ((current.black_r[0] >> 55) | ((current.black_r[1] & 0x3) << 9)) & 0b11111111111;
-  while (movers) {
-    local_orig = _tzcnt_u16(movers);
-    orig = local_orig + 55;
-    orig_r = rotate_left[orig];
-    const unsigned short blockers_v =
-      ((occ_r[0] >> 55) | ((occ_r[1] & 0x3) << 9)) & 0b11111111111;
-    row_moves = center_row_moves_table[blockers_v][local_orig];
-    while (row_moves) {
-      dest = _tzcnt_u16(row_moves) + 55;
-      // pawns can't land on the throne
-      if (dest == 60) {
-        continue;
+  {
+    uint16_t movers = ((current.black_r[0] >> 55) | ((current.black_r[1] & 0x3) << 9)) &
+             0b11111111111;
+    while (movers) {
+      uint8_t local_orig = _tzcnt_u16(movers);
+      uint8_t orig_r = local_orig + 55;
+      uint8_t orig = rotate_left[orig_r];
+      const unsigned short blockers_v =
+          ((occ_r[0] >> 55) | ((occ_r[1] & 0x3) << 9)) & 0b11111111111;
+      uint16_t row_moves = center_row_moves_table[blockers_v][local_orig];
+      while (row_moves) {
+        uint8_t dest_r = _tzcnt_u16(row_moves) + 55;
+        uint8_t dest = rotate_left[dest_r];
+        // pawns can't land on the throne
+        if (dest == 60) {
+          continue;
+        }
+        moves[*total] = (struct move){orig, dest};
+
+        // Generate board
+        board new_board = current;
+        new_board.black_r[sub_layer[orig_r]] ^= (uint64_t)1 << orig_r;
+        new_board.black_r[sub_layer[dest_r]] |= (uint64_t)1 << dest_r;
+        new_board.black[sub_layer[orig]] ^= (uint64_t)1
+                                            << (orig - sub_layer_offset[orig]);
+        new_board.black[sub_layer[dest]] |= (uint64_t)1
+                                            << (dest - sub_layer_offset[dest]);
+        capture_functions[dest](new_board.black, new_board.black_r,
+                                new_board.white, new_board.white_r, dest);
+
+        capture_functions[dest](new_board.black, new_board.black_r,
+                                new_board.white, new_board.white_r, dest);
+
+        boards[*total] = new_board;
+        (*total)++;
+
+        row_moves &= row_moves - 1;
       }
-      moves[*total] = (struct move) {orig_r, rotate_left[dest]};
-      (*total)++;
-      row_moves &= row_moves - 1;
+      movers &= movers - 1;
     }
-    movers &= movers - 1;
   }
 }
 // -----------------------------------------------------------------------------
@@ -1734,9 +1829,74 @@ inline uint8_t get_team_move_count(const layer occ, const layer team,
 
   return total;
 }
-static inline
 
 //******************************************************************************
+// Quiescence
+//******************************************************************************
+
+constexpr layer drop_2_west = read_layer(".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X"
+                                         ".  .  X  X  X  X  X  X  X  X  X",
+                                         'X');
+
+constexpr layer drop_2_east = read_layer("X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  ."
+                                         "X  X  X  X  X  X  X  X  X  .  .",
+                                         'X');
+
+layer find_capture_destinations(const layer allies, const layer foes) {
+  layer north = layer_shiftl<11>(layer_and(layer_shiftl<11>(allies), foes));
+  layer south = layer_shiftr<11>(layer_and(layer_shiftr<11>(allies), foes));
+  layer east = layer_shiftr<1>(
+      layer_and(layer_shiftr<1>(layer_and(allies, drop_2_east)), foes));
+  layer west = layer_shiftl<1>(
+      layer_and(layer_shiftl<1>(layer_and(allies, drop_2_west)), foes));
+  layer empty = layer_negate(layer_or(allies, foes));
+  return {(north[0] | south[0] | east[0] | west[0]) & empty[0],
+          (north[1] | south[1] | east[1] | west[1]) & empty[1]};
+}
+
+layer find_capture_destinations_op(const layer allies, const layer foes) {
+  layer north = (((allies << 11) & foes) << 11);
+  layer south = (((allies >> 11) & foes) >> 11);
+  layer east = ((((allies & drop_2_east) >> 1) & foes) >> 1);
+  layer west = ((((allies & drop_2_west) << 1) & foes) << 1);
+  // layer empty = ~(allies | foes);
+  return {(north[0] | south[0] | east[0] | west[0]) & (~(allies[0] | foes[0])),
+          (north[1] | south[1] | east[1] | west[1]) & (~(allies[1] | foes[1]))};
+}
+
+//******************************************************************************
+//      ┌─────────────────────────────────┐
+//  11  | ·  ·  ·  X  X  X  X  X  ·  ·  · |
+//  10  | ·  ·  ·  ·  ·  X  ·  ·  ·  ·  · |
+//   9  | ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · |
+//   8  | X  ·  ·  ·  ·  O  ·  ·  ·  ·  X |
+//   7  | X  ·  ·  ·  O  O  O  ·  ·  ·  X |
+//   6  | X  X  ·  O  O  #  O  O  ·  X  X |
+//   5  | X  ·  ·  ·  O  O  O  ·  ·  ·  X |
+//   4  | X  ·  ·  ·  ·  O  ·  ·  ·  ·  X |
+//   3  | ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  · |
+//   2  | ·  ·  ·  ·  ·  X  ·  ·  ·  ·  · |
+//   1  | ·  ·  ·  X  X  X  X  X  ·  ·  · |
+//      └─────────────────────────────────┘
+//        a  b  c  d  e  f  g  h  i  j  k
 
 
 const char* start_board_string = \
@@ -1751,11 +1911,6 @@ const char* start_board_string = \
   " .  .  .  .  .  .  .  .  .  .  . "
   " .  .  .  .  .  X  .  .  .  .  . "
   " .  .  .  X  X  X  X  X  .  .  . ";
-
-void layer_or(layer base, const layer input) {
-  base[0] |= input[0];
-  base[1] |= input[1];
-}
 
 const char* corners_string =
   "X  .  .  .  .  .  .  .  .  .  X"
@@ -1840,3 +1995,27 @@ const char* corners_string =
 //   cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 //   printf("bench took %f seconds to execute \n", cpu_time_used); 
 // }
+
+
+/* For quiescence:
+
+   find pieces in danger:
+   for ex black north:
+   - & black, white, king, and negate to get a mask of open squares
+   - shift black left 11, & with white, shift left 11, & with open squares to
+   get a map of squares that, if moved to, will cause captures.
+   - for each destination square:
+     - re-use the lookup table for move destinations where the occ is only the
+     opposing team (here white) to get open lines to the destination which go
+     either to the closest foe piece or to the board edge.
+     - If the resulting move masks contain any friendly pieces, it means those
+     can move into the square and trigger a capture.
+     - we can extract the appropriate pieces to become moves to generate from
+     the result.
+   - I can actually generate the destination squares for all directions and then combine them to only check arrival once.
+
+   - do checks to see if the king can move into corner adjacent squares
+
+   
+
+ */

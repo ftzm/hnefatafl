@@ -15,8 +15,7 @@ const char* empty =
 
 //******************************************************************************
 
-const char* l_input =
-  ".  .  .  .  .  .  .  .  .  .  ."
+const char* u_input =
   ".  .  .  .  .  O  .  .  .  .  ."
   ".  .  .  .  .  X  .  .  .  .  ."
   ".  .  .  O  X  .  X  O  .  .  ."
@@ -26,22 +25,10 @@ const char* l_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-constexpr board l_input_2 = read_board(".  .  .  .  .  .  .  .  .  .  ."
-                                       ".  .  .  .  .  O  .  .  .  .  ."
-                                       ".  .  .  .  .  X  .  .  .  .  ."
-                                       ".  .  .  O  X  .  X  O  .  .  ."
-                                       ".  .  .  .  .  X  .  .  .  .  ."
-                                       ".  .  .  .  .  O  .  .  .  .  ."
-                                       ".  .  .  .  .  .  .  .  .  .  ."
-                                       ".  .  .  .  .  .  .  .  .  .  ."
-                                       ".  .  .  .  .  .  .  .  .  .  ."
-                                       ".  .  .  .  .  .  .  .  .  .  ."
-                                       ".  .  .  .  .  .  .  .  .  .  .");
-
-const char *l_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                         ".  .  .  .  .  O  .  .  .  .  ."
+const char *u_expected = ".  .  .  .  .  O  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  O  .  .  .  O  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -50,12 +37,12 @@ const char *l_expected = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
+                         ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  .";
 
 //******************************************************************************
 
-const char* u_input =
-  ".  .  .  .  .  .  .  .  .  .  ."
+const char* l_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -65,10 +52,10 @@ const char* u_input =
   ".  .  .  .  .  X  .  .  .  .  ."
   ".  .  .  O  X  .  X  O  .  .  ."
   ".  .  .  .  .  X  .  .  .  .  ."
-  ".  .  .  .  .  O  .  .  .  .  .";
+  ".  .  .  .  .  O  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* u_expected =
-  ".  .  .  .  .  .  .  .  .  .  ."
+const char* l_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -78,11 +65,12 @@ const char* u_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  O  .  .  .  O  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  O  .  .  .  .  .";
+  ".  .  .  .  .  O  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  .";
 
 //******************************************************************************
 
-const char* r_input =
+const char* R_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -95,7 +83,7 @@ const char* r_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* r_expected =
+const char* R_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -110,7 +98,7 @@ const char* r_expected =
 
 //******************************************************************************
 
-const char* R_input =
+const char* r_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -123,7 +111,7 @@ const char* R_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* R_expected =
+const char* r_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -194,8 +182,7 @@ const char* y_expected =
 
 //******************************************************************************
 
-const char* b_input =
-  ".  .  .  .  .  .  .  .  .  .  ."
+const char* B_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  O  .  .  ."
   ".  .  .  .  .  .  .  X  .  .  ."
@@ -205,16 +192,17 @@ const char* b_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* b_expected =
-  ".  .  .  .  .  .  .  .  .  .  ."
+const char* B_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  O  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  O  .  .  .  O  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  O  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -222,8 +210,7 @@ const char* b_expected =
 
 //******************************************************************************
 
-const char* B_input =
-  ".  .  .  .  .  .  .  .  .  .  ."
+const char* b_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -233,10 +220,10 @@ const char* B_input =
   ".  .  .  .  .  O  X  .  X  O  ."
   ".  .  .  .  .  .  .  X  .  .  ."
   ".  .  .  .  .  .  .  O  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* B_expected =
-  ".  .  .  .  .  .  .  .  .  .  ."
+const char* b_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -246,6 +233,7 @@ const char* B_expected =
   ".  .  .  .  .  O  .  .  .  O  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  O  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
 //******************************************************************************
@@ -254,11 +242,11 @@ const char* c62_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  O  .  .  ."
-  ".  .  .  .  .  .  .  X  .  .  ."
-  ".  .  .  .  .  O  X  .  X  O  ."
-  ".  .  .  .  .  .  .  X  .  .  ."
-  ".  .  .  .  .  .  .  O  .  .  ."
+  ".  .  .  O  .  .  .  .  .  .  ."
+  ".  .  .  X  .  .  .  .  .  .  ."
+  ".  O  X  .  X  O  .  .  .  .  ."
+  ".  .  .  X  .  .  .  .  .  .  ."
+  ".  .  .  O  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
@@ -267,18 +255,18 @@ const char* c62_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  O  .  .  ."
+  ".  .  .  O  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  O  .  .  .  O  ."
+  ".  O  .  .  .  O  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  O  .  .  ."
+  ".  .  .  O  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
 //******************************************************************************
 
-const char* s_input =
+const char* n_input =
   ".  O  X  X  X  .  X  X  X  X  O"
   ".  .  O  O  O  X  O  O  O  O  ."
   ".  .  .  .  .  O  .  .  .  .  ."
@@ -291,7 +279,7 @@ const char* s_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* s_expected =
+const char* n_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -304,7 +292,7 @@ const char* s_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* s_input_2 =
+const char* n_input_2 =
   ".  .  X  X  X  .  X  X  X  X  O"
   ".  .  O  O  O  X  O  O  O  O  ."
   ".  .  .  .  .  O  .  .  .  .  ."
@@ -317,7 +305,7 @@ const char* s_input_2 =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* s_expected_2 =
+const char* n_expected_2 =
   ".  .  X  X  X  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -332,7 +320,7 @@ const char* s_expected_2 =
 
 //******************************************************************************
 
-const char* se_input =
+const char* ne_input =
   ".  .  .  X  X  X  X  O  .  .  ."
   ".  .  .  O  O  O  O  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -345,7 +333,7 @@ const char* se_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* se_expected =
+const char* ne_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -360,7 +348,7 @@ const char* se_expected =
 
 //******************************************************************************
 
-const char* sw_input =
+const char* nw_input =
   ".  .  O  X  X  X  X  .  .  .  ."
   ".  .  .  O  O  O  O  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -373,91 +361,7 @@ const char* sw_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* sw_expected =
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  .";
-
-//******************************************************************************
-
-const char* e_input =
-  ".  .  .  .  .  .  .  .  .  .  ."
-  "O  .  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  ".  X  O  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "O  .  .  .  .  .  .  .  .  .  .";
-
-const char* e_expected =
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  .";
-
-//******************************************************************************
-
-const char* es_input =
-  ".  .  .  .  .  .  .  .  .  .  ."
-  "O  .  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  .";
-
-const char* es_expected =
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  .";
-
-//******************************************************************************
-
-const char* en_input =
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "X  O  .  .  .  .  .  .  .  .  ."
-  "O  .  .  .  .  .  .  .  .  .  .";
-
-const char* en_expected =
+const char* nw_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -474,6 +378,90 @@ const char* en_expected =
 
 const char* w_input =
   ".  .  .  .  .  .  .  .  .  .  ."
+  "O  .  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  ".  X  O  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "O  .  .  .  .  .  .  .  .  .  .";
+
+const char* w_expected =
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  .";
+
+//******************************************************************************
+
+const char* wn_input =
+  ".  .  .  .  .  .  .  .  .  .  ."
+  "O  .  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  .";
+
+const char* wn_expected =
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  .";
+
+//******************************************************************************
+
+const char* ws_input =
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "X  O  .  .  .  .  .  .  .  .  ."
+  "O  .  .  .  .  .  .  .  .  .  .";
+
+const char* ws_expected =
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  .  .  .  .";
+
+//******************************************************************************
+
+const char* e_input =
+  ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  O"
   ".  .  .  .  .  .  .  .  .  O  X"
   ".  .  .  .  .  .  .  .  .  O  X"
@@ -485,7 +473,7 @@ const char* w_input =
   ".  .  .  .  .  .  .  .  .  O  X"
   ".  .  .  .  .  .  .  .  .  .  O";
 
-const char* w_expected =
+const char* e_expected =
   ".  .  .  .  .  .  .  .  .  .  "
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -498,7 +486,7 @@ const char* w_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* wn_input =
+const char* es_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -511,7 +499,7 @@ const char* wn_input =
   ".  .  .  .  .  .  .  .  .  O  X"
   ".  .  .  .  .  .  .  .  .  .  O";
 
-const char* wn_expected =
+const char* es_expected =
   ".  .  .  .  .  .  .  .  .  .  "
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -524,7 +512,7 @@ const char* wn_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* ws_input =
+const char* en_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  O"
   ".  .  .  .  .  .  .  .  .  O  X"
@@ -537,7 +525,7 @@ const char* ws_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* ws_expected =
+const char* en_expected =
   ".  .  .  .  .  .  .  .  .  .  "
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -552,7 +540,7 @@ const char* ws_expected =
 
 //******************************************************************************
 
-const char* n_input =
+const char* s_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -565,7 +553,7 @@ const char* n_input =
   ".  .  O  O  O  X  O  O  O  O  ."
   ".  O  X  X  X  .  X  X  X  X  O";
 
-const char* n_expected =
+const char* s_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -578,7 +566,7 @@ const char* n_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* ne_input =
+const char* se_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -591,7 +579,7 @@ const char* ne_input =
   ".  .  O  O  O  .  .  .  .  .  ."
   ".  O  X  X  X  .  .  .  .  .  .";
 
-const char* ne_expected =
+const char* se_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -604,7 +592,7 @@ const char* ne_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
 
-const char* nw_input =
+const char* sw_input =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -617,7 +605,7 @@ const char* nw_input =
   ".  .  .  .  .  .  O  O  O  O  ."
   ".  .  .  .  .  .  X  X  X  X  O";
 
-const char* nw_expected =
+const char* sw_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -629,6 +617,25 @@ const char* nw_expected =
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  ."
   ".  .  .  .  .  .  .  .  .  .  .";
+
+//******************************************************************************
+// Capture destinations
+
+const char* capture_destinations_input =
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  .  .  .  .  O  X  .  ."
+  ".  .  .  .  .  .  .  .  .  .  ."
+  ".  .  .  O  .  .  .  .  .  .  ."
+  ".  .  .  X  .  .  O  .  .  .  ."
+  ".  .  .  X  .  .  X  .  .  .  ."
+  ".  O  .  .  .  .  .  .  .  .  ."
+  ".  X  .  .  .  .  .  X  O  .  ."
+  ".  .  .  O  .  X  .  .  .  .  ."
+  ".  .  .  .  .  .  O  X  .  .  ."
+  ".  .  X  .  .  .  .  .  .  .  .";
+
+
+//******************************************************************************
 
 
 
@@ -779,14 +786,14 @@ void bench_board_gen(int count) {
       get_team_moves_black(boards[i], &total_2, moves_2, boards_2);
       for (int j = 0; j < total_2; j++) {
     	board b2 = boards_2[j];
-    	const layer occ = {
-    	  b2.black[0] | b2.white[0] | b2.king[0] | corners[0],
-    	  b2.black[1] | b2.white[1] | b2.king[1] | corners[1]};
-    	const layer occ_r = {
-    	  b2.black_r[0] | b2.white_r[0] | b2.king_r[0] | corners[0],
-    	  b2.black_r[1] | b2.white_r[1] | b2.king_r[1] | corners[1]};
-    	sum += get_team_move_count(occ, b2.black, occ_r, b2.black_r);
-    	// sum += __builtin_popcountll(b2.black[0]) + __builtin_popcountll(b2.black[1]);
+    	// const layer occ = {
+    	//   b2.black[0] | b2.white[0] | b2.king[0] | corners[0],
+    	//   b2.black[1] | b2.white[1] | b2.king[1] | corners[1]};
+    	// const layer occ_r = {
+    	//   b2.black_r[0] | b2.white_r[0] | b2.king_r[0] | corners[0],
+    	//   b2.black_r[1] | b2.white_r[1] | b2.king_r[1] | corners[1]};
+    	// sum += get_team_move_count(occ, b2.black, occ_r, b2.black_r);
+    	sum += __builtin_popcountll(b2.black[0]) + __builtin_popcountll(b2.black[1]);
       }
       /*
       */
@@ -814,19 +821,18 @@ int main(int argc, char **argv) {
   gen_row_move_counts();
   gen_center_row_move_counts();
 
-  // test_capture(&capture_l, l_input, l_expected, 38);
   // test_capture(capture_u, u_input, u_expected, 93);
+  // test_capture(capture_l, l_input, l_expected, 38);
   // test_capture(capture_x, x_input, x_expected, 60);
-  // test_capture(capture_y, y_input, y_expected, 49);
+  // test_capture(capture_y, y_input, y_expected, 71);
   // test_capture(capture_r, r_input, r_expected, 63);
   // test_capture(capture_R, R_input, R_expected, 57);
-  // test_capture(capture_b, b_input, b_expected, 51);
-  // test_capture(capture_B, B_input, B_expected, 84);
+  // test_capture(capture_b, b_input, b_expected, 47);
+  // test_capture(capture_B, B_input, B_expected, 80);
   // test_capture(capture_62, c62_input, c62_expected, 62);
   // test_capture(capture_s, s_input, s_expected, 5);
-  // test_capture(capture_s, s_input_2, s_expected_2, 5);
-  // test_capture(capture_se, se_input, se_expected, 2);
-  // test_capture(capture_sw, sw_input, sw_expected, 7);
+  // test_capture(capture_se, se_input, se_expected, 5);
+  // test_capture(capture_sw, sw_input, sw_expected, 5);
   // test_capture(capture_e, e_input, e_expected, 55);
   // test_capture(capture_en, en_input, en_expected, 55);
   // test_capture(capture_es, es_input, es_expected, 55);
@@ -834,8 +840,9 @@ int main(int argc, char **argv) {
   // test_capture(capture_wn, wn_input, wn_expected, 65);
   // test_capture(capture_ws, ws_input, ws_expected, 65);
   // test_capture(capture_n, n_input, n_expected, 115);
-  // test_capture(capture_ne, ne_input, ne_expected, 115);
-  // test_capture(capture_nw, nw_input, nw_expected, 115);
+  // test_capture(capture_n, n_input_2, n_expected_2, 115);
+  // test_capture(capture_ne, ne_input, ne_expected, 118);
+  // test_capture(capture_nw, nw_input, nw_expected, 113);
   // test_all_captures();
 
   // bench_all_captures(1000000);
@@ -870,6 +877,11 @@ int main(int argc, char **argv) {
 
   // print_row(get_row_moves_2(0b000000010, 5));
   // print_row(2^0b0100100);
+
+  // layer allies = read_layer(capture_destinations_input, 'O');
+  // layer foes = read_layer(capture_destinations_input, 'X');
+  // layer dests = find_capture_destinations_op(allies, foes);
+  // print_layer(dests);
 
   return code;
 }
