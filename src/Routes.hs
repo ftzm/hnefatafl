@@ -4,7 +4,6 @@ module Routes where
 
 import Lucid (Html)
 import Servant
---import Servant.API.WebSocket
 import ServantWebSocket
 import ServantLucid
 import Data.UUID (UUID)

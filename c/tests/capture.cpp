@@ -1,4 +1,8 @@
- #include "../board.cpp"
+#include "../board.cpp"
+#include "../board2.h"
+#include "../capture.cpp"
+
+#include <iostream>
 
 const char* empty =
   ".  .  .  .  .  .  .  .  .  .  ."
@@ -623,17 +627,16 @@ const char* sw_expected =
 
 const char* capture_destinations_input =
   ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  .  .  .  .  O  X  .  ."
-  ".  .  .  .  .  .  .  .  .  .  ."
-  ".  .  .  O  .  .  .  .  .  .  ."
-  ".  .  .  X  .  .  O  .  .  .  ."
-  ".  .  .  X  .  .  X  .  .  .  ."
-  ".  O  .  .  .  .  .  .  .  .  ."
-  ".  X  .  .  .  .  .  X  O  .  ."
-  ".  .  .  O  .  X  .  .  .  .  ."
-  ".  .  .  .  .  .  O  X  .  .  ."
-  ".  .  X  .  .  .  .  .  .  .  .";
-
+  ".  .  .  .  .  .  .  X  O  .  ."
+  ".  .  X  O  .  X  .  .  .  .  ."
+  ".  .  .  X  .  .  .  .  .  X  ."
+  ".  .  .  O  .  .  X  .  .  .  ."
+  ".  .  .  O  .  .  O  .  .  .  ."
+  ".  X  .  .  .  .  .  .  .  .  ."
+  ".  O  .  .  .  .  .  O  X  .  ."
+  ".  .  .  X  .  O  .  .  .  .  ."
+  ".  .  .  .  .  .  X  O  .  .  ."
+  ".  X  O  .  X  .  .  .  .  .  .";
 
 //******************************************************************************
 
@@ -717,10 +720,10 @@ void bench_all_captures(int count) {
 
   while (count) {
     for (int i = 1; i < 120; i++) {
-      layer allies = {0,0};
-      layer allies_r = {0,0};
-      layer foes = {0,0};
-      layer foes_r = {0,0}; 
+      // layer allies = {0,0};
+      // layer allies_r = {0,0};
+      // layer foes = {0,0};
+      // layer foes_r = {0,0}; 
       capture_functions[i](start_board.black, start_board.black_r, start_board.white, start_board.white_r, i);
     }
     count--;
@@ -742,8 +745,8 @@ void bench_all_captures_niave(int count) {
 
   while (count) {
     for (int i = 1; i < 120; i++) {
-      layer friends = {0,0};
-      layer foes = {0,0};
+      // layer friends = {0,0};
+      // layer foes = {0,0};
       layer output = {0,0}; 
       apply_captures_niave(start_board.black, start_board.white, output, i);
     }
@@ -762,6 +765,9 @@ void bench_board_gen(int count) {
 
   move moves_2[235];
   board boards_2[235]; 
+
+  move moves_3[235];
+  board boards_3[235]; 
 
   board start_board = read_board(start_board_string);
 
@@ -786,6 +792,8 @@ void bench_board_gen(int count) {
       get_team_moves_black(boards[i], &total_2, moves_2, boards_2);
       for (int j = 0; j < total_2; j++) {
     	board b2 = boards_2[j];
+	int total_3 = 0;
+	get_capture_move_boards_black(b2, &total_3, moves_3, boards_3);
     	// const layer occ = {
     	//   b2.black[0] | b2.white[0] | b2.king[0] | corners[0],
     	//   b2.black[1] | b2.white[1] | b2.king[1] | corners[1]};
@@ -793,7 +801,9 @@ void bench_board_gen(int count) {
     	//   b2.black_r[0] | b2.white_r[0] | b2.king_r[0] | corners[0],
     	//   b2.black_r[1] | b2.white_r[1] | b2.king_r[1] | corners[1]};
     	// sum += get_team_move_count(occ, b2.black, occ_r, b2.black_r);
-    	sum += __builtin_popcountll(b2.black[0]) + __builtin_popcountll(b2.black[1]);
+	// 1.34 for the above
+    	// sum += __builtin_popcountll(b2.black[0]) + __builtin_popcountll(b2.black[1]);
+	sum += total;
       }
       /*
       */
@@ -882,6 +892,26 @@ int main(int argc, char **argv) {
   // layer foes = read_layer(capture_destinations_input, 'X');
   // layer dests = find_capture_destinations_op(allies, foes);
   // print_layer(dests);
+
+  /*
+  int total = 0;
+  move moves[235];
+  board boards[235]; 
+  board cap_board = read_board(capture_destinations_input);
+  print_board(cap_board);
+  get_capture_move_boards_black(cap_board, &total, moves, boards);
+
+  printf("results\n");
+  for (int i = 0; i < total; i++) {
+    std::cout << overlay_move(pretty_fmt_board(boards[i]), moves[i], cap_board.white ^ boards[i].white);
+  }
+
+  board start = read_board(start_board_string);
+  string pb = pretty_fmt_board(start);
+  move m = {0, 3};
+  string mb = overlay_move(pb, m);
+  std::cout << mb;
+  */
 
   return code;
 }

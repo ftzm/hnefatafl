@@ -25,5 +25,6 @@ result
 result-data
 .direnv
 
-.out
+*.out*
 **/test_capture
+**.cache

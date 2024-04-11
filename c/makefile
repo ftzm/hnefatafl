@@ -4,15 +4,22 @@ TARGET = board
 CC = clang++
 CFLAGS = -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++17 
 
-board: 
+
+layer:
+
+board2:
+
+capture:
+
+board: layer board2 capture
 
 board_2: 
 
 run_board_2: board_2
 	./board_2
 
-test_capture: board.cpp tests/capture.cpp
-	$(CC) $(CFLAGS) tests/capture.cpp -Wall -o $@
+test_capture: board2.cpp board.cpp capture.cpp tests/capture.cpp
+	$(CC) $(CFLAGS) board2.cpp capture.cpp tests/capture.cpp -Wall -o $@
 
 run_test_capture: test_capture
 	./test_capture
