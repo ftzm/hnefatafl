@@ -1,0 +1,20 @@
+CompileFlags:
+  Remove:
+   - -cc1
+   - -vectorize-slp
+   - -vectorize-loops
+   - -stack-protector-buffer-size
+   - -stack-protector
+   - -ferror-limit
+   - -fdeprecated-macro
+   - -internal-isystem
+   - -nostdsysteminc
+   - -target-feature
+   - -target-cpu
+   - -munwind-tables
+   - -mconstructor-aliases
+   - -mframe-pointer=none
+   - -pic-level
+   - -mrelocation-model
+   - -main-file-name
+   - -triple

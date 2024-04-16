@@ -1,5 +1,5 @@
 /**
- * layer.h
+ * layer.cpp
  *
  * A layer is a representation of a set of board positions. Only
  * presence or absence is indicated. The two 64-bit integers making up

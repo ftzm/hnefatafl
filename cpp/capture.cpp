@@ -108,8 +108,8 @@ section of the board.
 
 #pragma once
 
-#include "layer.h"
-#include "board2.h"
+#include "layer.cpp"
+#include "board.cpp"
 
 inline layer foe_masks[120];
 inline layer foe_masks_r[120];

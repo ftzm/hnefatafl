@@ -1,5 +1,5 @@
 #include "../board.cpp"
-#include "../board2.h"
+#include "../move.cpp"
 #include "../capture.cpp"
 
 #include <iostream>

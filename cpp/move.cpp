@@ -2,12 +2,11 @@
 
 #include <x86intrin.h>
 #include <string>
+#include "layer.cpp"
+#include "move.cpp"
+#include "capture.cpp"
 
 using std::string;
-
-#include "layer.h"
-#include "board2.h"
-#include "capture.cpp"
 
 /*******************************************************************************
  * Moves
@@ -115,6 +114,9 @@ const unsigned char row_indexes[121] = {
 uint16_t row_moves_table[2048][11];
 uint16_t center_row_moves_table[2048][11];
 
+/**
+ * Populate the global lookup table of row moves
+ */
 void gen_row_moves() {
   uint16_t row;
   unsigned char pos;
@@ -125,6 +127,10 @@ void gen_row_moves() {
   }
 }
 
+/**
+ * Populate the global lookup table of row moves specifically for the
+ * center row (excludes the center square)
+ */
 void gen_center_row_moves() {
   uint16_t row;
   unsigned char pos;
@@ -219,24 +225,23 @@ constexpr layer drop_2_east = read_layer("X  X  X  X  X  X  X  X  X  .  ."
                                          "X  X  X  X  X  X  X  X  X  .  .",
                                          'X');
 
-layer find_capture_destinations(const layer allies, const layer foes) {
-  layer north = layer_shiftl<11>(layer_and(layer_shiftl<11>(allies), foes));
-  layer south = layer_shiftr<11>(layer_and(layer_shiftr<11>(allies), foes));
-  layer east = layer_shiftr<1>(
-      layer_and(layer_shiftr<1>(layer_and(allies, drop_2_east)), foes));
-  layer west = layer_shiftl<1>(
-      layer_and(layer_shiftl<1>(layer_and(allies, drop_2_west)), foes));
-  layer empty = layer_negate(layer_or(allies, foes));
-  return {(north[0] | south[0] | east[0] | west[0]) & empty[0],
-          (north[1] | south[1] | east[1] | west[1]) & empty[1]};
-}
+// layer find_capture_destinations(const layer allies, const layer foes) {
+//   layer north = layer_shiftl<11>(layer_and(layer_shiftl<11>(allies), foes));
+//   layer south = layer_shiftr<11>(layer_and(layer_shiftr<11>(allies), foes));
+//   layer east = layer_shiftr<1>(
+//       layer_and(layer_shiftr<1>(layer_and(allies, drop_2_east)), foes));
+//   layer west = layer_shiftl<1>(
+//       layer_and(layer_shiftl<1>(layer_and(allies, drop_2_west)), foes));
+//   layer empty = layer_negate(layer_or(allies, foes));
+//   return {(north[0] | south[0] | east[0] | west[0]) & empty[0],
+//           (north[1] | south[1] | east[1] | west[1]) & empty[1]};
+// }
 
 layer find_capture_destinations_op(const layer allies, const layer foes) {
   layer north = (((allies << 11) & foes) << 11);
   layer south = (((allies >> 11) & foes) >> 11);
   layer east = ((((allies & drop_2_east) >> 1) & foes) >> 1);
   layer west = ((((allies & drop_2_west) << 1) & foes) << 1);
-  // layer empty = ~(allies | foes);
   return {(north[0] | south[0] | east[0] | west[0]) & (~(allies[0] | foes[0])),
           (north[1] | south[1] | east[1] | west[1]) & (~(allies[1] | foes[1]))};
 }
@@ -269,6 +274,21 @@ uint16_t find_neighbors(const uint16_t occ, const int pos) {
   return lower | upper;
 }
 
+#define board_layer(is_black, is_rotated)                                      \
+  (is_black ? (is_rotated ? board.black_r : board.black)                       \
+            : (is_rotated ? board.white_r : board.white))
+
+template <bool is_black>
+void update_board(board board, uint orig, uint dest, uint orig_r,
+                  uint dest_r) {
+  board_layer(is_black, false)[0] -= (uint64_t)1 << orig;
+  board_layer(is_black, false)[0] |= (uint64_t)1 << dest;
+  board_layer(is_black, true)[sub_layer[orig_r]] -=
+      (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
+  board_layer(is_black, true)[sub_layer[dest_r]] |=
+      (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+}
+
 /**
  * generate black moves which result in captures.
  */
@@ -276,8 +296,8 @@ void get_capture_move_boards_black(const board current, int *total, move *moves,
                                    board *boards) {
   layer occ = current.black | current.white | current.king;
   layer occ_r = current.black_r | current.white_r | current.king_r;
-  layer capt_dests = find_capture_destinations(current.black | corners, current.white);
-  layer capt_dests_r = rotate_layer(capt_dests);
+  layer capt_dests = find_capture_destinations_op(current.black | corners, current.white);
+  layer capt_dests_r = rotate_layer(capt_dests); // maybe faster to do above rather than rotate
 
   {
   while (capt_dests[0]) {
@@ -552,7 +572,7 @@ void get_capture_move_boards_white(const board current, int *total, move *moves,
                                    board *boards) {
   layer occ = current.white | current.black | current.king;
   layer occ_r = current.white_r | current.black_r | current.king_r;
-  layer capt_dests = find_capture_destinations(current.white | corners, current.black);
+  layer capt_dests = find_capture_destinations_op(current.white | corners, current.black);
   layer capt_dests_r = rotate_layer(capt_dests);
 
   {

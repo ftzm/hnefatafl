@@ -2,31 +2,16 @@ TARGET = board
 #LIBS = -lm
 # CC = gcc
 CC = clang++
-CFLAGS = -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++17 
+CFLAGS = -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++20
 
-
-layer:
-
-board2:
-
-capture:
-
-board: layer board2 capture
-
-board_2: 
-
-run_board_2: board_2
-	./board_2
-
-test_capture: board2.cpp board.cpp capture.cpp tests/capture.cpp
-	$(CC) $(CFLAGS) board2.cpp capture.cpp tests/capture.cpp -Wall -o $@
+test_capture: layer.cpp board.cpp move.cpp capture.cpp tests/capture.cpp
+	$(CC) $(CFLAGS) tests/capture.cpp -Wall -o $@
 
 run_test_capture: test_capture
 	./test_capture
 
 clean:
 	-rm -f *.o
-#-rm -f $(TARGET)
 	find . -type f -executable -delete
 
 
