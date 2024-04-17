@@ -819,8 +819,6 @@ void bench_board_gen(int count) {
   printf("bench took %f seconds to execute \n", cpu_time_used); 
 }
 
-
-
 int main(int argc, char **argv) {
 
   printf("Testing capture!...\n");

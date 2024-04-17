@@ -15,9 +15,9 @@
       "test_capture",
       "tests/capture.cpp"
     ],
-    "directory": "/home/ftzm/dev/hnefatafl/c",
-    "file": "/home/ftzm/dev/hnefatafl/c/tests/capture.cpp",
-    "output": "/home/ftzm/dev/hnefatafl/c/test_capture"
+    "directory": "/home/ftzm/dev/hnefatafl/cpp",
+    "file": "/home/ftzm/dev/hnefatafl/cpp/tests/capture.cpp",
+    "output": "/home/ftzm/dev/hnefatafl/cpp/test_capture"
   },
   {
     "arguments": [
@@ -106,7 +106,7 @@
       "-std=c++20",
       "-fdeprecated-macro",
       "-fdebug-compilation-dir",
-      "/home/ftzm/dev/hnefatafl/c",
+      "/home/ftzm/dev/hnefatafl/cpp",
       "-ferror-limit",
       "19",
       "-fwrapv",
@@ -124,12 +124,12 @@
       "-x",
       "c++",
       "-o",
-      "/tmp/capture-5b0fa5.o",
+      "/tmp/capture-c813d1.o",
       "capture.cpp"
     ],
-    "directory": "/home/ftzm/dev/hnefatafl/c",
-    "file": "/home/ftzm/dev/hnefatafl/c/capture.cpp",
-    "output": "/tmp/capture-5b0fa5.o"
+    "directory": "/home/ftzm/dev/hnefatafl/cpp",
+    "file": "/home/ftzm/dev/hnefatafl/cpp/capture.cpp",
+    "output": "/tmp/capture-c813d1.o"
   },
   {
     "arguments": [
@@ -218,7 +218,7 @@
       "-std=c++20",
       "-fdeprecated-macro",
       "-fdebug-compilation-dir",
-      "/home/ftzm/dev/hnefatafl/c",
+      "/home/ftzm/dev/hnefatafl/cpp",
       "-ferror-limit",
       "19",
       "-fwrapv",
@@ -236,11 +236,11 @@
       "-x",
       "c++",
       "-o",
-      "/tmp/capture-5b0fa5.o",
+      "/tmp/capture-c813d1.o",
       "tests/capture.cpp"
     ],
-    "directory": "/home/ftzm/dev/hnefatafl/c",
-    "file": "/home/ftzm/dev/hnefatafl/c/tests/capture.cpp",
-    "output": "/tmp/capture-5b0fa5.o"
+    "directory": "/home/ftzm/dev/hnefatafl/cpp",
+    "file": "/home/ftzm/dev/hnefatafl/cpp/tests/capture.cpp",
+    "output": "/tmp/capture-c813d1.o"
   }
 ]

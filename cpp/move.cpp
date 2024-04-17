@@ -278,15 +278,79 @@ uint16_t find_neighbors(const uint16_t occ, const int pos) {
   (is_black ? (is_rotated ? board.black_r : board.black)                       \
             : (is_rotated ? board.white_r : board.white))
 
-template <bool is_black>
-void update_board(board board, uint orig, uint dest, uint orig_r,
-                  uint dest_r) {
-  board_layer(is_black, false)[0] -= (uint64_t)1 << orig;
-  board_layer(is_black, false)[0] |= (uint64_t)1 << dest;
-  board_layer(is_black, true)[sub_layer[orig_r]] -=
+#define offset_coords(pred, amount)			\
+  (!pred ? noop : (orig += amount, dest += amount, noop))
+
+#define select_rotation(is_rotated) (is_rotated ? rotate_left : rotate_right)
+
+#define select_index(is_lower, is_upper, var) (is_lower ? 0 : (is_upper ? 1 : sub_layer[var]))
+
+/**
+ * @tparam is_black whether the moving piece is black
+ * @tparam is_rotated whether the move is rotated, in which case
+ * selection of rotated or unrotated layers, rotation direction, etc.,
+ * is reversed
+ *
+ * @param board the board to be updated
+ * @param orig
+ * @param dest
+ */
+template <bool is_black, bool is_rotated, bool is_lower, bool is_upper>
+void process_move(const board *base_board, board *boards, move *moves,
+                  int *total, uint8_t orig, uint8_t dest) {
+
+  board board = *base_board;
+
+  // if neither upper nor lower then this is a center row, and we should offset
+  // by 55 from the start
+  offset_coords(!is_lower && !is_upper, 55);
+
+  board_layer(is_black, is_rotated)[select_index(is_lower, is_upper, orig)] -=
+      (uint64_t)1 << orig;
+  board_layer(is_black, is_rotated)[select_index(is_lower, is_upper, dest)] |=
+      (uint64_t)1 << dest;
+
+  // if upper we should offset by 64 to get the layer index from the sub-layer
+  // index before recording the move and getting the rotated coords.
+  offset_coords(is_upper, 64);
+
+  uint8_t orig_r = select_rotation(is_rotated)[orig];
+  uint8_t dest_r = select_rotation(is_rotated)[dest];
+
+  board_layer(is_black, !is_rotated)[sub_layer[orig_r]] -=
       (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-  board_layer(is_black, true)[sub_layer[dest_r]] |=
+  board_layer(is_black, !is_rotated)[sub_layer[dest_r]] |=
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+
+  capture_functions[dest](board_layer(is_black, false),
+                          board_layer(is_black, true),
+                          board_layer(!is_black, false),
+                          board_layer(!is_black, true),
+                          dest);
+
+  moves[*total] = (struct move){orig, dest};
+  boards[*total] = board;
+  (*total)++;
+}
+
+void get_capture_move_boards(const board current, int *total, move *moves,
+			     board *boards, layer occ, layer capt_dests) {
+  uint64_t lower_capt_dests = capt_dests[0] & lower_rows_mask;
+  while (lower_capt_dests) {
+    uint8_t dest = _tzcnt_u64(lower_capt_dests);
+    int row_offset = sub_layer_row_offset[dest];
+    int row_dest = dest - row_offset;
+    uint16_t neighbors =
+        find_neighbors(0b11111111111 & (occ[0] >> row_offset), row_dest);
+    uint64_t origs = ((uint64_t)neighbors << row_offset) & current.black[0];
+    while (origs) {
+      uint8_t orig = _tzcnt_u64(origs);
+      process_move<true, false, true, false>(&current, boards, moves, total,
+                                             orig, dest);
+      origs = _blsr_u64(origs);
+    }
+    lower_capt_dests = _blsr_u64(lower_capt_dests);
+  }
 }
 
 /**
@@ -300,125 +364,133 @@ void get_capture_move_boards_black(const board current, int *total, move *moves,
   layer capt_dests_r = rotate_layer(capt_dests); // maybe faster to do above rather than rotate
 
   {
-  while (capt_dests[0]) {
-    uint8_t dest = _tzcnt_u64(capt_dests[0]);
-    int row_offset = sub_layer_row_offset[dest];
-    int row_dest = dest - row_offset;
-    uint16_t neighbors =
-        find_neighbors(0b11111111111 & (occ[0] >> row_offset), row_dest);
-    uint64_t origs = ((uint64_t)neighbors << row_offset) & current.black[0];
-    while (origs) {
-      uint8_t orig = _tzcnt_u64(origs);
-      uint8_t orig_r = rotate_right[orig];
-      uint8_t dest_r = rotate_right[dest];
+    uint64_t lower_capt_dests = capt_dests[0] & lower_rows_mask;
+    while (lower_capt_dests) {
+      uint8_t dest = _tzcnt_u64(lower_capt_dests);
+      int row_offset = sub_layer_row_offset[dest];
+      int row_dest = dest - row_offset;
+      uint16_t neighbors =
+          find_neighbors(0b11111111111 & (occ[0] >> row_offset), row_dest);
+      uint64_t origs = ((uint64_t)neighbors << row_offset) & current.black[0];
+      while (origs) {
+        uint8_t orig = _tzcnt_u64(origs);
 
-      moves[*total] = (struct move){orig, dest};
+        // uint8_t orig_r = rotate_right[orig];
+        // uint8_t dest_r = rotate_right[dest];
 
-      board new_board = current;
-      new_board.black[0] -= (uint64_t)1 << orig;
-      new_board.black[0] |= (uint64_t)1 << dest;
-      new_board.black_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.black_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+        // moves[*total] = (struct move){orig, dest};
 
-      capture_functions[dest](new_board.black, new_board.black_r,
-			      new_board.white, new_board.white_r, dest);
+        // board new_board = current;
+        // new_board.black[0] -= (uint64_t)1 << orig;
+        // new_board.black[0] |= (uint64_t)1 << dest;
+        // new_board.black_r[sub_layer[orig_r]] -=
+        //     (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
+        // new_board.black_r[sub_layer[dest_r]] |=
+        //     (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
-      boards[*total] = new_board;
-      (*total)++;
-      origs = _blsr_u64(origs);
+        // capture_functions[dest](new_board.black, new_board.black_r,
+        //                         new_board.white, new_board.white_r, dest);
+
+        // boards[*total] = new_board;
+        // (*total)++;
+
+	process_move<true, false, true, false>(&current, boards, moves, total, orig, dest);
+
+        origs = _blsr_u64(origs);
+      }
+      lower_capt_dests = _blsr_u64(lower_capt_dests);
     }
-    capt_dests[0] = _blsr_u64(capt_dests[0]);
-  }
   }
 
   {
-  uint64_t upper_capt_dests = capt_dests[1] >> 2;
-  while (upper_capt_dests) {
-    uint8_t sub_dest = _tzcnt_u64(upper_capt_dests);
-    uint row_offset = sub_layer_row_offset[sub_dest];
-    uint row_dest = sub_dest - row_offset;
-    uint16_t neighbors =
-      find_neighbors(0b11111111111 & (occ[1] >> 2 >> row_offset), row_dest);
-    uint64_t origs = ((uint64_t)neighbors << 2 << row_offset) & (current.black[1]);
-    while (origs) {
-      uint8_t dest = sub_dest + 66;
-      uint8_t sub_orig = _tzcnt_u64(origs);
-      uint8_t orig = sub_orig + 64;
-      uint8_t orig_r = rotate_right[orig];
-      uint8_t dest_r = rotate_right[dest];
+    uint64_t upper_capt_dests = capt_dests[1] & upper_rows_mask;
+    while (upper_capt_dests) {
+      uint8_t dest = _tzcnt_u64(upper_capt_dests);
+      uint row_offset = sub_layer_row_offset_upper[dest];
+      uint row_dest = dest - row_offset;
+      uint16_t neighbors =
+          find_neighbors(0b11111111111 & (occ[1] >> row_offset), row_dest);
+      uint64_t origs = ((uint64_t)neighbors << row_offset) & (current.black[1]);
+      while (origs) {
+        uint8_t orig = _tzcnt_u64(origs);
 
-      moves[*total] = (struct move){orig, dest};
+        board new_board = current;
+        new_board.black[1] -= (uint64_t)1 << orig;
+        new_board.black[1] |= (uint64_t)1 << dest;
 
-      board new_board = current;
-      new_board.black[1] -= (uint64_t)1 << sub_orig;
-      new_board.black[1] |= (uint64_t)4 << sub_dest;
-      new_board.black_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.black_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+        orig += 64;
+        dest += 64;
 
-      capture_functions[dest](new_board.black, new_board.black_r,
-			      new_board.white, new_board.white_r, dest);
+        uint8_t orig_r = rotate_right[orig];
+        uint8_t dest_r = rotate_right[dest];
 
-      boards[*total] = new_board;
-      (*total)++;
-      origs = _blsr_u64(origs);
+        moves[*total] = (struct move){orig, dest};
+
+        new_board.black_r[sub_layer[orig_r]] -=
+            (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
+        new_board.black_r[sub_layer[dest_r]] |=
+            (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+
+        capture_functions[dest](new_board.black, new_board.black_r,
+                                new_board.white, new_board.white_r, dest);
+
+        boards[*total] = new_board;
+        (*total)++;
+        origs = _blsr_u64(origs);
+      }
+      upper_capt_dests = _blsr_u64(upper_capt_dests);
     }
-    upper_capt_dests = _blsr_u64(upper_capt_dests);
-  }
   }
 
   {
-  // center horizontal
-  uint16_t center_capt_dests = (capt_dests[0] >> 55) |
-    (((capt_dests[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_black = (current.black[0] >> 55) |
-    (((current.black[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_white = (current.white[0] >> 55) |
-    (((current.white[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_king = (current.king[0] >> 55) |
-    (((current.king[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_occ = center_black | center_white | center_king;
-  while (center_capt_dests) {
-    uint8_t row_dest = _tzcnt_u16(center_capt_dests);
-    uint16_t neighbors = find_neighbors(center_occ, row_dest);
-    uint64_t row_origs = neighbors & current.black[1];
-    while (row_origs) {
-      uint8_t dest = row_dest + 55;
-      uint8_t dest_r = rotate_right[dest];
+    // center horizontal
+    uint16_t center_capt_dests =
+        (capt_dests[0] >> 55) | (((capt_dests[1] & 0x3) << 9) & 0b11111111111);
+    uint16_t center_black = (current.black[0] >> 55) |
+                            (((current.black[1] & 0x3) << 9) & 0b11111111111);
+    uint16_t center_white = (current.white[0] >> 55) |
+                            (((current.white[1] & 0x3) << 9) & 0b11111111111);
+    uint16_t center_king = (current.king[0] >> 55) |
+                           (((current.king[1] & 0x3) << 9) & 0b11111111111);
+    uint16_t center_occ = center_black | center_white | center_king;
+    while (center_capt_dests) {
+      uint8_t row_dest = _tzcnt_u16(center_capt_dests);
+      uint16_t neighbors = find_neighbors(center_occ, row_dest);
+      uint64_t row_origs = neighbors & current.black[1];
+      while (row_origs) {
+        uint8_t dest = row_dest + 55;
+        uint8_t dest_r = rotate_right[dest];
 
-      uint8_t row_orig = _tzcnt_u16(row_origs);
-      uint8_t orig = row_orig + 55;
-      uint8_t orig_r = rotate_right[orig];
+        uint8_t row_orig = _tzcnt_u16(row_origs);
+        uint8_t orig = row_orig + 55;
+        uint8_t orig_r = rotate_right[orig];
 
-      // register move
-      moves[*total] = (struct move){orig, dest};
+        // register move
+        moves[*total] = (struct move){orig, dest};
 
-      // Generate board
-      board new_board = current;
-      new_board.black[sub_layer[orig]] -= 
-          (uint64_t)1 << (sub_layer_offset_direct[orig]);
-      new_board.black[sub_layer[dest]] |= 
-          (uint64_t)1 << (sub_layer_offset_direct[dest]);
-      new_board.black_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.black_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+        // Generate board
+        board new_board = current;
+        new_board.black[sub_layer[orig]] -= (uint64_t)1
+                                            << (sub_layer_offset_direct[orig]);
+        new_board.black[sub_layer[dest]] |= (uint64_t)1
+                                            << (sub_layer_offset_direct[dest]);
+        new_board.black_r[sub_layer[orig_r]] -=
+            (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
+        new_board.black_r[sub_layer[dest_r]] |=
+            (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
-      // handle captures
-      capture_functions[dest](new_board.black, new_board.black_r,
-			      new_board.white, new_board.white_r, dest);
+        // handle captures
+        capture_functions[dest](new_board.black, new_board.black_r,
+                                new_board.white, new_board.white_r, dest);
 
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      row_origs &= row_origs - 1;
+        // step
+        // print_board(new_board);
+        boards[*total] = new_board;
+        (*total)++;
+        row_origs &= row_origs - 1;
+      }
+      center_capt_dests &= center_capt_dests - 1;
     }
-    center_capt_dests &= center_capt_dests - 1;
-  }
   }
 
   while (capt_dests_r[0]) {

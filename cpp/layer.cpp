@@ -34,6 +34,10 @@ constexpr unsigned char sub_layer[121] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 };
 
+/**
+ * This lookup table only contains 55 elements as positions above 55
+ * should be handled separately, being split between two layers.
+ */
 constexpr uint sub_layer_row_offset[55] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
@@ -41,6 +45,34 @@ constexpr uint sub_layer_row_offset[55] = {
   33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
   44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44
 };
+
+/**
+ * The first two indices should not be used, as these represent
+ * squares of a row split between both halves which need to be handled
+ * separately. They're only here so that the upper element index
+ * numbers are correct.
+ */
+constexpr uint sub_layer_row_offset_upper[57] = {
+  0, 0,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,
+  24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
+  35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35,
+  46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46
+};
+
+/**
+ * mask which retains only the complete rows of the lower layer,
+ * e.g. the first 55 bits.
+ */
+const uint64_t lower_rows_mask = 0x7FFFFFFFFFFFFF;
+
+/**
+ * mask which retains only the complete rows of the upper layer,
+ * e.g. 55 bits after skipping the first two.
+ */
+const uint64_t upper_rows_mask = 0x1FFFFFFFFFFFFFC;
+
 
 constexpr unsigned int sub_layer_offset[121] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
