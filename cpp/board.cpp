@@ -13,6 +13,10 @@
 using std::string;
 
 typedef struct board {
+  bool operator==(const board &rhs) const {
+    return (black == rhs.black) && (white == rhs.white) && (king == rhs.king);
+  }
+  bool operator!=(const board &rhs) const { return !operator==(rhs); }
   layer black;
   layer black_r;
   layer white;
@@ -34,6 +38,9 @@ constexpr board read_board(const char *string) {
 }
 
 typedef struct move {
+  bool operator==(const move &rhs) const {
+    return (orig == rhs.orig) && (dest == rhs.dest);
+  }
   unsigned char orig;
   unsigned char dest;
 } move;

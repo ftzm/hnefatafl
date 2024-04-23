@@ -102,6 +102,10 @@ const unsigned int sub_layer_offset_direct[121] = {
   46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
 };
 
+
+// #define remove(layer, i) layer[sub_layer[i]] -= ((uint64_t)1 << sub_layer_offset_direct[i]);
+// #define remove_d(layer, sub, i) layer[sub] -= ((uint64_t)1 << i);
+
 constexpr unsigned char rotate_right[121] = {
   10, 21, 32, 43, 54, 65, 76, 87, 98, 109, 120,
   9,  20, 31, 42, 53, 64, 75, 86, 97, 108, 119,
@@ -161,6 +165,27 @@ constexpr layer read_layer(const char *string, unsigned char symbol) {
     }
   }
   return output;
+}
+
+std::string stringify(layer layer) {
+  std::string string (373, ' ');
+
+  // insert newlines
+  for (int i = 33; i < 373; i+=34) {
+    string[i] = '\n';
+  }
+
+  // set board positions with the appropriate unsigned char
+  for (int i = 0; i < 121; i++) {
+    int newline_offset = i / 11;
+    int index = 373 - (((i * 3) + 1) + newline_offset);
+    if (layer[sub_layer[i]] & ((uint64_t) 1 << (i - sub_layer_offset[i]))) {
+      string[index] = 'X';
+    } else {
+      string[index] = '.';
+    }
+  }
+  return string;
 }
 
 inline void print_layer(layer layer) {
