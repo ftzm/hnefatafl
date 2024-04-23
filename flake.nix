@@ -4,7 +4,7 @@
   nixConfig.bash-prompt = "[nix]\\e[38;5;172mλ \\e[m";
 
   inputs = {
-    nixpkgs.url = "nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     flake-utils = {
       url = "github:numtide/flake-utils";
@@ -51,6 +51,7 @@
           pkgs.libclang
           pkgs.ccls
           pkgs.bear
+          pkgs.cmake
         ];
 
         withHoogle = true;
