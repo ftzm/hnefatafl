@@ -3,7 +3,6 @@
 #include <x86intrin.h>
 #include <string>
 #include "layer.cpp"
-#include "move.cpp"
 #include "capture.cpp"
 
 using std::string;
@@ -279,7 +278,7 @@ uint16_t find_neighbors(const uint16_t occ, const int pos) {
             : (is_rotated ? board.white_r : board.white))
 
 #define offset_coords(pred, amount)			\
-  (!pred ? noop : (orig += amount, dest += amount, noop))
+  (pred ? (orig += amount, dest += amount, noop) : noop)
 
 #define select_rotation(is_rotated) (is_rotated ? rotate_left : rotate_right)
 
@@ -322,617 +321,75 @@ void process_move(const board *base_board, board *boards, move *moves,
   board_layer(is_black, !is_rotated)[sub_layer[dest_r]] |=
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
-  capture_functions[dest](board_layer(is_black, false),
+  capture_functions[(is_rotated ? dest_r : dest)](board_layer(is_black, false),
                           board_layer(is_black, true),
                           board_layer(!is_black, false),
                           board_layer(!is_black, true),
-                          dest);
+                          (is_rotated ? dest_r : dest));
 
-  moves[*total] = (struct move){orig, dest};
+  moves[*total] =
+      (struct move){(is_rotated ? orig_r : orig), (is_rotated ? dest_r : dest)};
   boards[*total] = board;
   (*total)++;
 }
 
-void get_capture_move_boards(const board current, int *total, move *moves,
-			     board *boards, layer occ, layer capt_dests) {
-  uint64_t lower_capt_dests = capt_dests[0] & lower_rows_mask;
-  while (lower_capt_dests) {
-    uint8_t dest = _tzcnt_u64(lower_capt_dests);
-    int row_offset = sub_layer_row_offset[dest];
+template <bool is_black, bool is_rotated, bool is_lower, bool is_upper>
+void capture_moves(board *boards, const board board, int *total,
+                             move *moves, layer occ, layer capt_dests) {
+  uint64_t masked_capt_dests = capt_dests[(is_lower ? 0 : 1)] & (is_lower ? lower_rows_mask : upper_rows_mask);
+  while (masked_capt_dests) {
+    uint8_t dest = _tzcnt_u64(masked_capt_dests);
+    int row_offset = (is_lower ? sub_layer_row_offset : sub_layer_row_offset_upper)[dest];
     int row_dest = dest - row_offset;
-    uint16_t neighbors =
-        find_neighbors(0b11111111111 & (occ[0] >> row_offset), row_dest);
-    uint64_t origs = ((uint64_t)neighbors << row_offset) & current.black[0];
+    uint16_t neighbors = find_neighbors(
+         0b11111111111 & (occ[(is_lower ? 0 : 1)] >> row_offset), row_dest);
+    uint64_t origs = ((uint64_t)neighbors << row_offset) &
+                     board_layer(is_black, is_rotated)[(is_lower ? 0 : 1)];
     while (origs) {
       uint8_t orig = _tzcnt_u64(origs);
-      process_move<true, false, true, false>(&current, boards, moves, total,
-                                             orig, dest);
+      process_move<is_black, is_rotated, is_lower, is_upper>(
+          &board, boards, moves, total, orig, dest);
       origs = _blsr_u64(origs);
     }
-    lower_capt_dests = _blsr_u64(lower_capt_dests);
+    masked_capt_dests = _blsr_u64(masked_capt_dests);
+  }
+}
+
+#define get_center_row(layer) (layer[0] >> 55) | (((layer[1] & 0x3) << 9) & 0b11111111111);
+
+template <bool is_black, bool is_rotated, bool is_lower, bool is_upper>
+void capture_moves_center(board *boards, const board board, int *total, move *moves, layer occ, layer capture_dests) {
+  uint16_t center_capt_dests = get_center_row(capture_dests);
+  uint16_t center_occ = get_center_row(occ);
+  while (center_capt_dests) {
+    uint8_t dest = _tzcnt_u16(center_capt_dests);
+    uint16_t neighbors = find_neighbors(center_occ, dest);
+    uint64_t row_origs = neighbors & get_center_row(board_layer(is_black, is_rotated));
+    while (row_origs) {
+      uint8_t orig = _tzcnt_u16(row_origs);
+      process_move<is_black, is_rotated, false, false>(&board, boards, moves, total, orig, dest);
+      row_origs &= row_origs - 1;
+    }
+    center_capt_dests &= center_capt_dests - 1;
   }
 }
 
 /**
  * generate black moves which result in captures.
  */
-void get_capture_move_boards_black(const board current, int *total, move *moves,
-                                   board *boards) {
-  layer occ = current.black | current.white | current.king;
-  layer occ_r = current.black_r | current.white_r | current.king_r;
-  layer capt_dests = find_capture_destinations_op(current.black | corners, current.white);
+template <bool is_black>
+void get_capture_move_boards(board *boards, const board board, int *total, move *moves) {
+  layer occ = board.black | board.white | board.king;
+  layer occ_r = board.black_r | board.white_r | board.king_r;
+  layer capt_dests = find_capture_destinations_op(board_layer(is_black, false) | corners, board_layer(!is_black, false));
   layer capt_dests_r = rotate_layer(capt_dests); // maybe faster to do above rather than rotate
 
-  {
-    uint64_t lower_capt_dests = capt_dests[0] & lower_rows_mask;
-    while (lower_capt_dests) {
-      uint8_t dest = _tzcnt_u64(lower_capt_dests);
-      int row_offset = sub_layer_row_offset[dest];
-      int row_dest = dest - row_offset;
-      uint16_t neighbors =
-          find_neighbors(0b11111111111 & (occ[0] >> row_offset), row_dest);
-      uint64_t origs = ((uint64_t)neighbors << row_offset) & current.black[0];
-      while (origs) {
-        uint8_t orig = _tzcnt_u64(origs);
-
-        // uint8_t orig_r = rotate_right[orig];
-        // uint8_t dest_r = rotate_right[dest];
-
-        // moves[*total] = (struct move){orig, dest};
-
-        // board new_board = current;
-        // new_board.black[0] -= (uint64_t)1 << orig;
-        // new_board.black[0] |= (uint64_t)1 << dest;
-        // new_board.black_r[sub_layer[orig_r]] -=
-        //     (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-        // new_board.black_r[sub_layer[dest_r]] |=
-        //     (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-        // capture_functions[dest](new_board.black, new_board.black_r,
-        //                         new_board.white, new_board.white_r, dest);
-
-        // boards[*total] = new_board;
-        // (*total)++;
-
-	process_move<true, false, true, false>(&current, boards, moves, total, orig, dest);
-
-        origs = _blsr_u64(origs);
-      }
-      lower_capt_dests = _blsr_u64(lower_capt_dests);
-    }
-  }
-
-  {
-    uint64_t upper_capt_dests = capt_dests[1] & upper_rows_mask;
-    while (upper_capt_dests) {
-      uint8_t dest = _tzcnt_u64(upper_capt_dests);
-      uint row_offset = sub_layer_row_offset_upper[dest];
-      uint row_dest = dest - row_offset;
-      uint16_t neighbors =
-          find_neighbors(0b11111111111 & (occ[1] >> row_offset), row_dest);
-      uint64_t origs = ((uint64_t)neighbors << row_offset) & (current.black[1]);
-      while (origs) {
-        uint8_t orig = _tzcnt_u64(origs);
-
-        board new_board = current;
-        new_board.black[1] -= (uint64_t)1 << orig;
-        new_board.black[1] |= (uint64_t)1 << dest;
-
-        orig += 64;
-        dest += 64;
-
-        uint8_t orig_r = rotate_right[orig];
-        uint8_t dest_r = rotate_right[dest];
-
-        moves[*total] = (struct move){orig, dest};
-
-        new_board.black_r[sub_layer[orig_r]] -=
-            (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-        new_board.black_r[sub_layer[dest_r]] |=
-            (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-        capture_functions[dest](new_board.black, new_board.black_r,
-                                new_board.white, new_board.white_r, dest);
-
-        boards[*total] = new_board;
-        (*total)++;
-        origs = _blsr_u64(origs);
-      }
-      upper_capt_dests = _blsr_u64(upper_capt_dests);
-    }
-  }
-
-  {
-    // center horizontal
-    uint16_t center_capt_dests =
-        (capt_dests[0] >> 55) | (((capt_dests[1] & 0x3) << 9) & 0b11111111111);
-    uint16_t center_black = (current.black[0] >> 55) |
-                            (((current.black[1] & 0x3) << 9) & 0b11111111111);
-    uint16_t center_white = (current.white[0] >> 55) |
-                            (((current.white[1] & 0x3) << 9) & 0b11111111111);
-    uint16_t center_king = (current.king[0] >> 55) |
-                           (((current.king[1] & 0x3) << 9) & 0b11111111111);
-    uint16_t center_occ = center_black | center_white | center_king;
-    while (center_capt_dests) {
-      uint8_t row_dest = _tzcnt_u16(center_capt_dests);
-      uint16_t neighbors = find_neighbors(center_occ, row_dest);
-      uint64_t row_origs = neighbors & current.black[1];
-      while (row_origs) {
-        uint8_t dest = row_dest + 55;
-        uint8_t dest_r = rotate_right[dest];
-
-        uint8_t row_orig = _tzcnt_u16(row_origs);
-        uint8_t orig = row_orig + 55;
-        uint8_t orig_r = rotate_right[orig];
-
-        // register move
-        moves[*total] = (struct move){orig, dest};
-
-        // Generate board
-        board new_board = current;
-        new_board.black[sub_layer[orig]] -= (uint64_t)1
-                                            << (sub_layer_offset_direct[orig]);
-        new_board.black[sub_layer[dest]] |= (uint64_t)1
-                                            << (sub_layer_offset_direct[dest]);
-        new_board.black_r[sub_layer[orig_r]] -=
-            (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-        new_board.black_r[sub_layer[dest_r]] |=
-            (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-        // handle captures
-        capture_functions[dest](new_board.black, new_board.black_r,
-                                new_board.white, new_board.white_r, dest);
-
-        // step
-        // print_board(new_board);
-        boards[*total] = new_board;
-        (*total)++;
-        row_origs &= row_origs - 1;
-      }
-      center_capt_dests &= center_capt_dests - 1;
-    }
-  }
-
-  while (capt_dests_r[0]) {
-    ////printf("-----------------------------------------------------\n");
-    ////printf("lower r\n");
-    uint8_t sub_dest_r = _tzcnt_u64(capt_dests_r[0]);
-    ////printf("sub_dest_r: %d\n", sub_dest_r);
-    int row_offset = sub_layer_row_offset[sub_dest_r];
-    int row_dest = sub_dest_r - row_offset;
-    ////printf("row dest: %d\n", row_dest);
-    uint16_t neighbors =
-        find_neighbors(0b11111111111 & (occ_r[0] >> row_offset), row_dest);
-    ////printf("neighbors\n");
-    //print_row(neighbors);
-    uint64_t origs_r = ((uint64_t)neighbors << row_offset) & current.black_r[0];
-    ////printf("origs_r\n");
-    //print_layer({origs_r, 0});
-    while (origs_r) {
-      ////printf("adding stuff\n\n");
-      uint8_t orig_r = _tzcnt_u64(origs_r);
-      uint8_t orig = rotate_left[orig_r];
-      uint8_t dest = rotate_left[sub_dest_r];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.black[sub_layer[orig]] -= (uint64_t)1 << sub_layer_offset_direct[orig];
-      new_board.black[sub_layer[dest]] |= (uint64_t)1 << sub_layer_offset_direct[dest];
-      new_board.black_r[0] -= (uint64_t)1 << orig_r;
-      new_board.black_r[0] |= (uint64_t)1 << sub_dest_r;
-
-      // handle captures
-      capture_functions[dest](new_board.black, new_board.black_r,
-			      new_board.white, new_board.white_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      origs_r = _blsr_u64(origs_r);
-    }
-    capt_dests_r[0] = _blsr_u64(capt_dests_r[0]);
-  }
-
-  uint64_t upper_capt_dests_r = capt_dests_r[1] >> 2;
-  while (upper_capt_dests_r) {
-    ////printf("-----------------------------------------------------\n");
-    ////printf("upper r\n");
-    uint8_t sub_dest_r = _tzcnt_u64(upper_capt_dests_r);
-    ////printf("sub_dest_r: %d\n", sub_dest_r);
-    int row_offset = sub_layer_row_offset[sub_dest_r];
-    int row_dest = sub_dest_r - row_offset;
-    ////printf("row dest: %d\n", row_dest);
-    uint16_t neighbors =
-      find_neighbors(0b11111111111 & (occ_r[1] >> 2 >> row_offset), row_dest);
-    ////printf("neighbors\n");
-    //print_row(neighbors);
-    uint64_t origs_r = ((uint64_t)neighbors << 2 << row_offset) & current.black_r[1];
-    ////printf("origs_r\n");
-    //print_layer({0, origs_r});
-    while (origs_r) {
-      ////printf("adding stuff\n\n");
-      uint8_t sub_orig_r = _tzcnt_u64(origs_r);
-      uint8_t orig_r = sub_orig_r + 64;
-      uint8_t orig = rotate_left[orig_r];
-      uint8_t dest_r = sub_dest_r + 66;
-      uint8_t dest = rotate_left[dest_r];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.black[sub_layer[orig]] -= (uint64_t)1 << sub_layer_offset_direct[orig];
-      new_board.black[sub_layer[dest]] |= (uint64_t)1 << sub_layer_offset_direct[dest];
-      new_board.black_r[1] -= (uint64_t)1 << sub_orig_r;
-      new_board.black_r[1] |= (uint64_t)1 << sub_dest_r;
-
-      // handle captures
-      capture_functions[dest](new_board.black, new_board.black_r,
-			      new_board.white, new_board.white_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      origs_r = _blsr_u64(origs_r);
-    }
-    upper_capt_dests_r = _blsr_u64(upper_capt_dests_r);
-  }
-
-  {
-  // center vertical
-  uint16_t center_capt_dests_r = (capt_dests_r[0] >> 55) |
-    (((capt_dests[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_black_r = (current.black_r[0] >> 55) |
-    (((current.black[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_white_r = (current.white_r[0] >> 55) |
-    (((current.white[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_king_r = (current.king_r[0] >> 55) |
-    (((current.king[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_occ_r = center_black_r | center_white_r | center_king_r;
-  while (center_capt_dests_r) {
-    uint8_t row_dest_r = _tzcnt_u16(center_capt_dests_r);
-    uint16_t neighbors_r = find_neighbors(center_occ_r, row_dest_r);
-    uint64_t row_origs_r = neighbors_r & current.black_r[1];
-    while (row_origs_r) {
-      uint8_t dest_r = row_dest_r + 55;
-      uint8_t dest = rotate_left[dest_r];
-
-      uint8_t row_orig_r = _tzcnt_u16(row_origs_r);
-      uint8_t orig_r = row_orig_r + 55;
-      uint8_t orig = rotate_left[orig_r];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.black[sub_layer[orig]] -= 
-          (uint64_t)1 << (sub_layer_offset_direct[orig]);
-      new_board.black[sub_layer[dest]] |= 
-          (uint64_t)1 << (sub_layer_offset_direct[dest]);
-      new_board.black_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.black_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-      // handle captures
-      capture_functions[dest](new_board.black, new_board.black_r,
-			      new_board.white, new_board.white_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      row_origs_r &= row_origs_r - 1;
-    }
-    center_capt_dests_r &= center_capt_dests_r - 1;
-  }
-  }
-
-}
-
-/**
- * generate white moves which result in captures.
- */
-void get_capture_move_boards_white(const board current, int *total, move *moves,
-                                   board *boards) {
-  layer occ = current.white | current.black | current.king;
-  layer occ_r = current.white_r | current.black_r | current.king_r;
-  layer capt_dests = find_capture_destinations_op(current.white | corners, current.black);
-  layer capt_dests_r = rotate_layer(capt_dests);
-
-  {
-  while (capt_dests[0]) {
-    uint8_t dest = _tzcnt_u64(capt_dests[0]);
-    int row_offset = sub_layer_row_offset[dest];
-    int row_dest = dest - row_offset;
-    uint16_t neighbors =
-        find_neighbors(0b11111111111 & (occ[0] >> row_offset), row_dest);
-    uint64_t origs = ((uint64_t)neighbors << row_offset) & current.white[0];
-    while (origs) {
-      uint8_t orig = _tzcnt_u64(origs);
-      uint8_t orig_r = rotate_right[orig];
-      uint8_t dest_r = rotate_right[dest];
-
-      moves[*total] = (struct move){orig, dest};
-
-      board new_board = current;
-      new_board.white[0] -= (uint64_t)1 << orig;
-      new_board.white[0] |= (uint64_t)1 << dest;
-      new_board.white_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.white_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-
-      capture_functions[dest](new_board.white | new_board.king,
-			      new_board.white_r | new_board.king_r,
-			      new_board.black, new_board.black_r, dest);
-
-      boards[*total] = new_board;
-      (*total)++;
-      origs = _blsr_u64(origs);
-    }
-    capt_dests[0] = _blsr_u64(capt_dests[0]);
-  }
-  }
-
-  {
-  uint64_t upper_capt_dests = capt_dests[1] >> 2;
-  while (upper_capt_dests) {
-    ////printf("-----------------------------------------------------\n");
-    ////printf("upper\n");
-    uint8_t sub_dest = _tzcnt_u64(upper_capt_dests);
-    ////printf("sub dest: %d\n", sub_dest);
-    uint row_offset = sub_layer_row_offset[sub_dest];
-    ////printf("row_offset: %d\n", row_offset);
-    uint row_dest = sub_dest - row_offset;
-    ////printf("row dest: %d\n", row_dest);
-    uint16_t neighbors =
-      find_neighbors(0b11111111111 & (occ[1] >> 2 >> row_offset), row_dest);
-    ////printf("neighbors\n");
-    //print_row(neighbors);
-    uint64_t origs = ((uint64_t)neighbors << 2 << row_offset) & (current.white[1]);
-    ////printf("origs\n");
-    //print_layer({0, origs});
-    while (origs) {
-      ////printf("----------------------------------------\n");
-      ////printf("adding stuff\n\n");
-      uint8_t dest = sub_dest + 66;
-      uint8_t sub_orig = _tzcnt_u64(origs);
-      uint8_t orig = sub_orig + 64;
-      uint8_t orig_r = rotate_right[orig];
-      uint8_t dest_r = rotate_right[dest];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.white[1] -= (uint64_t)1 << sub_orig;
-      new_board.white[1] |= (uint64_t)4 << sub_dest;
-      new_board.white_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.white_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-      // handle captures
-      capture_functions[dest](new_board.white | new_board.king,
-			      new_board.white_r | new_board.king_r,
-			      new_board.black, new_board.black_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      origs = _blsr_u64(origs);
-    }
-    upper_capt_dests = _blsr_u64(upper_capt_dests);
-  }
-  }
-
-  {
-  // center horizontal
-  uint16_t center_capt_dests = (capt_dests[0] >> 55) |
-    (((capt_dests[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_white = (current.white[0] >> 55) |
-    (((current.white[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_black = (current.black[0] >> 55) |
-    (((current.black[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_king = (current.king[0] >> 55) |
-    (((current.king[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_occ = center_white | center_black | center_king;
-  while (center_capt_dests) {
-    uint8_t row_dest = _tzcnt_u16(center_capt_dests);
-    uint16_t neighbors = find_neighbors(center_occ, row_dest);
-    uint64_t row_origs = neighbors & current.white[1];
-    while (row_origs) {
-      uint8_t dest = row_dest + 55;
-      uint8_t dest_r = rotate_right[dest];
-
-      uint8_t row_orig = _tzcnt_u16(row_origs);
-      uint8_t orig = row_orig + 55;
-      uint8_t orig_r = rotate_right[orig];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.white[sub_layer[orig]] -= 
-          (uint64_t)1 << (sub_layer_offset_direct[orig]);
-      new_board.white[sub_layer[dest]] |= 
-          (uint64_t)1 << (sub_layer_offset_direct[dest]);
-      new_board.white_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.white_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-      // handle captures
-      capture_functions[dest](new_board.white | new_board.king,
-			      new_board.white_r | new_board.king_r,
-			      new_board.black, new_board.black_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      row_origs &= row_origs - 1;
-    }
-    center_capt_dests &= center_capt_dests - 1;
-  }
-  }
-
-  while (capt_dests_r[0]) {
-    ////printf("-----------------------------------------------------\n");
-    ////printf("lower r\n");
-    uint8_t sub_dest_r = _tzcnt_u64(capt_dests_r[0]);
-    ////printf("sub_dest_r: %d\n", sub_dest_r);
-    int row_offset = sub_layer_row_offset[sub_dest_r];
-    int row_dest = sub_dest_r - row_offset;
-    ////printf("row dest: %d\n", row_dest);
-    uint16_t neighbors =
-        find_neighbors(0b11111111111 & (occ_r[0] >> row_offset), row_dest);
-    ////printf("neighbors\n");
-    //print_row(neighbors);
-    uint64_t origs_r = ((uint64_t)neighbors << row_offset) & current.white_r[0];
-    ////printf("origs_r\n");
-    //print_layer({origs_r, 0});
-    while (origs_r) {
-      ////printf("adding stuff\n\n");
-      uint8_t orig_r = _tzcnt_u64(origs_r);
-      uint8_t orig = rotate_left[orig_r];
-      uint8_t dest = rotate_left[sub_dest_r];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.white[sub_layer[orig]] -= (uint64_t)1 << sub_layer_offset_direct[orig];
-      new_board.white[sub_layer[dest]] |= (uint64_t)1 << sub_layer_offset_direct[dest];
-      new_board.white_r[0] -= (uint64_t)1 << orig_r;
-      new_board.white_r[0] |= (uint64_t)1 << sub_dest_r;
-
-      // handle captures
-      capture_functions[dest](new_board.white | new_board.king,
-			      new_board.white_r | new_board.king_r,
-			      new_board.black, new_board.black_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      origs_r = _blsr_u64(origs_r);
-    }
-    capt_dests_r[0] = _blsr_u64(capt_dests_r[0]);
-  }
-
-  uint64_t upper_capt_dests_r = capt_dests_r[1] >> 2;
-  while (upper_capt_dests_r) {
-    ////printf("-----------------------------------------------------\n");
-    ////printf("upper r\n");
-    uint8_t sub_dest_r = _tzcnt_u64(upper_capt_dests_r);
-    ////printf("sub_dest_r: %d\n", sub_dest_r);
-    int row_offset = sub_layer_row_offset[sub_dest_r];
-    int row_dest = sub_dest_r - row_offset;
-    ////printf("row dest: %d\n", row_dest);
-    uint16_t neighbors =
-      find_neighbors(0b11111111111 & (occ_r[1] >> 2 >> row_offset), row_dest);
-    ////printf("neighbors\n");
-    //print_row(neighbors);
-    uint64_t origs_r = ((uint64_t)neighbors << 2 << row_offset) & current.white_r[1];
-    ////printf("origs_r\n");
-    //print_layer({0, origs_r});
-    while (origs_r) {
-      ////printf("adding stuff\n\n");
-      uint8_t sub_orig_r = _tzcnt_u64(origs_r);
-      uint8_t orig_r = sub_orig_r + 64;
-      uint8_t orig = rotate_left[orig_r];
-      uint8_t dest_r = sub_dest_r + 66;
-      uint8_t dest = rotate_left[dest_r];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.white[sub_layer[orig]] -= (uint64_t)1 << sub_layer_offset_direct[orig];
-      new_board.white[sub_layer[dest]] |= (uint64_t)1 << sub_layer_offset_direct[dest];
-      new_board.white_r[1] -= (uint64_t)1 << sub_orig_r;
-      new_board.white_r[1] |= (uint64_t)1 << sub_dest_r;
-
-      // handle captures
-      capture_functions[dest](new_board.white | new_board.king,
-			      new_board.white_r | new_board.king_r,
-			      new_board.black, new_board.black_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      origs_r = _blsr_u64(origs_r);
-    }
-    upper_capt_dests_r = _blsr_u64(upper_capt_dests_r);
-  }
-
-  {
-  // center vertical
-  uint16_t center_capt_dests_r = (capt_dests_r[0] >> 55) |
-    (((capt_dests[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_white_r = (current.white_r[0] >> 55) |
-    (((current.white[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_black_r = (current.black_r[0] >> 55) |
-    (((current.black[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_king_r = (current.king_r[0] >> 55) |
-    (((current.king[1] & 0x3) << 9) & 0b11111111111);
-  uint16_t center_occ_r = center_white_r | center_black_r | center_king_r;
-  while (center_capt_dests_r) {
-    uint8_t row_dest_r = _tzcnt_u16(center_capt_dests_r);
-    uint16_t neighbors_r = find_neighbors(center_occ_r, row_dest_r);
-    uint64_t row_origs_r = neighbors_r & current.white_r[1];
-    while (row_origs_r) {
-      uint8_t dest_r = row_dest_r + 55;
-      uint8_t dest = rotate_left[dest_r];
-
-      uint8_t row_orig_r = _tzcnt_u16(row_origs_r);
-      uint8_t orig_r = row_orig_r + 55;
-      uint8_t orig = rotate_left[orig_r];
-
-      // register move
-      moves[*total] = (struct move){orig, dest};
-
-      // Generate board
-      board new_board = current;
-      new_board.white[sub_layer[orig]] -= 
-          (uint64_t)1 << (sub_layer_offset_direct[orig]);
-      new_board.white[sub_layer[dest]] |= 
-          (uint64_t)1 << (sub_layer_offset_direct[dest]);
-      new_board.white_r[sub_layer[orig_r]] -=
-          (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
-      new_board.white_r[sub_layer[dest_r]] |=
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
-
-      // handle captures
-      capture_functions[dest](new_board.white | new_board.king,
-			      new_board.white_r | new_board.king_r,
-			      new_board.black, new_board.black_r, dest);
-
-      // step
-      //print_board(new_board);
-      boards[*total] = new_board;
-      (*total)++;
-      row_origs_r &= row_origs_r - 1;
-    }
-    center_capt_dests_r &= center_capt_dests_r - 1;
-  }
-  }
+  capture_moves<is_black, false, true, false>(boards, board, total, moves, occ, capt_dests);
+  capture_moves<is_black, false, false, true>(boards, board, total, moves, occ, capt_dests);
+  capture_moves_center<is_black, false, false, false>(boards, board, total, moves, occ, capt_dests);
+  capture_moves<is_black, true, true, false>(boards, board, total, moves, occ_r, capt_dests_r);
+  capture_moves<is_black, true, false, true>(boards, board, total, moves, occ_r, capt_dests_r);
+  capture_moves_center<is_black, true, false, false>(boards, board, total, moves, occ_r, capt_dests_r);
 
 }
 
@@ -1575,3 +1032,13 @@ const char* corners_string =
 
    - do checks to see if the king can move into corner adjacent squares
  */
+
+
+void init_move_globals() {
+  gen_foe_masks();
+  gen_ally_masks();
+  gen_row_moves();
+  gen_center_row_moves();
+  gen_row_move_counts();
+  gen_center_row_move_counts();
+}
