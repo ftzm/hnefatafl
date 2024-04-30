@@ -116,11 +116,6 @@ inline layer foe_masks_r[120];
 inline layer ally_masks[120];
 inline layer ally_masks_r[120];
 
-void gen_foe_masks();
-void gen_ally_masks();
-void gen_foe_masks();
-void gen_ally_masks();
-
 /*
 void capture_l (const layer &, const layer &, layer &, layer &, const unsigned char);
 void capture_u (const layer &, const layer &, layer &, layer &, const unsigned char);
@@ -626,38 +621,96 @@ inline void upper_left_shield_captures(const uint64_t allies,
   (cond ? upper_right_shield_captures(sub_allies, sub_foes, pos, &captures)    \
         : noop)
 
-#define rotate_pos(cond) (cond ? rotate_right[pos] : pos)
+template <bool is_black, bool left, bool right, int sub_index, bool is_rotated>
+void capture_s_edge(board *b, unsigned char pos) {
 
-template <bool left, bool right, int sub_index, int sub_offset, bool is_rotated>
+  layer &allies = is_black ? b->black : b->white;
+  layer &allies_r = is_black ? b->black_r : b->white_r;
+  layer &foes = is_black ? b->white : b->black;
+  layer &foes_r = is_black ? b->white_r : b->black_r;
+
+  if constexpr (is_rotated) {
+    pos = rotate_right[pos];
+  }
+
+  const uint64_t sub_allies = (is_rotated ? allies_r : allies)[sub_index] | corners[sub_index];
+  uint64_t sub_foes = (is_rotated ? foes_r : foes)[sub_index];
+
+  // add king to foes if foes are white
+  if constexpr (is_black) {
+    sub_foes |= (is_rotated ? b->king_r : b->king)[sub_index];
+  }
+  uint64_t captures = 0;
+
+  if constexpr (left && !sub_index) {
+    lower_left_shield_captures(sub_allies, sub_allies >> 11, sub_foes, pos,
+                               &captures);
+  }
+  if constexpr (right && !sub_index) {
+    lower_right_shield_captures(sub_allies, sub_allies >> 11, sub_foes, pos,
+                                &captures);
+  }
+  if constexpr (left && sub_index) {
+    upper_left_shield_captures(sub_allies, sub_foes, pos, &captures);
+  }
+  if constexpr (left && sub_index) {
+    upper_right_shield_captures(sub_allies, sub_foes, pos, &captures);
+  }
+
+  // remove king from captures if it's there
+  if constexpr (is_black) {
+    captures &= ~(is_rotated ? b->king_r : b->king)[sub_index];
+  }
+
+  foes_dir(is_rotated)[sub_index] -= captures;
+  if constexpr (sub_index) {
+    distribute_rotated<is_rotated, 64>(captures, foes_dir(!is_rotated));
+  } else {
+    distribute_rotated<is_rotated, 0>(captures, foes_dir(!is_rotated));
+  }
+}
+
+template <int sub_index, int sub_offset, bool is_rotated>
 void capture_edge(const layer &allies, const layer &allies_r, layer &foes,
                   layer &foes_r, unsigned char pos) {
-  pos = rotate_pos(is_rotated);
+  if constexpr (is_rotated) {
+    pos = rotate_right[pos];
+  }
   uint64_t captures = half_captures<sub_index>(allies_dir(is_rotated),
-                                               foes_dir(is_rotated), pos);
-  const uint64_t sub_allies = allies_dir(is_rotated)[sub_index];
-  const uint64_t sub_foes = foes_dir(is_rotated)[sub_index];
-
-  lower_left_wall(left && !sub_index);
-  lower_right_wall(right && !sub_index);
-  upper_left_wall(left && sub_index);
-  upper_right_wall(right && sub_index);
+					       foes_dir(is_rotated), pos);
 
   foes_dir(is_rotated)[sub_index] -= captures;
   distribute_rotated<is_rotated, sub_offset>(captures, foes_dir(!is_rotated));
 }
 
-#define capture_s (capture_edge<true, true, 0, 0, false>)
-#define capture_se (capture_edge<true, false, 0, 0, false>)
-#define capture_sw (capture_edge<false, true, 0, 0, false>)
-#define capture_e (capture_edge<true, true, 0, 0, true>)
-#define capture_en (capture_edge<false, true, 0, 0, true>)
-#define capture_es (capture_edge<true, false, 0, 0, true>)
-#define capture_n (capture_edge<true, true, 1, 64, false>)
-#define capture_ne (capture_edge<true, true, 1, 64, false>)
-#define capture_nw (capture_edge<true, true, 1, 64, false>)
-#define capture_w (capture_edge<true, true, 1, 64, true>)
-#define capture_wn (capture_edge<false, true, 1, 64, true>)
-#define capture_ws (capture_edge<true, false, 1, 64, true>)
+
+#define capture_s_s (capture_s_edge<true, true, 0, 0, false>)
+#define capture_s_se (capture_s_edge<true, false, 0, 0, false>)
+#define capture_s_sw (capture_s_edge<false, true, 0, 0, false>)
+#define capture_s_e (capture_s_edge<true, true, 0, 0, true>)
+#define capture_s_en (capture_s_edge<false, true, 0, 0, true>)
+#define capture_s_es (capture_s_edge<true, false, 0, 0, true>)
+#define capture_s_n (capture_s_edge<true, true, 1, 64, false>)
+#define capture_s_ne (capture_s_edge<true, true, 1, 64, false>)
+#define capture_s_nw (capture_s_edge<true, true, 1, 64, false>)
+#define capture_s_w (capture_s_edge<true, true, 1, 64, true>)
+#define capture_s_wn (capture_s_edge<false, true, 1, 64, true>)
+#define capture_s_ws (capture_s_edge<true, false, 1, 64, true>)
+
+// TODO: clean up redundancy here, maybe also just throw to other functions instead of using these.
+// this is just a lazy fix for now.
+#define capture_s (capture_edge<0, 0, false>)
+#define capture_se (capture_edge<0, 0, false>)
+#define capture_sw (capture_edge<0, 0, false>)
+#define capture_e (capture_edge<0, 0, true>)
+#define capture_en (capture_edge<0, 0, true>)
+#define capture_es (capture_edge<0, 0, true>)
+#define capture_n (capture_edge<1, 64, false>)
+#define capture_ne (capture_edge<1, 64, false>)
+#define capture_nw (capture_edge<1, 64, false>)
+#define capture_w (capture_edge<1, 64, true>)
+#define capture_wn (capture_edge<1, 64, true>)
+#define capture_ws (capture_edge<1, 64, true>)
 
 //******************************************************************************
 
@@ -850,3 +903,80 @@ inline void (*capture_functions[121])(const layer &, const layer &, layer &, lay
     capture_nw,
 };
 
+template <bool is_black>
+void shield_wall(board *b, uint pos) {
+  switch (pos) {
+  // south
+  case 1:
+  case 2:
+    capture_s_edge<is_black, true, false, 0, false>(b, pos);
+    break;
+  case 3:
+  case 4:
+  case 5:
+  case 6:
+  case 7:
+    capture_s_edge<is_black, true, true, 0, false>(b, pos);
+    break;
+  case 8:
+  case 9:
+    capture_s_edge<is_black, false, true, 0, false>(b, pos);
+    break;
+
+  // north
+  case 111:
+  case 112:
+    capture_s_edge<is_black, true, false, 1, false>(b, pos);
+    break;
+  case 113:
+  case 114:
+  case 115:
+  case 116:
+  case 117:
+    capture_s_edge<is_black, true, true, 1, false>(b, pos);
+    break;
+  case 118:
+  case 119:
+    capture_s_edge<is_black, true, true, 1, false>(b, pos);
+    break;
+
+  // east
+  case 11:
+  case 22:
+    capture_s_edge<is_black, true, false, 0, true>(b, pos);
+    break;
+  case 33:
+  case 44:
+  case 55:
+  case 66:
+  case 77:
+    capture_s_edge<is_black, true, true, 0, true>(b, pos);
+    break;
+  case 88:
+  case 99:
+    capture_s_edge<is_black, false, true, 0, true>(b, pos);
+    break;
+
+  // west
+  case 21:
+  case 32:
+    capture_s_edge<is_black, true, false, 1, true>(b, pos);
+    break;
+  case 43:
+  case 54:
+  case 65:
+  case 76:
+  case 87:
+    capture_s_edge<is_black, true, true, 1, true>(b, pos);
+    break;
+  case 98:
+  case 109:
+    capture_s_edge<is_black, false, true, 1, true>(b, pos);
+    break;
+
+  // not an edge square
+  default:
+    break;
+  }
+  // 
+}

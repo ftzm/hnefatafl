@@ -8,6 +8,7 @@
 
 #include <x86intrin.h>
 #include <string>
+#include <regex>
 #include "layer.cpp"
 
 using std::string;
@@ -128,6 +129,8 @@ string pretty_fmt_board(board board) {
 
   return base;
 }
+
+
 string overlay_move(string board, int orig, int dest, layer captures) {
   board[pp_index(orig) - 1] = '[';
   board[pp_index(orig) + 2] = ']';
@@ -176,4 +179,12 @@ void print_board_r(board board) {
 
   puts(string);
   printf("\n");
+}
+
+std::ostream& operator << ( std::ostream& os, board const& value ) {
+  // something about the unicode bars conflicts with the catch2
+  // printing, so we replace them with slightly uglier dashes
+    auto s = std::regex_replace(pretty_fmt_board(value), std::regex("─"), "-");
+    os << s;
+    return os;
 }

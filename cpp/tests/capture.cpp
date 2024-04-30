@@ -54,9 +54,20 @@ void test_capture(void (*func)(const layer &, const layer &, layer &, layer &,
 
   func(allies, allies_r, foes, foes_r, pos);
 
-  REQUIRE(expected == foes);
-  REQUIRE(expected_r == foes_r);
+  REQUIRE(stringify(expected) == stringify(foes));
+  REQUIRE(stringify(expected_r) == stringify(foes_r));
 }
+
+template <bool is_black>
+void test_capture_s(const char *input_string, const char *expected_string,
+                  unsigned char pos) {
+
+  board inp = read_board(input_string);
+  board exp = read_board(expected_string);
+  shield_wall<is_black>(&inp, pos);
+  REQUIRE(inp == exp);
+}
+
 
 void bench_all_captures(int count) {
   board start_board = read_board(start_board_string);
@@ -229,7 +240,6 @@ int main_old(int argc, char **argv) {
   move moves[235];
   board boards[235];
   board cap_board = read_board(capture_destinations_input_white);
-  print_board(cap_board);
   get_capture_move_boards<false>(boards, cap_board, &total, moves);
 
   printf("results\n");
@@ -499,7 +509,7 @@ TEST_CASE("capture_62") {
   test_capture(capture_62, c62_input, c62_expected, 62);
 }
 
-TEST_CASE("capture_s") {
+TEST_CASE("capture_s_s") {
   const char *s_input = ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
@@ -508,9 +518,9 @@ TEST_CASE("capture_s") {
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  O  O  O  X  O  O  O  O  ."
-                        ".  O  X  X  X  .  X  X  X  X  O";
+                        ".  .  .  .  .  .  .  .  .  .  ."
+                        ".  .  O  O  O  .  O  O  O  .  ."
+                        ".  O  X  X  X  .  X  X  X  O  .";
 
   const char *s_expected = ".  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
@@ -521,13 +531,13 @@ TEST_CASE("capture_s") {
                            ".  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
+                           ".  .  O  O  O  .  O  O  O  .  ."
+                           ".  O  .  .  .  .  .  .  .  O  .";
 
-  test_capture(capture_s, s_input, s_expected, 5);
+  test_capture_s<false>(s_input, s_expected, 5);
 }
 
-TEST_CASE("capture_se") {
+TEST_CASE("capture_s_se") {
   const char *se_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -537,9 +547,9 @@ TEST_CASE("capture_se") {
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
-                         ".  .  O  O  O  .  .  .  .  .  ."
-                         ".  O  X  X  X  .  .  .  .  .  .";
-
+                         ".  .  .  .  .  .  .  O  O  .  ."
+                         ".  .  .  .  .  .  O  X  X  .  .";
+			     
   const char *se_expected = ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
@@ -549,13 +559,13 @@ TEST_CASE("capture_se") {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  .";
+                            ".  .  .  .  .  .  .  O  O  .  ."
+                            ".  .  .  .  .  .  O  .  .  .  .";
 
-  test_capture(capture_se, se_input, se_expected, 5);
+  test_capture_s<false>(se_input, se_expected, 1);
 }
 
-TEST_CASE("capture_sw") {
+TEST_CASE("capture_s_sw") {
   const char *sw_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -565,8 +575,8 @@ TEST_CASE("capture_sw") {
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
-                         ".  .  .  .  .  .  O  O  O  O  ."
-                         ".  .  .  .  .  .  X  X  X  X  O";
+                         ".  .  O  O  O  O  .  .  .  .  ."
+                         ".  .  X  X  X  X  O  .  .  .  .";
 
   const char *sw_expected = ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
@@ -577,41 +587,41 @@ TEST_CASE("capture_sw") {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  .";
+                            ".  .  O  O  O  O  .  .  .  .  ."
+                            ".  .  .  .  .  .  O  .  .  .  .";
 
-  test_capture(capture_sw, sw_input, sw_expected, 5);
+  test_capture_s<false>(sw_input, sw_expected, 9);
 }
 
-TEST_CASE("capture_e") {
+TEST_CASE("capture_s_e") {
 
   const char *e_input = ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  O"
                         ".  .  .  .  .  .  .  .  .  O  X"
                         ".  .  .  .  .  .  .  .  .  O  X"
                         ".  .  .  .  .  .  .  .  .  O  X"
-                        ".  .  .  .  .  .  .  .  O  X  ."
+                        ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  O  X"
                         ".  .  .  .  .  .  .  .  .  O  X"
                         ".  .  .  .  .  .  .  .  .  O  X"
-                        ".  .  .  .  .  .  .  .  .  O  X"
-                        ".  .  .  .  .  .  .  .  .  .  O";
+                        ".  .  .  .  .  .  .  .  .  .  O"
+                        ".  .  .  .  .  .  .  .  .  .  .";
 
-  const char *e_expected = ".  .  .  .  .  .  .  .  .  .  "
+  const char *e_expected = ".  .  .  .  .  .  .  .  .  .  ."
+                           ".  .  .  .  .  .  .  .  .  .  O"
+                           ".  .  .  .  .  .  .  .  .  O  ."
+                           ".  .  .  .  .  .  .  .  .  O  ."
+                           ".  .  .  .  .  .  .  .  .  O  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
+                           ".  .  .  .  .  .  .  .  .  O  ."
+                           ".  .  .  .  .  .  .  .  .  O  ."
+                           ".  .  .  .  .  .  .  .  .  O  ."
+                           ".  .  .  .  .  .  .  .  .  .  O"
                            ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_e, e_input, e_expected, 55);
+  test_capture_s<false>(e_input, e_expected, 55);
 }
 
-TEST_CASE("capture_en") {
+TEST_CASE("capture_s_en") {
   const char *en_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  O"
                          ".  .  .  .  .  .  .  .  .  O  X"
@@ -624,21 +634,21 @@ TEST_CASE("capture_en") {
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  .";
 
-  const char *en_expected = ".  .  .  .  .  .  .  .  .  .  "
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
+  const char *en_expected = ".  .  .  .  .  .  .  .  .  .  ."
+                            ".  .  .  .  .  .  .  .  .  .  O"
+                            ".  .  .  .  .  .  .  .  .  O  ."
+                            ".  .  .  .  .  .  .  .  .  O  ."
+                            ".  .  .  .  .  .  .  .  .  O  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_en, en_input, en_expected, 55);
+  test_capture_s<false>(en_input, en_expected, 55);
 }
 
-TEST_CASE("capture_es") {
+TEST_CASE("capture_s_es") {
   const char *es_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -648,53 +658,53 @@ TEST_CASE("capture_es") {
                          ".  .  .  .  .  .  .  .  .  O  X"
                          ".  .  .  .  .  .  .  .  .  O  X"
                          ".  .  .  .  .  .  .  .  .  O  X"
-                         ".  .  .  .  .  .  .  .  .  O  X"
-                         ".  .  .  .  .  .  .  .  .  .  O";
+                         ".  .  .  .  .  .  .  .  .  .  O"
+                         ".  .  .  .  .  .  .  .  .  .  .";
 
-  const char *es_expected = ".  .  .  .  .  .  .  .  .  .  "
+  const char *es_expected = ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
+                            ".  .  .  .  .  .  .  .  .  O  ."
+                            ".  .  .  .  .  .  .  .  .  O  ."
+                            ".  .  .  .  .  .  .  .  .  O  ."
+                            ".  .  .  .  .  .  .  .  .  .  O"
                             ".  .  .  .  .  .  .  .  .  .  .";
 
-  test_capture(capture_es, es_input, es_expected, 55);
+  test_capture_s<false>(es_input, es_expected, 55);
 }
 
-TEST_CASE("capture_w") {
+TEST_CASE("capture_s_w") {
   const char *w_input = ".  .  .  .  .  .  .  .  .  .  ."
                         "O  .  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
-                        ".  X  O  .  .  .  .  .  .  .  ."
+                        ".  .  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
-                        "X  O  .  .  .  .  .  .  .  .  ."
-                        "O  .  .  .  .  .  .  .  .  .  .";
+                        "O  .  .  .  .  .  .  .  .  .  ."
+                        ".  .  .  .  .  .  .  .  .  .  .";
 
   const char *w_expected = ".  .  .  .  .  .  .  .  .  .  ."
+                           "O  .  .  .  .  .  .  .  .  .  ."
+                           ".  O  .  .  .  .  .  .  .  .  ."
+                           ".  O  .  .  .  .  .  .  .  .  ."
+                           ".  O  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
+                           ".  O  .  .  .  .  .  .  .  .  ."
+                           ".  O  .  .  .  .  .  .  .  .  ."
+                           ".  O  .  .  .  .  .  .  .  .  ."
+                           "O  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  .";
 
-  test_capture(capture_w, w_input, w_expected, 65);
+  test_capture_s<false>(w_input, w_expected, 65);
 }
 
-TEST_CASE("capture_wn") {
+TEST_CASE("capture_s_wn") {
   const char *wn_input = ".  .  .  .  .  .  .  .  .  .  ."
                          "O  .  .  .  .  .  .  .  .  .  ."
                          "X  O  .  .  .  .  .  .  .  .  ."
@@ -708,10 +718,10 @@ TEST_CASE("capture_wn") {
                          ".  .  .  .  .  .  .  .  .  .  .";
 
   const char *wn_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
+                            "O  .  .  .  .  .  .  .  .  .  ."
+                            ".  O  .  .  .  .  .  .  .  .  ."
+                            ".  O  .  .  .  .  .  .  .  .  ."
+                            ".  O  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
@@ -719,10 +729,10 @@ TEST_CASE("capture_wn") {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
 
-  test_capture(capture_wn, wn_input, wn_expected, 65);
+  test_capture_s<false>(wn_input, wn_expected, 65);
 }
 
-TEST_CASE("capture_ws") {
+TEST_CASE("capture_s_ws") {
   const char *ws_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -732,8 +742,8 @@ TEST_CASE("capture_ws") {
                          "X  O  .  .  .  .  .  .  .  .  ."
                          "X  O  .  .  .  .  .  .  .  .  ."
                          "X  O  .  .  .  .  .  .  .  .  ."
-                         "X  O  .  .  .  .  .  .  .  .  ."
-                         "O  .  .  .  .  .  .  .  .  .  .";
+                         "O  .  .  .  .  .  .  .  .  .  ."
+                         ".  .  .  .  .  .  .  .  .  .  .";
 
   const char *ws_expected = ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
@@ -741,18 +751,18 @@ TEST_CASE("capture_ws") {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
+                            ".  O  .  .  .  .  .  .  .  .  ."
+                            ".  O  .  .  .  .  .  .  .  .  ."
+                            ".  O  .  .  .  .  .  .  .  .  ."
+                            "O  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_ws, ws_input, ws_expected, 65);
+  test_capture_s<false>(ws_input, ws_expected, 65);
 }
 
-TEST_CASE("capture_n") {
-  const char *n_input = ".  O  X  X  X  .  X  X  X  X  O"
-                        ".  .  O  O  O  X  O  O  O  O  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
+TEST_CASE("capture_s_n") {
+  const char *n_input = ".  O  X  X  X  .  X  X  X  O  ."
+                        ".  .  O  O  O  .  O  O  O  .  ."
+                        ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
@@ -762,8 +772,8 @@ TEST_CASE("capture_n") {
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  .";
 
-  const char *n_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
+  const char *n_expected = ".  O  .  .  .  .  .  .  .  O  ."
+                           ".  .  O  O  O  .  O  O  O  .  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  ."
@@ -774,13 +784,13 @@ TEST_CASE("capture_n") {
                            ".  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  .";
 
-  test_capture(capture_n, n_input, n_expected, 115);
+  test_capture_s<false>(n_input, n_expected, 115);
 }
 
-TEST_CASE("capture_n 2") {
-  const char *n_input_2 = ".  .  X  X  X  .  X  X  X  X  O"
-                          ".  .  O  O  O  X  O  O  O  O  ."
-                          ".  .  .  .  .  O  .  .  .  .  ."
+TEST_CASE("capture_s_n 2") {
+  const char *n_input_2 = ".  .  X  X  X  .  X  X  X  O  ."
+                          ".  .  O  O  O  .  O  O  O  .  ."
+                          ".  .  .  .  .  .  .  .  .  .  ."
                           ".  .  .  .  .  .  .  .  .  .  ."
                           ".  .  .  .  .  .  .  .  .  .  ."
                           ".  .  .  .  .  .  .  .  .  .  ."
@@ -790,8 +800,8 @@ TEST_CASE("capture_n 2") {
                           ".  .  .  .  .  .  .  .  .  .  ."
                           ".  .  .  .  .  .  .  .  .  .  .";
 
-  const char *n_expected_2 = ".  .  X  X  X  .  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  ."
+  const char *n_expected_2 = ".  .  X  X  X  .  .  .  .  O  ."
+                             ".  .  O  O  O  .  O  O  O  .  ."
                              ".  .  .  .  .  .  .  .  .  .  ."
                              ".  .  .  .  .  .  .  .  .  .  ."
                              ".  .  .  .  .  .  .  .  .  .  ."
@@ -801,10 +811,10 @@ TEST_CASE("capture_n 2") {
                              ".  .  .  .  .  .  .  .  .  .  ."
                              ".  .  .  .  .  .  .  .  .  .  ."
                              ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_n, n_input_2, n_expected_2, 115);
+  test_capture_s<false>(n_input_2, n_expected_2, 115);
 }
 
-TEST_CASE("capture_ne") {
+TEST_CASE("capture_s_ne") {
   const char *ne_input = ".  .  .  X  X  X  X  O  .  .  ."
                          ".  .  .  O  O  O  O  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -817,8 +827,8 @@ TEST_CASE("capture_ne") {
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  .";
 
-  const char *ne_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
+  const char *ne_expected = ".  .  .  .  .  .  .  O  .  .  ."
+                            ".  .  .  O  O  O  O  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
@@ -828,10 +838,10 @@ TEST_CASE("capture_ne") {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_ne, ne_input, ne_expected, 118);
+  test_capture_s<false>(ne_input, ne_expected, 118);
 }
 
-TEST_CASE("capture_nw") {
+TEST_CASE("capture_s_nw") {
   const char *nw_input = ".  .  O  X  X  X  X  .  .  .  ."
                          ".  .  .  O  O  O  O  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -844,8 +854,8 @@ TEST_CASE("capture_nw") {
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  .";
 
-  const char *nw_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                            ".  .  .  .  .  .  .  .  .  .  ."
+  const char *nw_expected = ".  .  O  .  .  .  .  .  .  .  ."
+                            ".  .  .  O  O  O  O  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
@@ -855,7 +865,34 @@ TEST_CASE("capture_nw") {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_nw, nw_input, nw_expected, 113);
+  test_capture_s<false>(nw_input, nw_expected, 113);
+}
+
+TEST_CASE("capture_s_nw king") {
+  const char *inp = ".  .  X  #  O  O  O  .  .  .  ."
+                    ".  .  .  X  X  X  X  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+
+  const char *exp = ".  .  X  #  .  .  .  .  .  .  ."
+                    ".  .  .  X  X  X  X  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+  test_capture_s<true>(inp, exp, 113);
 }
 
 TEST_CASE("all captures") {

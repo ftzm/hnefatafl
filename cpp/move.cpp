@@ -195,7 +195,7 @@ void get_row_total_moves(const uint64_t *team, const uint64_t *occ, uint8_t *tot
 }
 
 //******************************************************************************
-// Quiescence
+// Capture Destinations
 //******************************************************************************
 
 constexpr layer drop_2_west = read_layer(".  .  X  X  X  X  X  X  X  X  X"
@@ -245,6 +245,11 @@ layer find_capture_destinations_op(const layer allies, const layer foes) {
           (north[1] | south[1] | east[1] | west[1]) & (~(allies[1] | foes[1]))};
 }
 
+
+//******************************************************************************
+// Quiescence
+//******************************************************************************
+
 /**
  * Requires that the bit at pos is 0.
  */
@@ -284,7 +289,8 @@ uint16_t find_neighbors(const uint16_t occ, const int pos) {
 
 #define select_index(is_lower, is_upper, var) (is_lower ? 0 : (is_upper ? 1 : sub_layer[var]))
 
-/**
+/** process a capture move
+ * 
  * @tparam is_black whether the moving piece is black
  * @tparam is_rotated whether the move is rotated, in which case
  * selection of rotated or unrotated layers, rotation direction, etc.,
@@ -295,7 +301,7 @@ uint16_t find_neighbors(const uint16_t occ, const int pos) {
  * @param dest
  */
 template <bool is_black, bool is_rotated, bool is_lower, bool is_upper>
-void process_move(const board *base_board, board *boards, move *moves,
+void process_capture_move(const board *base_board, board *boards, move *moves,
                   int *total, uint8_t orig, uint8_t dest) {
 
   board board = *base_board;
@@ -322,10 +328,13 @@ void process_move(const board *base_board, board *boards, move *moves,
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
   capture_functions[(is_rotated ? dest_r : dest)](board_layer(is_black, false),
-                          board_layer(is_black, true),
-                          board_layer(!is_black, false),
-                          board_layer(!is_black, true),
-                          (is_rotated ? dest_r : dest));
+						  board_layer(is_black, true),
+						  board_layer(!is_black, false),
+						  board_layer(!is_black, true),
+						  (is_rotated ? dest_r : dest));
+
+
+  shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
 
   moves[*total] =
       (struct move){(is_rotated ? orig_r : orig), (is_rotated ? dest_r : dest)};
@@ -333,6 +342,10 @@ void process_move(const board *base_board, board *boards, move *moves,
   (*total)++;
 }
 
+/**
+ * generate captures moves for one half of the board, excluding center
+ * rank or file.
+ */
 template <bool is_black, bool is_rotated, bool is_lower, bool is_upper>
 void capture_moves(board *boards, const board board, int *total,
                              move *moves, layer occ, layer capt_dests) {
@@ -347,7 +360,7 @@ void capture_moves(board *boards, const board board, int *total,
                      board_layer(is_black, is_rotated)[(is_lower ? 0 : 1)];
     while (origs) {
       uint8_t orig = _tzcnt_u64(origs);
-      process_move<is_black, is_rotated, is_lower, is_upper>(
+      process_capture_move<is_black, is_rotated, is_lower, is_upper>(
           &board, boards, moves, total, orig, dest);
       origs = _blsr_u64(origs);
     }
@@ -357,6 +370,9 @@ void capture_moves(board *boards, const board board, int *total,
 
 #define get_center_row(layer) (layer[0] >> 55) | (((layer[1] & 0x3) << 9) & 0b11111111111);
 
+/**
+ * generate captures moves for the center rank or file.
+ */
 template <bool is_black, bool is_rotated, bool is_lower, bool is_upper>
 void capture_moves_center(board *boards, const board board, int *total, move *moves, layer occ, layer capture_dests) {
   uint16_t center_capt_dests = get_center_row(capture_dests);
@@ -367,7 +383,7 @@ void capture_moves_center(board *boards, const board board, int *total, move *mo
     uint64_t row_origs = neighbors & get_center_row(board_layer(is_black, is_rotated));
     while (row_origs) {
       uint8_t orig = _tzcnt_u16(row_origs);
-      process_move<is_black, is_rotated, false, false>(&board, boards, moves, total, orig, dest);
+      process_capture_move<is_black, is_rotated, false, false>(&board, boards, moves, total, orig, dest);
       row_origs &= row_origs - 1;
     }
     center_capt_dests &= center_capt_dests - 1;
@@ -375,7 +391,7 @@ void capture_moves_center(board *boards, const board board, int *total, move *mo
 }
 
 /**
- * generate black moves which result in captures.
+ * generate moves which result in captures.
  */
 template <bool is_black>
 void get_capture_move_boards(board *boards, const board board, int *total, move *moves) {
@@ -393,7 +409,10 @@ void get_capture_move_boards(board *boards, const board board, int *total, move 
 
 }
 
-// ----------------------------------------------------------------------
+//******************************************************************************
+// Quiescence
+//******************************************************************************
+
 template <int index, unsigned char sub_index, int row_offset>
 inline __attribute__((always_inline)) void
 get_next_row_boards_black(const uint64_t occ, const board &base_board,
@@ -428,6 +447,7 @@ get_next_row_boards_black(const uint64_t occ, const board &base_board,
         capture_functions[dest](new_board.black, new_board.black_r,
                                 new_board.white, new_board.white_r, dest);
       }
+      shield_wall<true>(&new_board, dest);
 
       boards[*total] = new_board;
       (*total)++;
@@ -476,6 +496,8 @@ get_next_row_boards_black_r(const uint64_t occ, const board base_board,
 	capture_functions[dest](new_board.black, new_board.black_r,
 				new_board.white, new_board.white_r, dest);
       }
+
+      shield_wall<true>(&new_board, dest);
 
       boards[*total] = new_board;
       (*total)++;
@@ -526,6 +548,8 @@ get_next_row_boards_white(const uint64_t occ, const board &base_board,
                                 new_board.black, new_board.black_r, dest);
       }
 
+      shield_wall<false>(&new_board, dest);
+
       boards[*total] = new_board;
       (*total)++;
       row_moves = _blsr_u64(row_moves);
@@ -572,6 +596,8 @@ get_next_row_boards_white_r(const uint64_t occ, const board base_board,
                                 new_board.white_r | new_board.king_r,
                                 new_board.black, new_board.black_r, dest);
       }
+
+      shield_wall<false>(&new_board, dest);
 
       boards[*total] = new_board;
       (*total)++;
@@ -665,6 +691,8 @@ get_team_moves_black(const board current, int *total, move *moves,
           capture_functions[dest](new_board.black, new_board.black_r,
                                   new_board.white, new_board.white_r, dest);
 	  // }
+	  
+	  shield_wall<true>(&new_board, dest);
 
         boards[*total] = new_board;
         (*total)++;
@@ -709,6 +737,8 @@ get_team_moves_black(const board current, int *total, move *moves,
           capture_functions[dest](new_board.black, new_board.black_r,
                                   new_board.white, new_board.white_r, dest);
 	  // }
+
+	  shield_wall<true>(&new_board, dest);
 
         boards[*total] = new_board;
         (*total)++;
@@ -802,6 +832,8 @@ get_team_moves_white(const board current, int *total, move *moves,
                                   new_board.black, new_board.black_r, dest);
 	  // }
 
+	shield_wall<false>(&new_board, dest);
+
         boards[*total] = new_board;
         (*total)++;
 
@@ -845,6 +877,8 @@ get_team_moves_white(const board current, int *total, move *moves,
           capture_functions[dest](new_board.white, new_board.white_r,
                                   new_board.black, new_board.black_r, dest);
 	  // }
+
+	shield_wall<false>(&new_board, dest);
 
         boards[*total] = new_board;
         (*total)++;
