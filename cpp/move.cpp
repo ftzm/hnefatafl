@@ -410,7 +410,7 @@ void get_capture_move_boards(board *boards, const board board, int *total, move 
 }
 
 //******************************************************************************
-// Quiescence
+// Moves
 //******************************************************************************
 
 template <int index, unsigned char sub_index, int row_offset>

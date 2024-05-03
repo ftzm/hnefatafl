@@ -261,8 +261,9 @@ void capture_d(const layer &allies, const layer &allies_r, layer &foes,
   const layer foe_mask = foe_masks_dir(is_rotated)[pos];
   const layer ally_mask = ally_masks_dir(is_rotated)[pos];
 
+  // TODO: remove addition of corners once a specialized edge function is used
   const uint64_t attackers =
-      _pext_u64(allies_dir(is_rotated)[sub_index], ally_mask[sub_index]);
+      _pext_u64(allies_dir(is_rotated)[sub_index] | corners[sub_index], ally_mask[sub_index]);
   const uint64_t attackees_ext =
       _pext_u64(foes_dir(is_rotated)[sub_index], foe_mask[sub_index]) &
       attackers;
@@ -503,7 +504,7 @@ inline uint64_t half_captures(const layer &allies, const layer &foes,
                               const unsigned char pos) {
   const layer foe_mask = foe_masks[pos];
   const layer ally_mask = ally_masks[pos];
-  const uint64_t attackers = _pext_u64(allies[half], ally_mask[half]);
+  const uint64_t attackers = _pext_u64(allies[half] | corners[half], ally_mask[half]);
   const uint64_t attackees_ext =
       _pext_u64(foes[half], foe_mask[half]) & attackers;
   return _pdep_u64(attackees_ext, foe_mask[half]);
