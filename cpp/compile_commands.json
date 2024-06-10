@@ -1,7 +1,7 @@
 [
 {
   "directory": "/home/ftzm/dev/hnefatafl/cpp",
-  "command": "/nix/store/4kwk49k8rc8cg8c387kbbjcrl8i0y693-gcc-wrapper-13.2.0/bin/g++ -DFMT_HEADER_ONLY=1 -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/fmt-src/include -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/catch2-src/src/catch2/.. -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/catch2-build/generated-includes -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/rapidcheck-src/extras/catch/include -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/rapidcheck-src/include -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++20 -o CMakeFiles/test.dir/tests/capture.cpp.o -c /home/ftzm/dev/hnefatafl/cpp/tests/capture.cpp",
+  "command": "/nix/store/4kwk49k8rc8cg8c387kbbjcrl8i0y693-gcc-wrapper-13.2.0/bin/g++ -DFMT_HEADER_ONLY=1 -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/fmt-src/include -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/catch2-src/src/catch2/.. -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/catch2-build/generated-includes -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/rapidcheck-src/extras/catch/include -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/rapidcheck-src/include -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23 -g -o CMakeFiles/test.dir/tests/capture.cpp.o -c /home/ftzm/dev/hnefatafl/cpp/tests/capture.cpp",
   "file": "/home/ftzm/dev/hnefatafl/cpp/tests/capture.cpp",
   "output": "CMakeFiles/test.dir/tests/capture.cpp.o"
 }

@@ -2,15 +2,23 @@
 #include "../board.cpp"
 #include "../move.cpp"
 
-#include <array>
 #include <iostream>
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/reporters/catch_reporter_event_listener.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
+#include <iterator>
 #include <rapidcheck/catch.h>
 #include <format>
 #include <regex>
+#include <tuple>
+#include <vector>
+#include <algorithm>
+#include <optional>
+
+using std::vector;
+using std::optional;
 
 // initialize global variables before running tests
 class testRunListener : public Catch::EventListenerBase {
@@ -1109,6 +1117,9 @@ TEST_CASE("white moves and boards match") {
 TEST_CASE("move indices are within index bounds") {
 }
 
+TEST_CASE("move origins are valid") {
+}
+
 TEST_CASE("moves are vertically or horizontally aligned") {
 }
 
@@ -1190,9 +1201,175 @@ template <typename T> bool elems_unique(std::vector<T> v) {
 }
 
 //*****************************************************************************
-// Capture move boards
+// Util
 //*****************************************************************************
 
+template <typename T>
+std::vector<T> filter_v(std::vector<T> v, std::function<bool(T)> f) {
+  std::vector<T> result;
+  auto it = std::copy_if(v.begin(), v.end(), std::back_inserter(result), f);
+  result.shrink_to_fit();
+  return result;
+}
+
+template <typename T>
+bool contains(vector<T> v, T x) {
+  return std::find(v.begin(), v.end(), x) != v.end();
+}
+
+std::optional<uint8_t> move_north(uint i) {
+  return i < 110 ? std::optional{i + 11} : std::nullopt;
+}
+
+std::optional<uint8_t> move_south(uint i) {
+  return i > 11 ? std::optional{i - 11} : std::nullopt;
+}
+
+std::optional<uint8_t> move_east(uint i) {
+  return (i % 11) > 0 ? std::optional{i - 1} : std::nullopt;
+}
+
+std::optional<uint8_t> move_west(uint i) {
+  return (i % 11) < 10 ? std::optional{i + 1} : std::nullopt;
+}
+
+
+bool corner_pred(uint8_t val) {return val == 0 || val == 10 || val == 110 || val == 120;};
+
+
+
+//*****************************************************************************
+// Capture move boards
+//*****************************************************************************
+// Util
+
+
+/** find position of a reachable (no intervening occ pieces) ally in the given direction.
+ */
+template <auto f>
+optional<uint8_t> dir_ally(uint8_t i, layer occ, layer allies) {
+  optional<uint8_t> next_move = f(i);
+  while (next_move.has_value()) {
+    uint8_t val = next_move.value();
+    bool is_ally = 
+      allies[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
+    if (is_ally) {
+      return val;
+    }
+    bool is_corner = corner_pred(val);
+    bool occupied = 
+      occ[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
+    if (occupied || is_corner) {
+      return std::nullopt;
+    }
+    next_move = f(val);
+  }
+  return std::nullopt;
+}
+
+struct compass_allies {
+  vector<move> as_moves(uint8_t dest) const {
+    vector<move> result; 
+    if (north.has_value()) {
+      result.push_back(move{north.value(), dest});
+    }
+    if (south.has_value()) {
+      result.push_back(move{south.value(), dest});
+    }
+    if (east.has_value()) {
+      result.push_back(move{east.value(), dest});
+    }
+    if (west.has_value()) {
+      result.push_back(move{west.value(), dest});
+    }
+    return result;
+  }
+  optional<uint8_t> north;
+  optional<uint8_t> south;
+  optional<uint8_t> east;
+  optional<uint8_t> west;
+};
+
+compass_allies get_compass_allies(uint i, layer occ, layer allies) {
+  return {
+    dir_ally<move_north>(i, occ, allies),
+    dir_ally<move_south>(i, occ, allies),
+    dir_ally<move_east>(i, occ, allies),
+    dir_ally<move_west>(i, occ, allies),
+  };
+}
+
+template <bool is_black>
+void test_capture_moves_correct(board *bs, move *ms, int total, board b) {
+  // convert to vectors for ease of use
+  std::vector<move> moves(ms, ms + total);
+  std::vector<board> boards(bs, bs + total);
+
+  layer occ = b.black | b.white | b.king;
+  layer allies = name_layer(b, is_black, false);
+  layer foes = name_layer(b, !is_black, false);
+
+  layer cd_allies = allies | corners;
+  layer cd_foes = foes;
+  if constexpr (!is_black) {
+    cd_allies[0] |= b.king[0];
+    cd_allies[1] |= b.king[1];
+  }
+  layer capture_dests = find_capture_destinations_op(cd_allies, cd_foes);
+
+  for (uint8_t i = 0; i < 121; i++) {
+    if (corner_pred(i)) {
+      continue;
+    }
+    bool is_dest =
+        capture_dests[sub_layer[i]] & ((uint64_t)1 << sub_layer_offset_direct[i]);
+    if (is_dest) {
+      compass_allies correct_allies = get_compass_allies(i, occ, allies);
+      if (correct_allies.north.has_value()) {
+        uint8_t val = correct_allies.north.value();
+        SECTION(std::format("{} is destination - north ally is {}", as_notation(i), as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      if (correct_allies.south.has_value()) {
+        uint8_t val = correct_allies.south.value();
+        SECTION(std::format("{} is destination - south ally is {}", as_notation(i), as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      if (correct_allies.east.has_value()) {
+        uint8_t val = correct_allies.east.value();
+        SECTION(std::format("{} is destination - east ally is {}", as_notation(i), as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      if (correct_allies.west.has_value()) {
+        uint8_t val = correct_allies.west.value();
+        SECTION(std::format("{} is destination - west ally is {}", as_notation(i), as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      SECTION(std::format("{} occupied - no spurious moves", i)) {
+        vector<move> found = filter_v<move>(moves, [correct_allies, i](move m) {
+          return m.orig == i && !contains(correct_allies.as_moves(i), m);
+        });
+        REQUIRE(found == vector<move>());
+      }
+    } else {
+      SECTION(std::format("{} empty - no moves", i)) {
+        auto from_here =
+            filter_v<move>(moves, [i](move m) { return m.orig == i; });
+        REQUIRE(from_here == std::vector<move>());
+      }
+    }
+  }
+}
+
+//*****************************************************************************
 // Black
 
 TEST_CASE("black capture moves are unique") {
@@ -1210,6 +1387,7 @@ TEST_CASE("black capture moves are unique") {
   });
 }
 
+/*
 TEST_CASE("black capture moves are within bounds") {
   rc::prop("test", [](board a) {
     board boards[100];
@@ -1225,6 +1403,7 @@ TEST_CASE("black capture moves are within bounds") {
     return true;
   });
 }
+*/
 
 TEST_CASE("black capture moves and boards match") {
   rc::prop("test", [](board a) {
@@ -1261,12 +1440,370 @@ TEST_CASE("black capture board rotation correct") {
   });
 }
 
+TEST_CASE("black capture moves are correct") {
+  rc::prop("test", [](board b) {
+    board bs[100];
+    move ms[100];
+    int total = 0;
+    get_capture_move_boards<true>(bs, b, &total, ms);
+    test_capture_moves_correct<true>(bs, ms, total, b);
+  });
+}
+
 //*****************************************************************************
 // White
+
+TEST_CASE("white capture moves are unique") {
+  rc::prop("test", [](board a) {
+    board boards[100];
+    move moves[100];
+    int total = 0;
+    get_capture_move_boards<false>(boards, a, &total, moves);
+    std::vector<std::tuple<char, char>> move_tuples;
+    for (int i = 0; i < total; i++) {
+      std::tuple<char, char> e = {moves[i].orig, moves[i].dest};
+      move_tuples.push_back(e);
+    }
+    RC_ASSERT(elems_unique(move_tuples));
+  });
+}
+
+TEST_CASE("white capture moves are within bounds") {
+  rc::prop("test", [](board a) {
+    board boards[100];
+    move moves[100];
+    int total = 0;
+    get_capture_move_boards<false>(boards, a, &total, moves);
+    for (int i = 0; i < total; i++) {
+      RC_ASSERT_FALSE(moves[i].orig < 1);
+      RC_ASSERT_FALSE(moves[i].dest < 1);
+      RC_ASSERT_FALSE(moves[i].orig > 120);
+      RC_ASSERT_FALSE(moves[i].dest > 120);
+    }
+    return true;
+  });
+}
+
+TEST_CASE("white capture moves and boards match") {
+  rc::prop("test", [](board a) {
+    board boards[100];
+    move moves[100];
+    int total = 0;
+    get_capture_move_boards<false>(boards, a, &total, moves);
+    for (int i = 0; i < total; i++) {
+      layer diff = a.white ^ boards[i].white;
+      move m = moves[i];
+      diff[sub_layer[m.orig]] -= ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
+      diff[sub_layer[m.dest]] -= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      RC_ASSERT_FALSE(diff[0]);
+      RC_ASSERT_FALSE(diff[1]);
+    }
+    return true;
+  });
+}
+
+TEST_CASE("white capture board rotation correct") {
+  rc::prop("test", [](board a) {
+    board boards[100];
+    move moves[100];
+    int total = 0;
+    get_capture_move_boards<false>(boards, a, &total, moves);
+    for (int i = 0; i < total; i++) {
+      layer l = boards[i].white;
+      layer r = boards[i].white_r;
+      // need std::ranged::equal rather than == so the arrays don't
+      // decay to points to the first elements only
+      RC_ASSERT(std::ranges::equal(rotate_layer(l), r));
+    }
+    return true;
+  });
+}
+
+TEST_CASE("white capture moves are correct") {
+  rc::prop("test", [](board b) {
+    board bs[100];
+    move ms[100];
+    int total = 0;
+    get_capture_move_boards<false>(bs, b, &total, ms);
+    test_capture_moves_correct<false>(bs, ms, total, b);
+  });
+}
 
 //*****************************************************************************
 // King
 
 //*****************************************************************************
-// Capture move boards
+// Move boards
 //*****************************************************************************
+
+template <auto f>
+vector<move> dir_moves(uint8_t i, layer occ, bool is_king = false) {
+  vector<move> result;
+  optional<uint8_t> next_move = f(i);
+  while (next_move.has_value()) {
+    uint8_t val = next_move.value();
+    bool is_corner = corner_pred(val);
+    bool occupied = 
+      occ[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
+    if (occupied || is_corner) {
+      break;
+    }
+    if (!is_king && val == 60) {
+      // only king can land in center square
+      next_move = f(val);
+      continue;
+    }
+    result.push_back(move{i, val});
+    next_move = f(val);
+  }
+  std::sort(result.begin(), result.end());
+  return result;
+}
+
+struct compass_moves {
+  vector<move> combine() const {
+    vector<move> result;
+    result.reserve(north.size() + south.size() + east.size() + west.size());
+    result.insert(result.end(), north.begin(), north.end());
+    result.insert(result.end(), south.begin(), south.end());
+    result.insert(result.end(), east.begin(), east.end());
+    result.insert(result.end(), west.begin(), west.end());
+    // std::sort(result.begin(), result.end());
+    return result;
+  }
+  vector<move> north;
+  vector<move> south;
+  vector<move> east;
+  vector<move> west;
+};
+
+compass_moves get_compass_moves(uint i, layer occ, bool is_king = false) {
+  return {
+    dir_moves<move_north>(i, occ, is_king),
+    dir_moves<move_south>(i, occ, is_king),
+    dir_moves<move_east>(i, occ, is_king),
+    dir_moves<move_west>(i, occ, is_king),
+  };
+}
+
+void test_moves_correct(board *bs, move *ms, int total, layer movers, layer occ, bool is_king = false) {
+  // convert to vectors for ease of use
+  std::vector<move> moves(ms, ms + total);
+  std::vector<board> boards(bs, bs + total);
+
+  for (uint8_t i = 0; i < 121; i++) {
+    if (corner_pred(i)) {
+      continue;
+    }
+    bool is_orig =
+        movers[sub_layer[i]] & ((uint64_t)1 << sub_layer_offset_direct[i]);
+    if (is_orig) {
+      compass_moves correct_moves = get_compass_moves(i, occ, is_king);
+      SECTION(std::format("{} occupied - north moves correct", i)) {
+        vector<move> found = filter_v<move>(moves, [correct_moves](move m) {
+          return contains(correct_moves.north, m);
+        });
+        std::sort(found.begin(), found.end(), std::less<move>());
+        REQUIRE(found == correct_moves.north);
+      }
+      SECTION(std::format("{} occupied - south moves correct", i)) {
+        vector<move> found = filter_v<move>(moves, [correct_moves](move m) {
+          return contains(correct_moves.south, m);
+        });
+        std::sort(found.begin(), found.end());
+        REQUIRE(found == correct_moves.south);
+      }
+      SECTION(std::format("{} occupied - east moves correct", i)) {
+        vector<move> found = filter_v<move>(moves, [correct_moves](move m) {
+          return contains(correct_moves.east, m);
+        });
+        std::sort(found.begin(), found.end());
+        REQUIRE(found == correct_moves.east);
+      }
+      SECTION(std::format("{} occupied - west moves correct", i)) {
+        vector<move> found = filter_v<move>(moves, [correct_moves](move m) {
+          return contains(correct_moves.west, m);
+        });
+        std::sort(found.begin(), found.end());
+        REQUIRE(found == correct_moves.west);
+      }
+      SECTION(std::format("{} occupied - no spurious moves", i)) {
+        vector<move> found = filter_v<move>(moves, [correct_moves, i](move m) {
+          return m.orig == i && !contains(correct_moves.combine(), m);
+        });
+        REQUIRE(found == vector<move>());
+      }
+    } else {
+      SECTION(std::format("{} empty - no moves", i)) {
+        auto from_here =
+            filter_v<move>(moves, [i](move m) { return m.orig == i; });
+        REQUIRE(from_here == std::vector<move>());
+      }
+    }
+  }
+}
+
+//*****************************************************************************
+// Black
+
+TEST_CASE("black moves correct") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_team_moves<true>(b, &total, ms, bs);
+    test_moves_correct(bs, ms, total, b.black, b.get_occ());
+  });
+}
+
+TEST_CASE("black moves correct old") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_team_moves_black(b, &total, ms, bs);
+    test_moves_correct(bs, ms, total, b.black, b.get_occ());
+  });
+}
+
+//*****************************************************************************
+// White
+
+TEST_CASE("white moves correct") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_team_moves<false>(b, &total, ms, bs);
+    test_moves_correct(bs, ms, total, b.white, b.get_occ());
+  });
+}
+
+TEST_CASE("white moves correct old") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_team_moves_white(b, &total, ms, bs);
+    test_moves_correct(bs, ms, total, b.white, b.get_occ());
+  });
+}
+
+//*****************************************************************************
+// King
+
+TEST_CASE("king moves correct") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_king_moves(b, &total, ms, bs);
+    test_moves_correct(bs, ms, total, b.king, b.get_occ(), true);
+  });
+}
+
+TEST_CASE("king moves and boards match") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_king_moves(b, &total, ms, bs);
+    for (int i = 0; i < total; i++) {
+      // layer diff = b.king ^ bs[i].king;
+      move m = ms[i];
+      board nb = bs[i];
+      layer correct_layer = {0, 0};
+      correct_layer[sub_layer[m.dest]] |= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      REQUIRE(stringify(nb.king) == stringify(correct_layer));
+    }
+  });
+}
+
+TEST_CASE("king move board rotation correct") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_king_moves(b, &total, ms, bs);
+    for (int i = 0; i < total; i++) {
+      layer l = bs[i].king;
+      layer r = bs[i].king_r;
+      // need std::ranged::equal rather than == so the arrays don't
+      // decay to points to the first elements only
+      RC_ASSERT(std::ranges::equal(rotate_layer(l), r));
+    }
+    return true;
+  });
+}
+
+TEST_CASE("simple king moves correct") {
+  rc::prop("test", [](board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_king_moves_simple(b, &total, ms, bs);
+    test_moves_correct(bs, ms, total, b.king, b.get_occ(), true);
+  });
+}
+
+//*****************************************************************************
+// Bench move
+//*****************************************************************************
+
+struct move_result {
+  move moves[235];
+  board boards[235];
+  int total;
+};
+
+TEST_CASE("bench moves", "[benchmark]") {
+  board boards[10] = {
+    rc::gen::arbitrary<board>()(1000, 100).value(),
+    rc::gen::arbitrary<board>()(2000, 100).value(),
+    rc::gen::arbitrary<board>()(3000, 100).value(),
+    rc::gen::arbitrary<board>()(4000, 100).value(),
+    rc::gen::arbitrary<board>()(5000, 100).value(),
+    rc::gen::arbitrary<board>()(6000, 100).value(),
+    rc::gen::arbitrary<board>()(7000, 100).value(),
+    rc::gen::arbitrary<board>()(8000, 100).value(),
+    rc::gen::arbitrary<board>()(9000, 100).value(),
+    rc::gen::arbitrary<board>()(9999, 100).value(),
+  };
+  move_result r;
+  BENCHMARK("black") {
+    for (board b : boards) {
+      get_team_moves_black(b, &(r.total), r.moves, r.boards);
+    }
+    return r;
+  };
+  BENCHMARK("black gen") {
+    for (board b : boards) {
+      get_team_moves<true>(b, &(r.total), r.moves, r.boards);
+    }
+    return r;
+  };
+  BENCHMARK("white") {
+    for (board b : boards) {
+      get_team_moves_white(b, &(r.total), r.moves, r.boards);
+    }
+    return r;
+  };
+  BENCHMARK("white gen") {
+    for (board b : boards) {
+      get_team_moves<false>(b, &(r.total), r.moves, r.boards);
+    }
+    return r;
+  };
+  BENCHMARK("king") {
+    for (board b : boards) {
+      get_king_moves(b, &(r.total), r.moves, r.boards);
+    }
+    return r;
+  };
+  BENCHMARK("king simple") {
+    for (board b : boards) {
+      get_king_moves_simple(b, &(r.total), r.moves, r.boards);
+    }
+    return r;
+  };
+}

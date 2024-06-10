@@ -9,15 +9,29 @@
 #include <x86intrin.h>
 #include <string>
 #include <regex>
+#include <format>
 #include "layer.cpp"
 
 using std::string;
+
+
+string as_notation(uint8_t position) {
+  string ranks[11] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"};
+  string files[11] = {"k", "j", "i", "h", "g", "f", "e", "d", "c", "b", "a"};
+  return ranks[position / 11] + files[position % 11];
+}
 
 typedef struct board {
   bool operator==(const board &rhs) const {
     return (black == rhs.black) && (white == rhs.white) && (king == rhs.king);
   }
   bool operator!=(const board &rhs) const { return !operator==(rhs); }
+  layer get_occ() {
+    return black | white | king;
+  };
+  layer get_occ_r() {
+    return black_r | white_r | king_r;
+  };
   layer black;
   layer black_r;
   layer white;
@@ -42,6 +56,9 @@ typedef struct move {
   bool operator==(const move &rhs) const {
     return (orig == rhs.orig) && (dest == rhs.dest);
   }
+  bool operator<(const move &rhs) const {
+    return orig < rhs.orig || (orig == rhs.orig && dest < rhs.dest);
+  }
   unsigned char orig;
   unsigned char dest;
 } move;
@@ -50,6 +67,13 @@ typedef struct moves {
   int num;
   move *moves;
 } moves;
+
+std::ostream& operator << ( std::ostream& os, move const& value ) {
+  // something about the unicode bars conflicts with the catch2
+  // printing, so we replace them with slightly uglier dashes
+  os << std::format("{} -> {}", as_notation(value.orig), as_notation(value.dest));
+    return os;
+}
 
 inline layer corners = {1025, 72127962782105600};
 

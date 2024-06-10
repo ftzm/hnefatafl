@@ -49,9 +49,10 @@
           pkgs.clang-tools
           pkgs.clang
           pkgs.libclang
-          pkgs.ccls
+          #pkgs.ccls
           pkgs.bear
           pkgs.cmake
+          pkgs.clangStdenv
         ];
 
         withHoogle = true;

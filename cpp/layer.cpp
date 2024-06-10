@@ -276,3 +276,18 @@ inline __attribute__((always_inline)) constexpr layer operator>>(const layer inp
   int lower_offset = 64 - n;
   return {(input[0] >> n) | (input[1] << lower_offset), input[1] >> n};
 }
+
+//******************************************************************************
+// base64
+
+static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static const char base91_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~\"";
+
+std::string encode_base91() {
+  std::string output;
+
+  return output;
+}
+
+
