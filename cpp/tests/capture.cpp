@@ -1,6 +1,7 @@
 #include "../capture.cpp"
 #include "../board.cpp"
 #include "../move.cpp"
+#include "../search.cpp"
 
 #include <iostream>
 
@@ -31,20 +32,6 @@ public:
 };
 CATCH_REGISTER_LISTENER(testRunListener)
 
-  const char *capture_destinations_input_white =
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  X  O  X  .  ."
-    ".  .  O  X  .  O  .  .  .  .  ."
-    ".  .  .  O  .  .  .  .  .  O  ."
-    ".  .  .  X  .  .  O  .  .  .  ."
-    ".  .  O  X  .  O  X  .  .  .  ."
-    ".  O  .  .  .  .  .  .  .  .  ."
-    ".  X  .  .  .  .  .  X  O  .  ."
-    ".  .  .  O  .  X  .  .  .  .  ."
-    ".  .  .  .  .  .  O  X  .  .  ."
-    ".  O  X  .  O  .  .  .  .  .  .";
-
-
 //******************************************************************************
 
 void test_capture(void (*func)(const layer &, const layer &, layer &, layer &,
@@ -74,197 +61,6 @@ void test_capture_s(const char *input_string, const char *expected_string,
   board exp = read_board(expected_string);
   shield_wall<is_black>(&inp, pos);
   REQUIRE(inp == exp);
-}
-
-
-void bench_all_captures(int count) {
-  board start_board = read_board(start_board_string);
-
-  // begin time
-  clock_t start, end;
-  double cpu_time_used;
-  start = clock();
-
-  while (count) {
-    for (int i = 1; i < 120; i++) {
-      // layer allies = {0,0};
-      // layer allies_r = {0,0};
-      // layer foes = {0,0};
-      // layer foes_r = {0,0};
-      capture_functions[i](start_board.black, start_board.black_r,
-                           start_board.white, start_board.white_r, i);
-    }
-    count--;
-  };
-
-  // end time
-  end = clock();
-  cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-  printf("bench took %f seconds to execute \n", cpu_time_used);
-}
-
-void bench_all_captures_niave(int count) {
-  board start_board = read_board(start_board_string);
-
-  // begin time
-  clock_t start, end;
-  double cpu_time_used;
-  start = clock();
-
-  while (count) {
-    for (int i = 1; i < 120; i++) {
-      // layer friends = {0,0};
-      // layer foes = {0,0};
-      layer output = {0, 0};
-      apply_captures_niave(start_board.black, start_board.white, output, i);
-    }
-    count--;
-  };
-
-  // end time
-  end = clock();
-  cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-  printf("bench took %f seconds to execute \n", cpu_time_used);
-}
-
-void bench_board_gen(int count) {
-  move moves[235];
-  board boards[235];
-
-  move moves_2[235];
-  board boards_2[235];
-
-  move moves_3[235];
-  board boards_3[235];
-
-  board start_board = read_board(start_board_string);
-
-  // begin time
-  clock_t start, end;
-  double cpu_time_used;
-  start = clock();
-
-  /*
-  while (count) {
-    get_team_moves_black(start_board, &total, moves, boards);
-    count--;
-  }
-  */
-
-  int sum = 0;
-  while (count) {
-    int total = 0;
-    get_team_moves_black(start_board, &total, moves, boards);
-    for (int i = 0; i < total; i++) {
-      int total_2 = 0;
-      get_team_moves_black(boards[i], &total_2, moves_2, boards_2);
-      for (int j = 0; j < total_2; j++) {
-        board b2 = boards_2[j];
-        int total_3 = 0;
-        get_capture_move_boards<true>(boards_3, b2, &total_3, moves_3);
-        // const layer occ = {
-        //   b2.black[0] | b2.white[0] | b2.king[0] | corners[0],
-        //   b2.black[1] | b2.white[1] | b2.king[1] | corners[1]};
-        // const layer occ_r = {
-        //   b2.black_r[0] | b2.white_r[0] | b2.king_r[0] | corners[0],
-        //   b2.black_r[1] | b2.white_r[1] | b2.king_r[1] | corners[1]};
-        // sum += get_team_move_count(occ, b2.black, occ_r, b2.black_r);
-        // 1.34 for the above
-        // sum += __builtin_popcountll(b2.black[0]) +
-        // __builtin_popcountll(b2.black[1]);
-        sum += total;
-      }
-      /*
-       */
-      // sum += total_2;
-    }
-    count--;
-  }
-  printf("all moves: %d\n", sum);
-
-  // end time
-  end = clock();
-  cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-  printf("bench took %f seconds to execute \n", cpu_time_used);
-}
-
-int main_old(int argc, char **argv) {
-
-  printf("Testing capture!...\n");
-
-  // bench_all_captures(1000000);
-  // bench_all_captures_niave(1000000);
-
-  /*
-  board start_board = read_board(start_board_string);
-  print_board(start_board);
-
-  move moves[235];
-  board boards[235];
-  int total = 0;
-  get_team_moves_black(start_board, &total, moves, boards);
-
-  printf("total: %d\n", total);
-
-  while (total) {
-    move m = moves[total];
-    printf("orig: %d, dest: %d\n\n", m.orig, m.dest);
-    print_board(boards[total]);
-    print_board_r(boards[total]);
-    total--;
-    printf("--------------------------------------------------\n");
-  };
-  printf("orig: %d, dest: %d\n\n", moves[0].orig, moves[0].dest);
-  print_board(boards[0]);
-  print_board_r(boards[0]);
-
-  */
-
-  // bench_board_gen(1000);
-
-  // print_row(get_row_moves_2(0b000000010, 5));
-  // print_row(2^0b0100100);
-
-  // layer allies = read_layer(capture_destinations_input, 'O');
-  // layer foes = read_layer(capture_destinations_input, 'X');
-  // layer dests = find_capture_destinations_op(allies, foes);
-  // print_layer(dests);
-
-  /*
-  int total = 0;
-  move moves[235];
-  board boards[235];
-  board cap_board = read_board(capture_destinations_input);
-  print_board(cap_board);
-  get_capture_move_boards_black(cap_board, &total, moves, boards);
-
-  printf("results\n");
-  for (int i = 0; i < total; i++) {
-    std::cout << overlay_move(pretty_fmt_board(boards[i]), moves[i].orig,
-                              moves[i].dest, cap_board.white ^ boards[i].white);
-  }
-  */
-  int total = 0;
-  move moves[235];
-  board boards[235];
-  board cap_board = read_board(capture_destinations_input_white);
-  get_capture_move_boards<false>(boards, cap_board, &total, moves);
-
-  printf("results\n");
-  for (int i = 0; i < total; i++) {
-    std::cout << overlay_move(pretty_fmt_board(boards[i]), moves[i].orig,
-                              moves[i].dest, cap_board.black ^ boards[i].black);
-  }
-  /*
-
-  board start = read_board(start_board_string);
-  string pb = pretty_fmt_board(start);
-  move m = {0, 3};
-  string mb = overlay_move(pb, m);
-  std::cout << mb;
-  */
-
-  return 0;
 }
 
 TEST_CASE("capture_u") {
@@ -1804,6 +1600,24 @@ TEST_CASE("bench moves", "[benchmark]") {
     for (board b : boards) {
       get_king_moves_simple(b, &(r.total), r.moves, r.boards);
     }
+    return r;
+  };
+  BENCHMARK("negamax ab unsorted") {
+  /*
+    for (board b : boards) {
+      auto r = negamax_ab_runner(b, true, 5);
+    }
+   */
+    auto r = negamax_ab_runner(start_board, true, 5);
+    return r;
+  };
+  BENCHMARK("negamax ab sorted") {
+  /*
+    for (board b : boards) {
+      auto r = negamax_ab_sorted_runner(b, true, 5);
+    }
+  */
+    auto r = negamax_ab_sorted_runner(start_board, true, 5);
     return r;
   };
 }

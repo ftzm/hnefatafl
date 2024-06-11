@@ -26,10 +26,10 @@ typedef struct board {
     return (black == rhs.black) && (white == rhs.white) && (king == rhs.king);
   }
   bool operator!=(const board &rhs) const { return !operator==(rhs); }
-  layer get_occ() {
+  layer get_occ() const {
     return black | white | king;
   };
-  layer get_occ_r() {
+  layer get_occ_r() const {
     return black_r | white_r | king_r;
   };
   layer black;

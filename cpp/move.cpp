@@ -1290,6 +1290,63 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
   }
 }
 
+inline __attribute__((always_inline)) int
+get_king_move_count(const board current) {
+  int total = 0;
+
+  const layer occ = {
+      current.white[0] | current.black[0] | current.king[0] | corners[0],
+      current.white[1] | current.black[1] | current.king[1] | corners[1]};
+
+  // const layer capture_dests = find_capture_destinations_op(current.white, current.black);
+
+  uint8_t orig = current.king[0] ? _tzcnt_u64(current.king[0])
+                                 : _tzcnt_u64(current.king[1]) + 64;
+
+  if (orig < 55) {
+    const uint row_offset = sub_layer_row_offset[orig];
+    const uint8_t row_orig = orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ[0] >> row_offset) & 0x7FF;
+    total += row_move_count_table[blockers][row_orig];
+  } else if (orig > 65) {
+    const uint8_t sub_orig = orig - 64;
+    const uint row_offset = sub_layer_row_offset_upper[sub_orig];
+    const uint8_t row_orig = sub_orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ[1] >> row_offset) & 0x7FF;
+    total += row_move_count_table[blockers][row_orig];
+  } else {
+    // center
+    uint8_t local_orig = orig - 55;
+    uint16_t blockers = get_center_row(occ);
+    total += row_move_count_table[blockers][local_orig];
+  }
+  const layer occ_r = {
+      current.white_r[0] | current.black_r[0] | current.king_r[0] | corners[0],
+      current.white_r[1] | current.black_r[1] | current.king_r[1] | corners[1]};
+
+  uint8_t orig_r = rotate_right[orig];
+
+  if (orig_r < 55) {
+    const uint row_offset = sub_layer_row_offset[orig_r];
+    const uint8_t row_orig = orig_r - row_offset;
+    const uint16_t blockers = ((uint64_t)occ_r[0] >> row_offset) & 0x7FF;
+    total += row_move_count_table[blockers][row_orig];
+  } else if (orig_r > 65) {
+    const uint8_t sub_orig = orig_r - 64;
+    const uint row_offset = sub_layer_row_offset_upper[sub_orig];
+    const uint8_t row_orig = sub_orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ_r[1] >> row_offset) & 0x7FF;
+    total += row_move_count_table[blockers][row_orig];
+  } else {
+    // center
+    const uint8_t local_orig = orig_r - 55;
+    const uint16_t blockers = get_center_row(occ_r);
+    const uint16_t row_moves = row_moves_table[blockers][local_orig];
+    total += row_move_count_table[blockers][local_orig];
+  }
+  return total;
+}
+
 inline __attribute__((always_inline)) void
 get_king_moves_simple(const board current, int *total, move *moves, board *boards) {
   *total = 0;
@@ -1458,6 +1515,8 @@ const char* start_board_string = \
   " .  .  .  .  .  .  .  .  .  .  . "
   " .  .  .  .  .  X  .  .  .  .  . "
   " .  .  .  X  X  X  X  X  .  .  . ";
+
+const board start_board = read_board(start_board_string);
 
 const char* corners_string =
   "X  .  .  .  .  .  .  .  .  .  X"
