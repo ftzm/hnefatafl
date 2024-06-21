@@ -9,11 +9,13 @@
 
 #pragma once
 
+#include <iostream>
 #include <cstring>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string>
 #include <array>
+#include <libbase64.h>
 using std::array;
 
 // typedef uint64_t layer[2];
@@ -284,10 +286,80 @@ static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr
 
 static const char base91_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~\"";
 
-std::string encode_base91() {
-  std::string output;
+/*
+uint8_t (&array_of_bytes)[sizeof(uint64_t)] =
+      *reinterpret_cast<uint8_t(*)[sizeof(uint64_t)]>(
+        &proper_endian_uint64);
+*/
 
+std::string encode_layer(layer input) {
+  // char src[] = "hello world";
+  // uint8_t (&array_of_bytes)[sizeof(layer)] =
+  // char(&src)[sizeof(uint64_t)*2] = *reinterpret_cast<char(*)[sizeof(uint64_t)*2]>(input.data());
+  // char(&src)[sizeof(uint64_t)] = *reinterpret_cast<char(*)[sizeof(uint64_t)]>(input[0]);
+
+
+  char src[8];
+  memcpy(&src, input.data(), sizeof(src));
+
+  uint64_t lower;
+  memcpy(&lower, src, sizeof(lower));
+  print_layer({lower, 0});
+  /*
+  */
+
+  size_t srclen = 8;
+  char out[20];
+  size_t outlen;
+  base64_encode(src, srclen, out, &outlen, 0);
+
+  // without conversion to std::string
+
+  char test_out[20];
+  uint64_t test_outlen;
+  base64_decode(out, outlen, test_out, &test_outlen, 0);
+
+  uint64_t test_lower;
+  memcpy(&test_lower, test_out, sizeof(test_lower));
+  print_layer({test_lower, 0});
+
+  // with conversion to std::string
+
+  std::string std_string(out, outlen);
+
+  char test_2_out[20];
+  uint64_t test_2_outlen;
+  base64_decode(&std_string[0], outlen, test_2_out, &test_2_outlen, 0);
+
+  uint64_t test_2_lower;
+  memcpy(&test_2_lower, test_2_out, sizeof(test_2_lower));
+  print_layer({test_2_lower, 0});
+
+
+
+
+
+  std::string output(out, outlen);
+  std::cout << output << "\n";
+  std::cout << outlen << "\n";
   return output;
-}
+};
 
+layer decode_layer(std::string input) {
+  // char src[] = "hello world";
+  // uint8_t (&array_of_bytes)[sizeof(layer)] =
 
+  std::cout << input << "\n";
+  std::cout << input.length() << "\n";
+
+  size_t srclen = 12;
+  char out[20];
+  size_t outlen;
+  base64_decode(&input[0], srclen, out, &outlen, 0);
+
+  std::cout << outlen << "\n";
+ 
+  uint64_t lower;
+  memcpy(&lower, out, sizeof(lower));
+  return {lower, 0};
+};

@@ -77,6 +77,8 @@ std::ostream& operator << ( std::ostream& os, move const& value ) {
 
 inline layer corners = {1025, 72127962782105600};
 
+#define check_index(layer, i)                                                          \
+  layer[sub_layer[i]] & ((uint64_t)1 << (i - sub_layer_offset[i]))
 
 void print_board(board board) {
   char string[374];
@@ -155,6 +157,68 @@ string pretty_fmt_board(board board) {
 }
 
 
+inline uint pp_index_basic(uint index) {
+  int output_index = 120 - index;
+  int top_offset = 40;
+  int rank_offset = (41 * (output_index / 11));
+  int file_offset = 8 + (3 * (output_index % 11));
+  int string_index = top_offset + rank_offset + file_offset;
+  return string_index;
+};
+
+string basic_fmt_board(board board) {
+  string base = "     +---------------------------------+\n"
+                " 11  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                " 10  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  9  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  8  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  7  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  6  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  5  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  4  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  3  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  2  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "  1  | .  .  .  .  .  .  .  .  .  .  . |\n"
+                "     +---------------------------------+\n"
+                "       a  b  c  d  e  f  g  h  i  j  k  \n\n";
+
+  for (int board_index = 120; board_index > -1; board_index--) {
+    int string_index = pp_index_basic(board_index);
+
+    if (board.black[sub_layer[board_index]] &
+        ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
+      base[string_index] = 'X';
+    } else if (board.white[sub_layer[board_index]] &
+               ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
+      base[string_index] = 'O';
+    } else if (board.king[sub_layer[board_index]] &
+               ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
+      base[string_index] = '#';
+    }
+  }
+
+  return base;
+}
+
+
+string overlay_move_basic(string board, int orig, int dest, layer captures) {
+  board[pp_index_basic(orig) - 1] = '[';
+  board[pp_index_basic(orig) + 1] = ']';
+  board[pp_index_basic(orig)] = ' ';
+  board[pp_index_basic(dest) - 1] = '[';
+  board[pp_index_basic(dest) + 1] = ']';
+
+  while (captures[0]) {
+    board[pp_index_basic(_tzcnt_u64(captures[0]))] = '!';
+    captures[0] = _blsr_u64(captures[0]);
+  }
+  while (captures[1]) {
+    board[pp_index_basic(64 + _tzcnt_u64(captures[1]))] = '!';
+    captures[1] = _blsr_u64(captures[1]);
+  }
+  return board;
+};
+
 string overlay_move(string board, int orig, int dest, layer captures) {
   board[pp_index(orig) - 1] = '[';
   board[pp_index(orig) + 2] = ']';
@@ -208,7 +272,7 @@ void print_board_r(board board) {
 std::ostream& operator << ( std::ostream& os, board const& value ) {
   // something about the unicode bars conflicts with the catch2
   // printing, so we replace them with slightly uglier dashes
-    auto s = std::regex_replace(pretty_fmt_board(value), std::regex("─"), "-");
-    os << s;
+    // auto s = std::regex_replace(pretty_fmt_board(value), std::regex("─"), "-");
+    os << basic_fmt_board(value);
     return os;
 }

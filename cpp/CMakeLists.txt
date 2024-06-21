@@ -10,6 +10,8 @@ include(cmake/CPM.cmake)
 CPMAddPackage("gh:catchorg/Catch2@3.5.4")
 CPMAddPackage("gh:fmtlib/fmt#10.2.1")
 CPMAddPackage("gh:emil-e/rapidcheck#ff6af6fc683159deb51c543b065eba14dfcf329b")
+# CPMAddPackage("gh:ReneNyffenegger/cpp-base64#951de609dbe27ce8864dfe47323c4ade96bee86e")
+CPMAddPackage("gh:aklomp/base64#b20a31a997e0b48274fa09e58b65ee9202531e4f")
 set(RC_INSTALL_ALL_EXTRAS ON CACHE BOOL "Rapidcheck Catch Support" FORCE)
 
 # This is your project statement. You should always list languages;
@@ -39,7 +41,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Adding something we can run - Output name matches target name
 add_executable(test tests/capture.cpp)
-target_link_libraries(test PRIVATE fmt::fmt-header-only Catch2::Catch2WithMain rapidcheck_catch)
+target_link_libraries(test PRIVATE fmt::fmt-header-only Catch2::Catch2WithMain rapidcheck_catch base64)
 
 set(CMAKE_CXX_FLAGS "-O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23")
 
@@ -47,8 +49,8 @@ set(CMAKE_CXX_FLAGS "-O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23")
 # even flags, so linking a target that does not exist will not give a configure-time error.
 # target_link_libraries(MyExample PRIVATE MyLibExample)
 
-add_custom_command(
-    TARGET test
-    POST_BUILD
-    COMMAND test
-    )
+# add_custom_command(
+#     TARGET test
+#     POST_BUILD
+#     COMMAND test
+#     )

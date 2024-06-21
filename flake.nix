@@ -26,6 +26,9 @@
         packages = p: [];
 
         buildInputs = with pkgs.haskell.packages.ghc945; [
+          # first and foremost: a tolerable shell
+          pkgs.bashInteractive
+
           cabal-install
 
           # Helpful tools for `nix develop` shells

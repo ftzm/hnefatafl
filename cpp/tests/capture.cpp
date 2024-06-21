@@ -28,6 +28,7 @@ public:
 
   void testRunStarting(Catch::TestRunInfo const &) override {
     init_move_globals();
+    init_hashes();
   }
 };
 CATCH_REGISTER_LISTENER(testRunListener)
@@ -904,12 +905,6 @@ TEST_CASE("get_capture_move_boards center r") {
 TEST_CASE("get_capture_move_boards rotation is always correct") {
 }
 
-TEST_CASE("black moves and boards match") {
-}
-
-TEST_CASE("white moves and boards match") {
-}
-
 TEST_CASE("move indices are within index bounds") {
 }
 
@@ -937,6 +932,8 @@ template <typename T> bool elem(std::vector<T> v, T item) {
   return std::find(v.begin(), v.end(), item) != v.end();
 }
 
+bool corner_pred(uint8_t val) {return val == 0 || val == 10 || val == 110 || val == 120;};
+
 namespace rc {
 template <> struct Arbitrary<board> {
   static Gen<board> arbitrary() {
@@ -944,8 +941,11 @@ template <> struct Arbitrary<board> {
       // black
       layer black = {0, 0};
       const size_t black_size = *gen::inRange(1, 25);
-      const std::vector<int> black_indices =
-          *gen::unique<std::vector<int>>(black_size, gen::inRange(1, 121));
+      const std::vector<int> black_indices = *gen::unique<std::vector<int>>(
+          black_size,
+          gen::suchThat(gen::inRange(1, 121), [](int x) {
+            return !corner_pred(x) && !(x == 60);
+          }));
       for (int i : black_indices) {
         black[sub_layer[i]] |= ((uint64_t)1 << sub_layer_offset_direct[i]);
       }
@@ -957,7 +957,7 @@ template <> struct Arbitrary<board> {
       const std::vector<int> white_indices = *gen::unique<std::vector<int>>(
           black_size,
           gen::suchThat(gen::inRange(1, 121), [black_indices](int x) {
-            return !elem(black_indices, x);
+            return !elem(black_indices, x) && !corner_pred(x) && !(x == 60);
           }));
       for (int i : white_indices) {
         white[sub_layer[i]] |= ((uint64_t)1 << sub_layer_offset_direct[i]);
@@ -968,7 +968,7 @@ template <> struct Arbitrary<board> {
       layer king = {0, 0};
       const int king_index = *gen::suchThat(
           gen::inRange(1, 121), [black_indices, white_indices](int x) {
-            return !elem(black_indices, x) && !elem(white_indices, x);
+        return !elem(black_indices, x) && !elem(white_indices, x) && !corner_pred(x);
           });
       king[sub_layer[king_index]] |=
           ((uint64_t)1 << sub_layer_offset_direct[king_index]);
@@ -1028,9 +1028,6 @@ std::optional<uint8_t> move_east(uint i) {
 std::optional<uint8_t> move_west(uint i) {
   return (i % 11) < 10 ? std::optional{i + 1} : std::nullopt;
 }
-
-
-bool corner_pred(uint8_t val) {return val == 0 || val == 10 || val == 110 || val == 120;};
 
 
 
@@ -1462,6 +1459,25 @@ TEST_CASE("black moves correct old") {
   });
 }
 
+TEST_CASE("black moves and boards match") {
+  rc::prop("test", [](const board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_team_moves<true>(b, &total, ms, bs);
+    for (int i = 0; i < total; i++) {
+      move m = ms[i];
+      board nb = bs[i];
+      layer correct_layer = {b.black[0], b.black[1]};
+      // layer correct_layer = {0, 0};
+      correct_layer[sub_layer[m.orig]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
+      correct_layer[sub_layer[m.dest]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      REQUIRE(stringify(nb.black) == stringify(correct_layer));
+    }
+  });
+}
+
+
 //*****************************************************************************
 // White
 
@@ -1484,6 +1500,25 @@ TEST_CASE("white moves correct old") {
     test_moves_correct(bs, ms, total, b.white, b.get_occ());
   });
 }
+
+TEST_CASE("white moves and boards match") {
+  rc::prop("test", [](const board b) {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    get_team_moves<false>(b, &total, ms, bs);
+    for (int i = 0; i < total; i++) {
+      move m = ms[i];
+      board nb = bs[i];
+      layer correct_layer = {b.white[0], b.white[1]};
+      // layer correct_layer = {0, 0};
+      correct_layer[sub_layer[m.orig]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
+      correct_layer[sub_layer[m.dest]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      REQUIRE(stringify(nb.white) == stringify(correct_layer));
+    }
+  });
+}
+
 
 //*****************************************************************************
 // King
@@ -1546,26 +1581,27 @@ TEST_CASE("simple king moves correct") {
 // Bench move
 //*****************************************************************************
 
-struct move_result {
+struct split_move_result {
   move moves[235];
   board boards[235];
   int total;
 };
 
 TEST_CASE("bench moves", "[benchmark]") {
-  board boards[10] = {
-    rc::gen::arbitrary<board>()(1000, 100).value(),
-    rc::gen::arbitrary<board>()(2000, 100).value(),
-    rc::gen::arbitrary<board>()(3000, 100).value(),
-    rc::gen::arbitrary<board>()(4000, 100).value(),
+  board boards[1] = {
+    // rc::gen::arbitrary<board>()(1000, 100).value(),
+    // rc::gen::arbitrary<board>()(2000, 100).value(),
+    // rc::gen::arbitrary<board>()(3000, 100).value(),
+    // rc::gen::arbitrary<board>()(4000, 100).value(),
     rc::gen::arbitrary<board>()(5000, 100).value(),
-    rc::gen::arbitrary<board>()(6000, 100).value(),
-    rc::gen::arbitrary<board>()(7000, 100).value(),
-    rc::gen::arbitrary<board>()(8000, 100).value(),
-    rc::gen::arbitrary<board>()(9000, 100).value(),
-    rc::gen::arbitrary<board>()(9999, 100).value(),
+    // rc::gen::arbitrary<board>()(6000, 100).value(),
+    // rc::gen::arbitrary<board>()(7000, 100).value(),
+    // rc::gen::arbitrary<board>()(8000, 100).value(),
+    // rc::gen::arbitrary<board>()(9000, 100).value(),
+    // rc::gen::arbitrary<board>()(9999, 100).value(),
   };
-  move_result r;
+  split_move_result r;
+  /*
   BENCHMARK("black") {
     for (board b : boards) {
       get_team_moves_black(b, &(r.total), r.moves, r.boards);
@@ -1602,22 +1638,103 @@ TEST_CASE("bench moves", "[benchmark]") {
     }
     return r;
   };
+  */
   BENCHMARK("negamax ab unsorted") {
-  /*
     for (board b : boards) {
       auto r = negamax_ab_runner(b, true, 5);
     }
-   */
-    auto r = negamax_ab_runner(start_board, true, 5);
+    // auto r = negamax_ab_runner(start_board, true, 4);
     return r;
   };
   BENCHMARK("negamax ab sorted") {
-  /*
     for (board b : boards) {
       auto r = negamax_ab_sorted_runner(b, true, 5);
     }
-  */
-    auto r = negamax_ab_sorted_runner(start_board, true, 5);
+    // auto r = negamax_ab_sorted_runner(start_board, true, 4);
     return r;
   };
+  BENCHMARK("negamax ab sorted pv") {
+    for (board b : boards) {
+      auto r = negamax_ab_sorted_pv_runner(b, true, 5);
+    }
+    // auto r = negamax_ab_sorted_runner(start_board, true, 4);
+    return r;
+  };
+  BENCHMARK("negamax ab sorted z") {
+    for (board b : boards) {
+      memset(tt, 0, tt_size * sizeof(tt_entry));
+      auto r = negamax_ab_sorted_z_runner(b, true, 5);
+    }
+    // auto r = negamax_ab_sorted_z_runner(start_board, true, 4);
+    return r;
+  };
+  BENCHMARK("negamax ab unsorted z iter") {
+    for (board b : boards) {
+      memset(tt, 0, tt_size * sizeof(tt_entry));
+      auto r = negamax_ab_z_iter_runner(b, true, 5);
+    }
+    return r;
+  };
+  /*
+  */
+}
+
+TEST_CASE("hashing results in fewer nodes visited") {
+  rc::prop("test", [](board b) {
+    // b = start_board;
+    memset(tt, 0, tt_size * sizeof(tt_entry));
+    int depth = 5;
+    int no_hash_tally = 0;
+    int hash_tally = 0;
+    int iter_hash_tally = 0;
+    bool is_black_turn = true;
+    uint64_t start_zobrist = hash_for_board(b, is_black_turn);
+    z_usage = 0;
+    negamax_ab_sorted_z((move){0, 0}, b, start_zobrist, is_black_turn,
+                                 depth, INT_MIN, INT_MAX, &hash_tally);
+    // print_board(b);
+    // printf("--------------------\n");
+    negamax_ab_sorted((move){0, 0}, b, is_black_turn, depth, INT_MIN,
+				 INT_MAX, &no_hash_tally);
+
+    memset(tt, 0, tt_size * sizeof(tt_entry));
+    for (int i = 1; i < depth; i++) {
+      negamax_ab_z((move){0, 0}, b, start_zobrist, is_black_turn,
+                   i, INT_MIN, INT_MAX, &iter_hash_tally);
+    }
+    iter_hash_tally = 0;
+    negamax_ab_z((move){0, 0}, b, start_zobrist, is_black_turn,
+                        depth, INT_MIN, INT_MAX, &iter_hash_tally);
+
+    print_board(b);
+    setlocale(LC_NUMERIC, "");
+    printf("no hash tally: %'d\n", no_hash_tally);
+    printf("hash tally: %'d\n", hash_tally);
+    printf("iter hash tally: %'d\n", iter_hash_tally);
+    printf("z usage: %'d\n", z_usage);
+    printf("\n");
+    printf("---------------------------------\n");
+    printf("\n");
+    return hash_tally < no_hash_tally || z_usage == 0;
+  });
+}
+
+TEST_CASE("test pv") {
+  auto res = negamax_ab_sorted_pv_runner(start_board, true, 5);
+  for (int i = 0; i < MAX_DEPTH; i++) {
+    printf("[%d] = %d\n", i, PV_LENGTH[i]);
+  }
+  for (int i = 0; i < PV_LENGTH[0]; i++) {
+    auto m = PV_TABLE[0][i] ;
+    std::cout << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0}) << "\n";
+  }
+  // print_board(res._board);
+  REQUIRE(false);
+}
+
+TEST_CASE("test encode") {
+  std::string black_string = encode_layer(start_board.black);
+  layer black_layer = decode_layer(black_string);
+  REQUIRE(stringify(black_layer) == stringify(start_board.black));
 }

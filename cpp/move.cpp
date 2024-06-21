@@ -4,6 +4,7 @@
 #include <string>
 #include "layer.cpp"
 #include "capture.cpp"
+#include "zobrist.cpp"
 
 using std::string;
 
@@ -341,11 +342,15 @@ void process_capture_move(const board *base_board, board *boards, move *moves,
   board_layer(is_black, !is_rotated)[sub_layer[dest_r]] |=
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
-  capture_functions[(is_rotated ? dest_r : dest)](board_layer(is_black, false),
-						  board_layer(is_black, true),
-						  board_layer(!is_black, false),
-						  board_layer(!is_black, true),
-						  (is_rotated ? dest_r : dest));
+  // capture_functions[(is_rotated ? dest_r : dest)](board_layer(is_black, false),
+  // 						  board_layer(is_black, true),
+  // 						  board_layer(!is_black, false),
+  // 						  board_layer(!is_black, true),
+  // 						  (is_rotated ? dest_r : dest));
+
+  apply_captures_niave(
+		       board_layer(is_black, false), board_layer(!is_black, false),
+		       board_layer(!is_black, true), (is_rotated ? dest_r : dest));
 
 
   shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
@@ -466,10 +471,84 @@ process_move(const board *base_board, board *boards, move *moves,
 
   // if upper we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
-  offset_coords(is_upper, 64);
-  // if constexpr (is_upper) {
-  //   orig += 64, dest += 64, noop;
-  // }
+  // offset_coords(is_upper, 64);
+  if constexpr (is_upper) {
+    orig += 64, dest += 64, noop;
+  }
+
+  uint8_t orig_r = select_rotation(is_rotated)[orig];
+  uint8_t dest_r = select_rotation(is_rotated)[dest];
+
+  board_layer(is_black, !is_rotated)[sub_layer[orig_r]] -=
+      (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
+  board_layer(is_black, !is_rotated)[sub_layer[dest_r]] |=
+      (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+
+  // this can maybe actually be moved up to where the check is done? actually no the check relies on the un-adjusted dest and the capture relies on the adjusted dest
+  if (is_capture) {
+    // printf("FOUND CAPTURE\n");
+    apply_captures_niave(
+        board_layer(is_black, false), board_layer(!is_black, false),
+        board_layer(!is_black, true), (is_rotated ? dest_r : dest));
+    /*
+    capture_functions[(is_rotated ? dest_r : dest)](
+        board_layer(is_black, false), board_layer(is_black, true),
+        board_layer(!is_black, false), board_layer(!is_black, true),
+        (is_rotated ? dest_r : dest));
+    */
+  }
+
+  shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
+
+  moves[*total] =
+      (struct move){(is_rotated ? orig_r : orig), (is_rotated ? dest_r : dest)};
+  boards[*total] = board;
+  (*total)++;
+}
+
+struct move_result {
+  move m;
+  board b;
+  uint64_t z;
+};
+
+template <bool is_black, bool is_rotated, bool is_lower, bool is_upper>
+inline __attribute__((always_inline)) void
+process_move_z(const board *base_board, const uint64_t z, move_result *results,
+                  int *total, uint8_t orig, uint8_t dest, const layer cap_dests) {
+
+  board board = *base_board;
+
+  bool is_capture;
+
+  // if neither upper nor lower then this is a center row, and we should offset
+  // by 55 from the start
+  // offset_coords(!is_lower && !is_upper, 55);
+  if constexpr (!is_lower && !is_upper) {
+    orig += 55;
+    dest += 55;
+    board_layer(is_black, is_rotated)[sub_layer[orig]] -=
+        (uint64_t)1 << sub_layer_offset_direct[orig];
+    board_layer(is_black, is_rotated)[sub_layer[dest]] |=
+        (uint64_t)1 << sub_layer_offset_direct[dest];
+
+    is_capture = cap_dests[sub_layer[dest]] &
+                      ((uint64_t)1 << sub_layer_offset_direct[dest]);
+
+  } else {
+    board_layer(is_black, is_rotated)[is_upper] -= (uint64_t)1 << orig;
+    board_layer(is_black, is_rotated)[is_upper] |= (uint64_t)1 << dest;
+
+    // use the pre-offset value to check the capture destinations
+    is_capture = cap_dests[is_upper] & ((uint64_t)1 << dest);
+  }
+
+  // if upper we should offset by 64 to get the layer index from the sub-layer
+  // index before recording the move and getting the rotated coords.
+  // offset_coords(is_upper, 64);
+  if constexpr (is_upper) {
+    orig += 64, dest += 64, noop;
+  }
 
   uint8_t orig_r = select_rotation(is_rotated)[orig];
   uint8_t dest_r = select_rotation(is_rotated)[dest];
@@ -492,9 +571,24 @@ process_move(const board *base_board, board *boards, move *moves,
 
   shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
 
-  moves[*total] =
-      (struct move){(is_rotated ? orig_r : orig), (is_rotated ? dest_r : dest)};
-  boards[*total] = board;
+  move m = {(is_rotated ? orig_r : orig), (is_rotated ? dest_r : dest)};
+  uint64_t new_z = is_black ? next_hash_black(z, m) : next_hash_white(z, m);
+
+  layer capture_diff = is_black ? base_board->white ^ board.white
+                                : base_board->black ^ board.black;
+
+  while (capture_diff[0]) {
+    int capture_index = _tzcnt_u64(capture_diff[0]);
+    new_z ^= is_black ? white_hashes[capture_index] : black_hashes[capture_index];
+    capture_diff[0] = _blsr_u64(capture_diff[0]);
+  }
+  while (capture_diff[1]) {
+    int capture_index = _tzcnt_u64(capture_diff[1]) + 64;
+    new_z ^= is_black ? white_hashes[capture_index] : black_hashes[capture_index];
+    capture_diff[1] = _blsr_u64(capture_diff[1]);
+  }
+
+  results[(*total)] =  {m, board, new_z};
   (*total)++;
 }
 
@@ -519,6 +613,27 @@ get_next_row_boards(board *boards, const uint64_t occ, const board &board,
   }
 }
 
+template <bool is_black, bool is_rotated, int index, int row_offset>
+inline __attribute__((always_inline)) void
+get_next_row_boards_z(move_result *results, uint64_t zobrist, const uint64_t occ, const board &board,
+                          int *total, const layer cap_dests) {
+  unsigned short movers =
+    (board_layer(is_black, is_rotated)[index] >> row_offset) & 0b11111111111;
+  while (movers) {
+    uint8_t orig = _tzcnt_u16(movers);
+    const unsigned short blockers = ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig] << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_z<is_black, is_rotated, !index, index>(&board, zobrist, results, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
+    }
+    movers &= movers - 1;
+  }
+}
+
+
 template <bool is_black, bool is_rotated>
 inline __attribute__((always_inline)) void
 get_next_row_boards_center(board *boards, const layer occ, const board &board,
@@ -541,6 +656,29 @@ get_next_row_boards_center(board *boards, const layer occ, const board &board,
     movers &= movers - 1;
   }
 }
+
+template <bool is_black, bool is_rotated>
+inline __attribute__((always_inline)) void
+get_next_row_boards_center_z(move_result *results, uint64_t zobrist, const layer occ, const board &board,
+                           int *total, const layer cap_dests) {
+  unsigned short movers = get_center_row(board_layer(is_black, is_rotated));
+  while (movers) {
+    uint8_t orig = _tzcnt_u16(movers);
+    const unsigned short blockers = get_center_row(occ);
+    uint16_t row_moves = row_moves_table[blockers][orig];
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u16(row_moves);
+        if (dest == 5) {
+	  row_moves &= row_moves - 1;
+          continue;
+        }
+      process_move_z<is_black, is_rotated, false, false>(&board, zobrist, results, total, orig, dest, cap_dests);
+      row_moves &= row_moves - 1;
+    }
+    movers &= movers - 1;
+  }
+}
+
 
 template <int index, unsigned char sub_index, int row_offset>
 inline __attribute__((always_inline)) void
@@ -790,6 +928,61 @@ get_team_moves(const board current, int *total, move *moves,
   get_next_row_boards<is_black, true, 1, 35>(boards, occ_r[1], current, total, moves, capture_dests_r);
   get_next_row_boards<is_black, true, 1, 46>(boards, occ_r[1], current, total, moves, capture_dests_r);
 }
+
+template <bool is_black>
+inline __attribute__((always_inline)) void
+get_team_moves_z(const board current, uint64_t zobrist, int *total, move_result *results) {
+  *total = 0;
+
+  const layer occ = {
+      current.black[0] | current.white[0] | current.king[0] | corners[0],
+      current.black[1] | current.white[1] | current.king[1] | corners[1]};
+
+  const layer capture_dests =
+      find_capture_destinations_op(name_layer(current, is_black, false),
+                                   name_layer(current, !is_black, false));
+
+  // // lower 5 rows
+  get_next_row_boards_z<is_black, false, 0, 0>(results, zobrist, occ[0], current,  total, capture_dests);
+  get_next_row_boards_z<is_black, false, 0, 11>(results, zobrist, occ[0], current, total, capture_dests);
+  get_next_row_boards_z<is_black, false, 0, 22>(results, zobrist, occ[0], current, total, capture_dests);
+  get_next_row_boards_z<is_black, false, 0, 33>(results, zobrist, occ[0], current, total, capture_dests);
+  get_next_row_boards_z<is_black, false, 0, 44>(results, zobrist, occ[0], current, total, capture_dests);
+
+  get_next_row_boards_center_z<is_black, false>(results, zobrist, occ, current, total, capture_dests);
+
+  // // upper 5 rows
+  get_next_row_boards_z<is_black, false, 1, 2>( results, zobrist, occ[1], current,  total, capture_dests);
+  get_next_row_boards_z<is_black, false, 1, 13>(results, zobrist, occ[1], current, total, capture_dests);
+  get_next_row_boards_z<is_black, false, 1, 24>(results, zobrist, occ[1], current, total, capture_dests);
+  get_next_row_boards_z<is_black, false, 1, 35>(results, zobrist, occ[1], current, total, capture_dests);
+  get_next_row_boards_z<is_black, false, 1, 46>(results, zobrist, occ[1], current, total, capture_dests);
+
+  const layer occ_r = {
+      current.black_r[0] | current.white_r[0] | current.king_r[0] | corners[0],
+      current.black_r[1] | current.white_r[1] | current.king_r[1] | corners[1]};
+
+  const layer capture_dests_r =
+      find_capture_destinations_op(name_layer(current, is_black, true),
+                                   name_layer(current, !is_black, true));
+
+  // lower 5 rows
+  get_next_row_boards_z<is_black, true, 0, 0>( results, zobrist, occ_r[0], current, total, capture_dests_r);
+  get_next_row_boards_z<is_black, true, 0, 11>(results, zobrist, occ_r[0], current, total, capture_dests_r);
+  get_next_row_boards_z<is_black, true, 0, 22>(results, zobrist, occ_r[0], current, total, capture_dests_r);
+  get_next_row_boards_z<is_black, true, 0, 33>(results, zobrist, occ_r[0], current, total, capture_dests_r);
+  get_next_row_boards_z<is_black, true, 0, 44>(results, zobrist, occ_r[0], current, total, capture_dests_r);
+
+  get_next_row_boards_center_z<is_black, true>(results, zobrist, occ_r, current, total, capture_dests_r);
+
+  // upper 5 rows
+  get_next_row_boards_z<is_black, true, 1, 2>( results, zobrist, occ_r[1], current, total,  capture_dests_r);
+  get_next_row_boards_z<is_black, true, 1, 13>(results, zobrist, occ_r[1], current, total,  capture_dests_r);
+  get_next_row_boards_z<is_black, true, 1, 24>(results, zobrist, occ_r[1], current, total,  capture_dests_r);
+  get_next_row_boards_z<is_black, true, 1, 35>(results, zobrist, occ_r[1], current, total,  capture_dests_r);
+  get_next_row_boards_z<is_black, true, 1, 46>(results, zobrist, occ_r[1], current, total,  capture_dests_r);
+}
+
 
 
 inline __attribute__((always_inline)) void
