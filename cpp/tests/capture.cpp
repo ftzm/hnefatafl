@@ -1588,17 +1588,33 @@ struct split_move_result {
 };
 
 TEST_CASE("bench moves", "[benchmark]") {
+  int depth = 5;
+  /*
+  board boards[5] = {
+    // rc::gen::arbitrary<board>()(1000, 100).value(),
+    // rc::gen::arbitrary<board>()(2000, 100).value(),
+    // rc::gen::arbitrary<board>()(3000, 100).value(),
+    // rc::gen::arbitrary<board>()(4000, 100).value(),
+    // rc::gen::arbitrary<board>()(5000, 100).value(),
+    rc::gen::arbitrary<board>()(6000, 100).value(),
+    rc::gen::arbitrary<board>()(7000, 100).value(),
+    rc::gen::arbitrary<board>()(8000, 100).value(),
+    rc::gen::arbitrary<board>()(9000, 100).value(),
+    rc::gen::arbitrary<board>()(9999, 100).value(),
+  };
+  */
   board boards[1] = {
     // rc::gen::arbitrary<board>()(1000, 100).value(),
     // rc::gen::arbitrary<board>()(2000, 100).value(),
     // rc::gen::arbitrary<board>()(3000, 100).value(),
     // rc::gen::arbitrary<board>()(4000, 100).value(),
-    rc::gen::arbitrary<board>()(5000, 100).value(),
+    // rc::gen::arbitrary<board>()(5000, 100).value(),
     // rc::gen::arbitrary<board>()(6000, 100).value(),
     // rc::gen::arbitrary<board>()(7000, 100).value(),
     // rc::gen::arbitrary<board>()(8000, 100).value(),
     // rc::gen::arbitrary<board>()(9000, 100).value(),
     // rc::gen::arbitrary<board>()(9999, 100).value(),
+    start_board
   };
   split_move_result r;
   /*
@@ -1641,21 +1657,21 @@ TEST_CASE("bench moves", "[benchmark]") {
   */
   BENCHMARK("negamax ab unsorted") {
     for (board b : boards) {
-      auto r = negamax_ab_runner(b, true, 5);
+      auto r = negamax_ab_runner(b, true, depth);
     }
     // auto r = negamax_ab_runner(start_board, true, 4);
     return r;
   };
   BENCHMARK("negamax ab sorted") {
     for (board b : boards) {
-      auto r = negamax_ab_sorted_runner(b, true, 5);
+      auto r = negamax_ab_sorted_runner(b, true, depth);
     }
     // auto r = negamax_ab_sorted_runner(start_board, true, 4);
     return r;
   };
   BENCHMARK("negamax ab sorted pv") {
     for (board b : boards) {
-      auto r = negamax_ab_sorted_pv_runner(b, true, 5);
+      auto r = negamax_ab_sorted_pv_runner(b, true, depth);
     }
     // auto r = negamax_ab_sorted_runner(start_board, true, 4);
     return r;
@@ -1663,7 +1679,7 @@ TEST_CASE("bench moves", "[benchmark]") {
   BENCHMARK("negamax ab sorted z") {
     for (board b : boards) {
       memset(tt, 0, tt_size * sizeof(tt_entry));
-      auto r = negamax_ab_sorted_z_runner(b, true, 5);
+      auto r = negamax_ab_sorted_z_runner(b, true, depth);
     }
     // auto r = negamax_ab_sorted_z_runner(start_board, true, 4);
     return r;
@@ -1671,7 +1687,7 @@ TEST_CASE("bench moves", "[benchmark]") {
   BENCHMARK("negamax ab unsorted z iter") {
     for (board b : boards) {
       memset(tt, 0, tt_size * sizeof(tt_entry));
-      auto r = negamax_ab_z_iter_runner(b, true, 5);
+      auto r = negamax_ab_z_iter_runner(b, true, depth);
     }
     return r;
   };
@@ -1721,13 +1737,17 @@ TEST_CASE("hashing results in fewer nodes visited") {
 
 TEST_CASE("test pv") {
   auto res = negamax_ab_sorted_pv_runner(start_board, true, 5);
+  /*
   for (int i = 0; i < MAX_DEPTH; i++) {
     printf("[%d] = %d\n", i, PV_LENGTH[i]);
   }
+  */
   for (int i = 0; i < PV_LENGTH[0]; i++) {
     auto m = PV_TABLE[0][i] ;
-    std::cout << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0}) << "\n";
+    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+    std::cout << "move: " << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
   }
   // print_board(res._board);
   REQUIRE(false);
@@ -1737,4 +1757,81 @@ TEST_CASE("test encode") {
   std::string black_string = encode_layer(start_board.black);
   layer black_layer = decode_layer(black_string);
   REQUIRE(stringify(black_layer) == stringify(start_board.black));
+}
+
+TEST_CASE("board hash round trip") {
+  rc::prop("test", [](board b) {
+    std::string board_string = encode_mini(to_mini(b));
+    board b2 = decode_mini(board_string).to_full();
+    REQUIRE(b == b2);
+  });
+}
+
+const char* sanity_capture_string = \
+  " .  .  .  X  X  X  .  X  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  .  O  X  .  .  .  . "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  X  .  O  O  #  O  O  .  X  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " .  .  .  .  X  .  .  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  X  .  X  X  X  .  .  . ";
+
+const board sanity_capture_board = read_board(sanity_capture_string);
+
+TEST_CASE("sanity check capture") {
+  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 3);
+  /*
+  for (int i = 0; i < MAX_DEPTH; i++) {
+    printf("[%d] = %d\n", i, PV_LENGTH[i]);
+  }
+  */
+  for (int i = 0; i < PV_LENGTH[0]; i++) {
+    auto m = PV_TABLE[0][i] ;
+    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+    std::cout << "move: " << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+  }
+  // print_board(res._board);
+  std::cout << "score: " << res << "\n";
+  REQUIRE(false);
+}
+
+
+const char* sanity_capture_string_white = \
+  " .  .  .  X  X  X  .  X  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  .  O  X  .  .  .  . "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  X  .  O  O  #  O  O  .  X  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " .  .  .  .  X  .  .  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  X  .  X  X  X  .  .  . ";
+
+const board sanity_capture_board_white = read_board(sanity_capture_string_white);
+
+TEST_CASE("sanity check capture white") {
+  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, false, 3);
+  /*
+  for (int i = 0; i < MAX_DEPTH; i++) {
+    printf("[%d] = %d\n", i, PV_LENGTH[i]);
+  }
+  */
+  for (int i = 0; i < PV_LENGTH[0]; i++) {
+    auto m = PV_TABLE[0][i] ;
+    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+    std::cout << "move: " << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+  }
+  // print_board(res._board);
+  std::cout << "score: " << res << "\n";
+  REQUIRE(false);
 }

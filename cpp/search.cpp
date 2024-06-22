@@ -9,7 +9,7 @@
 #include <iostream>
 
 int white_pawn_count(const board b) {
-  return __builtin_popcountll(b.black[0]) + __builtin_popcountll(b.black[1]);
+  return __builtin_popcountll(b.white[0]) + __builtin_popcountll(b.white[1]);
 }
 
 int white_pawn_move_count(const board b) {
@@ -17,7 +17,7 @@ int white_pawn_move_count(const board b) {
 }
 
 int black_pawn_count(const board b) {
-  return __builtin_popcountll(b.white[0]) + __builtin_popcountll(b.white[1]);
+  return __builtin_popcountll(b.black[0]) + __builtin_popcountll(b.black[1]);
 }
 
 int black_pawn_move_count(const board b) {
@@ -60,7 +60,7 @@ int score_board(const board *board, const bool is_black_turn) {
   if (king_escaped(*board)) {
     white_score = 1000000;
   } else {
-    white_score = (white_pawn_count(*board) * 10000) +
+    white_score = (white_pawn_count(*board) * 100000) +
                   white_pawn_move_count(*board) +
                   (get_king_move_count(*board) * 100);
   }
@@ -69,7 +69,7 @@ int score_board(const board *board, const bool is_black_turn) {
   if (king_captured(*board)) {
     black_score = 1000000;
   } else {
-    black_score = (black_pawn_count(*board) * 1000) +
+    black_score = (black_pawn_count(*board) * 10000) +
                   black_pawn_move_count(*board) +
                   corner_protection(*board) * 0;
   }
@@ -234,6 +234,7 @@ const int MAX_DEPTH = 32;
 int PV_LENGTH[MAX_DEPTH];
 move PV_TABLE[MAX_DEPTH][MAX_DEPTH];
 board PV_TABLE_BOARDS[MAX_DEPTH][MAX_DEPTH];
+move KILLER_MOVES[MAX_DEPTH][2];
 
 score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
                                        const int depth, const int ply, int alpha, int beta,
@@ -241,6 +242,10 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   PV_LENGTH[ply] = ply;
 
   if (depth == 0) {
+    // std::cout << "is black: " << is_black_turn << "\n";
+    // auto res = score_board(&b, is_black_turn);
+    // std::cout << "score: " << res << "\n";
+    // return res;
     return score_board(&b, is_black_turn);
   }
 
@@ -255,9 +260,12 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
 
   negamax_ab_result combi[235];
   for (int i = 0; i < total; i++) {
-    combi[i] =
-        (negamax_ab_result){moves_table[i], boards_table[i],
-                            score_board_for_order(&boards_table[i], is_black_turn)};
+    int s = depth > 1 ? score_board_for_order(&boards_table[i], is_black_turn) : 0;
+    combi[i] = (negamax_ab_result){moves_table[i], boards_table[i], s};
+    // Add bonus if killer move
+    if (combi[i]._move == KILLER_MOVES[ply][0] ||
+        combi[i]._move == KILLER_MOVES[ply][1])
+      combi[i]._score += 10000000;
   }
 
   if (depth > 1) {
@@ -269,19 +277,25 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   // start with a bogus best
   score best = INT_MIN;
   for (int i = 0; i < total; i++) {
+    // printf("----------------------\n");
+    // print_board(combi[i]._board);
     (*tally)++;
 
     // calcualte result and negate score
     score next_result =
         -negamax_ab_sorted_pv(combi[i]._move, combi[i]._board, !is_black_turn,
                              depth - 1, ply + 1, -beta, -alpha, tally);
+    // printf("score: %d\n", next_result);
+
 
     if (next_result > best) {
       best = next_result;
     }
     if (best > alpha) {
+      // ALPHA BETA HANDLING ---------------------------------------------------------------
       alpha = best;
 
+      // PV HANDLING ---------------------------------------------------------------
       // assign move discovered here
       PV_TABLE[ply][ply] = combi[i]._move;
       PV_TABLE_BOARDS[ply][ply] = combi[i]._board; // me only
@@ -293,11 +307,16 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
       // adjust pv length
       PV_LENGTH[ply] = PV_LENGTH[ply + 1];
 
+      // KILLER HANDLING ---------------------------------------------------------------
+      KILLER_MOVES[ply][1] = KILLER_MOVES[ply][0];
+      KILLER_MOVES[ply][0] = combi[i]._move;
+
     }
     if (alpha > beta) {
       break;
     }
   }
+  // printf("----------------------");
 
   return best;
 }
@@ -452,6 +471,8 @@ negamax_ab_result negamax_ab_sorted_runner(board b, bool is_black, int depth) {
 
 score negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
   int tally = 0;
+
+  memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
   auto res = negamax_ab_sorted_pv((move){0, 0}, b, is_black, depth, 0, INT_MIN,
                                INT_MAX, &tally);
   // printf("tally: %d\n", tally);
@@ -574,12 +595,12 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
     }
   }
 
-  // if (depth > 1 && total) {
+  if (depth > 1 && total) {
     std::sort(combi + 1, combi + total, [](const negamax_ab_result &lhs, const negamax_ab_result &rhs) {
       return (int)lhs._score > (int)rhs._score;
     });
     // assert(combi[0]._score >= combi[total-1]._score);
-  // }
+  }
 
   /*
   if ((depth > 1) && (prev_best_move.has_value())) {

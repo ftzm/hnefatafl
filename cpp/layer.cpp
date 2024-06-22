@@ -282,16 +282,6 @@ inline __attribute__((always_inline)) constexpr layer operator>>(const layer inp
 //******************************************************************************
 // base64
 
-static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-static const char base91_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~\"";
-
-/*
-uint8_t (&array_of_bytes)[sizeof(uint64_t)] =
-      *reinterpret_cast<uint8_t(*)[sizeof(uint64_t)]>(
-        &proper_endian_uint64);
-*/
-
 std::string encode_layer(layer input) {
   // char src[] = "hello world";
   // uint8_t (&array_of_bytes)[sizeof(layer)] =
@@ -299,23 +289,24 @@ std::string encode_layer(layer input) {
   // char(&src)[sizeof(uint64_t)] = *reinterpret_cast<char(*)[sizeof(uint64_t)]>(input[0]);
 
 
-  char src[8];
+  char src[16];
   memcpy(&src, input.data(), sizeof(src));
 
-  uint64_t lower;
-  memcpy(&lower, src, sizeof(lower));
-  print_layer({lower, 0});
+  layer test_layer;
+  memcpy(&test_layer, src, sizeof(test_layer));
+  
+  print_layer(test_layer);
   /*
   */
 
-  size_t srclen = 8;
-  char out[20];
+  size_t srclen = 16;
+  char out[40];
   size_t outlen;
   base64_encode(src, srclen, out, &outlen, 0);
 
   // without conversion to std::string
 
-  char test_out[20];
+  char test_out[40];
   uint64_t test_outlen;
   base64_decode(out, outlen, test_out, &test_outlen, 0);
 
@@ -327,7 +318,7 @@ std::string encode_layer(layer input) {
 
   std::string std_string(out, outlen);
 
-  char test_2_out[20];
+  char test_2_out[40];
   uint64_t test_2_outlen;
   base64_decode(&std_string[0], outlen, test_2_out, &test_2_outlen, 0);
 
@@ -352,14 +343,15 @@ layer decode_layer(std::string input) {
   std::cout << input << "\n";
   std::cout << input.length() << "\n";
 
-  size_t srclen = 12;
-  char out[20];
+  size_t srclen = 24;
+  char out[40];
   size_t outlen;
   base64_decode(&input[0], srclen, out, &outlen, 0);
 
   std::cout << outlen << "\n";
  
-  uint64_t lower;
-  memcpy(&lower, out, sizeof(lower));
-  return {lower, 0};
+  layer l;
+  memcpy(&l, out, sizeof(l));
+  return l;
 };
+
