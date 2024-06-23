@@ -60,7 +60,7 @@ int score_board(const board *board, const bool is_black_turn) {
   if (king_escaped(*board)) {
     white_score = 1000000;
   } else {
-    white_score = (white_pawn_count(*board) * 100000) +
+    white_score = (white_pawn_count(*board) * 10000) +
                   white_pawn_move_count(*board) +
                   (get_king_move_count(*board) * 100);
   }
@@ -105,7 +105,9 @@ int score_board_for_order(const board *board, const bool is_black_turn) {
 }
 
 
-typedef int score;
+typedef int32_t score;
+static const int32_t MIN_SCORE = -INT_MAX;
+static const int32_t MAX_SCORE = INT_MAX;
 
 typedef struct negamax_ab_result {
   move _move;
@@ -234,11 +236,13 @@ const int MAX_DEPTH = 32;
 int PV_LENGTH[MAX_DEPTH];
 move PV_TABLE[MAX_DEPTH][MAX_DEPTH];
 board PV_TABLE_BOARDS[MAX_DEPTH][MAX_DEPTH];
+move PREV_PV[MAX_DEPTH];
+int PREV_PV_LENGTH;
 move KILLER_MOVES[MAX_DEPTH][2];
 
 score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
-                                       const int depth, const int ply, int alpha, int beta,
-                                       int *tally) {
+                                       const int depth, const int ply, int32_t alpha, int32_t beta,
+                           int *tally, bool is_pv) {
   PV_LENGTH[ply] = ply;
 
   if (depth == 0) {
@@ -266,6 +270,10 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     if (combi[i]._move == KILLER_MOVES[ply][0] ||
         combi[i]._move == KILLER_MOVES[ply][1])
       combi[i]._score += 10000000;
+    // Add bonus if we're following the 
+    if (is_pv && (combi[i]._move == PREV_PV[ply])) {
+      combi[i]._score += 100000000;
+    }
   }
 
   if (depth > 1) {
@@ -277,15 +285,19 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   // start with a bogus best
   score best = INT_MIN;
   for (int i = 0; i < total; i++) {
-    // printf("----------------------\n");
-    // print_board(combi[i]._board);
+    // if (depth == 1 && (m.orig == 97 && m.dest == 86)) printf("----------------------\n");
+    // if (depth == 4) printf("----------------------\n");
+    // if (depth == 1 && (m.orig == 97 && m.dest == 86)) print_board(combi[i]._board);
+    // if (depth == 4) print_board(combi[i]._board);
     (*tally)++;
 
     // calcualte result and negate score
+    // the is_pv parameter is (is_pv && !i) because if this _is_ the pv then the first entry must be the next PV node due to the bonus applied above, unless the next PV move wasn't found, which would be a real bug.
     score next_result =
         -negamax_ab_sorted_pv(combi[i]._move, combi[i]._board, !is_black_turn,
-                             depth - 1, ply + 1, -beta, -alpha, tally);
-    // printf("score: %d\n", next_result);
+                              depth - 1, ply + 1, -beta, -alpha, tally, (is_pv && !i));
+    // if (depth == 1 && (m.orig == 97 && m.dest == 86)) printf("score: %d\n", next_result);
+    // if (depth == 4) printf("score: %d\n", next_result);
 
 
     if (next_result > best) {
@@ -316,7 +328,8 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
       break;
     }
   }
-  // printf("----------------------");
+  // if (depth == 1 && (m.orig == 97 && m.dest == 86)) printf("----------------------");
+  // if (depth == 4) printf("----------------------");
 
   return best;
 }
@@ -473,8 +486,20 @@ score negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
   int tally = 0;
 
   memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
-  auto res = negamax_ab_sorted_pv((move){0, 0}, b, is_black, depth, 0, INT_MIN,
-                               INT_MAX, &tally);
+  memset(PREV_PV, 0, MAX_DEPTH * sizeof(move));
+  for (int i = 0; i < depth; i++) {
+    negamax_ab_sorted_pv((move){0, 0}, b, is_black, i, 0, INT_MIN,
+				    INT_MAX, &tally, true);
+    for (int j = 0; j < PV_LENGTH[0]; j++) {
+      PREV_PV[j] = PV_TABLE[0][j];
+    }
+    PREV_PV_LENGTH = PV_LENGTH[0];
+    
+  }
+  /*
+  */
+  auto res = negamax_ab_sorted_pv((move){0, 0}, b, is_black, depth, 0, MIN_SCORE,
+				  MAX_SCORE, &tally, true);
   // printf("tally: %d\n", tally);
   return res;
 }

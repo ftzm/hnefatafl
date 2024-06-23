@@ -736,7 +736,7 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
   //southCapture
   target = dest - 11;
   behind = dest - 22;
-  if (dest > 23 &&
+  if (dest > 21 &&
       foes[sub_layer[target]] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
       friends[sub_layer[behind]] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
     {
@@ -748,7 +748,7 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
   //westCapture
   target = dest + 1;
   behind = dest + 2;
-  if (modDest < 8 &&
+  if (modDest < 9 &&
       foes[sub_layer[target]] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
       friends[sub_layer[behind]] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
     {
@@ -760,7 +760,7 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
   //eastCapture
   target = dest - 1;
   behind = dest - 2;
-  if (modDest > 2 &&
+  if (modDest > 1 &&
       foes[sub_layer[target]] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
       friends[sub_layer[behind]] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
     {

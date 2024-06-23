@@ -1581,6 +1581,22 @@ TEST_CASE("simple king moves correct") {
 // Bench move
 //*****************************************************************************
 
+const char* sanity_capture_string_white = \
+  " .  .  .  X  X  X  .  X  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  .  O  .  O  .  .  . "
+  " X  .  .  .  .  .  .  .  .  .  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  X  .  O  O  #  O  .  .  X  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " .  .  .  .  X  .  .  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  X  .  X  X  X  .  .  . ";
+
+const board sanity_capture_board_white = read_board(sanity_capture_string_white);
+
+
 struct split_move_result {
   move moves[235];
   board boards[235];
@@ -1603,18 +1619,19 @@ TEST_CASE("bench moves", "[benchmark]") {
     rc::gen::arbitrary<board>()(9999, 100).value(),
   };
   */
-  board boards[1] = {
+  board boards[5] = {
     // rc::gen::arbitrary<board>()(1000, 100).value(),
     // rc::gen::arbitrary<board>()(2000, 100).value(),
-    // rc::gen::arbitrary<board>()(3000, 100).value(),
+    rc::gen::arbitrary<board>()(3000, 100).value(),
     // rc::gen::arbitrary<board>()(4000, 100).value(),
     // rc::gen::arbitrary<board>()(5000, 100).value(),
-    // rc::gen::arbitrary<board>()(6000, 100).value(),
+    rc::gen::arbitrary<board>()(6000, 100).value(),
     // rc::gen::arbitrary<board>()(7000, 100).value(),
     // rc::gen::arbitrary<board>()(8000, 100).value(),
     // rc::gen::arbitrary<board>()(9000, 100).value(),
-    // rc::gen::arbitrary<board>()(9999, 100).value(),
-    start_board
+    rc::gen::arbitrary<board>()(9999, 100).value(),
+    start_board,
+    sanity_capture_board_white
   };
   split_move_result r;
   /*
@@ -1684,7 +1701,7 @@ TEST_CASE("bench moves", "[benchmark]") {
     // auto r = negamax_ab_sorted_z_runner(start_board, true, 4);
     return r;
   };
-  BENCHMARK("negamax ab unsorted z iter") {
+  BENCHMARK("negamax ab sorted z iter") {
     for (board b : boards) {
       memset(tt, 0, tt_size * sizeof(tt_entry));
       auto r = negamax_ab_z_iter_runner(b, true, depth);
@@ -1770,14 +1787,14 @@ TEST_CASE("board hash round trip") {
 const char* sanity_capture_string = \
   " .  .  .  X  X  X  .  X  .  .  . "
   " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  .  .  O  X  .  .  .  . "
+  " .  .  .  .  .  .  X  .  .  .  . "
   " X  .  .  .  .  O  .  .  .  .  X "
   " X  .  .  .  O  O  O  .  .  .  X "
   " X  X  .  O  O  #  O  O  .  X  X "
   " X  .  .  .  O  O  O  .  .  .  X "
-  " X  .  .  .  .  O  .  .  .  .  X "
+  " X  .  .  .  .  .  .  .  .  .  X "
   " .  .  .  .  X  .  .  .  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  O "
   " .  .  .  X  .  X  X  X  .  .  . ";
 
 const board sanity_capture_board = read_board(sanity_capture_string);
@@ -1802,23 +1819,42 @@ TEST_CASE("sanity check capture") {
 }
 
 
-const char* sanity_capture_string_white = \
-  " .  .  .  X  X  X  .  X  .  .  . "
+TEST_CASE("sanity check capture white") {
+  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, true, 1);
+  /*
+  for (int i = 0; i < MAX_DEPTH; i++) {
+    printf("[%d] = %d\n", i, PV_LENGTH[i]);
+  }
+  */
+  for (int i = 0; i < PV_LENGTH[0]; i++) {
+    auto m = PV_TABLE[0][i] ;
+    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+    std::cout << "move: " << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+  }
+  // print_board(res._board);
+  std::cout << "score: " << res << "\n";
+  REQUIRE(false);
+}
+
+const char* wtf_string = \
+  " .  .  .  X  .  X  X  X  .  .  . "
   " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  .  .  O  X  .  .  .  . "
+  " .  .  .  .  X  .  .  .  .  .  . "
   " X  .  .  .  .  O  .  .  .  .  X "
   " X  .  .  .  O  O  O  .  .  .  X "
   " X  X  .  O  O  #  O  O  .  X  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  O  O  .  .  .  .  X "
   " X  .  .  .  .  O  .  .  .  .  X "
-  " .  .  .  .  X  .  .  .  .  .  . "
+  " .  .  .  .  X  .  O  .  .  .  . "
   " .  .  .  .  .  X  .  .  .  .  . "
   " .  .  .  X  .  X  X  X  .  .  . ";
 
-const board sanity_capture_board_white = read_board(sanity_capture_string_white);
+const board wtf_board = read_board(wtf_string);
 
-TEST_CASE("sanity check capture white") {
-  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, false, 3);
+TEST_CASE("wtf") {
+  auto res = negamax_ab_sorted_pv_runner(wtf_board, false, 1);
   /*
   for (int i = 0; i < MAX_DEPTH; i++) {
     printf("[%d] = %d\n", i, PV_LENGTH[i]);

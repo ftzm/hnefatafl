@@ -485,10 +485,10 @@ process_move(const board *base_board, board *boards, move *moves,
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
   // this can maybe actually be moved up to where the check is done? actually no the check relies on the un-adjusted dest and the capture relies on the adjusted dest
-  // if (is_capture) {
+  if (is_capture) {
     // printf("FOUND CAPTURE\n");
     apply_captures_niave(
-        board_layer(is_black, false), board_layer(!is_black, false),
+        board_layer(is_black, false) | corners, board_layer(!is_black, false),
         board_layer(!is_black, true), (is_rotated ? dest_r : dest));
     /*
     capture_functions[(is_rotated ? dest_r : dest)](
@@ -496,7 +496,7 @@ process_move(const board *base_board, board *boards, move *moves,
         board_layer(!is_black, false), board_layer(!is_black, true),
         (is_rotated ? dest_r : dest));
     */
-  // }
+  }
 
   shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
 
