@@ -1825,3 +1825,70 @@ void init_move_globals() {
   gen_row_move_counts();
   gen_center_row_move_counts();
 }
+
+struct make_move_result {
+  board b;
+  uint64_t z;
+};
+struct make_move_result make_move(const board b, const move m, const uint64_t z, const bool is_black_turn) {
+  make_move_result result = {b, z};
+  if (is_black_turn) {
+    toggle_index(result.b.black, m.orig);
+    toggle_index(result.b.black, m.dest);
+    toggle_index(result.b.black_r, rotate_right[m.orig]);
+    toggle_index(result.b.black_r, rotate_right[m.dest]);
+    apply_captures_niave(b.black | corners, result.b.white, result.b.white_r, m.dest);
+    shield_wall<true>(&result.b, m.dest);
+    result.z = next_hash_black(result.z, m);
+    layer capture_diff = b.white ^ result.b.white;
+    while (capture_diff[0]) {
+      int capture_index = _tzcnt_u64(capture_diff[0]);
+      result.z ^= white_hashes[capture_index];
+      capture_diff[0] = _blsr_u64(capture_diff[0]);
+    }
+    while (capture_diff[1]) {
+      int capture_index = _tzcnt_u64(capture_diff[1]) + 64;
+      result.z ^= white_hashes[capture_index];
+      capture_diff[1] = _blsr_u64(capture_diff[1]);
+    }
+  } else if (check_index(b.white, m.orig)) {
+    toggle_index(result.b.white, m.orig);
+    toggle_index(result.b.white, m.dest);
+    toggle_index(result.b.white_r, rotate_right[m.orig]);
+    toggle_index(result.b.white_r, rotate_right[m.dest]);
+    apply_captures_niave(b.white | b.king | corners, result.b.black, result.b.black_r, m.dest);
+    shield_wall<false>(&result.b, m.dest);
+    result.z = next_hash_white(result.z, m);
+    layer capture_diff = b.black ^ result.b.black;
+    while (capture_diff[0]) {
+      int capture_index = _tzcnt_u64(capture_diff[0]);
+      result.z ^= black_hashes[capture_index];
+      capture_diff[0] = _blsr_u64(capture_diff[0]);
+    }
+    while (capture_diff[1]) {
+      int capture_index = _tzcnt_u64(capture_diff[1]) + 64;
+      result.z ^= black_hashes[capture_index];
+      capture_diff[1] = _blsr_u64(capture_diff[1]);
+    }
+  } else {
+    toggle_index(result.b.king, m.orig);
+    toggle_index(result.b.king, m.dest);
+    toggle_index(result.b.king_r, rotate_right[m.orig]);
+    toggle_index(result.b.king_r, rotate_right[m.dest]);
+    apply_captures_niave(b.white | corners, result.b.black, result.b.black_r, m.dest);
+    shield_wall<false>(&result.b, m.dest);
+    result.z = next_hash_king(result.z, m);
+    layer capture_diff = b.black ^ result.b.black;
+    while (capture_diff[0]) {
+      int capture_index = _tzcnt_u64(capture_diff[0]);
+      result.z ^= black_hashes[capture_index];
+      capture_diff[0] = _blsr_u64(capture_diff[0]);
+    }
+    while (capture_diff[1]) {
+      int capture_index = _tzcnt_u64(capture_diff[1]) + 64;
+      result.z ^= black_hashes[capture_index];
+      capture_diff[1] = _blsr_u64(capture_diff[1]);
+    }
+  }
+  return result;
+}

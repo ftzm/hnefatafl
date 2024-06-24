@@ -356,7 +356,7 @@ struct tt_entry tt[tt_size] = {};
 int z_usage = 0;
 
 negamax_ab_result negamax_ab_sorted_z(const move m, const board b, const uint64_t z,
-                                      const bool is_black_turn, const int depth, int alpha,
+                                      const bool is_black_turn, const int depth, const int ply, int alpha,
                                       int beta, int *tally) {
 
   /*
@@ -410,6 +410,10 @@ negamax_ab_result negamax_ab_sorted_z(const move m, const board b, const uint64_
     combi[i] = (negamax_ab_result){i_move, results[i].b,
                                    score_board_for_order(&results[i].b, is_black_turn),
                                    results[i].z};
+    // Add bonus if killer move
+    if (combi[i]._move == KILLER_MOVES[ply][0] ||
+        combi[i]._move == KILLER_MOVES[ply][1])
+      combi[i]._score += 10000000;
   }
 
   if (depth > 1) {
@@ -428,7 +432,7 @@ negamax_ab_result negamax_ab_sorted_z(const move m, const board b, const uint64_
     // print_board(b);
     negamax_ab_result next_result =
         negamax_ab_sorted_z(combi[i]._move, combi[i]._board, combi[i].zobrist,
-                            !is_black_turn, depth - 1, -beta, -alpha, tally);
+                            !is_black_turn, depth - 1, ply + 1, -beta, -alpha, tally);
     next_result._score = -next_result._score;
 
     Flag flag = lower_bound; // TODO: is this a sensible default
@@ -437,6 +441,10 @@ negamax_ab_result negamax_ab_sorted_z(const move m, const board b, const uint64_
     }
     if (best._score > alpha) {
       alpha = best._score;
+
+      // KILLER HANDLING ---------------------------------------------------------------
+      KILLER_MOVES[ply][1] = KILLER_MOVES[ply][0];
+      KILLER_MOVES[ply][0] = combi[i]._move;
     }
     if (alpha > beta) {
       break;
@@ -510,7 +518,7 @@ negamax_ab_result negamax_ab_sorted_z_runner(board b, bool is_black,
   int tally = 0;
   uint64_t start_zobrist = hash_for_board(b, is_black);
   auto res = negamax_ab_sorted_z((move){0, 0}, b, start_zobrist, is_black,
-                                 depth, INT_MIN, INT_MAX, &tally);
+                                 depth, 0, INT_MIN, INT_MAX, &tally);
   // printf("tally: %d\n", tally);
   return res;
 }
@@ -518,7 +526,7 @@ negamax_ab_result negamax_ab_sorted_z_runner(board b, bool is_black,
 int skip_count = 0;
 
 negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
-                                      const bool is_black_turn, const int depth, int alpha,
+                                      const bool is_black_turn, const int depth, const int ply, int alpha,
                                       int beta, int *tally) {
 
   /*
@@ -606,6 +614,10 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
     combi[i] = (negamax_ab_result){i_move, results[i].b,
                                    score_board_for_order(&results[i].b, is_black_turn),
                                    results[i].z};
+    // Add bonus if killer move
+    if (combi[i]._move == KILLER_MOVES[ply][0] ||
+        combi[i]._move == KILLER_MOVES[ply][1])
+      combi[i]._score += 10000000;
   }
 
   if (prev_best_move.has_value()) {
@@ -650,7 +662,7 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
     // print_board(b);
     negamax_ab_result next_result =
         negamax_ab_z(combi[i]._move, combi[i]._board, combi[i].zobrist,
-                            !is_black_turn, depth - 1, -beta, -alpha, tally);
+                     !is_black_turn, depth - 1, ply + 1, -beta, -alpha, tally);
     next_result._score = -next_result._score;
 
     if (next_result._score > best._score) {
@@ -658,6 +670,10 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
     }
     if (best._score > alpha) {
       alpha = best._score;
+
+      // KILLER HANDLING ---------------------------------------------------------------
+      KILLER_MOVES[ply][1] = KILLER_MOVES[ply][0];
+      KILLER_MOVES[ply][0] = combi[i]._move;
     }
     if (alpha > beta) {
       break;
@@ -687,95 +703,17 @@ negamax_ab_result negamax_ab_z_iter_runner(board b, bool is_black,
                                              int depth) {
   int tally = 0;
   uint64_t start_zobrist = hash_for_board(b, is_black);
+  memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
   for (int i = 1; i < depth; i++) {
     negamax_ab_z((move){0, 0}, b, start_zobrist, is_black,
-                        i, INT_MIN, INT_MAX, &tally);
+                 i, 0, INT_MIN, INT_MAX, &tally);
   }
   /*
   */
   auto res = negamax_ab_z((move){0, 0}, b, start_zobrist, is_black,
-                          depth, INT_MIN, INT_MAX, &tally);
+                          depth, 0, INT_MIN, INT_MAX, &tally);
   // printf("skip count: %d\n", skip_count);
   // skip_count = 0;
 
   return res;
 }
-
-// ------------------------------------------------------------------
-// prev:
-/*
-
-typedef int score;
-
-typedef struct negamax_result {
-  move move;
-  board board;
-  score score;
-} negamax_result;
-
-typedef struct scored_mbz {
-  score score;
-  move_board_zobrist board;
-} scored_mbz;
-
-int cmp_score(const void *a, const void *b) {
-  return ((move_board_zobrist *)b)->score - ((move_board_zobrist *)a)->score;
-}
-*/
-
-/*
-negamax_result negamax_ab(move move, board board, bool is_black_turn, int depth,
-                          int alpha, int beta, int *tally) {
-  //printf("depth: %d\n", depth);
-  if (depth == 0) {
-    return (negamax_result) { move, board, score_board(&board, is_black_turn) };
-  } else {
-    //printf("non-zero case\n");
-    size_t next_boards_count;
-    move_board_zobrist *next_boards;
-    //printf("getting boards\n");
-    if (is_black_turn) {
-      next_boards = next_move_board_zobrists_black(board, &next_boards_count);
-    } else {
-      next_boards = next_move_board_zobrists_white(board, &next_boards_count);
-    }
-    //printf("got boards\n");
-
-    int i;
-    for (i = 0; i < next_boards_count; i++) {
-      next_boards[i].score = score_board(&(next_boards[i].board),
-is_black_turn);
-    }
-
-    qsort(next_boards, next_boards_count, sizeof(move_board_zobrist),
-cmp_score);
-
-    // start with a bogus best
-    negamax_result best = {move, board, INT_MIN};
-    for (i = 0; i < next_boards_count; i++) {
-
-      (*tally)++;
-      move_board_zobrist next = next_boards[i];
-
-      // calcualte result and negate score
-      negamax_result next_result = negamax_ab(next.move, next.board,
-!is_black_turn, depth - 1, -beta, -alpha, tally); next_result.score =
--next_result.score;
-
-      if (next_result.score > best.score) {
-        best = next_result;
-      }
-      if (best.score > alpha) {
-        alpha = best.score;
-      }
-      if (alpha > beta) {
-        break;
-      }
-    }
-
-    //printf("free");
-    free(next_boards);
-    return best;
-  }
-}
-*/

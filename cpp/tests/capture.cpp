@@ -1672,20 +1672,20 @@ TEST_CASE("bench moves", "[benchmark]") {
     return r;
   };
   */
-  BENCHMARK("negamax ab unsorted") {
-    for (board b : boards) {
-      auto r = negamax_ab_runner(b, true, depth);
-    }
-    // auto r = negamax_ab_runner(start_board, true, 4);
-    return r;
-  };
-  BENCHMARK("negamax ab sorted") {
-    for (board b : boards) {
-      auto r = negamax_ab_sorted_runner(b, true, depth);
-    }
-    // auto r = negamax_ab_sorted_runner(start_board, true, 4);
-    return r;
-  };
+  // BENCHMARK("negamax ab unsorted") {
+  //   for (board b : boards) {
+  //     auto r = negamax_ab_runner(b, true, depth);
+  //   }
+  //   // auto r = negamax_ab_runner(start_board, true, 4);
+  //   return r;
+  // };
+  // BENCHMARK("negamax ab sorted") {
+  //   for (board b : boards) {
+  //     auto r = negamax_ab_sorted_runner(b, true, depth);
+  //   }
+  //   // auto r = negamax_ab_sorted_runner(start_board, true, 4);
+  //   return r;
+  // };
   BENCHMARK("negamax ab sorted pv") {
     for (board b : boards) {
       auto r = negamax_ab_sorted_pv_runner(b, true, depth);
@@ -1693,14 +1693,14 @@ TEST_CASE("bench moves", "[benchmark]") {
     // auto r = negamax_ab_sorted_runner(start_board, true, 4);
     return r;
   };
-  BENCHMARK("negamax ab sorted z") {
-    for (board b : boards) {
-      memset(tt, 0, tt_size * sizeof(tt_entry));
-      auto r = negamax_ab_sorted_z_runner(b, true, depth);
-    }
-    // auto r = negamax_ab_sorted_z_runner(start_board, true, 4);
-    return r;
-  };
+  // BENCHMARK("negamax ab sorted z") {
+  //   for (board b : boards) {
+  //     memset(tt, 0, tt_size * sizeof(tt_entry));
+  //     auto r = negamax_ab_sorted_z_runner(b, true, depth);
+  //   }
+  //   // auto r = negamax_ab_sorted_z_runner(start_board, true, 4);
+  //   return r;
+  // };
   BENCHMARK("negamax ab sorted z iter") {
     for (board b : boards) {
       memset(tt, 0, tt_size * sizeof(tt_entry));
@@ -1724,7 +1724,7 @@ TEST_CASE("hashing results in fewer nodes visited") {
     uint64_t start_zobrist = hash_for_board(b, is_black_turn);
     z_usage = 0;
     negamax_ab_sorted_z((move){0, 0}, b, start_zobrist, is_black_turn,
-                                 depth, INT_MIN, INT_MAX, &hash_tally);
+                        depth, 0, INT_MIN, INT_MAX, &hash_tally);
     // print_board(b);
     // printf("--------------------\n");
     negamax_ab_sorted((move){0, 0}, b, is_black_turn, depth, INT_MIN,
@@ -1733,11 +1733,11 @@ TEST_CASE("hashing results in fewer nodes visited") {
     memset(tt, 0, tt_size * sizeof(tt_entry));
     for (int i = 1; i < depth; i++) {
       negamax_ab_z((move){0, 0}, b, start_zobrist, is_black_turn,
-                   i, INT_MIN, INT_MAX, &iter_hash_tally);
+                   i, 0,  INT_MIN, INT_MAX, &iter_hash_tally);
     }
     iter_hash_tally = 0;
     negamax_ab_z((move){0, 0}, b, start_zobrist, is_black_turn,
-                        depth, INT_MIN, INT_MAX, &iter_hash_tally);
+                 depth, 0, INT_MIN, INT_MAX, &iter_hash_tally);
 
     print_board(b);
     setlocale(LC_NUMERIC, "");

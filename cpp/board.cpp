@@ -80,6 +80,9 @@ inline layer corners = {1025, 72127962782105600};
 #define check_index(layer, i)                                                          \
   layer[sub_layer[i]] & ((uint64_t)1 << (i - sub_layer_offset[i]))
 
+#define toggle_index(layer, i)                                                          \
+  layer[sub_layer[i]] |= ((uint64_t)1 << (i - sub_layer_offset[i]))
+
 void print_board(board board) {
   char string[374];
 
