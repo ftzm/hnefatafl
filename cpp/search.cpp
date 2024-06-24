@@ -105,14 +105,14 @@ int score_board_for_order(const board *board, const bool is_black_turn) {
 }
 
 
-typedef int32_t score;
+// typedef int32_t score;
 static const int32_t MIN_SCORE = -INT_MAX;
 static const int32_t MAX_SCORE = INT_MAX;
 
 typedef struct negamax_ab_result {
   move _move;
   board _board;
-  score _score;
+  int32_t _score;
   uint64_t zobrist;
 } negamax_ab_result;
 
@@ -240,7 +240,7 @@ move PREV_PV[MAX_DEPTH];
 int PREV_PV_LENGTH;
 move KILLER_MOVES[MAX_DEPTH][2];
 
-score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
+int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
                                        const int depth, const int ply, int32_t alpha, int32_t beta,
                            int *tally, bool is_pv) {
   PV_LENGTH[ply] = ply;
@@ -283,21 +283,22 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   }
 
   // start with a bogus best
-  score best = INT_MIN;
+  int32_t best = MIN_SCORE;
   for (int i = 0; i < total; i++) {
-    // if (depth == 1 && (m.orig == 97 && m.dest == 86)) printf("----------------------\n");
-    // if (depth == 4) printf("----------------------\n");
-    // if (depth == 1 && (m.orig == 97 && m.dest == 86)) print_board(combi[i]._board);
-    // if (depth == 4) print_board(combi[i]._board);
+    // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("----------------------\n");
+    // if (depth == 2) printf("----------------------\n");
+    // if (depth == 1 && (m.orig == 115 && m.dest == 114)) {std::cout << combi[i]._move << "\n";};
+    // if (depth == 1 && (m.orig == 115 && m.dest == 114)) print_board(combi[i]._board);
+    // if (depth == 2) print_board(combi[i]._board);
     (*tally)++;
 
     // calcualte result and negate score
     // the is_pv parameter is (is_pv && !i) because if this _is_ the pv then the first entry must be the next PV node due to the bonus applied above, unless the next PV move wasn't found, which would be a real bug.
-    score next_result =
+    int32_t next_result =
         -negamax_ab_sorted_pv(combi[i]._move, combi[i]._board, !is_black_turn,
                               depth - 1, ply + 1, -beta, -alpha, tally, (is_pv && !i));
-    // if (depth == 1 && (m.orig == 97 && m.dest == 86)) printf("score: %d\n", next_result);
-    // if (depth == 4) printf("score: %d\n", next_result);
+    // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("score: %d\n", next_result);
+    // if (depth == 2) printf("score: %d\n", next_result);
 
 
     if (next_result > best) {
@@ -328,8 +329,8 @@ score negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
       break;
     }
   }
-  // if (depth == 1 && (m.orig == 97 && m.dest == 86)) printf("----------------------");
-  // if (depth == 4) printf("----------------------");
+  // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("----------------------");
+  // if (depth == 2) printf("----------------------");
 
   return best;
 }
@@ -343,7 +344,7 @@ enum Flag : uint8_t {
 struct tt_entry {
   uint64_t hash;
   uint8_t depth;
-  uint32_t score;
+  int32_t score;
   Flag flag;
   move best_move;
 };
@@ -378,7 +379,7 @@ negamax_ab_result negamax_ab_sorted_z(const move m, const board b, const uint64_
   if (tt_entry.hash == z && tt_entry.depth >= depth) {
     z_usage++;
     if (tt_entry.flag == exact) {
-      return (negamax_ab_result){m, b, static_cast<score>(tt_entry.score), z};
+      return (negamax_ab_result){m, b, static_cast<int32_t>(tt_entry.score), z};
     } else if (tt_entry.flag == lower_bound) {
       alpha = tt_entry.score > alpha ? tt_entry.score : alpha;
     } else if (tt_entry.flag == upper_bound) {
@@ -386,7 +387,7 @@ negamax_ab_result negamax_ab_sorted_z(const move m, const board b, const uint64_
     }
 
     if (alpha >= beta) {
-      return (negamax_ab_result){m, b, static_cast<score>(tt_entry.score), z};
+      return (negamax_ab_result){m, b, static_cast<int32_t>(tt_entry.score), z};
     }
   }
   /*
@@ -440,7 +441,20 @@ negamax_ab_result negamax_ab_sorted_z(const move m, const board b, const uint64_
       best = next_result;
     }
     if (best._score > alpha) {
+      // ALPHA BETA HANDLING ---------------------------------------------------------------
       alpha = best._score;
+
+      // PV HANDLING ---------------------------------------------------------------
+      // assign move discovered here
+      PV_TABLE[ply][ply] = combi[i]._move;
+      PV_TABLE_BOARDS[ply][ply] = combi[i]._board; // me only
+      // copy up moves discovered at lower depths
+      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
+	PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+	PV_TABLE_BOARDS[ply][next_ply] = PV_TABLE_BOARDS[ply + 1][next_ply]; // me only
+      }
+      // adjust pv length
+      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
 
       // KILLER HANDLING ---------------------------------------------------------------
       KILLER_MOVES[ply][1] = KILLER_MOVES[ply][0];
@@ -490,11 +504,12 @@ negamax_ab_result negamax_ab_sorted_runner(board b, bool is_black, int depth) {
   return res;
 }
 
-score negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
+int32_t negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
   int tally = 0;
 
   memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
   memset(PREV_PV, 0, MAX_DEPTH * sizeof(move));
+  /*
   for (int i = 0; i < depth; i++) {
     negamax_ab_sorted_pv((move){0, 0}, b, is_black, i, 0, INT_MIN,
 				    INT_MAX, &tally, true);
@@ -504,7 +519,6 @@ score negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
     PREV_PV_LENGTH = PV_LENGTH[0];
     
   }
-  /*
   */
   auto res = negamax_ab_sorted_pv((move){0, 0}, b, is_black, depth, 0, MIN_SCORE,
 				  MAX_SCORE, &tally, true);
@@ -529,6 +543,8 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
                                       const bool is_black_turn, const int depth, const int ply, int alpha,
                                       int beta, int *tally) {
 
+  PV_LENGTH[ply] = ply;
+
   /*
   uint64_t new_z = hash_for_board(b, is_black_turn);
   if (z != new_z) {
@@ -551,7 +567,7 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
     if (tt_entry.depth >= depth) {
       z_usage++;
       if (tt_entry.flag == exact) {
-        return (negamax_ab_result){m, b, static_cast<score>(tt_entry.score), z};
+        return (negamax_ab_result){m, b, static_cast<int32_t>(tt_entry.score), z};
       } else if (tt_entry.flag == lower_bound) {
         alpha = tt_entry.score > alpha ? tt_entry.score : alpha;
       } else if (tt_entry.flag == upper_bound) {
@@ -559,14 +575,32 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
       }
 
       if (alpha >= beta) {
-        return (negamax_ab_result){m, b, static_cast<score>(tt_entry.score), z};
+	// printf("dump out ply: %d \n", ply);
+	// // PV HANDLING ---------------------------------------------------------------
+	// // assign move discovered here
+	// PV_TABLE[ply][ply] = combi[i]._move;
+	// PV_TABLE_BOARDS[ply][ply] = combi[i]._board; // me only
+	// // copy up moves discovered at lower depths
+	// for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
+      	//   PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+      	//   PV_TABLE_BOARDS[ply][next_ply] = PV_TABLE_BOARDS[ply + 1][next_ply]; // me only
+	// }
+	// // adjust pv length
+	// PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+
+
+	// // KILLER HANDLING ---------------------------------------------------------------
+	// KILLER_MOVES[ply][1] = KILLER_MOVES[ply][0];
+	// KILLER_MOVES[ply][0] = combi[i]._move;
+
+        return (negamax_ab_result){m, b, (tt_entry.score), z};
       }
     }
     // extract the best to use for ordering
     prev_best_move = tt_entry.best_move;
   }
   /*
-   */
+  */
 
   if (depth == 0) {
     return (negamax_ab_result){m, b, score_board(&b, is_black_turn)};
@@ -586,7 +620,7 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
   // front of the array because we let the transposition table ensure
   // we don't process it again when we encounter it again later.
   // TODO: move this above move eval to see if we can get can get speedups by finding beta cutoffs out of the gate and avoiding the need to even calculate the rest of the moves
-  negamax_ab_result best = {m, b, INT_MIN};
+  negamax_ab_result best = {m, b, MIN_SCORE};
   /*
   if (prev_best_move.has_value()) {
     auto m = prev_best_move.value();
@@ -634,7 +668,7 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
 
   if (depth > 1 && total) {
     std::sort(combi + 1, combi + total, [](const negamax_ab_result &lhs, const negamax_ab_result &rhs) {
-      return (int)lhs._score > (int)rhs._score;
+      return lhs._score > rhs._score;
     });
     // assert(combi[0]._score >= combi[total-1]._score);
   }
@@ -669,7 +703,21 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
       best = next_result;
     }
     if (best._score > alpha) {
+      // ALPHA BETA HANDLING ---------------------------------------------------------------
       alpha = best._score;
+
+      // PV HANDLING ---------------------------------------------------------------
+      // assign move discovered here
+      PV_TABLE[ply][ply] = combi[i]._move;
+      PV_TABLE_BOARDS[ply][ply] = combi[i]._board; // me only
+      // copy up moves discovered at lower depths
+      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
+	PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+	PV_TABLE_BOARDS[ply][next_ply] = PV_TABLE_BOARDS[ply + 1][next_ply]; // me only
+      }
+      // adjust pv length
+      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+
 
       // KILLER HANDLING ---------------------------------------------------------------
       KILLER_MOVES[ply][1] = KILLER_MOVES[ply][0];
@@ -702,17 +750,19 @@ post_eval:
 negamax_ab_result negamax_ab_z_iter_runner(board b, bool is_black,
                                              int depth) {
   int tally = 0;
+  z_usage = 0;
   uint64_t start_zobrist = hash_for_board(b, is_black);
   memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
   for (int i = 1; i < depth; i++) {
     negamax_ab_z((move){0, 0}, b, start_zobrist, is_black,
-                 i, 0, INT_MIN, INT_MAX, &tally);
+                 i, 0, MIN_SCORE, MAX_SCORE, &tally);
   }
   /*
   */
   auto res = negamax_ab_z((move){0, 0}, b, start_zobrist, is_black,
-                          depth, 0, INT_MIN, INT_MAX, &tally);
+                          depth, 0, MIN_SCORE, MAX_SCORE, &tally);
   // printf("skip count: %d\n", skip_count);
+  // printf("z usage: %d\n", z_usage);
   // skip_count = 0;
 
   return res;

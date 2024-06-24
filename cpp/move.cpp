@@ -559,7 +559,7 @@ process_move_z(const board *base_board, const uint64_t z, move_result *results,
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
   // this can maybe actually be moved up to where the check is done? actually no the check relies on the un-adjusted dest and the capture relies on the adjusted dest
-  if (is_capture) {
+  // if (is_capture) {
     apply_captures_niave(
         board_layer(is_black, false), board_layer(!is_black, false),
         board_layer(!is_black, true), (is_rotated ? dest_r : dest));
@@ -567,7 +567,7 @@ process_move_z(const board *base_board, const uint64_t z, move_result *results,
     //     board_layer(is_black, false), board_layer(is_black, true),
     //     board_layer(!is_black, false), board_layer(!is_black, true),
     //     (is_rotated ? dest_r : dest));
-  }
+  // }
 
   shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
 

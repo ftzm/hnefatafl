@@ -1786,10 +1786,10 @@ TEST_CASE("board hash round trip") {
 
 const char* sanity_capture_string = \
   " .  .  .  X  X  X  .  X  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  .  X  O  .  .  .  . "
   " .  .  .  .  .  .  X  .  .  .  . "
   " X  .  .  .  .  O  .  .  .  .  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  O  O  .  .  .  .  X "
   " X  X  .  O  O  #  O  O  .  X  X "
   " X  .  .  .  O  O  O  .  .  .  X "
   " X  .  .  .  .  .  .  .  .  .  X "
@@ -1800,7 +1800,7 @@ const char* sanity_capture_string = \
 const board sanity_capture_board = read_board(sanity_capture_string);
 
 TEST_CASE("sanity check capture") {
-  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 3);
+  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
   /*
   for (int i = 0; i < MAX_DEPTH; i++) {
     printf("[%d] = %d\n", i, PV_LENGTH[i]);
@@ -1869,5 +1869,23 @@ TEST_CASE("wtf") {
   }
   // print_board(res._board);
   std::cout << "score: " << res << "\n";
+  REQUIRE(false);
+}
+
+TEST_CASE("test pv z") {
+   auto res = negamax_ab_z_iter_runner(sanity_capture_board, true, 5);
+  for (int i = 0; i < MAX_DEPTH; i++) {
+    printf("[%d] = %d\n", i, PV_LENGTH[i]);
+  }
+  /*
+  */
+  for (int i = 0; i < PV_LENGTH[0]; i++) {
+    auto m = PV_TABLE[0][i] ;
+    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+    std::cout << "move: " << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+  }
+  // print_board(res._board);
   REQUIRE(false);
 }

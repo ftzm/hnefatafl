@@ -730,7 +730,7 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
     {
       foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
   }
 
   //southCapture
@@ -742,7 +742,7 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
     {
       foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
   }
 
   //westCapture
@@ -754,7 +754,7 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
     {
       foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
   }
    
   //eastCapture
@@ -766,7 +766,7 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
     {
       foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
   }
 }
 
