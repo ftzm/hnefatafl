@@ -1753,7 +1753,7 @@ TEST_CASE("hashing results in fewer nodes visited") {
 }
 
 TEST_CASE("test pv") {
-  auto res = negamax_ab_sorted_pv_runner(start_board, true, 5);
+  auto res = negamax_ab_sorted_pv_runner(start_board, true, 4);
   /*
   for (int i = 0; i < MAX_DEPTH; i++) {
     printf("[%d] = %d\n", i, PV_LENGTH[i]);
@@ -1889,3 +1889,38 @@ TEST_CASE("test pv z") {
   // print_board(res._board);
   REQUIRE(false);
 }
+
+const char* king_string = \
+  " .  .  .  X  .  X  X  X  #  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  X  .  .  .  .  .  . "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  X  .  O  O  .  .  .  .  X  X "
+  " X  .  .  .  O  O  .  .  .  .  X "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " .  .  .  .  X  .  O  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  X  .  X  X  X  .  .  . ";
+
+const board king_board = read_board(king_string);
+
+TEST_CASE("king escapes") {
+  auto res = negamax_ab_sorted_pv_runner(king_board, false, 2);
+  /*
+  for (int i = 0; i < MAX_DEPTH; i++) {
+    printf("[%d] = %d\n", i, PV_LENGTH[i]);
+  }
+  */
+  for (int i = 0; i < PV_LENGTH[0]; i++) {
+    auto m = PV_TABLE[0][i] ;
+    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+    std::cout << "move: " << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+  }
+  // print_board(res._board);
+  std::cout << "score: " << res << "\n";
+  REQUIRE(false);
+}
+

@@ -55,59 +55,41 @@ int corner_protection(const board b) {
   return __builtin_popcountll(guards[0]) + __builtin_popcountll(guards[1]);
 }
 
-int score_board(const board *board, const bool is_black_turn) {
-  int white_score;
-  if (king_escaped(*board)) {
-    white_score = 1000000;
-  } else {
-    white_score = (white_pawn_count(*board) * 10000) +
-                  white_pawn_move_count(*board) +
-                  (get_king_move_count(*board) * 100);
-  }
-
-  int black_score;
-  if (king_captured(*board)) {
-    black_score = 1000000;
-  } else {
-    black_score = (black_pawn_count(*board) * 10000) +
-                  black_pawn_move_count(*board) +
-                  corner_protection(*board) * 0;
-  }
-
-  if (is_black_turn) {
-    return black_score - white_score;
-  } else {
-    return white_score - black_score;
-  }
-}
-
-int score_board_for_order(const board *board, const bool is_black_turn) {
-  int white_score;
-  if (king_escaped(*board)) {
-    white_score = 1000000;
-  } else {
-    white_score = white_pawn_count(*board) * 1000;
-  }
-
-  int black_score;
-  if (king_captured(*board)) {
-    black_score = 1000000;
-  } else {
-    black_score = (black_pawn_count(*board) * 1000) +
-                  corner_protection(*board) * 100;
-  }
-
-  if (is_black_turn) {
-    return black_score - white_score;
-  } else {
-    return white_score - black_score;
-  }
-}
-
-
 // typedef int32_t score;
 static const int32_t MIN_SCORE = -INT_MAX;
 static const int32_t MAX_SCORE = INT_MAX;
+
+int32_t score_board(const board *board, const bool is_black_turn) {
+  int32_t white_score = (white_pawn_count(*board) * 10000) +
+                        white_pawn_move_count(*board) +
+                        (get_king_move_count(*board) * 100);
+
+  int32_t black_score = (black_pawn_count(*board) * 10000) +
+                        black_pawn_move_count(*board) +
+                        corner_protection(*board) * 0;
+
+  return is_black_turn ? black_score - white_score : white_score - black_score;
+}
+
+bool game_over_check(const board &b, bool is_black_turn, int32_t &score) {
+  if (king_escaped(b)) {
+    score = is_black_turn ? MIN_SCORE : MAX_SCORE;
+    return true;
+  } else if (king_captured(b)) {
+    score = is_black_turn ? MAX_SCORE : MIN_SCORE;
+    return true;
+  }
+  return false;
+}
+
+int32_t score_board_for_order(const board *board, const bool is_black_turn) {
+  int32_t white_score = white_pawn_count(*board) * 1000;
+
+  int32_t black_score =
+      (black_pawn_count(*board) * 1000) + corner_protection(*board) * 100;
+
+  return is_black_turn ? black_score - white_score : white_score - black_score;
+}
 
 typedef struct negamax_ab_result {
   move _move;
@@ -253,12 +235,19 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     return score_board(&b, is_black_turn);
   }
 
+  int32_t game_over_score = 0;
+  bool game_over = game_over_check(b, is_black_turn, game_over_score);
+  if (game_over) {
+    return game_over_score;
+  }
+
   int total = 0;
   move moves_table[235];
   board boards_table[235];
   if (is_black_turn) {
     get_team_moves<true>(b, &total, moves_table, boards_table);
   } else {
+    get_king_moves(b, &total, moves_table, boards_table);
     get_team_moves<false>(b, &total, moves_table, boards_table);
   }
 
@@ -286,10 +275,10 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   int32_t best = MIN_SCORE;
   for (int i = 0; i < total; i++) {
     // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("----------------------\n");
-    // if (depth == 2) printf("----------------------\n");
+    // if (depth == 1) printf("----------------------\n");
     // if (depth == 1 && (m.orig == 115 && m.dest == 114)) {std::cout << combi[i]._move << "\n";};
     // if (depth == 1 && (m.orig == 115 && m.dest == 114)) print_board(combi[i]._board);
-    // if (depth == 2) print_board(combi[i]._board);
+    // if (depth == 1) print_board(combi[i]._board);
     (*tally)++;
 
     // calcualte result and negate score
@@ -298,7 +287,7 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
         -negamax_ab_sorted_pv(combi[i]._move, combi[i]._board, !is_black_turn,
                               depth - 1, ply + 1, -beta, -alpha, tally, (is_pv && !i));
     // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("score: %d\n", next_result);
-    // if (depth == 2) printf("score: %d\n", next_result);
+    // if (depth == 1) printf("score: %d\n", next_result);
 
 
     if (next_result > best) {
@@ -330,7 +319,7 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     }
   }
   // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("----------------------");
-  // if (depth == 2) printf("----------------------");
+  // if (depth == 1) printf("----------------------");
 
   return best;
 }
@@ -509,7 +498,6 @@ int32_t negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
 
   memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
   memset(PREV_PV, 0, MAX_DEPTH * sizeof(move));
-  /*
   for (int i = 0; i < depth; i++) {
     negamax_ab_sorted_pv((move){0, 0}, b, is_black, i, 0, INT_MIN,
 				    INT_MAX, &tally, true);
@@ -519,6 +507,7 @@ int32_t negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
     PREV_PV_LENGTH = PV_LENGTH[0];
     
   }
+  /*
   */
   auto res = negamax_ab_sorted_pv((move){0, 0}, b, is_black, depth, 0, MIN_SCORE,
 				  MAX_SCORE, &tally, true);
@@ -543,7 +532,7 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
                                       const bool is_black_turn, const int depth, const int ply, int alpha,
                                       int beta, int *tally) {
 
-  PV_LENGTH[ply] = ply;
+  // PV_LENGTH[ply] = ply;
 
   /*
   uint64_t new_z = hash_for_board(b, is_black_turn);
@@ -706,6 +695,7 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
       // ALPHA BETA HANDLING ---------------------------------------------------------------
       alpha = best._score;
 
+      /*
       // PV HANDLING ---------------------------------------------------------------
       // assign move discovered here
       PV_TABLE[ply][ply] = combi[i]._move;
@@ -717,6 +707,7 @@ negamax_ab_result negamax_ab_z(const move m, const board b, const uint64_t z,
       }
       // adjust pv length
       PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+      */
 
 
       // KILLER HANDLING ---------------------------------------------------------------

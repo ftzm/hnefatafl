@@ -559,7 +559,7 @@ process_move_z(const board *base_board, const uint64_t z, move_result *results,
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
   // this can maybe actually be moved up to where the check is done? actually no the check relies on the un-adjusted dest and the capture relies on the adjusted dest
-  // if (is_capture) {
+  if (is_capture) {
     apply_captures_niave(
         board_layer(is_black, false), board_layer(!is_black, false),
         board_layer(!is_black, true), (is_rotated ? dest_r : dest));
@@ -567,7 +567,7 @@ process_move_z(const board *base_board, const uint64_t z, move_result *results,
     //     board_layer(is_black, false), board_layer(is_black, true),
     //     board_layer(!is_black, false), board_layer(!is_black, true),
     //     (is_rotated ? dest_r : dest));
-  // }
+  }
 
   shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
 
@@ -878,8 +878,6 @@ template <bool is_black>
 inline __attribute__((always_inline)) void
 get_team_moves(const board current, int *total, move *moves,
                      board *boards) {
-  *total = 0;
-
   const layer occ = {
       current.black[0] | current.white[0] | current.king[0] | corners[0],
       current.black[1] | current.white[1] | current.king[1] | corners[1]};
@@ -1283,11 +1281,8 @@ get_team_moves_white(const board current, int *total, move *moves,
 
 inline __attribute__((always_inline)) void
 get_king_moves(const board current, int *total, move *moves, board *boards) {
-  *total = 0;
-
-  const layer occ = {
-      current.white[0] | current.black[0] | current.king[0] | corners[0],
-      current.white[1] | current.black[1] | current.king[1] | corners[1]};
+  const layer occ = {current.white[0] | current.black[0] | current.king[0],
+                     current.white[1] | current.black[1] | current.king[1]};
 
   // const layer capture_dests = find_capture_destinations_op(current.white, current.black);
 
@@ -1313,7 +1308,7 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
           (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
       // handle captures
       // if (capture_dests[0] & (1 << dest)) {
-        apply_captures_niave(new_board.white, new_board.black,
+        apply_captures_niave(new_board.white | corners, new_board.black,
                              new_board.black_r, dest);
       // }
       shield_wall<false>(&new_board, dest);
@@ -1343,7 +1338,7 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
           (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
       // handle captures
       // if (capture_dests[1] & (1 << sub_dest)) {
-        apply_captures_niave(new_board.white, new_board.black,
+        apply_captures_niave(new_board.white | corners, new_board.black,
                              new_board.black_r, dest);
       // }
       shield_wall<false>(&new_board, dest);
@@ -1374,7 +1369,7 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
           (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
       // handle captures
       // if (capture_dests[1] & (1 << sub_dest)) {
-      apply_captures_niave(new_board.white, new_board.black, new_board.black_r,
+      apply_captures_niave(new_board.white | corners, new_board.black, new_board.black_r,
                            dest);
       // }
       shield_wall<false>(&new_board, dest);
@@ -1387,8 +1382,8 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
   }
 
   const layer occ_r = {
-      current.white_r[0] | current.black_r[0] | current.king_r[0] | corners[0],
-      current.white_r[1] | current.black_r[1] | current.king_r[1] | corners[1]};
+      current.white_r[0] | current.black_r[0] | current.king_r[0],
+      current.white_r[1] | current.black_r[1] | current.king_r[1]};
 
   uint8_t orig_r = rotate_right[orig];
 
@@ -1410,7 +1405,7 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
       new_board.king_r[1] = 0;
       // handle captures
       // if (capture_dests[0] & (1 << dest)) {
-      apply_captures_niave(new_board.white, new_board.black, new_board.black_r,
+      apply_captures_niave(new_board.white | corners, new_board.black, new_board.black_r,
                            dest);
       // }
       shield_wall<false>(&new_board, dest);
@@ -1441,7 +1436,7 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
       new_board.king_r[1] = (uint64_t)1 << sub_dest;
       // handle captures
       // if (capture_dests[1] & (1 << sub_dest)) {
-        apply_captures_niave(new_board.white, new_board.black,
+        apply_captures_niave(new_board.white | corners, new_board.black,
                              new_board.black_r, dest);
       // }
       shield_wall<false>(&new_board, dest);
@@ -1471,7 +1466,7 @@ get_king_moves(const board current, int *total, move *moves, board *boards) {
       new_board.king_r[sub_layer[dest_r]] =
           (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
-      apply_captures_niave(new_board.white, new_board.black, new_board.black_r,
+      apply_captures_niave(new_board.white | corners, new_board.black, new_board.black_r,
                            dest);
       shield_wall<false>(&new_board, dest);
       // bookkeep
