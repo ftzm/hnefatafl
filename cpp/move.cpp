@@ -349,7 +349,7 @@ void process_capture_move(const board *base_board, board *boards, move *moves,
   // 						  (is_rotated ? dest_r : dest));
 
   apply_captures_niave(
-		       board_layer(is_black, false), board_layer(!is_black, false),
+		       board_layer(is_black, false) | corners, board_layer(!is_black, false),
 		       board_layer(!is_black, true), (is_rotated ? dest_r : dest));
 
 

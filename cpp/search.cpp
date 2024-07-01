@@ -8,6 +8,91 @@
 #include <cassert>
 #include <iostream>
 
+enum PieceType : uint8_t {
+  black_type = 1,
+  white_type = 2,
+  king_type = 3,
+};
+
+struct score_state {
+  int32_t get_score(bool is_black_turn) {
+    return is_black_turn ? guard_score : -guard_score;    
+  };
+  uint8_t nw_guard_count;
+  uint8_t ne_guard_count;
+  uint8_t sw_guard_count;
+  uint8_t se_guard_count;
+  int32_t guard_score;
+};
+
+int32_t FIRST_GUARD_BONUS = 100;
+int32_t SECOND_GUARD_BONUS = 200;
+int32_t THIRD_GUARD_BONUS = 600;
+
+void update_guard_score_state(score_state &s, move m) {
+  int32_t count_bonuses[] = {100, 200, 600};
+  switch (m.orig) {
+  // nw
+  case 118:
+  case 108:
+  case 98:
+    s.guard_score -= count_bonuses[--s.nw_guard_count];
+    break;
+  // ne
+  case 112:
+  case 100:
+  case 88:
+    s.guard_score -= count_bonuses[--s.ne_guard_count];
+    break;
+  // sw
+  case 32:
+  case 20:
+  case 8:
+    s.guard_score -= count_bonuses[--s.sw_guard_count];
+    break;
+  // se
+  case 22:
+  case 12:
+  case 2:
+    s.guard_score -= count_bonuses[--s.se_guard_count];
+    break;
+  }
+  switch (m.dest) {
+  // nw
+  case 118:
+  case 108:
+  case 98:
+    s.guard_score += count_bonuses[s.nw_guard_count++];
+    break;
+  // ne
+  case 112:
+  case 100:
+  case 88:
+    s.guard_score += count_bonuses[s.ne_guard_count++];
+    break;
+  // sw
+  case 32:
+  case 20:
+  case 8:
+    s.guard_score += count_bonuses[s.sw_guard_count++];
+    break;
+  // se
+  case 22:
+  case 12:
+  case 2:
+    s.guard_score += count_bonuses[s.se_guard_count++];
+    break;
+  }
+};
+
+score_state update_score_state(score_state old_s, move m, PieceType t) {
+  score_state s = old_s;
+  if (t == black_type) {
+    update_guard_score_state(s, m);
+  }
+  return s;
+}
+
 int white_pawn_count(const board b) {
   return __builtin_popcountll(b.white[0]) + __builtin_popcountll(b.white[1]);
 }
@@ -37,22 +122,83 @@ bool king_captured(const board b) {
   return attacker_count > 3;
 }
 
-constexpr layer corner_guard = read_layer(".  .  X  .  .  .  .  .  X  .  ."
-                                          ".  X  .  .  .  .  .  .  .  X  ."
-                                          "X  .  .  .  .  .  .  .  .  .  X"
-                                          ".  .  .  .  .  .  .  .  .  .  ."
-                                          ".  .  .  .  .  .  .  .  .  .  ."
-                                          ".  .  .  .  .  .  .  .  .  .  ."
-                                          ".  .  .  .  .  .  .  .  .  .  ."
-                                          ".  .  .  .  .  .  .  .  .  .  ."
-                                          "X  .  .  .  .  .  .  .  .  .  X"
-                                          ".  X  .  .  .  .  .  .  .  X  ."
-                                          ".  .  X  .  .  .  .  .  X  .  .",
-                                          'X');
+constexpr layer corner_guard_nw = read_layer(".  .  X  .  .  .  .  .  .  .  ."
+                                             ".  X  .  .  .  .  .  .  .  .  ."
+                                             "X  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  .",
+                                             'X');
+
+constexpr layer corner_guard_ne = read_layer(".  .  .  .  .  .  .  .  X  .  ."
+                                             ".  .  .  .  .  .  .  .  .  X  ."
+                                             ".  .  .  .  .  .  .  .  .  .  X"
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  .",
+                                             '.');
+
+constexpr layer corner_guard_sw = read_layer(".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             "X  .  .  .  .  .  .  .  .  .  ."
+                                             ".  X  .  .  .  .  .  .  .  .  ."
+                                             ".  .  X  .  .  .  .  .  .  .  .",
+                                             'X');
+
+constexpr layer corner_guard_se = read_layer(".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  X"
+                                             ".  .  .  .  .  .  .  .  .  X  ."
+                                             ".  .  .  .  .  .  .  .  X  .  .",
+                                             'X');
+
+
+
+uint32_t nw_corner_protection(const board b) {
+  return __builtin_popcountll(corner_guard_nw[1] & b.black[1]);
+}
+
+uint32_t ne_corner_protection(const board b) {
+  return __builtin_popcountll(corner_guard_ne[1] & b.black[1]);
+}
+
+uint32_t sw_corner_protection(const board b) {
+  return __builtin_popcountll(corner_guard_sw[0] & b.black[0]);
+}
+
+uint32_t se_corner_protection(const board b) {
+  return __builtin_popcountll(corner_guard_se[0] & b.black[0]);
+}
+
+uint32_t CORNER_PROTECTION_BONUS = 250;
 
 int corner_protection(const board b) {
-  layer guards = corner_guard & b.black;
-  return __builtin_popcountll(guards[0]) + __builtin_popcountll(guards[1]);
+  return (nw_corner_protection(b) * CORNER_PROTECTION_BONUS) +
+         (ne_corner_protection(b) * CORNER_PROTECTION_BONUS) +
+         (sw_corner_protection(b) * CORNER_PROTECTION_BONUS) +
+         (se_corner_protection(b) * CORNER_PROTECTION_BONUS);
 }
 
 // typedef int32_t score;
@@ -65,8 +211,8 @@ int32_t score_board(const board *board, const bool is_black_turn) {
                         (get_king_move_count(*board) * 100);
 
   int32_t black_score = (black_pawn_count(*board) * 10000) +
-                        black_pawn_move_count(*board) +
-                        corner_protection(*board) * 0;
+                        black_pawn_move_count(*board);// +
+                        //corner_protection(*board);
 
   return is_black_turn ? black_score - white_score : white_score - black_score;
 }
@@ -96,6 +242,7 @@ typedef struct negamax_ab_result {
   board _board;
   int32_t _score;
   uint64_t zobrist;
+  score_state ss;
 } negamax_ab_result;
 
 // move moves_table[11][240];
@@ -224,16 +371,8 @@ move KILLER_MOVES[MAX_DEPTH][2];
 
 int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
                                        const int depth, const int ply, int32_t alpha, int32_t beta,
-                           int *tally, bool is_pv) {
+                             int *tally, bool is_pv, score_state ss) {
   PV_LENGTH[ply] = ply;
-
-  if (depth == 0) {
-    // std::cout << "is black: " << is_black_turn << "\n";
-    // auto res = score_board(&b, is_black_turn);
-    // std::cout << "score: " << res << "\n";
-    // return res;
-    return score_board(&b, is_black_turn);
-  }
 
   int32_t game_over_score = 0;
   bool game_over = game_over_check(b, is_black_turn, game_over_score);
@@ -244,11 +383,25 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   int total = 0;
   move moves_table[235];
   board boards_table[235];
-  if (is_black_turn) {
-    get_team_moves<true>(b, &total, moves_table, boards_table);
+
+  if (depth == 0) {
+    if (ply < MAX_DEPTH) {
+      if (is_black_turn) {
+	get_capture_move_boards<true>(boards_table, b, &total, moves_table);
+      } else {
+	get_capture_move_boards<false>(boards_table, b, &total, moves_table);
+      }
+    }
+    if (total == 0) {
+      return score_board(&b, is_black_turn) + ss.get_score(is_black_turn);
+    }
   } else {
-    get_king_moves(b, &total, moves_table, boards_table);
-    get_team_moves<false>(b, &total, moves_table, boards_table);
+    if (is_black_turn) {
+      get_team_moves<true>(b, &total, moves_table, boards_table);
+    } else {
+      get_king_moves(b, &total, moves_table, boards_table);
+      get_team_moves<false>(b, &total, moves_table, boards_table);
+    }
   }
 
   negamax_ab_result combi[235];
@@ -263,6 +416,8 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     if (is_pv && (combi[i]._move == PREV_PV[ply])) {
       combi[i]._score += 100000000;
     }
+    // update score state
+    combi[i].ss = update_score_state(ss, combi[i]._move, is_black_turn ? black_type : white_type);
   }
 
   if (depth > 1) {
@@ -285,7 +440,7 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     // the is_pv parameter is (is_pv && !i) because if this _is_ the pv then the first entry must be the next PV node due to the bonus applied above, unless the next PV move wasn't found, which would be a real bug.
     int32_t next_result =
         -negamax_ab_sorted_pv(combi[i]._move, combi[i]._board, !is_black_turn,
-                              depth - 1, ply + 1, -beta, -alpha, tally, (is_pv && !i));
+                              depth == 0 ? 0 : depth - 1, ply + 1, -beta, -alpha, tally, (is_pv && !i), combi[i].ss);
     // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("score: %d\n", next_result);
     // if (depth == 1) printf("score: %d\n", next_result);
 
@@ -495,12 +650,13 @@ negamax_ab_result negamax_ab_sorted_runner(board b, bool is_black, int depth) {
 
 int32_t negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
   int tally = 0;
+  score_state s;
 
   memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
   memset(PREV_PV, 0, MAX_DEPTH * sizeof(move));
   for (int i = 0; i < depth; i++) {
     negamax_ab_sorted_pv((move){0, 0}, b, is_black, i, 0, INT_MIN,
-				    INT_MAX, &tally, true);
+			 INT_MAX, &tally, true, s);
     for (int j = 0; j < PV_LENGTH[0]; j++) {
       PREV_PV[j] = PV_TABLE[0][j];
     }
@@ -510,7 +666,7 @@ int32_t negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
   /*
   */
   auto res = negamax_ab_sorted_pv((move){0, 0}, b, is_black, depth, 0, MIN_SCORE,
-				  MAX_SCORE, &tally, true);
+				  MAX_SCORE, &tally, true, s);
   // printf("tally: %d\n", tally);
   return res;
 }

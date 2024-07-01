@@ -1622,15 +1622,15 @@ TEST_CASE("bench moves", "[benchmark]") {
   board boards[5] = {
     // rc::gen::arbitrary<board>()(1000, 100).value(),
     // rc::gen::arbitrary<board>()(2000, 100).value(),
-    rc::gen::arbitrary<board>()(3000, 100).value(),
+    // rc::gen::arbitrary<board>()(3000, 100).value(),
     // rc::gen::arbitrary<board>()(4000, 100).value(),
     // rc::gen::arbitrary<board>()(5000, 100).value(),
-    rc::gen::arbitrary<board>()(6000, 100).value(),
+    // rc::gen::arbitrary<board>()(6000, 100).value(),
     // rc::gen::arbitrary<board>()(7000, 100).value(),
     // rc::gen::arbitrary<board>()(8000, 100).value(),
     // rc::gen::arbitrary<board>()(9000, 100).value(),
-    rc::gen::arbitrary<board>()(9999, 100).value(),
-    start_board,
+    // rc::gen::arbitrary<board>()(9999, 100).value(),
+    // start_board,
     sanity_capture_board_white
   };
   split_move_result r;
@@ -1701,13 +1701,13 @@ TEST_CASE("bench moves", "[benchmark]") {
   //   // auto r = negamax_ab_sorted_z_runner(start_board, true, 4);
   //   return r;
   // };
-  BENCHMARK("negamax ab sorted z iter") {
-    for (board b : boards) {
-      memset(tt, 0, tt_size * sizeof(tt_entry));
-      auto r = negamax_ab_z_iter_runner(b, true, depth);
-    }
-    return r;
-  };
+  // BENCHMARK("negamax ab sorted z iter") {
+  //   for (board b : boards) {
+  //     memset(tt, 0, tt_size * sizeof(tt_entry));
+  //     auto r = negamax_ab_z_iter_runner(b, true, depth);
+  //   }
+  //   return r;
+  // };
   /*
   */
 }
@@ -1753,7 +1753,7 @@ TEST_CASE("hashing results in fewer nodes visited") {
 }
 
 TEST_CASE("test pv") {
-  auto res = negamax_ab_sorted_pv_runner(start_board, true, 4);
+  auto res = negamax_ab_sorted_pv_runner(start_board, true, 5);
   /*
   for (int i = 0; i < MAX_DEPTH; i++) {
     printf("[%d] = %d\n", i, PV_LENGTH[i]);
