@@ -331,3 +331,12 @@ struct mini_board decode_mini(std::string input) {
   memcpy(&b, out, sizeof(b));
   return b;
 };
+
+int white_pawn_count(const board b) {
+  return __builtin_popcountll(b.white[0]) + __builtin_popcountll(b.white[1]);
+}
+
+int black_pawn_count(const board b) {
+  return __builtin_popcountll(b.black[0]) + __builtin_popcountll(b.black[1]);
+}
+

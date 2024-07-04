@@ -770,6 +770,69 @@ apply_captures_niave(const layer friends, layer &foes, layer &foes_r, int dest) 
   }
 }
 
+inline __attribute__((always_inline)) uint8_t
+apply_captures_niave_count(const layer friends, layer &foes, layer &foes_r, int dest) {
+  uint8_t count = 0;
+
+  int modDest = dest % 11;
+  int target;
+  int behind;
+
+  //northCapture
+  target = dest + 11;
+  behind = dest + 22;
+  if (dest < 99 &&
+      foes[sub_layer[target]] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends[sub_layer[behind]] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      count++;
+  }
+
+  //southCapture
+  target = dest - 11;
+  behind = dest - 22;
+  if (dest > 21 &&
+      foes[sub_layer[target]] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends[sub_layer[behind]] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      count++;
+  }
+
+  //westCapture
+  target = dest + 1;
+  behind = dest + 2;
+  if (modDest < 9 &&
+      foes[sub_layer[target]] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends[sub_layer[behind]] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      count++;
+  }
+   
+  //eastCapture
+  target = dest - 1;
+  behind = dest - 2;
+  if (modDest > 1 &&
+      foes[sub_layer[target]] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends[sub_layer[behind]] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes[sub_layer[target]] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r[sub_layer[target_r]] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      count++;
+  }
+
+  return count;
+}
+
 inline void (*capture_functions[121])(const layer &, const layer &, layer &, layer &, const unsigned char) = {
     capture_se,
     capture_se,

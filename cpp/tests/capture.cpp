@@ -881,6 +881,32 @@ TEST_CASE("bulk capture destinations") {
   REQUIRE(stringify(capture_dests) == stringify(exp_l));
 }
 
+TEST_CASE("find neighbor accurate") {
+  uint16_t occ = 0b11011111101;
+  int pos = 1;
+  uint16_t neighbors = find_neighbors(occ, pos);
+  REQUIRE(neighbors == 0b00000000101);
+}
+
+TEST_CASE("get_center_row correct") {
+  const char *input = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      "X  X  X  X  X  X  X  X  X  X  X"
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+  layer input_layer = read_layer(input, 'X');
+  uint16_t center = get_center_row(input_layer);
+  uint16_t expected = 0b11111111111;
+  REQUIRE(center == expected);
+}
+
+
 TEST_CASE("king excluded from shield wall captures") {
 }
 
@@ -1169,8 +1195,9 @@ TEST_CASE("black capture moves are unique") {
   rc::prop("test", [](board a) {
     board boards[100];
     move moves[100];
+    uint8_t capture_counts[100] = {0};
     int total = 0;
-    get_capture_move_boards<true>(boards, a, &total, moves);
+    get_capture_move_boards<true>(boards, a, &total, moves, capture_counts);
     std::vector<std::tuple<char, char>> move_tuples;
     for (int i = 0; i < total; i++) {
       std::tuple<char, char> e = {moves[i].orig, moves[i].dest};
@@ -1203,7 +1230,8 @@ TEST_CASE("black capture moves and boards match") {
     board boards[100];
     move moves[100];
     int total = 0;
-    get_capture_move_boards<true>(boards, a, &total, moves);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<true>(boards, a, &total, moves, capture_counts);
     for (int i = 0; i < total; i++) {
       layer diff = a.black ^ boards[i].black;
       move m = moves[i];
@@ -1221,7 +1249,8 @@ TEST_CASE("black capture board rotation correct") {
     board boards[100];
     move moves[100];
     int total = 0;
-    get_capture_move_boards<true>(boards, a, &total, moves);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<true>(boards, a, &total, moves, capture_counts);
     for (int i = 0; i < total; i++) {
       layer l = boards[i].black;
       layer r = boards[i].black_r;
@@ -1238,7 +1267,8 @@ TEST_CASE("black capture moves are correct") {
     board bs[100];
     move ms[100];
     int total = 0;
-    get_capture_move_boards<true>(bs, b, &total, ms);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<true>(bs, b, &total, ms, capture_counts);
     test_capture_moves_correct<true>(bs, ms, total, b);
   });
 }
@@ -1251,7 +1281,8 @@ TEST_CASE("white capture moves are unique") {
     board boards[100];
     move moves[100];
     int total = 0;
-    get_capture_move_boards<false>(boards, a, &total, moves);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<false>(boards, a, &total, moves, capture_counts);
     std::vector<std::tuple<char, char>> move_tuples;
     for (int i = 0; i < total; i++) {
       std::tuple<char, char> e = {moves[i].orig, moves[i].dest};
@@ -1266,7 +1297,8 @@ TEST_CASE("white capture moves are within bounds") {
     board boards[100];
     move moves[100];
     int total = 0;
-    get_capture_move_boards<false>(boards, a, &total, moves);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<false>(boards, a, &total, moves, capture_counts);
     for (int i = 0; i < total; i++) {
       RC_ASSERT_FALSE(moves[i].orig < 1);
       RC_ASSERT_FALSE(moves[i].dest < 1);
@@ -1282,7 +1314,8 @@ TEST_CASE("white capture moves and boards match") {
     board boards[100];
     move moves[100];
     int total = 0;
-    get_capture_move_boards<false>(boards, a, &total, moves);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<false>(boards, a, &total, moves, capture_counts);
     for (int i = 0; i < total; i++) {
       layer diff = a.white ^ boards[i].white;
       move m = moves[i];
@@ -1300,7 +1333,8 @@ TEST_CASE("white capture board rotation correct") {
     board boards[100];
     move moves[100];
     int total = 0;
-    get_capture_move_boards<false>(boards, a, &total, moves);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<false>(boards, a, &total, moves, capture_counts);
     for (int i = 0; i < total; i++) {
       layer l = boards[i].white;
       layer r = boards[i].white_r;
@@ -1317,7 +1351,8 @@ TEST_CASE("white capture moves are correct") {
     board bs[100];
     move ms[100];
     int total = 0;
-    get_capture_move_boards<false>(bs, b, &total, ms);
+    uint8_t capture_counts[100] = {0};
+    get_capture_move_boards<false>(bs, b, &total, ms, capture_counts);
     test_capture_moves_correct<false>(bs, ms, total, b);
   });
 }
@@ -1444,7 +1479,8 @@ TEST_CASE("black moves correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    get_team_moves<true>(b, &total, ms, bs);
+    uint8_t capture_counts[100] = {0};
+    get_team_moves<true>(b, &total, ms, capture_counts, bs);
     test_moves_correct(bs, ms, total, b.black, b.get_occ());
   });
 }
@@ -1463,8 +1499,9 @@ TEST_CASE("black moves and boards match") {
   rc::prop("test", [](const board b) {
     board bs[235];
     move ms[235];
+    uint8_t capture_counts[100] = {0};
     int total = 0;
-    get_team_moves<true>(b, &total, ms, bs);
+    get_team_moves<true>(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
       move m = ms[i];
       board nb = bs[i];
@@ -1486,7 +1523,8 @@ TEST_CASE("white moves correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    get_team_moves<false>(b, &total, ms, bs);
+    uint8_t capture_counts[100] = {0};
+    get_team_moves<false>(b, &total, ms, capture_counts, bs);
     test_moves_correct(bs, ms, total, b.white, b.get_occ());
   });
 }
@@ -1506,7 +1544,8 @@ TEST_CASE("white moves and boards match") {
     board bs[235];
     move ms[235];
     int total = 0;
-    get_team_moves<false>(b, &total, ms, bs);
+    uint8_t capture_counts[100] = {0};
+    get_team_moves<false>(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
       move m = ms[i];
       board nb = bs[i];
@@ -1528,7 +1567,8 @@ TEST_CASE("king moves correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    get_king_moves(b, &total, ms, bs);
+    uint8_t capture_counts[100] = {0};
+    get_king_moves(b, &total, ms, capture_counts, bs);
     test_moves_correct(bs, ms, total, b.king, b.get_occ(), true);
   });
 }
@@ -1538,7 +1578,8 @@ TEST_CASE("king moves and boards match") {
     board bs[235];
     move ms[235];
     int total = 0;
-    get_king_moves(b, &total, ms, bs);
+    uint8_t capture_counts[100] = {0};
+    get_king_moves(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
       // layer diff = b.king ^ bs[i].king;
       move m = ms[i];
@@ -1555,7 +1596,8 @@ TEST_CASE("king move board rotation correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    get_king_moves(b, &total, ms, bs);
+    uint8_t capture_counts[100] = {0};
+    get_king_moves(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
       layer l = bs[i].king;
       layer r = bs[i].king_r;
@@ -1581,11 +1623,26 @@ TEST_CASE("simple king moves correct") {
 // Bench move
 //*****************************************************************************
 
+const char* sanity_capture_string = \
+  " .  .  .  X  X  X  .  X  .  .  . "
+  " .  .  .  .  .  X  O  .  .  .  . "
+  " .  .  .  .  .  .  X  .  .  .  . "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " X  .  .  .  O  O  .  .  .  .  X "
+  " X  X  .  O  O  #  O  O  .  X  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  .  .  .  .  .  .  X "
+  " .  .  .  .  X  .  .  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  O "
+  " .  .  .  X  .  X  X  X  .  .  . ";
+
+const board sanity_capture_board = read_board(sanity_capture_string);
+
 const char* sanity_capture_string_white = \
   " .  .  .  X  X  X  .  X  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  .  .  O  .  O  .  .  . "
-  " X  .  .  .  .  .  .  .  .  .  X "
+  " .  .  .  .  .  .  .  .  .  .  . "
+  " .  .  .  .  .  O  X  .  .  .  . "
+  " X  .  .  .  .  .  .  O  .  .  X "
   " X  .  .  .  O  O  O  .  .  .  X "
   " X  X  .  O  O  #  O  .  .  X  X "
   " X  .  .  .  O  O  O  .  .  .  X "
@@ -1630,8 +1687,9 @@ TEST_CASE("bench moves", "[benchmark]") {
     // rc::gen::arbitrary<board>()(8000, 100).value(),
     // rc::gen::arbitrary<board>()(9000, 100).value(),
     // rc::gen::arbitrary<board>()(9999, 100).value(),
-    // start_board,
-    sanity_capture_board_white
+    start_board,
+    sanity_capture_board,
+    sanity_capture_board_white,
   };
   split_move_result r;
   /*
@@ -1784,23 +1842,9 @@ TEST_CASE("board hash round trip") {
   });
 }
 
-const char* sanity_capture_string = \
-  " .  .  .  X  X  X  .  X  .  .  . "
-  " .  .  .  .  .  X  O  .  .  .  . "
-  " .  .  .  .  .  .  X  .  .  .  . "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " X  .  .  .  O  O  .  .  .  .  X "
-  " X  X  .  O  O  #  O  O  .  X  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  .  .  .  .  .  .  .  .  .  X "
-  " .  .  .  .  X  .  .  .  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  O "
-  " .  .  .  X  .  X  X  X  .  .  . ";
-
-const board sanity_capture_board = read_board(sanity_capture_string);
-
 TEST_CASE("sanity check capture") {
-  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
+  // auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
+  auto res = negamax_ab_z_iter_runner(sanity_capture_board, true, 5);
   /*
   for (int i = 0; i < MAX_DEPTH; i++) {
     printf("[%d] = %d\n", i, PV_LENGTH[i]);
@@ -1820,7 +1864,7 @@ TEST_CASE("sanity check capture") {
 
 
 TEST_CASE("sanity check capture white") {
-  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, true, 1);
+  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, false, 5);
   /*
   for (int i = 0; i < MAX_DEPTH; i++) {
     printf("[%d] = %d\n", i, PV_LENGTH[i]);
