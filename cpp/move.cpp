@@ -521,7 +521,7 @@ process_move(const board *base_board, board *boards, move *moves, uint8_t *cap_c
 struct move_result {
   move m;
   board b;
-  int8_t cap_count;
+  uint8_t cap_count;
   uint64_t z;
 };
 
@@ -572,8 +572,9 @@ process_move_z(const board *base_board, const uint64_t z, move_result *results,
       (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
 
   // this can maybe actually be moved up to where the check is done? actually no the check relies on the un-adjusted dest and the capture relies on the adjusted dest
+  uint8_t cap_count = 0;
   if (is_capture) {
-    apply_captures_niave(
+    cap_count = apply_captures_niave_count(
         board_layer(is_black, false), board_layer(!is_black, false),
         board_layer(!is_black, true), (is_rotated ? dest_r : dest));
     // capture_functions[(is_rotated ? dest_r : dest)](
@@ -601,7 +602,7 @@ process_move_z(const board *base_board, const uint64_t z, move_result *results,
     capture_diff[1] = _blsr_u64(capture_diff[1]);
   }
 
-  results[(*total)] =  {m, board, new_z};
+  results[(*total)] =  {m, board, cap_count, new_z};
   (*total)++;
 }
 
