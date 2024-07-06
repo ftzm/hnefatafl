@@ -35,25 +35,6 @@ CATCH_REGISTER_LISTENER(testRunListener)
 
 //******************************************************************************
 
-void test_capture(void (*func)(const layer &, const layer &, layer &, layer &,
-                               const unsigned char),
-                  const char *input_string, const char *expected_string,
-                  unsigned char pos) {
-  layer expected = read_layer(expected_string, 'X');
-  layer expected_r = rotate_layer(expected);
-
-  layer foes = read_layer(input_string, 'X');
-  layer foes_r = rotate_layer(foes);
-
-  layer allies = read_layer(input_string, 'O');
-  layer allies_r = rotate_layer(allies);
-
-  func(allies, allies_r, foes, foes_r, pos);
-
-  REQUIRE(stringify(expected) == stringify(foes));
-  REQUIRE(stringify(expected_r) == stringify(foes_r));
-}
-
 template <bool is_black>
 void test_capture_s(const char *input_string, const char *expected_string,
                   unsigned char pos) {
@@ -63,392 +44,6 @@ void test_capture_s(const char *input_string, const char *expected_string,
   shield_wall<is_black>(&inp, pos);
   REQUIRE(inp == exp);
 }
-
-TEST_CASE("capture_u") {
-  const char *u_input = ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  O  X  .  X  O  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *u_expected = ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  O  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_u, u_input, u_expected, 93);
-}
-
-TEST_CASE("capture_l") {
-  const char *l_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  O  X  .  X  O  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *l_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  O  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_l, l_input, l_expected, 38);
-}
-
-TEST_CASE("capture_x") {
-
-  const char *x_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  O  X  .  X  O  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *x_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  O  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-
-  test_capture(capture_x, x_input, x_expected, 60);
-}
-
-TEST_CASE("capture_y") {
-
-  const char *y_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  O  X  .  X  O  .  .  ."
-                        ".  .  .  .  .  X  .  .  .  .  ."
-                        ".  .  .  .  .  O  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *y_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  O  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-
-  test_capture(capture_y, y_input, y_expected, 71);
-}
-
-TEST_CASE("capture_r") {
-  const char *r_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  O  .  .  .  .  .  .  .  ."
-                        ".  .  X  .  .  .  .  .  .  .  ."
-                        "O  X  .  X  O  .  .  .  .  .  ."
-                        ".  .  X  .  .  .  .  .  .  .  ."
-                        ".  .  O  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *r_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  O  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           "O  .  .  .  O  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  O  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-
-  test_capture(capture_r, r_input, r_expected, 63);
-}
-
-TEST_CASE("capture_R") {
-  const char *R_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  O  .  ."
-                        ".  .  .  .  .  .  .  .  X  .  ."
-                        ".  .  .  .  .  .  O  X  .  X  O"
-                        ".  .  .  .  .  .  .  .  X  .  ."
-                        ".  .  .  .  .  .  .  .  O  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *R_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  O  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  O  .  .  .  O"
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  O  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_R, R_input, R_expected, 57);
-}
-
-TEST_CASE("capture_b") {
-  const char *b_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  O  .  .  ."
-                        ".  .  .  .  .  .  .  X  .  .  ."
-                        ".  .  .  .  .  O  X  .  X  O  ."
-                        ".  .  .  .  .  .  .  X  .  .  ."
-                        ".  .  .  .  .  .  .  O  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *b_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  O  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_b, b_input, b_expected, 47);
-}
-
-TEST_CASE("capture_B") {
-  const char *B_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  O  .  .  ."
-                        ".  .  .  .  .  .  .  X  .  .  ."
-                        ".  .  .  .  .  O  X  .  X  O  ."
-                        ".  .  .  .  .  .  .  X  .  .  ."
-                        ".  .  .  .  .  .  .  O  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *B_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  O  .  .  .  O  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  O  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-
-  test_capture(capture_B, B_input, B_expected, 80);
-}
-
-TEST_CASE("capture_62") {
-  const char *c62_input = ".  .  .  .  .  .  .  .  .  .  ."
-                          ".  .  .  .  .  .  .  .  .  .  ."
-                          ".  .  .  .  .  .  .  .  .  .  ."
-                          ".  .  .  O  .  .  .  .  .  .  ."
-                          ".  .  .  X  .  .  .  .  .  .  ."
-                          ".  O  X  .  X  O  .  .  .  .  ."
-                          ".  .  .  X  .  .  .  .  .  .  ."
-                          ".  .  .  O  .  .  .  .  .  .  ."
-                          ".  .  .  .  .  .  .  .  .  .  ."
-                          ".  .  .  .  .  .  .  .  .  .  ."
-                          ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *c62_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  ."
-                             ".  .  .  O  .  .  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  ."
-                             ".  O  .  .  .  O  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  ."
-                             ".  .  .  O  .  .  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  ."
-                             ".  .  .  .  .  .  .  .  .  .  .";
-
-  test_capture(capture_62, c62_input, c62_expected, 62);
-}
-
-TEST_CASE("capture_u_corner_west") {
-  const char *u_input = ".  X  O  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *u_expected = ".  .  O  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_u, u_input, u_expected, 118);
-}
-
-TEST_CASE("capture_u corner west lower") {
-  const char *u_input = ".  .  .  .  .  .  .  .  .  .  ."
-                        "X  .  .  .  .  .  .  .  .  .  ."
-                        "O  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *u_expected = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           "O  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_u, u_input, u_expected, 98);
-}
-TEST_CASE("capture_u_corner_east") {
-  const char *u_input = ".  .  .  .  .  .  .  .  O  X  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  .";
-
-  const char *u_expected = ".  .  .  .  .  .  .  .  O  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  .";
-  test_capture(capture_u, u_input, u_expected, 112);
-}
-
-TEST_CASE("capture_l_corner_west") {
-  const char *inp = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  X  O  .  .  .  .  .  .  .  .";
-
-  const char *exp = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  O  .  .  .  .  .  .  .  .";
-  test_capture(capture_l, inp, exp, 8);
-}
-
-TEST_CASE("capture_l_corner_east") {
-  const char *inp = ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  .  .  ."
-                        ".  .  .  .  .  .  .  .  O  X  .";
-
-  const char *exp = ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  .  .  ."
-                           ".  .  .  .  .  .  .  .  O  .  .";
-  test_capture(capture_l, inp, exp, 2);
-}
-
-
 TEST_CASE("capture_s_s") {
   const char *s_input = ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
@@ -842,7 +437,7 @@ TEST_CASE("all captures") {
       layer allies_r = {ally_masks_r[i][0], ally_masks_r[i][1]};
       layer foes = {foe_masks[i][0], foe_masks[i][1]};
       layer foes_r = {foe_masks_r[i][0], foe_masks_r[i][1]};
-      capture_functions[i](allies, allies_r, foes, foes_r, i);
+      apply_captures_niave_count(allies, foes, foes_r, i);
       REQUIRE(stringify(foes) == stringify({0, 0}));
       REQUIRE(stringify(foes_r) == stringify({0, 0}));
     }
@@ -950,7 +545,7 @@ TEST_CASE("move rotation is always correct") {
 void showValue(const board &board, std::ostream &os) {
   // something about the unicode bars conflicts with the catch2
   // printing, so we replace them with slightly uglier dashes
-  auto s = std::regex_replace(pretty_fmt_board(board), std::regex("─"), "-");
+  auto s = std::regex_replace(basic_fmt_board(board), std::regex("─"), "-");
   os << '\n' << s << std::endl;
 }
 
@@ -1044,7 +639,7 @@ std::optional<uint8_t> move_north(uint i) {
 }
 
 std::optional<uint8_t> move_south(uint i) {
-  return i > 11 ? std::optional{i - 11} : std::nullopt;
+  return i > 10 ? std::optional{i - 11} : std::nullopt;
 }
 
 std::optional<uint8_t> move_east(uint i) {
@@ -1373,7 +968,10 @@ vector<move> dir_moves(uint8_t i, layer occ, bool is_king = false) {
     bool is_corner = corner_pred(val);
     bool occupied = 
       occ[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
-    if (occupied || is_corner) {
+    if (occupied) {
+      break;
+    }
+    if (is_corner && !is_king) {
       break;
     }
     if (!is_king && val == 60) {
@@ -1479,18 +1077,8 @@ TEST_CASE("black moves correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    uint8_t capture_counts[100] = {0};
+    uint8_t capture_counts[235] = {0};
     get_team_moves<true>(b, &total, ms, capture_counts, bs);
-    test_moves_correct(bs, ms, total, b.black, b.get_occ());
-  });
-}
-
-TEST_CASE("black moves correct old") {
-  rc::prop("test", [](board b) {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    get_team_moves_black(b, &total, ms, bs);
     test_moves_correct(bs, ms, total, b.black, b.get_occ());
   });
 }
@@ -1499,7 +1087,7 @@ TEST_CASE("black moves and boards match") {
   rc::prop("test", [](const board b) {
     board bs[235];
     move ms[235];
-    uint8_t capture_counts[100] = {0};
+    uint8_t capture_counts[235] = {0};
     int total = 0;
     get_team_moves<true>(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
@@ -1523,18 +1111,8 @@ TEST_CASE("white moves correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    uint8_t capture_counts[100] = {0};
+    uint8_t capture_counts[235] = {0};
     get_team_moves<false>(b, &total, ms, capture_counts, bs);
-    test_moves_correct(bs, ms, total, b.white, b.get_occ());
-  });
-}
-
-TEST_CASE("white moves correct old") {
-  rc::prop("test", [](board b) {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    get_team_moves_white(b, &total, ms, bs);
     test_moves_correct(bs, ms, total, b.white, b.get_occ());
   });
 }
@@ -1544,7 +1122,7 @@ TEST_CASE("white moves and boards match") {
     board bs[235];
     move ms[235];
     int total = 0;
-    uint8_t capture_counts[100] = {0};
+    uint8_t capture_counts[235] = {0};
     get_team_moves<false>(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
       move m = ms[i];
@@ -1567,7 +1145,7 @@ TEST_CASE("king moves correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    uint8_t capture_counts[100] = {0};
+    uint8_t capture_counts[235] = {0};
     get_king_moves(b, &total, ms, capture_counts, bs);
     test_moves_correct(bs, ms, total, b.king, b.get_occ(), true);
   });
@@ -1578,7 +1156,7 @@ TEST_CASE("king moves and boards match") {
     board bs[235];
     move ms[235];
     int total = 0;
-    uint8_t capture_counts[100] = {0};
+    uint8_t capture_counts[235] = {0};
     get_king_moves(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
       // layer diff = b.king ^ bs[i].king;
@@ -1596,7 +1174,7 @@ TEST_CASE("king move board rotation correct") {
     board bs[235];
     move ms[235];
     int total = 0;
-    uint8_t capture_counts[100] = {0};
+    uint8_t capture_counts[235] = {0};
     get_king_moves(b, &total, ms, capture_counts, bs);
     for (int i = 0; i < total; i++) {
       layer l = bs[i].king;
@@ -1606,16 +1184,6 @@ TEST_CASE("king move board rotation correct") {
       RC_ASSERT(std::ranges::equal(rotate_layer(l), r));
     }
     return true;
-  });
-}
-
-TEST_CASE("simple king moves correct") {
-  rc::prop("test", [](board b) {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    get_king_moves_simple(b, &total, ms, bs);
-    test_moves_correct(bs, ms, total, b.king, b.get_occ(), true);
   });
 }
 
@@ -1738,68 +1306,25 @@ TEST_CASE("bench moves", "[benchmark]") {
     // auto r = negamax_ab_sorted_runner(start_board, true, 4);
     return r;
   };
-  BENCHMARK("negamax ab sorted z iter") {
-    init_move_globals();
-    init_hashes();
-    for (board b : boards) {
-      memset(tt, 0, tt_size * sizeof(tt_entry));
-      auto r = negamax_ab_z_iter_runner(b, true, depth);
-    }
-    return r;
-  };
 }
 
-TEST_CASE("hashing results in fewer nodes visited") {
-  rc::prop("test", [](board b) {
-    // b = start_board;
-    score_state ss = init_score_state(b);
-    memset(tt, 0, tt_size * sizeof(tt_entry));
-    int depth = 5;
-    int no_hash_tally = 0;
-    int hash_tally = 0;
-    int iter_hash_tally = 0;
-    bool is_black_turn = true;
-    uint64_t start_zobrist = hash_for_board(b, is_black_turn);
-    z_usage = 0;
-    memset(tt, 0, tt_size * sizeof(tt_entry));
-    for (int i = 1; i < depth; i++) {
-      negamax_ab_z((move){0, 0}, b, start_zobrist, is_black_turn,
-                   i, 0,  INT_MIN, INT_MAX, &iter_hash_tally, ss, true);
-    }
-    iter_hash_tally = 0;
-    negamax_ab_z((move){0, 0}, b, start_zobrist, is_black_turn,
-                 depth, 0, INT_MIN, INT_MAX, &iter_hash_tally, ss, true);
-
-    print_board(b);
-    setlocale(LC_NUMERIC, "");
-    printf("no hash tally: %'d\n", no_hash_tally);
-    printf("hash tally: %'d\n", hash_tally);
-    printf("iter hash tally: %'d\n", iter_hash_tally);
-    printf("z usage: %'d\n", z_usage);
-    printf("\n");
-    printf("---------------------------------\n");
-    printf("\n");
-    return hash_tally < no_hash_tally || z_usage == 0;
-  });
-}
-
-TEST_CASE("test pv") {
-  auto res = negamax_ab_sorted_pv_runner(start_board, true, 5);
-  /*
-  for (int i = 0; i < MAX_DEPTH; i++) {
-    printf("[%d] = %d\n", i, PV_LENGTH[i]);
-  }
-  */
-  for (int i = 0; i < PV_LENGTH[0]; i++) {
-    auto m = PV_TABLE[0][i] ;
-    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
-    std::cout << "move: " << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
-  }
-  // print_board(res._board);
-  REQUIRE(false);
-}
+// TEST_CASE("test pv") {
+//   auto res = negamax_ab_sorted_pv_runner(start_board, true, 5);
+//   /*
+//   for (int i = 0; i < MAX_DEPTH; i++) {
+//     printf("[%d] = %d\n", i, PV_LENGTH[i]);
+//   }
+//   */
+//   for (int i = 0; i < PV_LENGTH[0]; i++) {
+//     auto m = PV_TABLE[0][i] ;
+//     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+//     std::cout << "move: " << m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//   }
+//   // print_board(res._board);
+//   REQUIRE(true);
+// }
 
 TEST_CASE("test encode") {
   std::string black_string = encode_layer(start_board.black);
@@ -1815,45 +1340,45 @@ TEST_CASE("board hash round trip") {
   });
 }
 
-TEST_CASE("sanity check capture") {
-  // auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
-  auto res = negamax_ab_z_iter_runner(sanity_capture_board, true, 5);
-  /*
-  for (int i = 0; i < MAX_DEPTH; i++) {
-    printf("[%d] = %d\n", i, PV_LENGTH[i]);
-  }
-  */
-  for (int i = 0; i < PV_LENGTH[0]; i++) {
-    auto m = PV_TABLE[0][i] ;
-    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
-    std::cout << "move: " << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
-  }
-  // print_board(res._board);
-  std::cout << "score: " << res << "\n";
-  REQUIRE(false);
-}
+// TEST_CASE("sanity check capture") {
+//   // auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
+//   auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
+//   /*
+//   for (int i = 0; i < MAX_DEPTH; i++) {
+//     printf("[%d] = %d\n", i, PV_LENGTH[i]);
+//   }
+//   */
+//   for (int i = 0; i < PV_LENGTH[0]; i++) {
+//     auto m = PV_TABLE[0][i] ;
+//     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+//     std::cout << "move: " << m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//   }
+//   // print_board(res._board);
+//   std::cout << "score: " << res << "\n";
+//   REQUIRE(true);
+// }
 
 
-TEST_CASE("sanity check capture white") {
-  auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, false, 5);
-  /*
-  for (int i = 0; i < MAX_DEPTH; i++) {
-    printf("[%d] = %d\n", i, PV_LENGTH[i]);
-  }
-  */
-  for (int i = 0; i < PV_LENGTH[0]; i++) {
-    auto m = PV_TABLE[0][i] ;
-    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
-    std::cout << "move: " << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
-  }
-  // print_board(res._board);
-  std::cout << "score: " << res << "\n";
-  REQUIRE(false);
-}
+// TEST_CASE("sanity check capture white") {
+//   auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, false, 5);
+//   /*
+//   for (int i = 0; i < MAX_DEPTH; i++) {
+//     printf("[%d] = %d\n", i, PV_LENGTH[i]);
+//   }
+//   */
+//   for (int i = 0; i < PV_LENGTH[0]; i++) {
+//     auto m = PV_TABLE[0][i] ;
+//     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+//     std::cout << "move: " << m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//   }
+//   // print_board(res._board);
+//   std::cout << "score: " << res << "\n";
+//   REQUIRE(true);
+// }
 
 const char* wtf_string = \
   " .  .  .  X  .  X  X  X  .  .  . "
@@ -1870,42 +1395,42 @@ const char* wtf_string = \
 
 const board wtf_board = read_board(wtf_string);
 
-TEST_CASE("wtf") {
-  auto res = negamax_ab_sorted_pv_runner(wtf_board, false, 1);
-  /*
-  for (int i = 0; i < MAX_DEPTH; i++) {
-    printf("[%d] = %d\n", i, PV_LENGTH[i]);
-  }
-  */
-  for (int i = 0; i < PV_LENGTH[0]; i++) {
-    auto m = PV_TABLE[0][i] ;
-    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
-    std::cout << "move: " << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
-  }
-  // print_board(res._board);
-  std::cout << "score: " << res << "\n";
-  REQUIRE(false);
-}
+// TEST_CASE("wtf") {
+//   auto res = negamax_ab_sorted_pv_runner(wtf_board, false, 1);
+//   /*
+//   for (int i = 0; i < MAX_DEPTH; i++) {
+//     printf("[%d] = %d\n", i, PV_LENGTH[i]);
+//   }
+//   */
+//   for (int i = 0; i < PV_LENGTH[0]; i++) {
+//     auto m = PV_TABLE[0][i] ;
+//     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+//     std::cout << "move: " << m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//   }
+//   // print_board(res._board);
+//   std::cout << "score: " << res << "\n";
+//   REQUIRE(true);
+// }
 
-TEST_CASE("test pv z") {
-   auto res = negamax_ab_z_iter_runner(sanity_capture_board, true, 5);
-  for (int i = 0; i < MAX_DEPTH; i++) {
-    printf("[%d] = %d\n", i, PV_LENGTH[i]);
-  }
-  /*
-  */
-  for (int i = 0; i < PV_LENGTH[0]; i++) {
-    auto m = PV_TABLE[0][i] ;
-    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
-    std::cout << "move: " << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
-  }
-  // print_board(res._board);
-  REQUIRE(false);
-}
+// TEST_CASE("test pv z") {
+//    auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
+//   for (int i = 0; i < MAX_DEPTH; i++) {
+//     printf("[%d] = %d\n", i, PV_LENGTH[i]);
+//   }
+//   /*
+//   */
+//   for (int i = 0; i < PV_LENGTH[0]; i++) {
+//     auto m = PV_TABLE[0][i] ;
+//     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+//     std::cout << "move: " << m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//   }
+//   // print_board(res._board);
+//   REQUIRE(true);
+// }
 
 const char* king_string = \
   " .  .  .  X  .  X  X  X  #  .  . "
@@ -1922,22 +1447,22 @@ const char* king_string = \
 
 const board king_board = read_board(king_string);
 
-TEST_CASE("king escapes") {
-  auto res = negamax_ab_sorted_pv_runner(king_board, false, 2);
-  /*
-  for (int i = 0; i < MAX_DEPTH; i++) {
-    printf("[%d] = %d\n", i, PV_LENGTH[i]);
-  }
-  */
-  for (int i = 0; i < PV_LENGTH[0]; i++) {
-    auto m = PV_TABLE[0][i] ;
-    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
-    std::cout << "move: " << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
-  }
-  // print_board(res._board);
-  std::cout << "score: " << res << "\n";
-  REQUIRE(false);
-}
+// TEST_CASE("king escapes") {
+//   auto res = negamax_ab_sorted_pv_runner(king_board, false, 2);
+//   /*
+//   for (int i = 0; i < MAX_DEPTH; i++) {
+//     printf("[%d] = %d\n", i, PV_LENGTH[i]);
+//   }
+//   */
+//   for (int i = 0; i < PV_LENGTH[0]; i++) {
+//     auto m = PV_TABLE[0][i] ;
+//     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+//     std::cout << "move: " << m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//   }
+//   // print_board(res._board);
+//   std::cout << "score: " << res << "\n";
+//   REQUIRE(true);
+// }
 
