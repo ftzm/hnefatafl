@@ -1,7 +1,9 @@
 #include "board.cpp"
 #include "move.cpp"
 #include <climits>
-#include <climits>
+#include <cstdint>
+#include <iostream>
+#include <iterator>
 
 enum PieceType : uint8_t {
   black_type = 1,
@@ -13,10 +15,11 @@ int32_t BLACK_PAWN_VALUE = 10000;
 int32_t WHITE_PAWN_VALUE = 10000;
 
 struct score_state {
-  int32_t get_score(bool is_black_turn) {
+  int32_t get_score(bool is_black_turn) const {
     int32_t score_as_black = guard_score +
                              (BLACK_PAWN_VALUE * black_pawn_count) -
-                             (WHITE_PAWN_VALUE * white_pawn_count);
+                             (WHITE_PAWN_VALUE * white_pawn_count) -
+                             pst_white_score;
     return is_black_turn ? score_as_black : -score_as_black;
   };
   uint8_t nw_guard_count;
@@ -26,6 +29,9 @@ struct score_state {
   int32_t guard_score;
   uint8_t black_pawn_count;
   uint8_t white_pawn_count;
+  int32_t pst_black_score;
+  int32_t pst_white_score;
+  int32_t pst_king_score;
 };
 
 constexpr layer corner_guard_nw = read_layer(".  .  X  .  .  .  .  .  .  .  ."
@@ -86,6 +92,7 @@ uint8_t nw_corner_protection(const board b) {
 
 uint8_t ne_corner_protection(const board b) {
   return __builtin_popcountll(corner_guard_ne[1] & b.black[1]);
+
 }
 
 uint8_t sw_corner_protection(const board b) {
@@ -96,48 +103,341 @@ uint8_t se_corner_protection(const board b) {
   return __builtin_popcountll(corner_guard_se[0] & b.black[0]);
 }
 
-score_state init_score_state(const board b) {
+// -----------------------------------------------------------------------------
+// King corner access
+
+bool corner_access_2_se(
+    const layer occ, const layer occ_r, const int rank, const int file) {
+  const uint16_t rank_mask = ((uint16_t)1 << rank) - 1;
+  const uint16_t file_mask = 0x7fe << file;
+
+  // south access
+  const uint16_t inner_file_blockers = get_row(occ_r, file) & file_mask;
+  const uint16_t outer_rank_blockers = occ[0] & rank_mask;
+
+  // east access
+  const uint16_t inner_rank_blockers = get_row(occ, rank) & rank_mask;
+  const uint16_t outer_file_blockers = occ_r[0] & file_mask;
+
+  // south adjacent access
+  const uint16_t short_file_mask = file_mask & (file_mask >> 1);
+  const uint16_t short_inner_file_blockers =
+      get_row(occ_r, file) & short_file_mask;
+  const uint16_t adjacent_outer_rank_blockers = (occ[0] >> 11) & rank_mask;
+
+  // east adjacent access
+  const uint16_t short_rank_mask = rank_mask & (rank_mask << 1);
+  const uint16_t short_inner_rank_blockers =
+      get_row(occ, rank) & short_rank_mask;
+  const uint16_t adjacent_outer_file_blockers = (occ_r[0] >> 11) & file_mask;
+
+  return !(inner_rank_blockers || outer_file_blockers) ||
+         !(inner_file_blockers || outer_rank_blockers) ||
+         !(short_inner_file_blockers || adjacent_outer_rank_blockers) ||
+         !(short_inner_rank_blockers || adjacent_outer_file_blockers);
+}
+
+bool corner_access_2_sw(const layer occ, const layer occ_r, const int rank, const int file) {
+  const uint16_t rank_mask = 0x7fe << rank;
+  const uint16_t file_mask = 0x7fe << file;
+
+  // south access
+  const uint16_t inner_file_blockers = get_row(occ_r, file) & file_mask;
+  const uint16_t outer_rank_blockers = occ[0] & rank_mask;
+
+  // west access
+  const uint16_t inner_rank_blockers = get_row(occ, rank) & rank_mask;
+  const uint16_t outer_file_blockers = (occ_r[1] >> 46) & file_mask;
+
+  // south adjacent access
+  const uint16_t short_file_mask = file_mask & (file_mask >> 1);
+  const uint16_t short_inner_file_blockers =
+      get_row(occ_r, file) & short_file_mask;
+  const uint16_t adjacent_outer_rank_blockers = (occ[0] >> 11) & rank_mask;
+
+  // west adjacent access
+  const uint16_t short_rank_mask = rank_mask & (rank_mask << 1);
+  const uint16_t short_inner_rank_blockers =
+      get_row(occ, rank) & short_rank_mask;
+  const uint16_t adjacent_outer_file_blockers = (occ_r[1] >> 35) & file_mask;
+
+  return !(inner_rank_blockers || outer_file_blockers) ||
+         !(inner_file_blockers || outer_rank_blockers) ||
+         !(short_inner_file_blockers || adjacent_outer_rank_blockers) ||
+	 !(short_inner_rank_blockers || adjacent_outer_file_blockers);
+}
+
+bool corner_access_2_ne(
+    const layer occ, const layer occ_r, const int rank, const int file) {
+  const uint16_t rank_mask = ((uint16_t)1 << rank) - 1;
+  const uint16_t file_mask = ((uint16_t)1 << file) - 1;
+
+  // north access
+  const uint16_t inner_file_blockers = get_row(occ_r, file) & file_mask;
+  const uint16_t outer_rank_blockers = (occ[1] >> 46) & rank_mask;
+
+  // east access
+  const uint16_t inner_rank_blockers = get_row(occ, rank) & rank_mask;
+  const uint16_t outer_file_blockers = occ_r[0] & file_mask;
+
+  // north adjacent access
+  const uint16_t short_file_mask = file_mask & (file_mask << 1);
+  const uint16_t short_inner_file_blockers =
+      get_row(occ_r, file) & short_file_mask;
+  const uint16_t adjacent_outer_rank_blockers = (occ[1] >> 35) & rank_mask;
+
+  // east adjacent access
+  const uint16_t short_rank_mask = rank_mask & (rank_mask << 1);
+  const uint16_t short_inner_rank_blockers =
+      get_row(occ, rank) & short_rank_mask;
+  const uint16_t adjacent_outer_file_blockers = (occ_r[0] >> 11) & file_mask;
+
+  return !(inner_rank_blockers || outer_file_blockers) ||
+         !(inner_file_blockers || outer_rank_blockers) ||
+         !(short_inner_file_blockers || adjacent_outer_rank_blockers) ||
+         !(short_inner_rank_blockers || adjacent_outer_file_blockers);
+}
+
+
+bool corner_access_2_nw(
+    const layer occ, const layer occ_r, const int rank, const int file) {
+  const uint16_t rank_mask = 0x7fe << rank;
+  const uint16_t file_mask = ((uint16_t)1 << file) - 1;
+
+  // north access
+  const uint16_t inner_file_blockers = get_row(occ_r, file) & file_mask;
+  const uint16_t outer_rank_blockers = (occ[1] >> 46) & rank_mask;
+
+  // west access
+  const uint16_t inner_rank_blockers = get_row(occ, rank) & rank_mask;
+  const uint16_t outer_file_blockers = (occ_r[1] >> 46) & file_mask;
+
+  // north adjacent access
+  const uint16_t short_file_mask = file_mask & (file_mask << 1);
+  const uint16_t short_inner_file_blockers =
+      get_row(occ_r, file) & short_file_mask;
+  const uint16_t adjacent_outer_rank_blockers = (occ[1] >> 35) & rank_mask;
+
+  // west adjacent access
+  const uint16_t short_rank_mask = rank_mask & (rank_mask >> 1);
+  const uint16_t short_inner_rank_blockers =
+      get_row(occ, rank) & short_rank_mask;
+  const uint16_t adjacent_outer_file_blockers = (occ_r[1] >> 35) & file_mask;
+
+  return !(inner_rank_blockers || outer_file_blockers) ||
+         !(inner_file_blockers || outer_rank_blockers) ||
+         !(short_inner_file_blockers || adjacent_outer_rank_blockers) ||
+         !(short_inner_rank_blockers || adjacent_outer_file_blockers);
+}
+
+int32_t
+all_corner_access_2(layer occ, layer occ_r, const int rank, const int file) {
+  return corner_access_2_nw(occ, occ_r, rank, file) +
+         corner_access_2_ne(occ, occ_r, rank, file) +
+         corner_access_2_sw(occ, occ_r, rank, file) +
+         corner_access_2_se(occ, occ_r, rank, file);
+}
+
+bool corner_access_3_se(const layer occ, const layer occ_r, const int rank, const int file) {
+  const uint16_t rank_mask = ((uint16_t)1 << rank) - 1;
+  const uint16_t file_mask = 0x7fe << file;
+
+  // south access
+  
+
+
+
+
+
+
+  //const int inner_rank
+
+  return true;
+
+}
+
+// -----------------------------------------------------------------------------
+
+std::array<int32_t, 121> quarter_to_pst(std::array<int32_t, 29> quarter) {
+  static array<int, 29> indices = {1,  2,  3,  4,  5,  11, 12, 13, 14, 15,
+                                   16, 22, 23, 24, 25, 26, 27, 33, 34, 35,
+                                   36, 37, 38, 44, 45, 46, 47, 48, 49};
+
+  array<int32_t, 121> pst = {0};
+
+  for (int i = 0; i < 29; i++) {
+    int32_t val = quarter[i];
+    int index = indices[i];
+    pst[index] = val;
+    index = rotate_right[index];
+    pst[index] = val;
+    index = rotate_right[index];
+    pst[index] = val;
+    index = rotate_right[index];
+    pst[index] = val;
+  }
+
+  return pst;
+}
+
+std::array<int32_t, 29> black_niave_pst_quarter = {
+    0, // 1
+    0, // 2
+    0, // 3
+    0, // 4
+    0, // 5
+    0, // 11
+    0, // 12
+    0, // 13
+    0, // 14
+    0, // 15
+    0, // 16
+    0, // 22
+    0, // 23
+    0, // 24
+    0, // 25
+    0, // 26
+    0, // 27
+    0, // 33
+    0, // 34
+    0, // 35
+    0, // 36
+    0, // 37
+    0, // 38
+    0, // 44
+    0, // 45
+    0, // 46
+    0, // 47
+    0, // 48
+    0  // 49
+};
+
+std::array<int32_t, 29> white_niave_pst_quarter = {
+    0, // 1
+    0, // 2
+    0, // 3
+    0, // 4
+    0, // 5
+    0, // 11
+    0, // 12
+    0, // 13
+    0, // 14
+    0, // 15
+    0, // 16
+    0, // 22
+    0, // 23
+    0, // 24
+    0, // 25
+    0, // 26
+    0, // 27
+    0, // 33
+    0, // 34
+    0, // 35
+    0, // 36
+    0, // 37
+    0, // 38
+    0, // 44
+    0, // 45
+    0, // 46
+    0, // 47
+    0, // 48
+    0  // 49
+};
+
+std::array<int32_t, 29> king_niave_pst_quarter = {
+    0,   // 1
+    500, // 2
+    0,   // 3
+    0,   // 4
+    0,   // 5
+    0,   // 11
+    500, // 12
+    500, // 13
+    0,   // 14
+    0,   // 15
+    0,   // 16
+    500, // 22
+    500, // 23
+    500, // 24
+    0,   // 25
+    0,   // 26
+    0,   // 27
+    0,   // 33
+    0,   // 34
+    0,   // 35
+    0,   // 36
+    0,   // 37
+    -5,  // 38
+    0,   // 44
+    0,   // 45
+    0,   // 46
+    0,   // 47
+    -10, // 48
+    -15  // 49
+};
+
+struct ai_settings {
+  std::array<int32_t, 121> black_pst;
+  std::array<int32_t, 121> white_pst;
+  std::array<int32_t, 121> king_pst;
+  int32_t king_throne_position_score;
+};
+
+ai_settings init_ai_settings() {
   return {
-    nw_corner_protection(b),    
-    ne_corner_protection(b),    
-    sw_corner_protection(b),    
-    se_corner_protection(b),    
-    0,
-    static_cast<uint8_t>(black_pawn_count(b)),
-    static_cast<uint8_t>(white_pawn_count(b)),
+    quarter_to_pst(black_niave_pst_quarter),
+    quarter_to_pst(white_niave_pst_quarter),
+    quarter_to_pst(king_niave_pst_quarter),
+    -100
   };
 }
 
-int32_t FIRST_GUARD_BONUS = 100;
-int32_t SECOND_GUARD_BONUS = 200;
-int32_t THIRD_GUARD_BONUS = 600;
+score_state init_score_state(const board b) {
+  return {
+      nw_corner_protection(b),
+      ne_corner_protection(b),
+      sw_corner_protection(b),
+      se_corner_protection(b),
+      0,
+      static_cast<uint8_t>(black_pawn_count(b)),
+      static_cast<uint8_t>(white_pawn_count(b)),
+      0,
+      0,
+      0};
+}
 
-void update_guard_score_state(score_state &s, move m) {
-  int32_t count_bonuses[] = {100, 200, 600};
+int32_t guard_count_bonuses[] = {0, 300, 600, 1000};
+
+void update_guard_score_state_move(score_state &s, move m) {
+  
   switch (m.orig) {
   // nw
   case 118:
   case 108:
   case 98:
-    s.guard_score -= count_bonuses[--s.nw_guard_count];
+    s.guard_score -= guard_count_bonuses[s.nw_guard_count];
+    s.nw_guard_count--;
     break;
   // ne
   case 112:
   case 100:
   case 88:
-    s.guard_score -= count_bonuses[--s.ne_guard_count];
+    s.guard_score -= guard_count_bonuses[s.ne_guard_count];
+    s.ne_guard_count--;
     break;
   // sw
   case 32:
   case 20:
   case 8:
-    s.guard_score -= count_bonuses[--s.sw_guard_count];
+    s.guard_score -= guard_count_bonuses[s.sw_guard_count];
+    s.sw_guard_count--;
     break;
   // se
   case 22:
   case 12:
   case 2:
-    s.guard_score -= count_bonuses[--s.se_guard_count];
+    s.guard_score -= guard_count_bonuses[s.se_guard_count];
+    s.se_guard_count -= 1;
     break;
   }
   switch (m.dest) {
@@ -145,25 +445,82 @@ void update_guard_score_state(score_state &s, move m) {
   case 118:
   case 108:
   case 98:
-    s.guard_score += count_bonuses[s.nw_guard_count++];
+    s.nw_guard_count++;
+    /*
+    if (s.nw_guard_count > 3) {
+      printf("guard count nw: %d\n", s.nw_guard_count);
+      std::cout << "that's illegal: " << m << "\n";
+    }
+    */
+    s.guard_score += guard_count_bonuses[s.nw_guard_count];
     break;
   // ne
   case 112:
   case 100:
   case 88:
-    s.guard_score += count_bonuses[s.ne_guard_count++];
+    s.ne_guard_count++;
+    if (s.ne_guard_count > 3) {
+      printf("guard coun ne: %d", s.ne_guard_count);
+      std::cout << "that's illegal: " << m << "\n";
+    }
+    s.guard_score += guard_count_bonuses[s.ne_guard_count];
     break;
   // sw
   case 32:
   case 20:
   case 8:
-    s.guard_score += count_bonuses[s.sw_guard_count++];
+    s.sw_guard_count++;
+    // if (s.sw_guard_count > 3) {
+    //   printf("guard count sw: %d", s.sw_guard_count);
+    //   std::cout << "that's illegal: " << m << "\n";
+    // }
+    s.guard_score += guard_count_bonuses[s.sw_guard_count];
     break;
   // se
   case 22:
   case 12:
   case 2:
-    s.guard_score += count_bonuses[s.se_guard_count++];
+    s.se_guard_count++;
+    // if (s.se_guard_count > 3) {
+    //   printf("guard count se: %d", s.se_guard_count);
+    //   std::cout << "that's illegal: " << m << "\n";
+    // }
+    s.guard_score += guard_count_bonuses[s.se_guard_count];
+    break;
+  }
+};
+
+void update_guard_score_state_capture(score_state &s, int i) {
+  //  printf("fire cap up\n");
+  
+  switch (i) {
+  // nw
+  case 118:
+  case 108:
+  case 98:
+    s.guard_score -= guard_count_bonuses[s.nw_guard_count];
+    s.nw_guard_count--;
+    break;
+  // ne
+  case 112:
+  case 100:
+  case 88:
+    s.guard_score -= guard_count_bonuses[s.ne_guard_count];
+    s.ne_guard_count--;
+    break;
+  // sw
+  case 32:
+  case 20:
+  case 8:
+    s.guard_score -= guard_count_bonuses[s.sw_guard_count];
+    s.sw_guard_count--;
+    break;
+  // se
+  case 22:
+  case 12:
+  case 2:
+    s.guard_score -= guard_count_bonuses[s.se_guard_count];
+    s.se_guard_count -= 1;
     break;
   }
 };
@@ -171,7 +528,7 @@ void update_guard_score_state(score_state &s, move m) {
 score_state update_score_state(score_state old_s, move m, PieceType t) {
   score_state s = old_s;
   if (t == black_type) {
-    update_guard_score_state(s, m);
+    update_guard_score_state_move(s, m);
   }
   return s;
 }
@@ -191,7 +548,7 @@ bool king_escaped(const board b) {
 bool king_captured(const board b) {
   uint8_t king_index =
       b.king[0] ? _tzcnt_u64(b.king[0]) : _tzcnt_u64(b.king[1]) + 64;
-  layer attackers = foe_masks[king_index] & b.black;
+  layer attackers = surround_masks[king_index] & b.black;
   uint8_t attacker_count =
       __builtin_popcountll(attackers[0]) + __builtin_popcountll(attackers[1]);
   return attacker_count > 3;
@@ -210,13 +567,36 @@ int corner_protection(const board b) {
 static const int32_t MIN_SCORE = -INT_MAX;
 static const int32_t MAX_SCORE = INT_MAX;
 
-int32_t score_board(const board *board, const bool is_black_turn) {
+constexpr layer corner_adjacent = read_layer(".  X  .  .  .  .  .  .  .  X  ."
+                                             "X  .  .  .  .  .  .  .  .  .  X"
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             ".  .  .  .  .  .  .  .  .  .  ."
+                                             "X  .  .  .  .  .  .  .  .  .  X"
+                                             ".  X  .  .  .  .  .  .  .  X  .",
+                                             'X');
+
+bool king_escape_ensured(const board b) {
+  return b.king[0] & corner_adjacent[0] || b.king[1] & corner_adjacent[1];
+}
+
+int32_t score_board(const board board, const bool is_black_turn) {
+  uint king_pos = board.king[0] ? _tzcnt_u64(board.king[0])
+                                 : _tzcnt_u64(board.king[1]) + 64;
+  uint king_rank = king_pos / 11;
+  uint king_file = king_pos % 11;
+
   int32_t white_score = //(white_pawn_count(*board) * 10000) +
-                        white_pawn_move_count(*board) +
-                        (get_king_move_count(*board) * 100);
+    white_pawn_move_count(board) + (get_king_move_count(board) * 100) +
+    (all_corner_access_2(board.get_occ(), board.get_occ_r(), king_rank, king_file) * 1000) + 
+    (king_escape_ensured(board) * 9000000);
 
   int32_t black_score = //(black_pawn_count(*board) * 10000) +
-                        black_pawn_move_count(*board);// +
+                        black_pawn_move_count(board);// +
                         //corner_protection(*board);
 
   return is_black_turn ? black_score - white_score : white_score - black_score;
@@ -242,11 +622,73 @@ int32_t score_board_for_order(const board *board, const bool is_black_turn) {
   return is_black_turn ? black_score - white_score : white_score - black_score;
 }
 
+struct repetitions {
+  bool over_limit() {
+    return odd_reps > 2 || even_reps > 2;
+  }
+  move odd;
+  uint8_t odd_reps;
+  move even;
+  uint8_t even_reps;
+  bool is_odd;
+};
+
+struct team_repetitions {
+  bool over_limit(bool is_black_turn) {
+    if (is_black_turn) {
+      return black.over_limit();
+    } else {
+      return white.over_limit();
+    }
+  }
+  repetitions black;
+  repetitions white;
+};
+
+repetitions init_repetitions() {
+  return {{0,0}, 0, {0,0}, 0, true};
+}
+
+team_repetitions init_team_repetitions() {
+  return {init_repetitions(), init_repetitions()};
+}
+
+repetitions update_repetitions(repetitions r, move m) {
+  repetitions output = r;
+  if (output.is_odd) {
+    if (m != output.odd) {
+      output.odd = m;
+      output.odd_reps = 0;
+    } else {
+      output.odd_reps++;
+    }
+  } else {
+    if (m != output.even) {
+      output.even = m;
+      output.even_reps = 0;
+    } else {
+      output.even_reps++;
+    }
+  }
+  output.is_odd = !output.is_odd;
+  return output;
+}
+
+team_repetitions update_team_repetitions(team_repetitions r, move m,
+                                         bool is_black_turn) {
+  team_repetitions new_r = r;
+  if (is_black_turn) {
+    new_r.black = update_repetitions(new_r.black, m);
+  } else {
+    new_r.white = update_repetitions(new_r.white, m);
+  }
+  return new_r;
+}
+
 typedef struct negamax_ab_result {
   move _move;
   board _board;
   int32_t _score;
-  uint64_t zobrist;
   score_state ss;
 } negamax_ab_result;
 
@@ -261,10 +703,28 @@ move PREV_PV[MAX_DEPTH];
 int PREV_PV_LENGTH;
 move KILLER_MOVES[MAX_DEPTH][2];
 
-int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
-                                       const int depth, const int ply, int32_t alpha, int32_t beta,
-                             int *tally, bool is_pv, score_state ss, bool allow_null_move) {
+int32_t negamax_ab_sorted_pv(
+    const move m,
+    const board b,
+    const team_repetitions r,
+    const bool is_black_turn,
+    const int depth,
+    const int ply,
+    int32_t alpha,
+    const int32_t beta,
+    int *tally,
+    const bool is_pv,
+    const score_state ss,
+    const bool allow_null_move,
+    const struct ai_settings &ai_settings) {
   PV_LENGTH[ply] = ply;
+
+  /*
+  if (ply > 31) {
+    printf("max depth exceeded\n");
+    exit(1);
+  }
+  */
 
   int32_t game_over_score = 0;
   bool game_over = game_over_check(b, is_black_turn, game_over_score);
@@ -273,9 +733,9 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   }
 
   int total = 0;
-  move moves_table[235];
-  board boards_table[235];
-  uint8_t cap_counts[235] = {0};
+  move moves_table[324];
+  board boards_table[324];
+  uint8_t cap_counts[324] = {0};
 
   if (depth > 3 && ply > 0 && allow_null_move && !is_pv) {
     // Null move heuristic
@@ -286,27 +746,42 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     // will be unsound
     int null_shortening = 2;
     int32_t null_result = -negamax_ab_sorted_pv(
-        m, b, !is_black_turn, depth - 1 - null_shortening,
-        ply + 1 + null_shortening, -beta, -beta + 1, tally, false, ss, false);
+        m,
+        b,
+        r,
+        !is_black_turn,
+        depth - 1 - null_shortening,
+        ply + 1 + null_shortening,
+        -beta,
+        -beta + 1,
+        tally,
+        false,
+        ss,
+        false,
+        ai_settings);
     if (null_result >= beta) {
       return beta;
     }
   }
   /*
-  */
+   */
 
   if (depth <= 0) {
     if (ply < MAX_DEPTH) {
       if (is_black_turn) {
-        get_capture_move_boards<true>(boards_table, b, &total, moves_table,
-                                      cap_counts);
+        get_capture_move_boards<true>(
+            boards_table, b, &total, moves_table, cap_counts);
       } else {
-        get_capture_move_boards<false>(boards_table, b, &total, moves_table,
-                                       cap_counts);
+        get_capture_move_boards<false>(
+            boards_table, b, &total, moves_table, cap_counts);
       }
     }
     if (total == 0) {
-      return score_board(&b, is_black_turn) + ss.get_score(is_black_turn);
+      if (!b.black[0] && !b.black[1]) {
+	printf("ply: %d\n", ply);
+	print_board(b);
+      }
+      return score_board(b, is_black_turn) + ss.get_score(is_black_turn);
     }
   } else {
 
@@ -318,22 +793,78 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     }
   }
 
-  negamax_ab_result combi[235];
+  negamax_ab_result combi[324];
   for (int i = 0; i < total; i++) {
     combi[i] = (negamax_ab_result){moves_table[i], boards_table[i]};
+
+    if (combi[i]._move.orig == 44 && combi[i]._move.dest == 22 &&
+        ss.se_guard_count == 3) {
+      print_board(combi[i]._board);
+    }
+
     // update score state
-    combi[i].ss = update_score_state(ss, combi[i]._move, is_black_turn ? black_type : white_type);
+    combi[i].ss = update_score_state(
+        ss, combi[i]._move, is_black_turn ? black_type : white_type);
+
+    // update score state piece counts
     if (is_black_turn) {
       combi[i].ss.white_pawn_count -= cap_counts[i];
     } else {
       combi[i].ss.black_pawn_count -= cap_counts[i];
     }
+
+    // TODO: move this somewhere closer to the core capture code se we don't
+    // have to re-calculate the indexes of captures
+    if (cap_counts[i]) {
+      if (is_black_turn) {
+        layer cap_layer = b.white ^ combi[i]._board.white;
+        while (cap_layer[0]) {
+          int cap_index = _tzcnt_u64(cap_layer[0]);
+	  combi[i].ss.pst_white_score -= ai_settings.white_pst[cap_index];
+          cap_layer[0] &= cap_layer[0] - 1;
+        }
+        while (cap_layer[1]) {
+          int cap_index = _tzcnt_u64(cap_layer[1]) + 64;
+	  combi[i].ss.pst_white_score -= ai_settings.white_pst[cap_index];
+          cap_layer[1] &= cap_layer[1] - 1;
+        }
+      } else {
+        layer cap_layer = b.black ^ combi[i]._board.black;
+        while (cap_layer[0]) {
+          int cap_index = _tzcnt_u64(cap_layer[0]);
+          update_guard_score_state_capture(combi[i].ss, cap_index);
+	  combi[i].ss.pst_black_score -= ai_settings.black_pst[cap_index];
+          cap_layer[0] &= cap_layer[0] - 1;
+        }
+        while (cap_layer[1]) {
+          int cap_index = _tzcnt_u64(cap_layer[1]) + 64;
+          update_guard_score_state_capture(combi[i].ss, cap_index);
+	  combi[i].ss.pst_black_score -= ai_settings.black_pst[cap_index];
+          cap_layer[1] &= cap_layer[1] - 1;
+        }
+      }
+    }
+
+    uint8_t king_pos = b.king[0] ? _tzcnt_u64(b.king[0]) : _tzcnt_u64(b.king[1]) + 64;
+
+    // update pst score
+    if (is_black_turn) {
+      combi[i].ss.pst_black_score -= ai_settings.black_pst[combi[i]._move.orig];
+      combi[i].ss.pst_black_score += ai_settings.black_pst[combi[i]._move.dest];
+    } else if (combi[i]._move.orig == !king_pos) {
+      combi[i].ss.pst_white_score -= ai_settings.white_pst[combi[i]._move.orig];
+      combi[i].ss.pst_white_score += ai_settings.white_pst[combi[i]._move.dest];
+    } else {
+      combi[i].ss.pst_king_score -= ai_settings.king_pst[combi[i]._move.orig];
+      combi[i].ss.pst_king_score += ai_settings.king_pst[combi[i]._move.dest];
+    }
+
     combi[i]._score = depth > 1 ? combi[i].ss.get_score(is_black_turn) : 0;
     // Add bonus if killer move
     if (combi[i]._move == KILLER_MOVES[ply][0] ||
         combi[i]._move == KILLER_MOVES[ply][1])
       combi[i]._score += 10000000;
-    // Add bonus if we're following the 
+    // Add bonus if we're following the
     if (is_pv && (combi[i]._move == PREV_PV[ply])) {
       combi[i]._score += 100000000;
     }
@@ -354,48 +885,50 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
   for (int i = 0; i < total; i++) {
     if (depth > 1) {
       int best_index = i;
-      for (int j = i+1; j < total; j++) {
-	if (combi[j]._score > combi[best_index]._score) {
+      for (int j = i + 1; j < total; j++) {
+        if (combi[j]._score > combi[best_index]._score) {
           best_index = j;
-	}
+        }
       }
       if (best_index != i) {
-	tmp = combi[i];
-	combi[i] = combi[best_index];
-	combi[best_index] = tmp;
+        tmp = combi[i];
+        combi[i] = combi[best_index];
+        combi[best_index] = tmp;
       }
     }
-    /*
-    */
-    // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("----------------------\n");
-    // if (depth == 1) printf("----------------------\n");
-    // if (depth == 1 && (m.orig == 115 && m.dest == 114)) {std::cout << combi[i]._move << "\n";};
-    // if (depth == 1 && (m.orig == 115 && m.dest == 114)) print_board(combi[i]._board);
-    // if (depth == 1) print_board(combi[i]._board);
-    // if (depth == 1) printf("nw_guard_count: %d\n", combi[i].ss.nw_guard_count);
-    // if (depth == 1) printf("ne_guard_count: %d\n", combi[i].ss.ne_guard_count);
-    // if (depth == 1) printf("sw_guard_count: %d\n", combi[i].ss.sw_guard_count);
-    // if (depth == 1) printf("se_guard_count: %d\n", combi[i].ss.se_guard_count);
-    // if (depth == 1) printf("guard score: %d\n", combi[i].ss.guard_score);
-    // if (depth == 1) printf("black pawn count: %d\n", combi[i].ss.black_pawn_count);
-    // if (depth == 1) printf("white pawn count: %d\n", combi[i].ss.white_pawn_count);
-    // if (depth == 1) printf("inc score: %d\n", combi[i].ss.get_score(is_black_turn));
-    // if (depth == 1) printf("static score: %d\n", score_board(&combi[i]._board, is_black_turn));
 
     // TODO: move this to leaf node
     (*tally)++;
 
+    // update and check repetitions
+    team_repetitions new_r =
+        update_team_repetitions(r, combi[i]._move, is_black_turn);
+    if (new_r.over_limit(is_black_turn)) {
+      continue;
+    }
+
     // Late Move Reduction
     if (depth > 2 && i > 25) {
-      int32_t lmr_eval =
-        -negamax_ab_sorted_pv(combi[i]._move, combi[i]._board, !is_black_turn,
-                              depth == 0 ? 0 : depth - 2, ply + 2, -alpha-1, -alpha, tally, (is_pv && !i), combi[i].ss, true);
+      int32_t lmr_eval = -negamax_ab_sorted_pv(
+          combi[i]._move,
+          combi[i]._board,
+          new_r,
+          !is_black_turn,
+          depth == 0 ? 0 : depth - 2,
+          ply + 2,
+          -alpha - 1,
+          -alpha,
+          tally,
+          (is_pv && !i),
+          combi[i].ss,
+          true,
+          ai_settings);
       if (lmr_eval <= alpha) {
         continue;
       }
     }
     /*
-    */
+     */
 
     // calcualte result and negate score
     // the is_pv parameter is (is_pv && !i) because if this _is_ the pv then the
@@ -403,9 +936,19 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     // unless the next PV move wasn't found, which would be a real bug.
 
     int32_t eval = -negamax_ab_sorted_pv(
-					 combi[i]._move, combi[i]._board, !is_black_turn,
-					 depth == 0 ? 0 : depth - 1, ply + 1, -beta, -alpha, tally,
-					 (is_pv && !i), combi[i].ss, true);
+        combi[i]._move,
+        combi[i]._board,
+        new_r,
+        !is_black_turn,
+        depth == 0 ? 0 : depth - 1,
+        ply + 1,
+        -beta,
+        -alpha,
+        tally,
+        (is_pv && !i),
+        combi[i].ss,
+        true,
+        ai_settings);
 
     /*
     int32_t eval;
@@ -421,7 +964,7 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
           depth == 0 ? 0 : depth - 1, ply + 1, -alpha-1, -alpha, tally,
           (is_pv && !i), combi[i].ss, true);
       if (alpha < eval && eval < beta) {
-	// if failed high, research with full window
+        // if failed high, research with full window
         int32_t eval = -negamax_ab_sorted_pv(
             combi[i]._move, combi[i]._board, !is_black_turn,
             depth == 0 ? 0 : depth - 1, ply + 1, -beta, -alpha, tally,
@@ -431,41 +974,53 @@ int32_t negamax_ab_sorted_pv(const move m, const board b, bool is_black_turn,
     */
 
     // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("score: %d\n",
-    // next_result); if (depth == 1) printf("score: %d\n", next_result);
+    // next_result);
+    // if (depth == 1) printf("score: %d\n", eval);
+    // if (depth == 1) print_board(combi[i]._board);
 
     if (eval > best) {
       best = eval;
     }
     if (best > alpha) {
-      // ALPHA BETA HANDLING ---------------------------------------------------------------
+      // ALPHA BETA HANDLING
+      // ---------------------------------------------------------------
       alpha = best;
 
-      // PV HANDLING ---------------------------------------------------------------
-      // assign move discovered here
+      // PV HANDLING
+      // --------------------------------------------------------------- assign
+      // move discovered here
       PV_TABLE[ply][ply] = combi[i]._move;
       PV_TABLE_BOARDS[ply][ply] = combi[i]._board; // me only
       // copy up moves discovered at lower depths
       for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
-	PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
-	PV_TABLE_BOARDS[ply][next_ply] = PV_TABLE_BOARDS[ply + 1][next_ply]; // me only
+        /*
+        if (next_ply > 31) {
+          printf("next ply over limit\n");
+          exit(1);
+        }
+        */
+        PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+        PV_TABLE_BOARDS[ply][next_ply] =
+            PV_TABLE_BOARDS[ply + 1][next_ply]; // me only
       }
       // adjust pv length
       PV_LENGTH[ply] = PV_LENGTH[ply + 1];
 
-      // KILLER HANDLING ---------------------------------------------------------------
+      // KILLER HANDLING
+      // ---------------------------------------------------------------
       // TODO: exclude captures
       // NOTE: this should typically be handled at a beta cutoff, but
       // benchmarking shows better performance if killers are set
       // every time alpha is raised
       KILLER_MOVES[ply][1] = KILLER_MOVES[ply][0];
       KILLER_MOVES[ply][0] = combi[i]._move;
-
     }
     if (alpha > beta) {
       break;
     }
   }
-  // if (depth == 1 && (m.orig == 115 && m.dest == 114)) printf("----------------------");
+  // if (depth == 1 && (m.orig == 115 && m.dest == 114))
+  // printf("----------------------");
   // if (depth == 1) printf("----------------------");
 
   return best;
@@ -476,41 +1031,41 @@ enum Flag : uint8_t {
   exact = 2,
   upper_bound = 3,
 };
-
-struct tt_entry {
-  uint64_t hash;
-  uint8_t depth;
-  int32_t score;
-  Flag flag;
-  move best_move;
+struct search_result {
+  move m;
+  board b;
+  int32_t s;
+  team_repetitions r;
 };
 
-static const int tt_size_main = 1048576; // 2^20
-static const int tt_size_offset = 7;
-static const int tt_size = tt_size_main + tt_size_offset;
-struct tt_entry tt[tt_size] = {};
-
-int z_usage = 0;
-
-int32_t negamax_ab_sorted_pv_runner(board b, bool is_black, int depth) {
+search_result negamax_ab_sorted_pv_runner(board b, team_repetitions r, bool is_black, int depth, struct ai_settings ai_settings) {
   int tally = 0;
   score_state s = init_score_state(b);
+  /*
+  printf("nw: %d\n", s.nw_guard_count);
+  printf("ne: %d\n", s.ne_guard_count);
+  printf("sw: %d\n", s.sw_guard_count);
+  printf("se: %d\n", s.se_guard_count);
+  */
+
 
   memset(KILLER_MOVES, 0, MAX_DEPTH * sizeof(move) * 2);
   memset(PREV_PV, 0, MAX_DEPTH * sizeof(move));
   for (int i = 0; i < depth; i++) {
-    negamax_ab_sorted_pv((move){0, 0}, b, is_black, i, 0, INT_MIN,
-			 INT_MAX, &tally, true, s, false);
+    negamax_ab_sorted_pv((move){0, 0}, b, r, is_black, i, 0, INT_MIN,
+			 INT_MAX, &tally, true, s, false, ai_settings);
     for (int j = 0; j < PV_LENGTH[0]; j++) {
       PREV_PV[j] = PV_TABLE[0][j];
     }
     PREV_PV_LENGTH = PV_LENGTH[0];
-    
   }
-  /*
-  */
-  auto res = negamax_ab_sorted_pv((move){0, 0}, b, is_black, depth, 0, MIN_SCORE,
-				  MAX_SCORE, &tally, true, s, false);
+  auto res = negamax_ab_sorted_pv((move){0, 0}, b, r, is_black, depth, 0, MIN_SCORE,
+				  MAX_SCORE, &tally, true, s, false, ai_settings);
+
+
+  move result_move = PV_TABLE[0][0];
+  board result_board = PV_TABLE_BOARDS[0][0];
+  team_repetitions new_r = update_team_repetitions(r, result_move, is_black);
   // printf("tally: %d\n", tally);
-  return res;
+  return {result_move, result_board, res, new_r};
 }

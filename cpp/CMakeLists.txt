@@ -43,6 +43,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(test tests/capture.cpp)
 target_link_libraries(test PRIVATE fmt::fmt-header-only Catch2::Catch2WithMain rapidcheck_catch base64)
 
+#set(CMAKE_CXX_FLAGS "-O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23 -fsanitize=address")
 set(CMAKE_CXX_FLAGS "-O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23")
 
 # Make sure you link your targets with this command. It can also link libraries and

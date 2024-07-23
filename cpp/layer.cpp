@@ -76,6 +76,37 @@ constexpr uint sub_layer_row_offset_upper[57] = {
   46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46
 };
 
+#define get_lower_row(layer, index) (0x7ff & ((layer[0] >> sub_layer_row_offset[index])))
+#define get_upper_row(layer, index) (0x7ff & ((layer[1] >> sub_layer_row_offset_upper[index])))
+#define get_center_row(layer) (((uint64_t)layer[0] >> 55) | ((((uint64_t)layer[1] & 0x3) << 9) & 0b11111111111))
+
+/**
+ * 
+ */
+uint16_t get_index_row(layer l, int i) {
+  if (i < 55) {
+    return get_lower_row(l, i);
+  } else if (i > 65) {
+    return get_upper_row(l, i - 64);
+  } else {
+    return get_center_row(l);
+  }
+}
+
+/**
+ * 
+ */
+uint16_t get_row(layer l, int i) {
+  if (i < 5) {
+    return 0x7ff & (l[0] >> (11 * i));
+  } else if (i > 5) {
+    return 0x7ff & (l[1] >> ((11 * (i - 5)) + 2));
+  } else {
+    return get_center_row(l);
+  }
+}
+
+
 /**
  * mask which retains only the complete rows of the lower layer,
  * e.g. the first 55 bits.

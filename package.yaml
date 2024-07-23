@@ -7,20 +7,20 @@ verbatim:
 
 language: GHC2021
 
-include-dirs:
-  - "src/Board/"
+# include-dirs:
+#   - "src/Board/"
 
-c-sources:
-  - "src/Board/u128.c"
-  - "src/Board/u128.h"
-  - "src/Board/move.c"
-  - "src/Board/move.h"
-
-extra-source-files:
-  - "src/Board/u128.c"
-  - "src/Board/u128.h"
-  - "src/Board/move.c"
-  - "src/Board/move.h"
+# c-sources:
+#   - "src/Board/u128.c"
+#   - "src/Board/u128.h"
+#   - "src/Board/move.c"
+#   - "src/Board/move.h"
+# 
+# extra-source-files:
+#   - "src/Board/u128.c"
+#   - "src/Board/u128.h"
+#   - "src/Board/move.c"
+#   - "src/Board/move.h"
 
 default-extensions:
   - TemplateHaskell

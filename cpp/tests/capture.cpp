@@ -472,7 +472,7 @@ TEST_CASE("bulk capture destinations") {
   layer allies = read_layer(input, 'X');
   layer foes = read_layer(input, 'O');
   layer exp_l = read_layer(exp_s, 'X');
-  layer capture_dests = find_capture_destinations_op(allies, foes);
+  layer capture_dests = find_capture_destinations_op(allies, foes, allies | foes);
   REQUIRE(stringify(capture_dests) == stringify(exp_l));
 }
 
@@ -564,7 +564,7 @@ template <> struct Arbitrary<board> {
       const size_t black_size = *gen::inRange(1, 25);
       const std::vector<int> black_indices = *gen::unique<std::vector<int>>(
           black_size,
-          gen::suchThat(gen::inRange(1, 121), [](int x) {
+          gen::suchThat(gen::inRange(1, 120), [](int x) {
             return !corner_pred(x) && !(x == 60);
           }));
       for (int i : black_indices) {
@@ -577,7 +577,7 @@ template <> struct Arbitrary<board> {
       const size_t white_size = *gen::inRange(1, 13);
       const std::vector<int> white_indices = *gen::unique<std::vector<int>>(
           black_size,
-          gen::suchThat(gen::inRange(1, 121), [black_indices](int x) {
+          gen::suchThat(gen::inRange(1, 120), [black_indices](int x) {
             return !elem(black_indices, x) && !corner_pred(x) && !(x == 60);
           }));
       for (int i : white_indices) {
@@ -588,7 +588,7 @@ template <> struct Arbitrary<board> {
       // king
       layer king = {0, 0};
       const int king_index = *gen::suchThat(
-          gen::inRange(1, 121), [black_indices, white_indices](int x) {
+          gen::inRange(1, 120), [black_indices, white_indices](int x) {
         return !elem(black_indices, x) && !elem(white_indices, x) && !corner_pred(x);
           });
       king[sub_layer[king_index]] |=
@@ -729,7 +729,7 @@ void test_capture_moves_correct(board *bs, move *ms, int total, board b) {
     cd_allies[0] |= b.king[0];
     cd_allies[1] |= b.king[1];
   }
-  layer capture_dests = find_capture_destinations_op(cd_allies, cd_foes);
+  layer capture_dests = find_capture_destinations_op(cd_allies, cd_foes, occ);
 
   for (uint8_t i = 0; i < 121; i++) {
     if (corner_pred(i)) {
@@ -1244,7 +1244,7 @@ TEST_CASE("bench moves", "[benchmark]") {
     rc::gen::arbitrary<board>()(9999, 100).value(),
   };
   */
-  board boards[5] = {
+  board boards[3] = {
     // rc::gen::arbitrary<board>()(1000, 100).value(),
     // rc::gen::arbitrary<board>()(2000, 100).value(),
     // rc::gen::arbitrary<board>()(3000, 100).value(),
@@ -1300,8 +1300,10 @@ TEST_CASE("bench moves", "[benchmark]") {
   */
   BENCHMARK("negamax ab sorted pv") {
     init_move_globals();
+    struct ai_settings ai_settings = init_ai_settings();
     for (board b : boards) {
-      auto r = negamax_ab_sorted_pv_runner(b, true, depth);
+      auto tr = init_team_repetitions();
+      auto r = negamax_ab_sorted_pv_runner(b, tr, true, depth, ai_settings);
     }
     // auto r = negamax_ab_sorted_runner(start_board, true, 4);
     return r;
@@ -1466,3 +1468,515 @@ const board king_board = read_board(king_string);
 //   REQUIRE(true);
 // }
 
+TEST_CASE("play self") {
+  bool is_black_turn = true;
+  board b = start_board;
+  int32_t s;
+
+  struct ai_settings ai_settings = init_ai_settings();
+  
+  auto r = init_team_repetitions();
+  while (!game_over_check(b, is_black_turn, s)) {
+    search_result res = negamax_ab_sorted_pv_runner(b, r, is_black_turn, 6, ai_settings);
+    r = res.r;
+    layer caps; 
+    if (is_black_turn) {
+      caps = b.white ^ res.b.white;
+    } else {
+      caps = b.black ^ res.b.black;
+    }
+    std::cout << "\n                == move " << (is_black_turn ? "black" : "white") << " ==" << "\n";
+    std::cout << "move: " << res.m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(res.b), res.m.orig, res.m.dest, caps);
+    // std::cout << "[ " << encode_mini(to_mini(res.b)) << " ]\n";
+    is_black_turn = !is_black_turn;
+    b = res.b;
+  }
+
+  REQUIRE(false);
+}
+
+TEST_CASE("test corner access 2 se") {
+  SECTION("rank blockers") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  X  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  X  .  ."
+        ".  .  .  .  .  .  .  X  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("file blockers") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  X  .  .  .  X  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("south access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("east access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  X  .  .  .  X  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("south adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("east adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  X  .  .  .  .  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+}
+
+
+TEST_CASE("test corner access 2 sw") {
+  SECTION("rank blockers") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  X  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  X  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("file blockers") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  X  .  .  .  X  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("south access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("west access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  X  .  .  .  X  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("south adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("east adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  .  .  .  .  X  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_sw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+}
+
+
+TEST_CASE("test corner access 2 ne") {
+  SECTION("rank blockers") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  X  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  X  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_ne(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("file blockers") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  X  .  .  .  X  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_ne(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("north access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_ne(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("east access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  X  .  .  .  X  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_ne(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("north adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_ne(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("east adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  X  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  X  .  .  .  .  X"
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_ne(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+}
+
+
+TEST_CASE("test corner access 2 nw") {
+  SECTION("rank blockers") {
+    layer occ = read_layer(
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  X  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  X  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_nw(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("file blockers") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  X  .  .  .  X  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_nw(occ, occ_r, 5, 5);
+    REQUIRE(!access);
+  }
+  SECTION("north access") {
+    layer occ = read_layer(
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_nw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("west access") {
+    layer occ = read_layer(
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  X  .  .  .  X  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_nw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("north adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_nw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+  SECTION("west adjacent access") {
+    layer occ = read_layer(
+        ".  .  .  X  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        "X  .  .  .  .  X  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  ."
+        ".  .  .  .  .  .  .  .  .  .  .",
+        'X');
+    layer occ_r = rotate_layer(occ);
+    bool access = corner_access_2_nw(occ, occ_r, 5, 5);
+    REQUIRE(access);
+  }
+}
+
+const char *sanity_king_capture_string =
+ " .  .  X  .  X  .  .  O  .  .  . "
+ " .  X  .  X  .  .  .  .  .  .  . "
+ " X  .  .  O  O  X  .  .  X  .  . "
+ " .  .  .  .  .  #  X  .  .  X  . "
+ " .  X  .  .  .  .  O  .  .  .  X "
+ " X  .  .  O  O  .  O  .  .  X  X "
+ " X  .  .  .  O  O  O  .  .  .  X "
+ " X  .  .  .  .  O  .  .  .  .  X "
+ " .  .  .  .  .  .  .  .  O  .  . "
+ " .  .  .  .  .  X  .  .  .  .  . "
+ " .  .  X  .  X  X  X  X  .  .  . "
+;
+
+const board sanity_king_capture_board = read_board(sanity_king_capture_string);
+
+TEST_CASE("sanity check king capture") {
+  // auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
+  auto r = init_team_repetitions();
+  struct ai_settings ai_settings = init_ai_settings();
+  auto res = negamax_ab_sorted_pv_runner(sanity_king_capture_board, r, false, 1, ai_settings);
+  /*
+  for (int i = 0; i < MAX_DEPTH; i++) {
+    printf("[%d] = %d\n", i, PV_LENGTH[i]);
+  }
+  */
+  for (int i = 0; i < PV_LENGTH[0]; i++) {
+    auto m = PV_TABLE[0][i] ;
+    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+    std::cout << "move: " << m << "\n";
+    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
+    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+  }
+  // print_board(res._board);
+  std::cout << "score: " << res.s << "\n";
+  REQUIRE(false);
+}

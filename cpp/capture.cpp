@@ -7,6 +7,8 @@ inline layer foe_masks[120];
 inline layer foe_masks_r[120];
 inline layer ally_masks[120];
 inline layer ally_masks_r[120];
+inline layer surround_masks[120];
+inline layer surround_masks_r[120];
 
 //******************************************************************************
 
@@ -48,6 +50,47 @@ inline void gen_foe_masks() {
     }
   }
 }
+
+
+inline void gen_surround_masks() {
+  int i, modDest, target, target_r;
+  for (i = 0; i < 120; i++) {
+    modDest = i % 11;
+    if (i < 110) {
+      target = i + 11;
+      surround_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
+      target_r = rotate_right[target];
+      surround_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+    }
+    if (i > 10) {
+      target = i - 11;
+      surround_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
+      target_r = rotate_right[target];
+      surround_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+    }
+    if (modDest < 10) {
+      target = i + 1;
+      surround_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
+      target_r = rotate_right[target];
+      surround_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+    }
+    if (modDest > 0) {
+      target = i - 1;
+      surround_masks[i][sub_layer[target]] |=
+          ((uint64_t)1 << (target - sub_layer_offset[target]));
+      target_r = rotate_right[target];
+      surround_masks_r[i][sub_layer[target_r]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+    }
+  }
+}
+
 
 inline void gen_ally_masks() {
   int i, modDest, target, target_r;
