@@ -1,8 +1,11 @@
-module Main where
+module Main (main) where
 
-import Server
+import Ffi
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  runApp
+  print =<< startBoard
+  print =<< boardToCode =<< startBoard
+
+-- runApp

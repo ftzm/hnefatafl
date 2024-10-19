@@ -22,7 +22,7 @@
       overlays = [];
       pkgs = import nixpkgs {inherit config overlays system;};
     in rec {
-      devShell = pkgs.haskell.packages.ghc945.shellFor {
+      devShell = pkgs.haskell.packages.ghc945.shellFor rec {
         packages = p: [];
 
         buildInputs = with pkgs.haskell.packages.ghc945; [
@@ -45,6 +45,7 @@
           fourmolu
           hpack
           pkgs.zlib
+          pkgs.libz
           pkgs.gdb
           pkgs.sqlite
 
@@ -56,9 +57,14 @@
           pkgs.bear
           pkgs.cmake
           pkgs.clangStdenv
+          pkgs.just
         ];
 
         withHoogle = true;
+
+        shellHook = ''
+          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH"
+        '';
       };
     });
 }

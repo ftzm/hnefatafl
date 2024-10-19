@@ -4,5 +4,11 @@
   "command": "/nix/store/4kwk49k8rc8cg8c387kbbjcrl8i0y693-gcc-wrapper-13.2.0/bin/g++ -DBASE64_STATIC_DEFINE -DFMT_HEADER_ONLY=1 -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/fmt-src/include -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/catch2-src/src/catch2/.. -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/catch2-build/generated-includes -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/rapidcheck-src/extras/catch/include -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/rapidcheck-src/include -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/base64-src/include -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23 -g -o CMakeFiles/test.dir/tests/capture.cpp.o -c /home/ftzm/dev/hnefatafl/cpp/tests/capture.cpp",
   "file": "/home/ftzm/dev/hnefatafl/cpp/tests/capture.cpp",
   "output": "CMakeFiles/test.dir/tests/capture.cpp.o"
+},
+{
+  "directory": "/home/ftzm/dev/hnefatafl/cpp",
+  "command": "/nix/store/4kwk49k8rc8cg8c387kbbjcrl8i0y693-gcc-wrapper-13.2.0/bin/g++ -DBASE64_STATIC_DEFINE -isystem /home/ftzm/dev/hnefatafl/cpp/_deps/base64-src/include -O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23 -g -o CMakeFiles/lib.dir/lib/lib.cpp.o -c /home/ftzm/dev/hnefatafl/cpp/lib/lib.cpp",
+  "file": "/home/ftzm/dev/hnefatafl/cpp/lib/lib.cpp",
+  "output": "CMakeFiles/lib.dir/lib/lib.cpp.o"
 }
 ]

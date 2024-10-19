@@ -4,7 +4,6 @@
 #include <string>
 #include "layer.cpp"
 #include "capture.cpp"
-#include "zobrist.cpp"
 
 using std::string;
 
@@ -899,21 +898,6 @@ inline uint8_t get_team_move_count(const layer occ, const layer team,
 }
 
 
-const char* start_board_string = \
-  " .  .  .  X  X  X  X  X  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  .  .  .  .  .  .  .  . "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  X  .  O  O  #  O  O  .  X  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " .  .  .  .  .  .  .  .  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  X  X  X  X  X  .  .  . ";
-
-const board start_board = read_board(start_board_string);
-
 /* For quiescence:
 
    find pieces in danger:
@@ -944,67 +928,54 @@ void init_move_globals() {
   gen_center_row_move_counts();
 }
 
-struct make_move_result {
-  board b;
-  uint64_t z;
-};
-struct make_move_result make_move(const board b, const move m, const uint64_t z, const bool is_black_turn) {
-  make_move_result result = {b, z};
+board make_move(const board b, const move m, const uint64_t z, const bool is_black_turn) {
+  board result = b;
   if (is_black_turn) {
-    toggle_index(result.b.black, m.orig);
-    toggle_index(result.b.black, m.dest);
-    toggle_index(result.b.black_r, rotate_right[m.orig]);
-    toggle_index(result.b.black_r, rotate_right[m.dest]);
-    apply_captures_niave_count(b.black | corners, result.b.white, result.b.white_r, m.dest);
-    shield_wall<true>(&result.b, m.dest);
-    result.z = next_hash_black(result.z, m);
-    layer capture_diff = b.white ^ result.b.white;
+    toggle_index(result.black, m.orig);
+    toggle_index(result.black, m.dest);
+    toggle_index(result.black_r, rotate_right[m.orig]);
+    toggle_index(result.black_r, rotate_right[m.dest]);
+    apply_captures_niave_count(b.black | corners, result.white, result.white_r, m.dest);
+    shield_wall<true>(&result, m.dest);
+    layer capture_diff = b.white ^ result.white;
     while (capture_diff[0]) {
       int capture_index = _tzcnt_u64(capture_diff[0]);
-      result.z ^= white_hashes[capture_index];
       capture_diff[0] = _blsr_u64(capture_diff[0]);
     }
     while (capture_diff[1]) {
       int capture_index = _tzcnt_u64(capture_diff[1]) + 64;
-      result.z ^= white_hashes[capture_index];
       capture_diff[1] = _blsr_u64(capture_diff[1]);
     }
   } else if (check_index(b.white, m.orig)) {
-    toggle_index(result.b.white, m.orig);
-    toggle_index(result.b.white, m.dest);
-    toggle_index(result.b.white_r, rotate_right[m.orig]);
-    toggle_index(result.b.white_r, rotate_right[m.dest]);
-    apply_captures_niave_count(b.white | b.king | corners, result.b.black, result.b.black_r, m.dest);
-    shield_wall<false>(&result.b, m.dest);
-    result.z = next_hash_white(result.z, m);
-    layer capture_diff = b.black ^ result.b.black;
+    toggle_index(result.white, m.orig);
+    toggle_index(result.white, m.dest);
+    toggle_index(result.white_r, rotate_right[m.orig]);
+    toggle_index(result.white_r, rotate_right[m.dest]);
+    apply_captures_niave_count(b.white | b.king | corners, result.black, result.black_r, m.dest);
+    shield_wall<false>(&result, m.dest);
+    layer capture_diff = b.black ^ result.black;
     while (capture_diff[0]) {
       int capture_index = _tzcnt_u64(capture_diff[0]);
-      result.z ^= black_hashes[capture_index];
       capture_diff[0] = _blsr_u64(capture_diff[0]);
     }
     while (capture_diff[1]) {
       int capture_index = _tzcnt_u64(capture_diff[1]) + 64;
-      result.z ^= black_hashes[capture_index];
       capture_diff[1] = _blsr_u64(capture_diff[1]);
     }
   } else {
-    toggle_index(result.b.king, m.orig);
-    toggle_index(result.b.king, m.dest);
-    toggle_index(result.b.king_r, rotate_right[m.orig]);
-    toggle_index(result.b.king_r, rotate_right[m.dest]);
-    apply_captures_niave_count(b.white | corners, result.b.black, result.b.black_r, m.dest);
-    shield_wall<false>(&result.b, m.dest);
-    result.z = next_hash_king(result.z, m);
-    layer capture_diff = b.black ^ result.b.black;
+    toggle_index(result.king, m.orig);
+    toggle_index(result.king, m.dest);
+    toggle_index(result.king_r, rotate_right[m.orig]);
+    toggle_index(result.king_r, rotate_right[m.dest]);
+    apply_captures_niave_count(b.white | corners, result.black, result.black_r, m.dest);
+    shield_wall<false>(&result, m.dest);
+    layer capture_diff = b.black ^ result.black;
     while (capture_diff[0]) {
       int capture_index = _tzcnt_u64(capture_diff[0]);
-      result.z ^= black_hashes[capture_index];
       capture_diff[0] = _blsr_u64(capture_diff[0]);
     }
     while (capture_diff[1]) {
       int capture_index = _tzcnt_u64(capture_diff[1]) + 64;
-      result.z ^= black_hashes[capture_index];
       capture_diff[1] = _blsr_u64(capture_diff[1]);
     }
   }

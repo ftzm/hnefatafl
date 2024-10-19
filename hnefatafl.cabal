@@ -1,47 +1,16 @@
 cabal-version: 2.4
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:               hnefatafl
 version:            0.0.0.2
 build-type:         Simple
-extra-source-files:
-    src/Board/move.c
-    src/Board/move.h
 
 library
     exposed-modules:
-        AI.AlphaBeta
-        AI.Assessment
-        AI.NegamaxAB
-        AI.NegamaxABZ
-        Board.Board
-        Board.Constant
-        Board.Geometry
-        Board.Move
-        Board.Zobrist
-        Command
-        DB.Game
-        Event
-        Game.AI
-        Game.Hotseat
-        Game.Vs
-        Html.AI
-        Html.Board
-        Html.Home
-        Html.Hotseat
-        Html.QuickGame
-        Html.Vs
-        Html.Wrapper
-        MyLib
-        QuickGame
-        Routes
-        ServantLucid
-        ServantWebSocket
-        Server
-        WebSocketPong
+        Ffi
     other-modules:
         Paths_hnefatafl
     autogen-modules:
@@ -53,6 +22,8 @@ library
         base,
         containers,
         deepseq,
+        derive-storable,
+        derive-storable-plugin,
         generic-lens,
         http-media,
         http-types,
@@ -99,12 +70,11 @@ library
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        src/Board/
-    c-sources:
-        src/Board/move.c
-        src/Board/move.h
+        /home/ftzm/dev/hnefatafl/cpp/
+    extra-lib-dirs:
+        /home/ftzm/dev/hnefatafl/cpp/
     default-language: GHC2021
 
 executable hnefatafl
@@ -120,6 +90,8 @@ executable hnefatafl
         base,
         containers,
         deepseq,
+        derive-storable,
+        derive-storable-plugin,
         generic-lens,
         hnefatafl,
         http-media,
@@ -167,12 +139,11 @@ executable hnefatafl
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        src/Board/
-    c-sources:
-        src/Board/move.c
-        src/Board/move.h
+        /home/ftzm/dev/hnefatafl/cpp/
+    extra-lib-dirs:
+        /home/ftzm/dev/hnefatafl/cpp/
     default-language: GHC2021
 
 test-suite test
@@ -193,12 +164,11 @@ test-suite test
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        src/Board/
-    c-sources:
-        src/Board/move.c
-        src/Board/move.h
+        /home/ftzm/dev/hnefatafl/cpp/
+    extra-lib-dirs:
+        /home/ftzm/dev/hnefatafl/cpp/
     build-depends:
         QuickCheck,
         aeson,
@@ -207,6 +177,8 @@ test-suite test
         base,
         containers,
         deepseq,
+        derive-storable,
+        derive-storable-plugin,
         generic-lens,
         hnefatafl,
         http-media,
@@ -264,12 +236,11 @@ benchmark board
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        src/Board/
-    c-sources:
-        src/Board/move.c
-        src/Board/move.h
+        /home/ftzm/dev/hnefatafl/cpp/
+    extra-lib-dirs:
+        /home/ftzm/dev/hnefatafl/cpp/
     build-depends:
         aeson,
         array,
@@ -278,6 +249,8 @@ benchmark board
         containers,
         criterion,
         deepseq,
+        derive-storable,
+        derive-storable-plugin,
         generic-lens,
         hnefatafl,
         http-media,

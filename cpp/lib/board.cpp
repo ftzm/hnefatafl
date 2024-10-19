@@ -313,7 +313,7 @@ std::string encode_mini(mini_board input) {
   memcpy(&src, &input, sizeof(src));
 
   size_t srclen = 33;
-  char out[120];
+  char out[44];
   size_t outlen;
   base64_encode(src, srclen, out, &outlen, 0);
 
@@ -340,3 +340,17 @@ int black_pawn_count(const board b) {
   return __builtin_popcountll(b.black[0]) + __builtin_popcountll(b.black[1]);
 }
 
+const char* start_board_string = \
+  " .  .  .  X  X  X  X  X  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  .  .  .  .  .  .  .  . "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  X  .  O  O  #  O  O  .  X  X "
+  " X  .  .  .  O  O  O  .  .  .  X "
+  " X  .  .  .  .  O  .  .  .  .  X "
+  " .  .  .  .  .  .  .  .  .  .  . "
+  " .  .  .  .  .  X  .  .  .  .  . "
+  " .  .  .  X  X  X  X  X  .  .  . ";
+
+const board start_board = read_board(start_board_string);

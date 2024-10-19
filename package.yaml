@@ -7,20 +7,11 @@ verbatim:
 
 language: GHC2021
 
-# include-dirs:
-#   - "src/Board/"
+include-dirs:
+  - "/home/ftzm/dev/hnefatafl/cpp/"
 
-# c-sources:
-#   - "src/Board/u128.c"
-#   - "src/Board/u128.h"
-#   - "src/Board/move.c"
-#   - "src/Board/move.h"
-# 
-# extra-source-files:
-#   - "src/Board/u128.c"
-#   - "src/Board/u128.h"
-#   - "src/Board/move.c"
-#   - "src/Board/move.h"
+extra-lib-dirs:
+  - "/home/ftzm/dev/hnefatafl/cpp/"
 
 default-extensions:
   - TemplateHaskell
@@ -44,6 +35,9 @@ ghc-options:
   - -fprint-potential-instances
   - -threaded
   - -O2
+  # Below is a magical incantation that allows linking against archive library ".a" files
+  - -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+
 
 dependencies:
   - name: base
@@ -55,6 +49,7 @@ dependencies:
     mixin:
       - (Relude as Prelude)
 
+  # old
   - aeson
   - array
   - async
@@ -91,6 +86,10 @@ dependencies:
   - resourcet
   - lens
   - storable-record
+
+  # new
+  - derive-storable
+  - derive-storable-plugin
   # - QuickCheck
   # - annotated-exception
   # - attoparsec

@@ -55,3 +55,21 @@ set(CMAKE_CXX_FLAGS "-O3 -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -std=c++23")
 #     POST_BUILD
 #     COMMAND test
 #     )
+
+# CPMAddPackage(
+  # NAME base64-static
+  # GIT_TAG b20a31a997e0b48274fa09e58b65ee9202531e4f
+  # GITHUB_REPOSITORY aklomp/base64
+  # DOWNLOAD_ONLY YES
+# )
+
+# add_library(base64-static STATIC)
+
+add_library(lib STATIC lib/lib.cpp)
+target_link_libraries(lib PUBLIC base64)
+
+set_property(TARGET lib PROPERTY
+    STATIC_LIBRARY_OPTIONS "$<TARGET_OBJECTS:base64>;${LIBSTDCXX};${LIBGCC}"
+)
+
+

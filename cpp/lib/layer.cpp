@@ -15,6 +15,7 @@
 #include <string>
 #include <array>
 #include <libbase64.h>
+#include <x86intrin.h>
 using std::array;
 
 // typedef uint64_t layer[2];
@@ -80,6 +81,97 @@ constexpr uint sub_layer_row_offset_upper[57] = {
 #define get_upper_row(layer, index) (0x7ff & ((layer[1] >> sub_layer_row_offset_upper[index])))
 #define get_center_row(layer) (((uint64_t)layer[0] >> 55) | ((((uint64_t)layer[1] & 0x3) << 9) & 0b11111111111))
 
+#define dirty_get_row_0(l) (uint64_t)l[0]
+#define dirty_get_row_1(l) ((uint64_t)l[0] >> 11)
+#define dirty_get_row_2(l) ((uint64_t)l[0] >> 22)
+#define dirty_get_row_3(l) ((uint64_t)l[0] >> 33)
+#define dirty_get_row_4(l) ((uint64_t)l[0] >> 44)
+#define dirty_get_row_5(l) ((uint64_t)l[0] >> 55) | ((((uint64_t)l[1] & 0x3) << 9))
+#define dirty_get_row_6(l) ((uint64_t)l[1] >> 2)
+#define dirty_get_row_7(l) ((uint64_t)l[1] >> 13)
+#define dirty_get_row_8(l) ((uint64_t)l[1] >> 24)
+#define dirty_get_row_9(l) ((uint64_t)l[1] >> 35)
+#define dirty_get_row_10(l) ((uint64_t)l[1] >> 46)
+
+uint16_t dirty_get_row(layer l, int n) {
+  switch (n) {
+  case 0:
+    return dirty_get_row_0(l);
+  case 1:
+    return dirty_get_row_1(l);
+  case 2:
+    return dirty_get_row_2(l);
+  case 3:
+    return dirty_get_row_3(l);
+  case 4:
+    return dirty_get_row_4(l);
+  case 5:
+    return dirty_get_row_5(l);
+  case 6:
+    return dirty_get_row_6(l);
+  case 7:
+    return dirty_get_row_7(l);
+  case 8:
+    return dirty_get_row_8(l);
+  case 9:
+    return dirty_get_row_9(l);
+  case 10:
+    return dirty_get_row_10(l);
+  default:
+    // return 0;;
+    fprintf(stderr, "invalid row accessed");
+    abort();    
+  }
+}
+
+#define mask_row(r) (r & 0x7ff)
+
+#define get_row_0(l) mask_row(dirty_get_row_0(l))
+#define get_row_1(l) mask_row(dirty_get_row_1(l))
+#define get_row_2(l) mask_row(dirty_get_row_2(l))
+#define get_row_3(l) mask_row(dirty_get_row_3(l))
+#define get_row_4(l) mask_row(dirty_get_row_4(l))
+#define get_row_5(l) mask_row(dirty_get_row_5(l))
+#define get_row_6(l) mask_row(dirty_get_row_6(l))
+#define get_row_7(l) mask_row(dirty_get_row_7(l))
+#define get_row_8(l) mask_row(dirty_get_row_8(l))
+#define get_row_9(l) mask_row(dirty_get_row_9(l))
+#define get_row_10(l) mask_row(dirty_get_row_10(l))
+
+/**
+ * 
+ */
+uint16_t get_row(layer l, int n) {
+  switch (n) {
+  case 0:
+    return get_row_0(l);
+  case 1:
+    return get_row_1(l);
+  case 2:
+    return get_row_2(l);
+  case 3:
+    return get_row_3(l);
+  case 4:
+    return get_row_4(l);
+  case 5:
+    return get_row_5(l);
+  case 6:
+    return get_row_6(l);
+  case 7:
+    return get_row_7(l);
+  case 8:
+    return get_row_8(l);
+  case 9:
+    return get_row_9(l);
+  case 10:
+    return get_row_10(l);
+  default:
+    // return 0;;
+    fprintf(stderr, "invalid row accessed");
+    abort();    
+  }
+}
+
 /**
  * 
  */
@@ -92,20 +184,6 @@ uint16_t get_index_row(layer l, int i) {
     return get_center_row(l);
   }
 }
-
-/**
- * 
- */
-uint16_t get_row(layer l, int i) {
-  if (i < 5) {
-    return 0x7ff & (l[0] >> (11 * i));
-  } else if (i > 5) {
-    return 0x7ff & (l[1] >> ((11 * (i - 5)) + 2));
-  } else {
-    return get_center_row(l);
-  }
-}
-
 
 /**
  * mask which retains only the complete rows of the lower layer,
@@ -178,6 +256,7 @@ const unsigned char rotate_left[121] = {
 
 const uint64_t inverted_throne_mask = 0b11111011111;
 
+// slow but useful for constexpr
 constexpr layer rotate_layer(const layer input) {
   layer output = {0};
   for (int i = 0; i < 121; i++) {
@@ -188,6 +267,46 @@ constexpr layer rotate_layer(const layer input) {
   }
   return output;
 }
+
+layer rotate_layer_right(const layer input) {
+  layer output = {0};
+
+  uint64_t lower = input[0];
+  while (lower) {
+    int r = rotate_right[_tzcnt_u64(lower)];
+    output[sub_layer[r]] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    lower &= (lower - 1);
+  }
+  uint64_t upper = input[1];
+  while (upper) {
+    int r = rotate_right[64 + _tzcnt_u64(upper)];
+    output[sub_layer[r]] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    upper &= (upper - 1);
+  }
+
+  return output;
+}
+
+layer rotate_layer_left(const layer input) {
+  layer output = {0};
+
+  uint64_t lower = input[0];
+  while (lower) {
+    int r = rotate_left[_tzcnt_u64(lower)];
+    output[sub_layer[r]] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    lower &= (lower - 1);
+  }
+  uint64_t upper = input[1];
+  while (upper) {
+    int r = rotate_left[64 + _tzcnt_u64(upper)];
+    output[sub_layer[r]] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    upper &= (upper - 1);
+  }
+
+  return output;
+}
+
+
 
 /** This implementation reads layer strings from top left to bottom right, but starts at index 120 and works down, 
  */
@@ -293,27 +412,32 @@ inline __attribute__((always_inline)) layer layer_negate(const layer a) {
   return {~a[0], ~a[1]};
 }
 
-inline __attribute__((always_inline)) layer operator~(const layer a) {
+inline __attribute__((always_inline)) constexpr layer operator~(const layer a) {
   return {~a[0], ~a[1]};
 }
 
+
+// can only be called with n > 0 && n < 65
 template <int n>
 inline __attribute__((always_inline)) layer layer_shiftl(const layer input) {
   constexpr int upper_offset = 64 - n;
   return {input[0] << n, (input[1] << n) | (input[0] >> upper_offset)};
 }
 
+// can only be called with n > 0 && n < 65
 inline __attribute__((always_inline)) constexpr layer operator<<(const layer input, const int n) {
   int upper_offset = 64 - n;
   return {input[0] << n, (input[1] << n) | (input[0] >> upper_offset)};
 }
 
+// can only be called with n > 0 && n < 65
 template <int n>
 inline __attribute__((always_inline)) layer layer_shiftr(const layer input) {
   constexpr int lower_offset = 64 - n;
   return {(input[0] >> n) | (input[1] << lower_offset), input[1] >> n};
 }
 
+// can only be called with n > 0 && n < 65
 inline __attribute__((always_inline)) constexpr layer operator>>(const layer input, const int n) {
   int lower_offset = 64 - n;
   return {(input[0] >> n) | (input[1] << lower_offset), input[1] >> n};

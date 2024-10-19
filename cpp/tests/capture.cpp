@@ -1,25 +1,25 @@
-#include "../capture.cpp"
-#include "../board.cpp"
-#include "../move.cpp"
-#include "../search.cpp"
+#include "../lib/capture.cpp"
+#include "../lib/board.cpp"
+#include "../lib/move.cpp"
+#include "../lib/search.cpp"
 
 #include <iostream>
 
-#include <catch2/catch_test_macros.hpp>
+#include <algorithm>
 #include <catch2/benchmark/catch_benchmark.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <catch2/reporters/catch_reporter_event_listener.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
-#include <iterator>
-#include <rapidcheck/catch.h>
 #include <format>
+#include <iterator>
+#include <optional>
+#include <rapidcheck/catch.h>
 #include <regex>
 #include <tuple>
 #include <vector>
-#include <algorithm>
-#include <optional>
 
-using std::vector;
 using std::optional;
+using std::vector;
 
 // initialize global variables before running tests
 class testRunListener : public Catch::EventListenerBase {
@@ -28,7 +28,6 @@ public:
 
   void testRunStarting(Catch::TestRunInfo const &) override {
     init_move_globals();
-    init_hashes();
   }
 };
 CATCH_REGISTER_LISTENER(testRunListener)
@@ -36,8 +35,8 @@ CATCH_REGISTER_LISTENER(testRunListener)
 //******************************************************************************
 
 template <bool is_black>
-void test_capture_s(const char *input_string, const char *expected_string,
-                  unsigned char pos) {
+void test_capture_s(
+    const char *input_string, const char *expected_string, unsigned char pos) {
 
   board inp = read_board(input_string);
   board exp = read_board(expected_string);
@@ -84,7 +83,7 @@ TEST_CASE("capture_s_se") {
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  O  O  .  ."
                          ".  .  .  .  .  .  O  X  X  .  .";
-			     
+
   const char *se_expected = ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
@@ -472,7 +471,8 @@ TEST_CASE("bulk capture destinations") {
   layer allies = read_layer(input, 'X');
   layer foes = read_layer(input, 'O');
   layer exp_l = read_layer(exp_s, 'X');
-  layer capture_dests = find_capture_destinations_op(allies, foes, allies | foes);
+  layer capture_dests =
+      find_capture_destinations_op(allies, foes, allies | foes);
   REQUIRE(stringify(capture_dests) == stringify(exp_l));
 }
 
@@ -501,46 +501,33 @@ TEST_CASE("get_center_row correct") {
   REQUIRE(center == expected);
 }
 
+TEST_CASE("king excluded from shield wall captures") {}
 
-TEST_CASE("king excluded from shield wall captures") {
-}
+TEST_CASE("get_capture_move_boards lower") {}
 
-TEST_CASE("get_capture_move_boards lower") {
-}
+TEST_CASE("get_capture_move_boards lower r") {}
 
-TEST_CASE("get_capture_move_boards lower r") {
-}
+TEST_CASE("get_capture_move_boards upper") {}
 
-TEST_CASE("get_capture_move_boards upper") {
-}
+TEST_CASE("get_capture_move_boards upper r") {}
 
-TEST_CASE("get_capture_move_boards upper r") {
-}
+TEST_CASE("get_capture_move_boards center") {}
 
-TEST_CASE("get_capture_move_boards center") {
-}
+TEST_CASE("get_capture_move_boards center r") {}
 
-TEST_CASE("get_capture_move_boards center r") {
-}
+TEST_CASE("get_capture_move_boards rotation is always correct") {}
 
-TEST_CASE("get_capture_move_boards rotation is always correct") {
-}
+TEST_CASE("move indices are within index bounds") {}
 
-TEST_CASE("move indices are within index bounds") {
-}
+TEST_CASE("move origins are valid") {}
 
-TEST_CASE("move origins are valid") {
-}
+TEST_CASE("moves are vertically or horizontally aligned") {}
 
-TEST_CASE("moves are vertically or horizontally aligned") {
-}
+TEST_CASE("move rotation is always correct") {}
 
-TEST_CASE("move rotation is always correct") {
-}
-
-//TEST_CASE("") {
-//  //BENCHMARK
-//}
+// TEST_CASE("") {
+//   //BENCHMARK
+// }
 
 void showValue(const board &board, std::ostream &os) {
   // something about the unicode bars conflicts with the catch2
@@ -553,7 +540,9 @@ template <typename T> bool elem(std::vector<T> v, T item) {
   return std::find(v.begin(), v.end(), item) != v.end();
 }
 
-bool corner_pred(uint8_t val) {return val == 0 || val == 10 || val == 110 || val == 120;};
+bool corner_pred(uint8_t val) {
+  return val == 0 || val == 10 || val == 110 || val == 120;
+};
 
 namespace rc {
 template <> struct Arbitrary<board> {
@@ -563,8 +552,7 @@ template <> struct Arbitrary<board> {
       layer black = {0, 0};
       const size_t black_size = *gen::inRange(1, 25);
       const std::vector<int> black_indices = *gen::unique<std::vector<int>>(
-          black_size,
-          gen::suchThat(gen::inRange(1, 120), [](int x) {
+          black_size, gen::suchThat(gen::inRange(1, 120), [](int x) {
             return !corner_pred(x) && !(x == 60);
           }));
       for (int i : black_indices) {
@@ -589,7 +577,8 @@ template <> struct Arbitrary<board> {
       layer king = {0, 0};
       const int king_index = *gen::suchThat(
           gen::inRange(1, 120), [black_indices, white_indices](int x) {
-        return !elem(black_indices, x) && !elem(white_indices, x) && !corner_pred(x);
+            return !elem(black_indices, x) && !elem(white_indices, x) &&
+                   !corner_pred(x);
           });
       king[sub_layer[king_index]] |=
           ((uint64_t)1 << sub_layer_offset_direct[king_index]);
@@ -629,8 +618,7 @@ std::vector<T> filter_v(std::vector<T> v, std::function<bool(T)> f) {
   return result;
 }
 
-template <typename T>
-bool contains(vector<T> v, T x) {
+template <typename T> bool contains(vector<T> v, T x) {
   return std::find(v.begin(), v.end(), x) != v.end();
 }
 
@@ -650,29 +638,27 @@ std::optional<uint8_t> move_west(uint i) {
   return (i % 11) < 10 ? std::optional{i + 1} : std::nullopt;
 }
 
-
-
 //*****************************************************************************
 // Capture move boards
 //*****************************************************************************
 // Util
 
-
-/** find position of a reachable (no intervening occ pieces) ally in the given direction.
+/** find position of a reachable (no intervening occ pieces) ally in the given
+ * direction.
  */
 template <auto f>
 optional<uint8_t> dir_ally(uint8_t i, layer occ, layer allies) {
   optional<uint8_t> next_move = f(i);
   while (next_move.has_value()) {
     uint8_t val = next_move.value();
-    bool is_ally = 
-      allies[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
+    bool is_ally =
+        allies[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
     if (is_ally) {
       return val;
     }
     bool is_corner = corner_pred(val);
-    bool occupied = 
-      occ[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
+    bool occupied =
+        occ[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
     if (occupied || is_corner) {
       return std::nullopt;
     }
@@ -683,7 +669,7 @@ optional<uint8_t> dir_ally(uint8_t i, layer occ, layer allies) {
 
 struct compass_allies {
   vector<move> as_moves(uint8_t dest) const {
-    vector<move> result; 
+    vector<move> result;
     if (north.has_value()) {
       result.push_back(move{north.value(), dest});
     }
@@ -706,10 +692,10 @@ struct compass_allies {
 
 compass_allies get_compass_allies(uint i, layer occ, layer allies) {
   return {
-    dir_ally<move_north>(i, occ, allies),
-    dir_ally<move_south>(i, occ, allies),
-    dir_ally<move_east>(i, occ, allies),
-    dir_ally<move_west>(i, occ, allies),
+      dir_ally<move_north>(i, occ, allies),
+      dir_ally<move_south>(i, occ, allies),
+      dir_ally<move_east>(i, occ, allies),
+      dir_ally<move_west>(i, occ, allies),
   };
 }
 
@@ -735,34 +721,46 @@ void test_capture_moves_correct(board *bs, move *ms, int total, board b) {
     if (corner_pred(i)) {
       continue;
     }
-    bool is_dest =
-        capture_dests[sub_layer[i]] & ((uint64_t)1 << sub_layer_offset_direct[i]);
+    bool is_dest = capture_dests[sub_layer[i]] &
+                   ((uint64_t)1 << sub_layer_offset_direct[i]);
     if (is_dest) {
       compass_allies correct_allies = get_compass_allies(i, occ, allies);
       if (correct_allies.north.has_value()) {
         uint8_t val = correct_allies.north.value();
-        SECTION(std::format("{} is destination - north ally is {}", as_notation(i), as_notation(val))) {
+        SECTION(std::format(
+            "{} is destination - north ally is {}",
+            as_notation(i),
+            as_notation(val))) {
           move m = move{val, i};
           REQUIRE(contains(moves, m));
         }
       }
       if (correct_allies.south.has_value()) {
         uint8_t val = correct_allies.south.value();
-        SECTION(std::format("{} is destination - south ally is {}", as_notation(i), as_notation(val))) {
+        SECTION(std::format(
+            "{} is destination - south ally is {}",
+            as_notation(i),
+            as_notation(val))) {
           move m = move{val, i};
           REQUIRE(contains(moves, m));
         }
       }
       if (correct_allies.east.has_value()) {
         uint8_t val = correct_allies.east.value();
-        SECTION(std::format("{} is destination - east ally is {}", as_notation(i), as_notation(val))) {
+        SECTION(std::format(
+            "{} is destination - east ally is {}",
+            as_notation(i),
+            as_notation(val))) {
           move m = move{val, i};
           REQUIRE(contains(moves, m));
         }
       }
       if (correct_allies.west.has_value()) {
         uint8_t val = correct_allies.west.value();
-        SECTION(std::format("{} is destination - west ally is {}", as_notation(i), as_notation(val))) {
+        SECTION(std::format(
+            "{} is destination - west ally is {}",
+            as_notation(i),
+            as_notation(val))) {
           move m = move{val, i};
           REQUIRE(contains(moves, m));
         }
@@ -830,8 +828,10 @@ TEST_CASE("black capture moves and boards match") {
     for (int i = 0; i < total; i++) {
       layer diff = a.black ^ boards[i].black;
       move m = moves[i];
-      diff[sub_layer[m.orig]] -= ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
-      diff[sub_layer[m.dest]] -= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      diff[sub_layer[m.orig]] -=
+          ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
+      diff[sub_layer[m.dest]] -=
+          ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
       RC_ASSERT_FALSE(diff[0]);
       RC_ASSERT_FALSE(diff[1]);
     }
@@ -914,8 +914,10 @@ TEST_CASE("white capture moves and boards match") {
     for (int i = 0; i < total; i++) {
       layer diff = a.white ^ boards[i].white;
       move m = moves[i];
-      diff[sub_layer[m.orig]] -= ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
-      diff[sub_layer[m.dest]] -= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      diff[sub_layer[m.orig]] -=
+          ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
+      diff[sub_layer[m.dest]] -=
+          ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
       RC_ASSERT_FALSE(diff[0]);
       RC_ASSERT_FALSE(diff[1]);
     }
@@ -966,8 +968,8 @@ vector<move> dir_moves(uint8_t i, layer occ, bool is_king = false) {
   while (next_move.has_value()) {
     uint8_t val = next_move.value();
     bool is_corner = corner_pred(val);
-    bool occupied = 
-      occ[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
+    bool occupied =
+        occ[sub_layer[val]] & ((uint64_t)1 << sub_layer_offset_direct[val]);
     if (occupied) {
       break;
     }
@@ -1005,14 +1007,20 @@ struct compass_moves {
 
 compass_moves get_compass_moves(uint i, layer occ, bool is_king = false) {
   return {
-    dir_moves<move_north>(i, occ, is_king),
-    dir_moves<move_south>(i, occ, is_king),
-    dir_moves<move_east>(i, occ, is_king),
-    dir_moves<move_west>(i, occ, is_king),
+      dir_moves<move_north>(i, occ, is_king),
+      dir_moves<move_south>(i, occ, is_king),
+      dir_moves<move_east>(i, occ, is_king),
+      dir_moves<move_west>(i, occ, is_king),
   };
 }
 
-void test_moves_correct(board *bs, move *ms, int total, layer movers, layer occ, bool is_king = false) {
+void test_moves_correct(
+    board *bs,
+    move *ms,
+    int total,
+    layer movers,
+    layer occ,
+    bool is_king = false) {
   // convert to vectors for ease of use
   std::vector<move> moves(ms, ms + total);
   std::vector<board> boards(bs, bs + total);
@@ -1095,13 +1103,14 @@ TEST_CASE("black moves and boards match") {
       board nb = bs[i];
       layer correct_layer = {b.black[0], b.black[1]};
       // layer correct_layer = {0, 0};
-      correct_layer[sub_layer[m.orig]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
-      correct_layer[sub_layer[m.dest]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      correct_layer[sub_layer[m.orig]] ^=
+          ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
+      correct_layer[sub_layer[m.dest]] ^=
+          ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
       REQUIRE(stringify(nb.black) == stringify(correct_layer));
     }
   });
 }
-
 
 //*****************************************************************************
 // White
@@ -1129,13 +1138,14 @@ TEST_CASE("white moves and boards match") {
       board nb = bs[i];
       layer correct_layer = {b.white[0], b.white[1]};
       // layer correct_layer = {0, 0};
-      correct_layer[sub_layer[m.orig]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
-      correct_layer[sub_layer[m.dest]] ^= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      correct_layer[sub_layer[m.orig]] ^=
+          ((uint64_t)1 << sub_layer_offset_direct[m.orig]);
+      correct_layer[sub_layer[m.dest]] ^=
+          ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
       REQUIRE(stringify(nb.white) == stringify(correct_layer));
     }
   });
 }
-
 
 //*****************************************************************************
 // King
@@ -1163,7 +1173,8 @@ TEST_CASE("king moves and boards match") {
       move m = ms[i];
       board nb = bs[i];
       layer correct_layer = {0, 0};
-      correct_layer[sub_layer[m.dest]] |= ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
+      correct_layer[sub_layer[m.dest]] |=
+          ((uint64_t)1 << sub_layer_offset_direct[m.dest]);
       REQUIRE(stringify(nb.king) == stringify(correct_layer));
     }
   });
@@ -1191,36 +1202,34 @@ TEST_CASE("king move board rotation correct") {
 // Bench move
 //*****************************************************************************
 
-const char* sanity_capture_string = \
-  " .  .  .  X  X  X  .  X  .  .  . "
-  " .  .  .  .  .  X  O  .  .  .  . "
-  " .  .  .  .  .  .  X  .  .  .  . "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " X  .  .  .  O  O  .  .  .  .  X "
-  " X  X  .  O  O  #  O  O  .  X  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  .  .  .  .  .  .  .  .  .  X "
-  " .  .  .  .  X  .  .  .  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  O "
-  " .  .  .  X  .  X  X  X  .  .  . ";
+const char *sanity_capture_string = " .  .  .  X  X  X  .  X  .  .  . "
+                                    " .  .  .  .  .  X  O  .  .  .  . "
+                                    " .  .  .  .  .  .  X  .  .  .  . "
+                                    " X  .  .  .  .  O  .  .  .  .  X "
+                                    " X  .  .  .  O  O  .  .  .  .  X "
+                                    " X  X  .  O  O  #  O  O  .  X  X "
+                                    " X  .  .  .  O  O  O  .  .  .  X "
+                                    " X  .  .  .  .  .  .  .  .  .  X "
+                                    " .  .  .  .  X  .  .  .  .  .  . "
+                                    " .  .  .  .  .  X  .  .  .  .  O "
+                                    " .  .  .  X  .  X  X  X  .  .  . ";
 
 const board sanity_capture_board = read_board(sanity_capture_string);
 
-const char* sanity_capture_string_white = \
-  " .  .  .  X  X  X  .  X  .  .  . "
-  " .  .  .  .  .  .  .  .  .  .  . "
-  " .  .  .  .  .  O  X  .  .  .  . "
-  " X  .  .  .  .  .  .  O  .  .  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  X  .  O  O  #  O  .  .  X  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " .  .  .  .  X  .  .  .  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  X  .  X  X  X  .  .  . ";
+const char *sanity_capture_string_white = " .  .  .  X  X  X  .  X  .  .  . "
+                                          " .  .  .  .  .  .  .  .  .  .  . "
+                                          " .  .  .  .  .  O  X  .  .  .  . "
+                                          " X  .  .  .  .  .  .  O  .  .  X "
+                                          " X  .  .  .  O  O  O  .  .  .  X "
+                                          " X  X  .  O  O  #  O  .  .  X  X "
+                                          " X  .  .  .  O  O  O  .  .  .  X "
+                                          " X  .  .  .  .  O  .  .  .  .  X "
+                                          " .  .  .  .  X  .  .  .  .  .  . "
+                                          " .  .  .  .  .  X  .  .  .  .  . "
+                                          " .  .  .  X  .  X  X  X  .  .  . ";
 
-const board sanity_capture_board_white = read_board(sanity_capture_string_white);
-
+const board sanity_capture_board_white =
+    read_board(sanity_capture_string_white);
 
 struct split_move_result {
   move moves[235];
@@ -1245,19 +1254,19 @@ TEST_CASE("bench moves", "[benchmark]") {
   };
   */
   board boards[3] = {
-    // rc::gen::arbitrary<board>()(1000, 100).value(),
-    // rc::gen::arbitrary<board>()(2000, 100).value(),
-    // rc::gen::arbitrary<board>()(3000, 100).value(),
-    // rc::gen::arbitrary<board>()(4000, 100).value(),
-    // rc::gen::arbitrary<board>()(5000, 100).value(),
-    // rc::gen::arbitrary<board>()(6000, 100).value(),
-    // rc::gen::arbitrary<board>()(7000, 100).value(),
-    // rc::gen::arbitrary<board>()(8000, 100).value(),
-    // rc::gen::arbitrary<board>()(9000, 100).value(),
-    // rc::gen::arbitrary<board>()(9999, 100).value(),
-    start_board,
-    sanity_capture_board,
-    sanity_capture_board_white,
+      // rc::gen::arbitrary<board>()(1000, 100).value(),
+      // rc::gen::arbitrary<board>()(2000, 100).value(),
+      // rc::gen::arbitrary<board>()(3000, 100).value(),
+      // rc::gen::arbitrary<board>()(4000, 100).value(),
+      // rc::gen::arbitrary<board>()(5000, 100).value(),
+      // rc::gen::arbitrary<board>()(6000, 100).value(),
+      // rc::gen::arbitrary<board>()(7000, 100).value(),
+      // rc::gen::arbitrary<board>()(8000, 100).value(),
+      // rc::gen::arbitrary<board>()(9000, 100).value(),
+      // rc::gen::arbitrary<board>()(9999, 100).value(),
+      start_board,
+      sanity_capture_board,
+      sanity_capture_board_white,
   };
   split_move_result r;
   /*
@@ -1321,8 +1330,9 @@ TEST_CASE("bench moves", "[benchmark]") {
 //     auto m = PV_TABLE[0][i] ;
 //     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
 //     std::cout << "move: " << m << "\n";
-//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]),
+//     m.orig, m.dest, {0,0}); std::cout << "[ " <<
+//     encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
 //   }
 //   // print_board(res._board);
 //   REQUIRE(true);
@@ -1332,6 +1342,13 @@ TEST_CASE("test encode") {
   std::string black_string = encode_layer(start_board.black);
   layer black_layer = decode_layer(black_string);
   REQUIRE(stringify(black_layer) == stringify(start_board.black));
+}
+
+TEST_CASE("test encode mini") {
+  std::string board_string = encode_mini(to_mini(start_board));
+  std::cout << board_string << "\n";
+  board board_again = decode_mini(board_string).to_full();
+  REQUIRE(basic_fmt_board(board_again) == basic_fmt_board(start_board));
 }
 
 TEST_CASE("board hash round trip") {
@@ -1354,17 +1371,18 @@ TEST_CASE("board hash round trip") {
 //     auto m = PV_TABLE[0][i] ;
 //     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
 //     std::cout << "move: " << m << "\n";
-//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]),
+//     m.orig, m.dest, {0,0}); std::cout << "[ " <<
+//     encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
 //   }
 //   // print_board(res._board);
 //   std::cout << "score: " << res << "\n";
 //   REQUIRE(true);
 // }
 
-
 // TEST_CASE("sanity check capture white") {
-//   auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, false, 5);
+//   auto res = negamax_ab_sorted_pv_runner(sanity_capture_board_white, false,
+//   5);
 //   /*
 //   for (int i = 0; i < MAX_DEPTH; i++) {
 //     printf("[%d] = %d\n", i, PV_LENGTH[i]);
@@ -1374,26 +1392,26 @@ TEST_CASE("board hash round trip") {
 //     auto m = PV_TABLE[0][i] ;
 //     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
 //     std::cout << "move: " << m << "\n";
-//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]),
+//     m.orig, m.dest, {0,0}); std::cout << "[ " <<
+//     encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
 //   }
 //   // print_board(res._board);
 //   std::cout << "score: " << res << "\n";
 //   REQUIRE(true);
 // }
 
-const char* wtf_string = \
-  " .  .  .  X  .  X  X  X  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  .  X  .  .  .  .  .  . "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  X  .  O  O  #  O  O  .  X  X "
-  " X  .  .  .  O  O  .  .  .  .  X "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " .  .  .  .  X  .  O  .  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  X  .  X  X  X  .  .  . ";
+const char *wtf_string = " .  .  .  X  .  X  X  X  .  .  . "
+                         " .  .  .  .  .  X  .  .  .  .  . "
+                         " .  .  .  .  X  .  .  .  .  .  . "
+                         " X  .  .  .  .  O  .  .  .  .  X "
+                         " X  .  .  .  O  O  O  .  .  .  X "
+                         " X  X  .  O  O  #  O  O  .  X  X "
+                         " X  .  .  .  O  O  .  .  .  .  X "
+                         " X  .  .  .  .  O  .  .  .  .  X "
+                         " .  .  .  .  X  .  O  .  .  .  . "
+                         " .  .  .  .  .  X  .  .  .  .  . "
+                         " .  .  .  X  .  X  X  X  .  .  . ";
 
 const board wtf_board = read_board(wtf_string);
 
@@ -1408,8 +1426,9 @@ const board wtf_board = read_board(wtf_string);
 //     auto m = PV_TABLE[0][i] ;
 //     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
 //     std::cout << "move: " << m << "\n";
-//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]),
+//     m.orig, m.dest, {0,0}); std::cout << "[ " <<
+//     encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
 //   }
 //   // print_board(res._board);
 //   std::cout << "score: " << res << "\n";
@@ -1427,25 +1446,25 @@ const board wtf_board = read_board(wtf_string);
 //     auto m = PV_TABLE[0][i] ;
 //     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
 //     std::cout << "move: " << m << "\n";
-//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]),
+//     m.orig, m.dest, {0,0}); std::cout << "[ " <<
+//     encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
 //   }
 //   // print_board(res._board);
 //   REQUIRE(true);
 // }
 
-const char* king_string = \
-  " .  .  .  X  .  X  X  X  #  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  .  X  .  .  .  .  .  . "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " X  .  .  .  O  O  O  .  .  .  X "
-  " X  X  .  O  O  .  .  .  .  X  X "
-  " X  .  .  .  O  O  .  .  .  .  X "
-  " X  .  .  .  .  O  .  .  .  .  X "
-  " .  .  .  .  X  .  O  .  .  .  . "
-  " .  .  .  .  .  X  .  .  .  .  . "
-  " .  .  .  X  .  X  X  X  .  .  . ";
+const char *king_string = " .  .  .  X  .  X  X  X  #  .  . "
+                          " .  .  .  .  .  X  .  .  .  .  . "
+                          " .  .  .  .  X  .  .  .  .  .  . "
+                          " X  .  .  .  .  O  .  .  .  .  X "
+                          " X  .  .  .  O  O  O  .  .  .  X "
+                          " X  X  .  O  O  .  .  .  .  X  X "
+                          " X  .  .  .  O  O  .  .  .  .  X "
+                          " X  .  .  .  .  O  .  .  .  .  X "
+                          " .  .  .  .  X  .  O  .  .  .  . "
+                          " .  .  .  .  .  X  .  .  .  .  . "
+                          " .  .  .  X  .  X  X  X  .  .  . ";
 
 const board king_board = read_board(king_string);
 
@@ -1460,42 +1479,523 @@ const board king_board = read_board(king_string);
 //     auto m = PV_TABLE[0][i] ;
 //     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
 //     std::cout << "move: " << m << "\n";
-//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-//     std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]),
+//     m.orig, m.dest, {0,0}); std::cout << "[ " <<
+//     encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
 //   }
 //   // print_board(res._board);
 //   std::cout << "score: " << res << "\n";
 //   REQUIRE(true);
 // }
 
-TEST_CASE("play self") {
-  bool is_black_turn = true;
-  board b = start_board;
-  int32_t s;
+// TEST_CASE("play self") {
+//   bool is_black_turn = true;
+//   board b = start_board;
+//   int32_t s;
+//
+//   struct ai_settings ai_settings = init_ai_settings();
+//
+//   auto r = init_team_repetitions();
+//   while (!game_over_check(b, is_black_turn, s)) {
+//     search_result res = negamax_ab_sorted_pv_runner(b, r, is_black_turn, 6,
+//     ai_settings); r = res.r; layer caps; if (is_black_turn) {
+//       caps = b.white ^ res.b.white;
+//     } else {
+//       caps = b.black ^ res.b.black;
+//     }
+//     std::cout << "\n                == move " << (is_black_turn ? "black" :
+//     "white") << " ==" << "\n"; std::cout << "move: " << res.m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(res.b), res.m.orig,
+//     res.m.dest, caps);
+//     // std::cout << "[ " << encode_mini(to_mini(res.b)) << " ]\n";
+//     is_black_turn = !is_black_turn;
+//     b = res.b;
+//   }
+//
+//   REQUIRE(false);
+// }
 
-  struct ai_settings ai_settings = init_ai_settings();
-  
-  auto r = init_team_repetitions();
-  while (!game_over_check(b, is_black_turn, s)) {
-    search_result res = negamax_ab_sorted_pv_runner(b, r, is_black_turn, 6, ai_settings);
-    r = res.r;
-    layer caps; 
-    if (is_black_turn) {
-      caps = b.white ^ res.b.white;
-    } else {
-      caps = b.black ^ res.b.black;
-    }
-    std::cout << "\n                == move " << (is_black_turn ? "black" : "white") << " ==" << "\n";
-    std::cout << "move: " << res.m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(res.b), res.m.orig, res.m.dest, caps);
-    // std::cout << "[ " << encode_mini(to_mini(res.b)) << " ]\n";
-    is_black_turn = !is_black_turn;
-    b = res.b;
-  }
+struct pos {
+  int index;
+  int rank;
+  int file;
+};
 
-  REQUIRE(false);
+#define lowest_index(layer)                                                    \
+  (layer[0] ? _tzcnt_u64(layer[0]) : _tzcnt_u64(layer[1]) + 64)
+
+struct pos king_pos(const char *b) {
+  layer l = read_layer(b, '#');
+  int index = lowest_index(l);
+  int rank = index / 11;
+  int file = index % 11;
+  return {index, rank, file};
 }
 
+void test_corner_moves_1(const char *b, bool should_escape) {
+  layer occ = read_layer(b, 'X');
+  layer occ_r = rotate_layer(occ);
+  struct pos king = king_pos(b);
+  bool escape = corner_moves_1(occ, occ_r, king.rank, king.file);
+  REQUIRE(escape == should_escape);
+}
+
+TEST_CASE("test corner_moves_1") {
+  SECTION("mid board no escape 1") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  #  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("mid board no escape 2") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  #  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("mid board no escape 3") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  #  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("mid board no escape 4") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  #  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+
+  SECTION("north no escape") {
+    const char *b = ".  .  X  .  .  #  .  .  X  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("north -> west") {
+    const char *b = ".  .  .  .  .  #  .  .  X  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("north -> east") {
+    const char *b = ".  .  X  .  .  #  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+
+  SECTION("north adjacent no escape") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  X  .  .  #  .  .  X  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("north adjacent -> west") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  #  .  .  X  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("north adjacent -> east") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  X  .  .  #  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+
+  SECTION("south adjacent no escape") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  X  .  .  #  .  .  X  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("south adjacent -> east") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  X  .  .  #  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("south adjacent -> west") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  #  .  .  X  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+
+  SECTION("south no escape") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  X  .  .  #  .  .  X  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("south -> west") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  #  .  .  X  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("south -> east") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  X  .  .  #  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+
+  SECTION("west no escape") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    "X  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    "#  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    "X  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("west -> north") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    "#  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    "X  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("west -> south") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    "X  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    "#  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+
+  SECTION("west adjacent no escape") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  X  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  #  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  X  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("west adjacent -> north") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  #  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  X  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("west adjacent -> south") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  X  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  #  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+
+  SECTION("east no escape") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  X"
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  #"
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  X"
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("east -> north") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  #"
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  X"
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("east -> south") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  X"
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  #"
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+
+  SECTION("east adjacent no escape") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  X  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  #  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  X  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, false);
+  }
+  SECTION("east adjacent -> north") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  #  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  X  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+  SECTION("east adjacent -> south") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  X  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  #  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_moves_1(b, true);
+  }
+}
+
+void test_corner_paths_1(const char *b, vector<string> expected_strings) {
+  // for  
+  vector<layer> expected = {};
+  for (const string & e : expected_strings)
+    expected.push_back(read_layer(e.c_str(), 'X'));
+
+  // setup 
+  layer occ = read_layer(b, 'X');
+  layer occ_r = rotate_layer(occ);
+  struct pos king = king_pos(b);
+  int count = 0;
+  layer results_array[8];
+  layer results_r_array[8];
+
+  // generate layers
+  corner_paths_1(
+      occ, occ_r, king.rank, king.file, &count, results_array, results_r_array);
+
+  // prepare to test results
+  vector<layer> expected_r;
+  std::transform(expected.begin(), expected.end(), expected_r.begin(), rotate_layer);
+  vector<layer> results(results_array, results_array + count);
+  vector<layer> results_r(results_r_array, results_r_array + count);
+  std::sort(expected.begin(), expected.end());
+  std::sort(expected_r.begin(), expected_r.end());
+  std::sort(results.begin(), results.end());
+  std::sort(results_r.begin(), results_r.end());
+
+  // test
+  REQUIRE(results == expected);
+  REQUIRE(results_r == expected_r);
+
+}
+
+TEST_CASE("test corner_paths_1") {
+  SECTION("mid board no escape 1") {
+    const char *b = ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  #  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  ."
+                    ".  .  .  .  .  .  .  .  .  .  .";
+    test_corner_paths_1(b, {});
+  }
+}
+
+
+/*
 TEST_CASE("test corner access 2 se") {
   SECTION("rank blockers") {
     layer occ = read_layer(
@@ -1606,7 +2106,6 @@ TEST_CASE("test corner access 2 se") {
     REQUIRE(access);
   }
 }
-
 
 TEST_CASE("test corner access 2 sw") {
   SECTION("rank blockers") {
@@ -1719,7 +2218,6 @@ TEST_CASE("test corner access 2 sw") {
   }
 }
 
-
 TEST_CASE("test corner access 2 ne") {
   SECTION("rank blockers") {
     layer occ = read_layer(
@@ -1831,7 +2329,6 @@ TEST_CASE("test corner access 2 ne") {
   }
 }
 
-
 TEST_CASE("test corner access 2 nw") {
   SECTION("rank blockers") {
     layer occ = read_layer(
@@ -1942,41 +2439,42 @@ TEST_CASE("test corner access 2 nw") {
     REQUIRE(access);
   }
 }
+*/
 
-const char *sanity_king_capture_string =
- " .  .  X  .  X  .  .  O  .  .  . "
- " .  X  .  X  .  .  .  .  .  .  . "
- " X  .  .  O  O  X  .  .  X  .  . "
- " .  .  .  .  .  #  X  .  .  X  . "
- " .  X  .  .  .  .  O  .  .  .  X "
- " X  .  .  O  O  .  O  .  .  X  X "
- " X  .  .  .  O  O  O  .  .  .  X "
- " X  .  .  .  .  O  .  .  .  .  X "
- " .  .  .  .  .  .  .  .  O  .  . "
- " .  .  .  .  .  X  .  .  .  .  . "
- " .  .  X  .  X  X  X  X  .  .  . "
-;
+const char *sanity_king_capture_string = " .  .  X  .  X  .  .  O  .  .  . "
+                                         " .  X  .  X  .  .  .  .  .  .  . "
+                                         " X  .  .  O  O  X  .  .  X  .  . "
+                                         " .  .  .  .  .  #  X  .  .  X  . "
+                                         " .  X  .  .  .  .  O  .  .  .  X "
+                                         " X  .  .  O  O  .  O  .  .  X  X "
+                                         " X  .  .  .  O  O  O  .  .  .  X "
+                                         " X  .  .  .  .  O  .  .  .  .  X "
+                                         " .  .  .  .  .  .  .  .  O  .  . "
+                                         " .  .  .  .  .  X  .  .  .  .  . "
+                                         " .  .  X  .  X  X  X  X  .  .  . ";
 
 const board sanity_king_capture_board = read_board(sanity_king_capture_string);
 
-TEST_CASE("sanity check king capture") {
-  // auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
-  auto r = init_team_repetitions();
-  struct ai_settings ai_settings = init_ai_settings();
-  auto res = negamax_ab_sorted_pv_runner(sanity_king_capture_board, r, false, 1, ai_settings);
-  /*
-  for (int i = 0; i < MAX_DEPTH; i++) {
-    printf("[%d] = %d\n", i, PV_LENGTH[i]);
-  }
-  */
-  for (int i = 0; i < PV_LENGTH[0]; i++) {
-    auto m = PV_TABLE[0][i] ;
-    std::cout << "\n                == move " << i + 1 << " ==" << "\n";
-    std::cout << "move: " << m << "\n";
-    std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]), m.orig, m.dest, {0,0});
-    std::cout << "[ " << encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
-  }
-  // print_board(res._board);
-  std::cout << "score: " << res.s << "\n";
-  REQUIRE(false);
-}
+// TEST_CASE("sanity check king capture") {
+//   // auto res = negamax_ab_sorted_pv_runner(sanity_capture_board, true, 5);
+//   auto r = init_team_repetitions();
+//   struct ai_settings ai_settings = init_ai_settings();
+//   auto res = negamax_ab_sorted_pv_runner(sanity_king_capture_board, r, false,
+//   1, ai_settings);
+//   /*
+//   for (int i = 0; i < MAX_DEPTH; i++) {
+//     printf("[%d] = %d\n", i, PV_LENGTH[i]);
+//   }
+//   */
+//   for (int i = 0; i < PV_LENGTH[0]; i++) {
+//     auto m = PV_TABLE[0][i] ;
+//     std::cout << "\n                == move " << i + 1 << " ==" << "\n";
+//     std::cout << "move: " << m << "\n";
+//     std::cout << overlay_move_basic(basic_fmt_board(PV_TABLE_BOARDS[0][i]),
+//     m.orig, m.dest, {0,0}); std::cout << "[ " <<
+//     encode_mini(to_mini(PV_TABLE_BOARDS[0][i])) << " ]\n";
+//   }
+//   // print_board(res._board);
+//   std::cout << "score: " << res.s << "\n";
+//   REQUIRE(false);
+// }
