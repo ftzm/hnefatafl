@@ -10,6 +10,8 @@
 #pragma once
 
 #include <cstring>
+#include <format>
+#include <ostream>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string>
@@ -21,6 +23,7 @@ using std::array;
 // typedef uint64_t layer[2];
 
 typedef array<uint64_t, 2> layer;
+
 
 /* A handy index guide:
 120 119 118 117 116 115 114 113 112 111 110
@@ -376,6 +379,14 @@ inline void print_layer(layer layer) {
   puts(string);
   printf("\n");
 }
+
+std::ostream& operator << ( std::ostream& os, layer const& value ) {
+  // something about the unicode bars conflicts with the catch2
+  // printing, so we replace them with slightly uglier dashes
+  os << std::endl << stringify(value) << std::endl;
+    return os;
+}
+
 
 
 inline __attribute__((always_inline)) layer layer_or(const layer a,

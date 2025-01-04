@@ -75,7 +75,8 @@ std::ostream& operator << ( std::ostream& os, move const& value ) {
     return os;
 }
 
-inline layer corners = {1025, 72127962782105600};
+constexpr inline layer corners = {1025, 72127962782105600};
+constexpr inline layer not_corners = ~corners;
 
 #define check_index(layer, i)                                                          \
   layer[sub_layer[i]] & ((uint64_t)1 << (i - sub_layer_offset[i]))

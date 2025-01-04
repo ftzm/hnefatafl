@@ -80,6 +80,40 @@ uint16_t get_row_moves(const uint16_t occ, const uint16_t pos) {
   return (rightward - blocked) - (1 << pos);
 }
 
+
+/**
+ * find positions that can be moved to from a position given the
+ * occupancy of a row.
+ * @param occ occupancy of the row, including the bit at `pos`.
+ * @param pos the index of the starting position of the moves. 
+ * @return a uint16_t where the set bits represent positions that can
+ * be moved to.
+ */
+uint16_t get_row_moves_b(uint16_t occ, const uint8_t pos) {
+  // TODO: need to test this
+    static const uint16_t lowers[11]  = {
+        0,
+        0b1,
+        0b11,
+        0b111,
+        0b1111,
+        0b11111,
+        0b111111,
+        0b1111111,
+        0b11111111,
+        0b111111111,
+        0b1111111111,
+    };
+    occ |= 0b1111100000000000;
+    uint16_t upper_mask = 0b11111111110 << pos;
+    uint16_t lower_mask = lowers[pos];
+    uint16_t lower = lower_mask & occ;
+    uint16_t upper = upper_mask & occ;
+    uint16_t lower_neighbor = 32768 >> __lzcnt16(lower);
+    return (upper - lower_neighbor) & ~occ;
+}
+
+
 void print_row(uint16_t row) {
   char output[18];
   memset(output, '0', 17);

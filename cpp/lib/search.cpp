@@ -1,6 +1,7 @@
 #include "board.cpp"
 #include "layer.cpp"
 #include "move.cpp"
+#include <cassert>
 #include <climits>
 #include <cstdint>
 #include <iostream>
@@ -109,7 +110,7 @@ uint8_t se_corner_protection(const board b) {
 // King corner access
 
 #define mask_rightward(x) (((uint16_t)1 << x) - 1)
-#define mask_leftward(x) (0x7fe << x)
+#define mask_leftward(x) ((0x7fe << x) & 0x7fe)
 #define drop_edge(x) (x & 0b1111111110)
 
 /**
@@ -519,7 +520,7 @@ constexpr layer file_mask_8 = file_mask_0 << 8;
 constexpr layer file_mask_9 = file_mask_0 << 9;
 constexpr layer file_mask_10 = file_mask_0 << 10;
 
-constexpr layer below_10 = ~layer{0, 0} >> 11;
+constexpr layer below_10 = layer{(uint64_t)~0, (uint64_t)~0 >> 7} >> 11;
 constexpr layer below_9 = below_10 >> 11;
 constexpr layer below_8 = below_9 >> 11;
 constexpr layer below_7 = below_8 >> 11;
@@ -581,32 +582,35 @@ void corner_paths_1(
     layer *paths,
     layer *paths_r) {
 
+  const uint16_t legal_edge_mask = 0b01111111110;
+  // TODO: use the above to exclude corners from paths
+
   switch (rank) {
   case 0: {
     uint16_t row = dirty_get_row_0(occ);
-    uint16_t mask_left = mask_leftward(file);
-    if (row & mask_left) {
-      paths[*count] = {mask_left, 0};
-      paths_r[*count] = file_mask_10 & above_n[file];
+    const uint16_t mask_left = mask_leftward(file);
+    if (!(row & mask_left)) {
+      paths[*count] = {(uint64_t)mask_left & legal_edge_mask, 0};
+      paths_r[*count] = not_corners & file_mask_10 & above_n[file];
       (*count)++;
     }
     uint16_t mask_right = mask_rightward(file);
-    if (row & mask_right) {
-      paths[*count] = {mask_right, 0};
-      paths_r[*count] = file_mask_10 & below_n[file];
+    if (!(row & mask_right)) {
+      paths[*count] = {(uint64_t)mask_right & legal_edge_mask, 0};
+      paths_r[*count] = not_corners & file_mask_10 & below_n[file];
       (*count)++;
     }
   }; break;
   case 1: {
     uint16_t row = dirty_get_row_1(occ);
     uint16_t mask_left = mask_leftward(file);
-    if (row & mask_left) {
+    if (!(row & mask_left)) {
       paths[*count] = {(uint64_t)mask_left << 11, 0};
       paths_r[*count] = file_mask_9 & above_n[file];
       (*count)++;
     }
     uint16_t mask_right = mask_rightward(file);
-    if (row & mask_right) {
+    if (!(row & mask_right)) {
       paths[*count] = {(uint64_t)mask_right << 11, 0};
       paths_r[*count] = file_mask_9 & below_n[file];
       (*count)++;
@@ -615,30 +619,30 @@ void corner_paths_1(
   case 9: {
     uint16_t row = dirty_get_row_9(occ);
     uint16_t rank_mask_right = mask_rightward(file);
-    if (row & rank_mask_right) {
-      paths[*count] = {(uint64_t)rank_mask_right << 35, 0};
-      paths_r[*count] = file_mask_1 & above_n[file];
+    if (!(row & rank_mask_right)) {
+      paths[*count] = {0, (uint64_t)rank_mask_right << 35};
+      paths_r[*count] = file_mask_1 & below_n[file];
       (*count)++;
     }
     uint16_t rank_mask_left = mask_leftward(file);
-    if (row & rank_mask_left) {
-      paths[*count] = {(uint64_t)rank_mask_left << 35, 0};
-      paths_r[*count] = file_mask_1 & below_n[file];
+    if (!(row & rank_mask_left)) {
+      paths[*count] = {0, (uint64_t)rank_mask_left << 35};
+      paths_r[*count] = file_mask_1 & above_n[file];
       (*count)++;
     }
   }; break;
   case 10: {
     uint16_t row = dirty_get_row_10(occ);
     uint16_t rank_mask_right = mask_rightward(file);
-    if (row & rank_mask_right) {
-      paths[*count] = {(uint64_t)rank_mask_right << 46, 0};
-      paths_r[*count] = file_mask_0 & above_n[file];
+    if (!(row & rank_mask_right)) {
+      paths[*count] = {0, (uint64_t)(rank_mask_right & legal_edge_mask) << 46};
+      paths_r[*count] = not_corners & file_mask_0 & below_n[file];
       (*count)++;
     }
     uint16_t rank_mask_left = mask_leftward(file);
-    if (row & rank_mask_left) {
-      paths[*count] = {(uint64_t)rank_mask_left << 46, 0};
-      paths_r[*count] = file_mask_0 & below_n[file];
+    if (!(row & rank_mask_left)) {
+      paths[*count] = {0, (uint64_t)(rank_mask_left & legal_edge_mask) << 46};
+      paths_r[*count] = not_corners & file_mask_0 & above_n[file];
       (*count)++;
     }
   }; break;
@@ -648,52 +652,60 @@ void corner_paths_1(
   case 0: {
     uint16_t row = dirty_get_row_0(occ_r);
     uint16_t mask_left = mask_leftward(rank);
-    if (row & mask_left) {
-      paths[*count] = {mask_left, 0};
+    if (!(row & mask_left)) {
+      paths[*count] = not_corners & file_mask_0 & below_n[rank];
+      paths_r[*count] = {(uint64_t)(mask_left & legal_edge_mask), 0};
       (*count)++;
     }
     uint16_t mask_right = mask_rightward(rank);
-    if (row & mask_right) {
-      paths[*count] = {mask_right, 0};
+    if (!(row & mask_right)) {
+      paths[*count] = not_corners & file_mask_0 & above_n[rank];
+      paths_r[*count] = {(uint64_t)(mask_right & legal_edge_mask), 0};
       (*count)++;
     }
   }; break;
   case 1: {
     uint16_t row = dirty_get_row_1(occ_r);
     uint16_t mask_left = mask_leftward(rank);
-    if (row & mask_left) {
-      paths[*count] = {(uint64_t)mask_left << 11, 0};
+    if (!(row & mask_left)) {
+      paths[*count] = not_corners & file_mask_1 & below_n[rank];
+      paths_r[*count] = {(uint64_t)mask_left << 11, 0};
       (*count)++;
     }
     uint16_t mask_right = mask_rightward(rank);
-    if (row & mask_right) {
-      paths[*count] = {(uint64_t)mask_right << 11, 0};
+    if (!(row & mask_right)) {
+      paths[*count] = not_corners & file_mask_1 & above_n[rank];
+      paths_r[*count] = {(uint64_t)mask_right << 11, 0};
       (*count)++;
     }
   }; break;
   case 9: {
     uint16_t row = dirty_get_row_9(occ_r);
     uint16_t rank_mask_right = mask_rightward(rank);
-    if (row & rank_mask_right) {
-      paths[*count] = {(uint64_t)rank_mask_right << 35, 0};
+    if (!(row & rank_mask_right)) {
+      paths[*count] = file_mask_9 & above_n[rank];
+      paths_r[*count] = {0, (uint64_t)rank_mask_right << 35};
       (*count)++;
     }
     uint16_t rank_mask_left = mask_leftward(rank);
-    if (row & rank_mask_left) {
-      paths[*count] = {(uint64_t)rank_mask_left << 35, 0};
+    if (!(row & rank_mask_left)) {
+      paths[*count] = file_mask_9 & below_n[rank];
+      paths_r[*count] = {0, (uint64_t)rank_mask_left << 35};
       (*count)++;
     }
   }; break;
   case 10: {
     uint16_t row = dirty_get_row_10(occ_r);
     uint16_t rank_mask_right = mask_rightward(rank);
-    if (row & rank_mask_right) {
-      paths[*count] = {(uint64_t)rank_mask_right << 46, 0};
+    if (!(row & rank_mask_right)) {
+      paths[*count] = not_corners & file_mask_10 & above_n[rank];
+      paths_r[*count] = {0, (uint64_t)rank_mask_right << 46 & not_corners[1]};
       (*count)++;
     }
     uint16_t rank_mask_left = mask_leftward(rank);
-    if (row & rank_mask_left) {
-      paths[*count] = {(uint64_t)rank_mask_left << 46, 0};
+    if (!(row & rank_mask_left)) {
+      paths[*count] = not_corners & file_mask_10 & below_n[rank];
+      paths_r[*count] = {0, (uint64_t)rank_mask_left << 46 & not_corners[1]};
       (*count)++;
     }
   }; break;
@@ -1705,6 +1717,57 @@ struct search_result {
   int32_t s;
   team_repetitions r;
 };
+
+int32_t quiesce(
+    const move m,
+    const board b,
+    const team_repetitions r,
+    const bool is_black_turn,
+    // const int depth,
+    const int ply,
+    int32_t alpha,
+    const int32_t beta,
+    int *tally,
+    // const bool is_pv,
+    const score_state ss,
+    // const bool allow_null_move,
+    const struct ai_settings &ai_settings) {
+  // base implementation from:
+  // https://www.chessprogramming.org/Quiescence_Search
+
+  // TODO: implement delta pruning
+
+  // assert we don't exceed a generous ply limit to guard against infinite loops
+  assert(ply < 20);
+
+  // int stand_pat = Evaluate();
+  // if( stand_pat >= beta )
+  //     return beta;
+  // if( alpha < stand_pat )
+  //     alpha = stand_pat;
+  int stand_pat = score_board(b, is_black_turn) + ss.get_score(is_black_turn);
+  if (stand_pat >= beta)
+    return beta;
+  if (alpha < stand_pat)
+    alpha = stand_pat;
+
+  // Gen moves
+  // 1. a) if black, moves that block escape paths
+  //    b) if white, escape moves
+  // 2. capture moves
+
+  // until( every_capture_has_been_examined )  {
+  //     MakeCapture();
+  //     score = -Quiesce( -beta, -alpha );
+  //     TakeBackMove();
+
+  //     if( score >= beta )
+  //         return beta;
+  //     if( score > alpha )
+  //        alpha = score;
+  // }
+  // return alpha;
+}
 
 search_result negamax_ab_sorted_pv_runner(
     board b,
