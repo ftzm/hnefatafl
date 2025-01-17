@@ -292,6 +292,8 @@ uint16_t find_neighbors(const uint16_t occ, const int pos) {
 
 /** process a capture move
  * 
+ * The only difference between this and `process_move` is that we know there will be a capture, so we can skip the check.
+ * 
  * @tparam is_black whether the moving piece is black
  * @tparam is_rotated whether the move is rotated, in which case
  * selection of rotated or unrotated layers, rotation direction, etc.,
@@ -338,8 +340,63 @@ void process_capture_move(const board *base_board, board *boards, move *moves, u
 		       board_layer(is_black, false) | corners, board_layer(!is_black, false),
 		       board_layer(!is_black, true), (is_rotated ? dest_r : dest));
 
-
   shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
+
+  moves[*total] =
+      (struct move){(is_rotated ? orig_r : orig), (is_rotated ? dest_r : dest)};
+  boards[*total] = board;
+  (*total)++;
+}
+
+template <bool is_black, bool is_rotated, bool is_lower, bool is_upper, bool always_capture>
+void process_move(const board *base_board, board *boards, move *moves, uint8_t *cap_counts,
+                  int *total, uint8_t orig, uint8_t dest, const layer cap_dests) {
+
+  board board = *base_board;
+
+  // if neither upper nor lower then this is a center row, and we should offset
+  // by 55 from the start
+  offset_coords(!is_lower && !is_upper, 55);
+
+  board_layer(is_black, is_rotated)[select_index(is_lower, is_upper, orig)] -=
+      (uint64_t)1 << orig;
+  board_layer(is_black, is_rotated)[select_index(is_lower, is_upper, dest)] |=
+      (uint64_t)1 << dest;
+
+
+  // if upper we should offset by 64 to get the layer index from the sub-layer
+  // index before recording the move and getting the rotated coords.
+  offset_coords(is_upper, 64);
+
+  uint8_t orig_r = select_rotation(is_rotated)[orig];
+  uint8_t dest_r = select_rotation(is_rotated)[dest];
+
+  board_layer(is_black, !is_rotated)[sub_layer[orig_r]] -=
+      (uint64_t)1 << (sub_layer_offset_direct[orig_r]);
+  board_layer(is_black, !is_rotated)[sub_layer[dest_r]] |=
+      (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+
+  if constexpr (always_capture) {
+    cap_counts[*total] = apply_captures_niave_count(
+        board_layer(is_black, false) | corners,
+        board_layer(!is_black, false),
+        board_layer(!is_black, true),
+        (is_rotated ? dest_r : dest));
+
+    shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
+  } else {
+    bool is_capture = cap_dests[sub_layer[dest]] &
+                      ((uint64_t)1 << sub_layer_offset_direct[dest]);
+    if (is_capture) {
+      cap_counts[*total] = apply_captures_niave_count(
+          board_layer(is_black, false) | corners,
+          board_layer(!is_black, false),
+          board_layer(!is_black, true),
+          (is_rotated ? dest_r : dest));
+
+      shield_wall<is_black>(&board, (is_rotated ? dest_r : dest));
+    }
+  }
 
   moves[*total] =
       (struct move){(is_rotated ? orig_r : orig), (is_rotated ? dest_r : dest)};
@@ -386,17 +443,6 @@ void capture_moves_center(board *boards, const board board, int *total, move *mo
     uint16_t row_origs = neighbors & get_center_row(board_layer(is_black, is_rotated));
     while (row_origs) {
       uint8_t orig = _tzcnt_u16(row_origs);
-      /*
-      if (is_black && is_rotated && dest == 1 && orig == 10) {
-	print_board(board);
-	print_row(center_occ);
-	print_row(neighbors);
-	auto cr = get_center_row(board_layer(is_black, is_rotated));
-	print_row(cr);
-	print_row(neighbors & cr);
-	print_row(row_origs);
-      }
-       */
       process_capture_move<is_black, is_rotated, false, false>(&board, boards, moves, cap_counts, total, orig, dest);
       row_origs &= row_origs - 1;
     }
@@ -405,10 +451,68 @@ void capture_moves_center(board *boards, const board board, int *total, move *mo
 }
 
 /**
- * generate moves which result in captures.
+ * generate captures moves for one half of the board, excluding center
+ * rank or file.
  */
-template <bool is_black>
-void get_capture_move_boards(board *boards, const board board, int *total, move *moves, uint8_t *cap_counts) {
+template <
+    bool is_black,
+    bool is_rotated,
+    bool is_lower,
+    bool is_upper,
+    bool always_capture>
+void destination_moves_half(
+    board *boards,
+    const board board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    layer occ,
+    layer capt_dests,
+    layer destinations) {
+  uint64_t masked_dests = destinations[(is_lower ? 0 : 1)] &
+                               (is_lower ? lower_rows_mask : upper_rows_mask);
+  while (masked_dests) {
+    uint8_t dest = _tzcnt_u64(masked_dests);
+    int row_offset =
+        (is_lower ? sub_layer_row_offset : sub_layer_row_offset_upper)[dest];
+    int row_dest = dest - row_offset;
+    uint16_t neighbors = find_neighbors(
+        0b11111111111 & (occ[(is_lower ? 0 : 1)] >> row_offset), row_dest);
+    uint64_t origs = ((uint64_t)neighbors << row_offset) &
+                     board_layer(is_black, is_rotated)[(is_lower ? 0 : 1)];
+    while (origs) {
+      uint8_t orig = _tzcnt_u64(origs);
+      process_move<is_black, is_rotated, is_lower, is_upper, always_capture>(
+          &board, boards, moves, cap_counts, total, orig, dest, capt_dests);
+      origs = _blsr_u64(origs);
+    }
+    masked_dests = _blsr_u64(masked_dests);
+  }
+}
+
+/**
+ * generate captures moves for the center rank or file.
+ */
+template <bool is_black, bool is_rotated, bool always_capture>
+void destination_moves_center(board *boards, const board board, int *total, move *moves, uint8_t *cap_counts, const layer occ, layer capture_dests, layer destinations) {
+  uint16_t center_capt_dests = get_center_row(destinations);
+  const uint16_t center_occ = get_center_row(occ);
+  while (center_capt_dests) {
+    uint8_t dest = _tzcnt_u16(center_capt_dests);
+    uint16_t neighbors = find_neighbors(center_occ, dest);
+    uint16_t row_origs = neighbors & get_center_row(board_layer(is_black, is_rotated));
+    while (row_origs) {
+      uint8_t orig = _tzcnt_u16(row_origs);
+      process_move<is_black, is_rotated, false, false, always_capture>(&board, boards, moves, cap_counts, total, orig, dest, capture_dests);
+      row_origs &= row_origs - 1;
+    }
+    center_capt_dests &= center_capt_dests - 1;
+  }
+}
+
+template <bool is_black, bool always_capture>
+void get_destination_move_boards(board *boards, const board board, int *total, move *moves, uint8_t *cap_counts, layer destinations) {
+  // TODO: make this also generate shield wall capture moves. Might be best to generate a mask of destinations _next_ to opponent pieces, run shield_wall, and add the move if the board has changed.
   layer occ = board.black | board.white | board.king | corners;
   layer occ_r = board.black_r | board.white_r | board.king_r | corners;
 
@@ -420,6 +524,35 @@ void get_capture_move_boards(board *boards, const board board, int *total, move 
   }
   layer capt_dests = find_capture_destinations_op(allies | corners, foes, occ);
   layer capt_dests_r = rotate_layer(capt_dests); // TODO: maybe faster to do above rather than rotate
+  layer destinations_r = rotate_layer(destinations);
+
+  destination_moves_half<is_black, false, true, false, always_capture>(boards, board, total, moves, cap_counts, occ, capt_dests, destinations);
+  destination_moves_half<is_black, false, false, true, always_capture>(boards, board, total, moves, cap_counts, occ, capt_dests, destinations);
+  destination_moves_center<is_black, false, always_capture>(boards, board, total, moves, cap_counts, occ, capt_dests, destinations);
+  destination_moves_half<is_black, true, true, false, always_capture>(boards, board, total, moves, cap_counts, occ_r, capt_dests_r, destinations_r);
+  destination_moves_half<is_black, true, false, true, always_capture>(boards, board, total, moves, cap_counts, occ_r, capt_dests_r, destinations_r);
+  destination_moves_center<is_black, true, always_capture>(boards, board, total, moves, cap_counts, occ_r, capt_dests_r, destinations_r);
+}
+
+/**
+ * generate moves which result in captures.
+ */
+template <bool is_black>
+void get_capture_move_boards(board *boards, const board board, int *total, move *moves, uint8_t *cap_counts) {
+  // TODO: make this also generate shield wall capture moves. Might be best to generate a mask of destinations _next_ to opponent pieces, run shield_wall, and add the move if the board has changed.
+  layer occ = board.black | board.white | board.king | corners;
+  layer occ_r = board.black_r | board.white_r | board.king_r | corners;
+
+  layer allies = board_layer(is_black, false) | corners;
+  layer foes = board_layer(!is_black, false);
+  if constexpr (!is_black) {
+    allies[0] |= board.king[0];
+    allies[1] |= board.king[1];
+  }
+  layer capt_dests = find_capture_destinations_op(allies | corners, foes, occ);
+  layer capt_dests_r = rotate_layer(capt_dests); // TODO: maybe faster to do above rather than rotate
+
+
 
   capture_moves<is_black, false, true, false>(boards, board, total, moves, cap_counts, occ, capt_dests);
   capture_moves<is_black, false, false, true>(boards, board, total, moves, cap_counts, occ, capt_dests);

@@ -224,6 +224,7 @@ inline void lower_right_shield_captures(const unsigned short flank,
       0b00000000000, 0b00000000001, 0b00000000011, 0b00000000111, 0b00000001111,
       0b00000011111, 0b00000111111, 0b00001111111, 0b00011111111, 0b00111111111,
   };
+  // TODO: check that this is maximally efficient
   const unsigned short rightward = lowers[pos];
   const unsigned short blockers = flank & rightward;
   const unsigned short blocked = 0xFFFF >> __lzcnt16(blockers);
@@ -244,6 +245,7 @@ inline void lower_left_shield_captures(const unsigned short flank,
       0b11111100000, 0b11111000000, 0b11110000000, 0b11100000000,
       0b11000000000, 0b10000000000, 0b00000000000,
   };
+  // TODO: check that this is maximally efficient
   const unsigned short leftward = uppers[pos];
   const unsigned short blockers = flank & leftward;
   const unsigned short until = (blockers & -blockers) - 1;
@@ -262,6 +264,7 @@ inline void upper_right_shield_captures(const uint64_t allies,
       0b00000000000, 0b00000000001, 0b00000000011, 0b00000000111, 0b00000001111,
       0b00000011111, 0b00000111111, 0b00001111111, 0b00011111111, 0b00111111111,
   };
+  // TODO: check that this is maximally efficient
   const unsigned short rightward = lowers[pos - 110];
   const unsigned short blockers = (allies >> 46) & rightward;
   const unsigned short blocked = 0xFFFF >> __lzcnt16(blockers);
@@ -276,6 +279,7 @@ inline void upper_left_shield_captures(const uint64_t allies,
                                        const uint64_t foes,
                                        const unsigned char pos,
                                        uint64_t *captures) {
+  // TODO: check that this is maximally efficient
   static const unsigned short uppers[11] = {
       0b11111111110, 0b11111111100, 0b11111111000, 0b11111110000,
       0b11111100000, 0b11111000000, 0b11110000000, 0b11100000000,

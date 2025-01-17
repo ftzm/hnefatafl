@@ -1263,6 +1263,7 @@ bool king_escape_ensured(const board b) {
 }
 
 int32_t score_board(const board board, const bool is_black_turn) {
+  // TODO: div and mod are expensive; store king pos in board or the other way around
   uint king_pos = board.king[0] ? _tzcnt_u64(board.king[0])
                                 : _tzcnt_u64(board.king[1]) + 64;
   uint king_rank = king_pos / 11;

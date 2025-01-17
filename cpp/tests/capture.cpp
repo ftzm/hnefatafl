@@ -781,6 +781,7 @@ void test_capture_moves_correct(board *bs, move *ms, int total, board b) {
   }
 }
 
+
 //*****************************************************************************
 // Black
 
@@ -956,6 +957,104 @@ TEST_CASE("white capture moves are correct") {
 
 //*****************************************************************************
 // King
+
+//*****************************************************************************
+// Destination move boards
+//*****************************************************************************
+
+template <bool is_black>
+void test_destination_moves_correct(board *bs, move *ms, int total, board b, layer destinations) {
+  // convert to vectors for ease of use
+  std::vector<move> moves(ms, ms + total);
+  std::vector<board> boards(bs, bs + total);
+
+  layer occ = b.black | b.white | b.king;
+  layer allies = name_layer(b, is_black, false);
+  layer foes = name_layer(b, !is_black, false);
+
+  layer cd_allies = allies | corners;
+  layer cd_foes = foes;
+  if constexpr (!is_black) {
+    cd_allies[0] |= b.king[0];
+    cd_allies[1] |= b.king[1];
+  }
+
+  for (uint8_t i = 0; i < 121; i++) {
+    if (corner_pred(i)) {
+      continue;
+    }
+    bool is_dest = destinations[sub_layer[i]] & ((uint64_t)1 << sub_layer_offset_direct[i]);
+    if (is_dest) {
+      compass_allies correct_allies = get_compass_allies(i, occ, allies);
+      if (correct_allies.north.has_value()) {
+        uint8_t val = correct_allies.north.value();
+        SECTION(std::format(
+            "{} is destination - north ally is {}",
+            as_notation(i),
+            as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      if (correct_allies.south.has_value()) {
+        uint8_t val = correct_allies.south.value();
+        SECTION(std::format(
+            "{} is destination - south ally is {}",
+            as_notation(i),
+            as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      if (correct_allies.east.has_value()) {
+        uint8_t val = correct_allies.east.value();
+        SECTION(std::format(
+            "{} is destination - east ally is {}",
+            as_notation(i),
+            as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      if (correct_allies.west.has_value()) {
+        uint8_t val = correct_allies.west.value();
+        SECTION(std::format(
+            "{} is destination - west ally is {}",
+            as_notation(i),
+            as_notation(val))) {
+          move m = move{val, i};
+          REQUIRE(contains(moves, m));
+        }
+      }
+      SECTION(std::format("{} occupied - no spurious moves", i)) {
+        vector<move> found = filter_v<move>(moves, [correct_allies, i](move m) {
+          return m.orig == i && !contains(correct_allies.as_moves(i), m);
+        });
+        REQUIRE(found == vector<move>());
+      }
+    } else {
+      SECTION(std::format("{} empty - no moves", i)) {
+        auto from_here =
+            filter_v<move>(moves, [i](move m) { return m.orig == i; });
+        REQUIRE(from_here == std::vector<move>());
+      }
+    }
+  }
+}
+
+TEST_CASE("black destination moves are correct") {
+  rc::prop("test", [](board b, layer l) {
+    board bs[100];
+    move ms[100];
+    int total = 0;
+    uint8_t capture_counts[100] = {0};
+    auto free = ~(b.get_occ());
+    auto destinations = l & free;
+    get_destination_move_boards<true, false>(bs, b, &total, ms, capture_counts, destinations);
+    test_destination_moves_correct<true>(bs, ms, total, b, destinations);
+  });
+}
+
 
 //*****************************************************************************
 // Move boards

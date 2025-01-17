@@ -53,6 +53,8 @@ constexpr unsigned char sub_layer[121] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 };
 
+#define sub_layer(i) (i > 63)
+
 /**
  * This lookup table only contains 55 elements as positions above 55
  * should be handled separately, being split between two layers.
