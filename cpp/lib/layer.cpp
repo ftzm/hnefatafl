@@ -24,6 +24,8 @@ using std::array;
 
 typedef array<uint64_t, 2> layer;
 
+#define EMPTY_LAYER (layer){0,0}
+
 
 /* A handy index guide:
 120 119 118 117 116 115 114 113 112 111 110
@@ -231,6 +233,9 @@ const unsigned int sub_layer_offset_direct[121] = {
   46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
 };
 
+
+#define op_layer_bit(l, b, op) (l[sub_layer(b)] op ((uint64_t) 1 << sub_layer_offset_direct[b]))
+
 constexpr unsigned char rotate_right[121] = {
   10, 21, 32, 43, 54, 65, 76, 87, 98, 109, 120,
   9,  20, 31, 42, 53, 64, 75, 86, 97, 108, 119,
@@ -427,6 +432,12 @@ inline __attribute__((always_inline)) layer layer_negate(const layer a) {
 
 inline __attribute__((always_inline)) constexpr layer operator~(const layer a) {
   return {~a[0], ~a[1]};
+}
+
+layer& operator|=(layer& lhs, const layer& rhs){
+  lhs[0] |= rhs[0];
+  lhs[1] |= rhs[1];
+  return lhs;
 }
 
 

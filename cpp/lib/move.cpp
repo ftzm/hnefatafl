@@ -524,6 +524,7 @@ void get_destination_move_boards(board *boards, const board board, int *total, m
   }
   layer capt_dests = find_capture_destinations_op(allies | corners, foes, occ);
   layer capt_dests_r = rotate_layer(capt_dests); // TODO: maybe faster to do above rather than rotate
+  // TODO: maybe accept rotated layer as argument instead
   layer destinations_r = rotate_layer(destinations);
 
   destination_moves_half<is_black, false, true, false, always_capture>(boards, board, total, moves, cap_counts, occ, capt_dests, destinations);
@@ -533,6 +534,8 @@ void get_destination_move_boards(board *boards, const board board, int *total, m
   destination_moves_half<is_black, true, false, true, always_capture>(boards, board, total, moves, cap_counts, occ_r, capt_dests_r, destinations_r);
   destination_moves_center<is_black, true, always_capture>(boards, board, total, moves, cap_counts, occ_r, capt_dests_r, destinations_r);
 }
+
+
 
 /**
  * generate moves which result in captures.

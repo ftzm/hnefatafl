@@ -570,6 +570,12 @@ layer above_n[] = {
     above_9,
     above_10};
 
+#define shiftl_lower(n, x) {n << x, 0}
+#define shiftl_upper(n, x) {0, n << x}
+#define position_row_0(r) {(uint64_t)r, 0}
+#define position_row_1(r) shiftl_lower(11, r)
+#define position_row_9(r) shiftl_upper(35, r)
+#define position_row_10(r) shiftl_upper(46, r)
 /**
  * Get layer masks for all open 1-move routes to a corner.
  */
@@ -578,9 +584,8 @@ void corner_paths_1(
     const layer occ_r,
     const int rank,
     const int file,
-    int *count,
-    layer *paths,
-    layer *paths_r) {
+    layer &paths,
+    layer &paths_r) {
 
   const uint16_t legal_edge_mask = 0b01111111110;
   // TODO: use the above to exclude corners from paths
@@ -590,60 +595,52 @@ void corner_paths_1(
     uint16_t row = dirty_get_row_0(occ);
     const uint16_t mask_left = mask_leftward(file);
     if (!(row & mask_left)) {
-      paths[*count] = {(uint64_t)mask_left & legal_edge_mask, 0};
-      paths_r[*count] = not_corners & file_mask_10 & above_n[file];
-      (*count)++;
+      paths |= {(uint64_t)mask_left & legal_edge_mask, 0};
+      paths_r |= not_corners & file_mask_10 & above_n[file];
     }
     uint16_t mask_right = mask_rightward(file);
     if (!(row & mask_right)) {
-      paths[*count] = {(uint64_t)mask_right & legal_edge_mask, 0};
-      paths_r[*count] = not_corners & file_mask_10 & below_n[file];
-      (*count)++;
+      paths |= {(uint64_t)mask_right & legal_edge_mask, 0};
+      paths_r |= not_corners & file_mask_10 & below_n[file];
     }
   }; break;
   case 1: {
     uint16_t row = dirty_get_row_1(occ);
     uint16_t mask_left = mask_leftward(file);
     if (!(row & mask_left)) {
-      paths[*count] = {(uint64_t)mask_left << 11, 0};
-      paths_r[*count] = file_mask_9 & above_n[file];
-      (*count)++;
+      paths |= {(uint64_t)mask_left << 11, 0};
+      paths_r |= file_mask_9 & above_n[file];
     }
     uint16_t mask_right = mask_rightward(file);
     if (!(row & mask_right)) {
-      paths[*count] = {(uint64_t)mask_right << 11, 0};
-      paths_r[*count] = file_mask_9 & below_n[file];
-      (*count)++;
+      paths |= {(uint64_t)mask_right << 11, 0};
+      paths_r |= file_mask_9 & below_n[file];
     }
   }; break;
   case 9: {
     uint16_t row = dirty_get_row_9(occ);
     uint16_t rank_mask_right = mask_rightward(file);
     if (!(row & rank_mask_right)) {
-      paths[*count] = {0, (uint64_t)rank_mask_right << 35};
-      paths_r[*count] = file_mask_1 & below_n[file];
-      (*count)++;
+      paths |= {0, (uint64_t)rank_mask_right << 35};
+      paths_r |= file_mask_1 & below_n[file];
     }
     uint16_t rank_mask_left = mask_leftward(file);
     if (!(row & rank_mask_left)) {
-      paths[*count] = {0, (uint64_t)rank_mask_left << 35};
-      paths_r[*count] = file_mask_1 & above_n[file];
-      (*count)++;
+      paths |= {0, (uint64_t)rank_mask_left << 35};
+      paths_r |= file_mask_1 & above_n[file];
     }
   }; break;
   case 10: {
     uint16_t row = dirty_get_row_10(occ);
     uint16_t rank_mask_right = mask_rightward(file);
     if (!(row & rank_mask_right)) {
-      paths[*count] = {0, (uint64_t)(rank_mask_right & legal_edge_mask) << 46};
-      paths_r[*count] = not_corners & file_mask_0 & below_n[file];
-      (*count)++;
+      paths |= {0, (uint64_t)(rank_mask_right & legal_edge_mask) << 46};
+      paths_r |= not_corners & file_mask_0 & below_n[file];
     }
     uint16_t rank_mask_left = mask_leftward(file);
     if (!(row & rank_mask_left)) {
-      paths[*count] = {0, (uint64_t)(rank_mask_left & legal_edge_mask) << 46};
-      paths_r[*count] = not_corners & file_mask_0 & above_n[file];
-      (*count)++;
+      paths |= {0, (uint64_t)(rank_mask_left & legal_edge_mask) << 46};
+      paths_r |= not_corners & file_mask_0 & above_n[file];
     }
   }; break;
   }
@@ -653,63 +650,74 @@ void corner_paths_1(
     uint16_t row = dirty_get_row_0(occ_r);
     uint16_t mask_left = mask_leftward(rank);
     if (!(row & mask_left)) {
-      paths[*count] = not_corners & file_mask_0 & below_n[rank];
-      paths_r[*count] = {(uint64_t)(mask_left & legal_edge_mask), 0};
-      (*count)++;
+      paths |= not_corners & file_mask_0 & below_n[rank];
+      paths_r |= {(uint64_t)(mask_left & legal_edge_mask), 0};
     }
     uint16_t mask_right = mask_rightward(rank);
     if (!(row & mask_right)) {
-      paths[*count] = not_corners & file_mask_0 & above_n[rank];
-      paths_r[*count] = {(uint64_t)(mask_right & legal_edge_mask), 0};
-      (*count)++;
+      paths |= not_corners & file_mask_0 & above_n[rank];
+      paths_r |= {(uint64_t)(mask_right & legal_edge_mask), 0};
     }
   }; break;
   case 1: {
     uint16_t row = dirty_get_row_1(occ_r);
     uint16_t mask_left = mask_leftward(rank);
     if (!(row & mask_left)) {
-      paths[*count] = not_corners & file_mask_1 & below_n[rank];
-      paths_r[*count] = {(uint64_t)mask_left << 11, 0};
-      (*count)++;
+      paths |= not_corners & file_mask_1 & below_n[rank];
+      paths_r |= {(uint64_t)mask_left << 11, 0};
     }
     uint16_t mask_right = mask_rightward(rank);
     if (!(row & mask_right)) {
-      paths[*count] = not_corners & file_mask_1 & above_n[rank];
-      paths_r[*count] = {(uint64_t)mask_right << 11, 0};
-      (*count)++;
+      paths |= not_corners & file_mask_1 & above_n[rank];
+      paths_r |= {(uint64_t)mask_right << 11, 0};
     }
   }; break;
   case 9: {
     uint16_t row = dirty_get_row_9(occ_r);
     uint16_t rank_mask_right = mask_rightward(rank);
     if (!(row & rank_mask_right)) {
-      paths[*count] = file_mask_9 & above_n[rank];
-      paths_r[*count] = {0, (uint64_t)rank_mask_right << 35};
-      (*count)++;
+      paths |= file_mask_9 & above_n[rank];
+      paths_r |= {0, (uint64_t)rank_mask_right << 35};
     }
     uint16_t rank_mask_left = mask_leftward(rank);
     if (!(row & rank_mask_left)) {
-      paths[*count] = file_mask_9 & below_n[rank];
-      paths_r[*count] = {0, (uint64_t)rank_mask_left << 35};
-      (*count)++;
+      paths |= file_mask_9 & below_n[rank];
+      paths_r |= {0, (uint64_t)rank_mask_left << 35};
     }
   }; break;
   case 10: {
     uint16_t row = dirty_get_row_10(occ_r);
     uint16_t rank_mask_right = mask_rightward(rank);
     if (!(row & rank_mask_right)) {
-      paths[*count] = not_corners & file_mask_10 & above_n[rank];
-      paths_r[*count] = {0, (uint64_t)rank_mask_right << 46 & not_corners[1]};
-      (*count)++;
+      paths |= not_corners & file_mask_10 & above_n[rank];
+      paths_r |= {0, (uint64_t)rank_mask_right << 46 & not_corners[1]};
     }
     uint16_t rank_mask_left = mask_leftward(rank);
     if (!(row & rank_mask_left)) {
-      paths[*count] = not_corners & file_mask_10 & below_n[rank];
-      paths_r[*count] = {0, (uint64_t)rank_mask_left << 46 & not_corners[1]};
-      (*count)++;
+      paths |= not_corners & file_mask_10 & below_n[rank];
+      paths_r |= {0, (uint64_t)rank_mask_left << 46 & not_corners[1]};
     }
   }; break;
   }
+}
+
+template <bool is_black>
+void get_1_move_escape_block_moves(
+    const board base_board,
+    board *boards,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts) {
+  layer occ = base_board.get_occ();
+  layer occ_r = base_board.get_occ_r();
+  uint king_pos = base_board.king[0] ? _tzcnt_u64(base_board.king[0])
+                                     : _tzcnt_u64(base_board.king[1]) + 64;
+  uint king_rank = king_pos / 11;
+  uint king_file = king_pos % 11;
+  layer result = EMPTY_LAYER;
+  layer result_r = EMPTY_LAYER;
+  corner_paths_1(occ, occ_r, king_rank, king_file, result, result_r);
+  get_destination_move_boards<is_black>(boards, base_board, total, moves, cap_counts, result);
 }
 
 /* Get the destination of each unique move towards a corner.
@@ -723,10 +731,6 @@ void corner_moves_2(
     const int file,
     int *count,
     int *moves) {
-
-  const int rank_r = 10 - rank;
-  uint16_t first_lane;
-  uint16_t second_lane;
 
   const uint16_t south_edge = dirty_get_row_0(occ);
   const uint16_t south_inner = dirty_get_row_1(occ);

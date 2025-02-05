@@ -2042,39 +2042,21 @@ TEST_CASE("test corner_moves_1") {
   }
 }
 
-void test_corner_paths_1(const char *b, vector<string> expected_strings) {
-  // parse expected boards
-  vector<layer> expected = {};
-  for (const string &e : expected_strings)
-    expected.push_back(read_layer(e.c_str(), 'X'));
+void test_corner_paths_1(const char *b, const string e) {
+  layer expected = read_layer(e.c_str(), 'X');
+  layer expected_r = rotate_layer(expected);
 
   // setup to generate layers
   layer occ = read_layer(b, 'X');
   layer occ_r = rotate_layer(occ);
   struct pos king = king_pos(b);
   int count = 0;
-  layer results_array[4];
-  layer results_r_array[4];
+  layer results = EMPTY_LAYER;
+  layer results_r = EMPTY_LAYER;
 
   // generate layers
   corner_paths_1(
-      occ, occ_r, king.rank, king.file, &count, results_array, results_r_array);
-
-  // prepare to test results
-  vector<layer> expected_r;
-  expected_r.reserve(count);
-  std::transform(
-      expected.begin(),
-      expected.end(),
-      std::back_inserter(expected_r),
-      rotate_layer);
-
-  vector<layer> results(results_array, results_array + count);
-  vector<layer> results_r(results_r_array, results_r_array + count);
-  std::sort(expected.begin(), expected.end());
-  std::sort(expected_r.begin(), expected_r.end());
-  std::sort(results.begin(), results.end());
-  std::sort(results_r.begin(), results_r.end());
+      occ, occ_r, king.rank, king.file, results, results_r);
 
   // test
   REQUIRE(results == expected);
@@ -2094,7 +2076,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("north no escape") {
     const char *b = ".  .  X  .  .  #  .  .  X  .  ."
@@ -2108,7 +2090,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("north -> west") {
     const char *b = ".  .  .  .  .  #  .  .  X  .  ."
@@ -2133,7 +2115,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("north -> east") {
     const char *b = ".  .  X  .  .  #  .  .  .  .  ."
@@ -2158,7 +2140,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("north -> both") {
     const char *b = ".  .  .  .  .  #  .  .  .  .  ."
@@ -2172,7 +2154,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  X  X  X  X  ."
+    const string p = ".  X  X  X  X  .  X  X  X  X  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
@@ -2183,18 +2165,7 @@ TEST_CASE("test corner_paths_1") {
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  .";
-    const string p2 = ".  X  X  X  X  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+    test_corner_paths_1(b, p);
   }
   SECTION("north adjacent no escape") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2208,7 +2179,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("north adjacent -> west") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2233,7 +2204,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("north adjacent -> east") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2258,7 +2229,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("north adjacent -> both") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2272,8 +2243,8 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  X  X  X  X  X"
+    const string p = ".  .  .  .  .  .  .  .  .  .  ."
+                      "X  X  X  X  X  .  X  X  X  X  X"
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
@@ -2283,18 +2254,7 @@ TEST_CASE("test corner_paths_1") {
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  .";
-    const string p2 = ".  .  .  .  .  .  .  .  .  .  ."
-                      "X  X  X  X  X  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+    test_corner_paths_1(b, p);
   }
   SECTION("south no escape") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2308,7 +2268,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  X  .  .  #  .  .  X  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("south -> west") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2333,7 +2293,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  X  X  X  X  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("south -> east") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2358,7 +2318,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  X  X  X  X  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("south -> both") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2372,7 +2332,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  #  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  .  .  .  .  ."
+    const string p = ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
@@ -2382,19 +2342,8 @@ TEST_CASE("test corner_paths_1") {
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  X  X  X  X  .";
-    const string p2 = ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  X  X  X  X  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+                      ".  X  X  X  X  .  X  X  X  X  .";
+    test_corner_paths_1(b, p);
   }
   SECTION("south adjacent no escape") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2408,7 +2357,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  X  .  .  #  .  .  X  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("south adjacent -> west") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2433,7 +2382,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      "X  X  X  X  X  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("south adjacent -> east") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2458,7 +2407,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  X  X  X  X  X"
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("south adjacent -> both") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2472,7 +2421,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  #  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  .  .  .  .  ."
+    const string p = ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
@@ -2481,20 +2430,9 @@ TEST_CASE("test corner_paths_1") {
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  X  X  X  X  X"
+                      "X  X  X  X  X  .  X  X  X  X  X"
                       ".  .  .  .  .  .  .  .  .  .  .";
-    const string p2 = ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      "X  X  X  X  X  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+    test_corner_paths_1(b, p);
   }
   SECTION("east no escape") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2508,7 +2446,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  X"
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("east -> north") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2533,7 +2471,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("east -> south") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2558,7 +2496,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  X"
                      ".  .  .  .  .  .  .  .  .  .  X"
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("east -> both") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2572,29 +2510,18 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
+    const string p = ".  .  .  .  .  .  .  .  .  .  ."
+                     ".  .  .  .  .  .  .  .  .  .  X"
+                     ".  .  .  .  .  .  .  .  .  .  X"
+                     ".  .  .  .  .  .  .  .  .  .  X"
+                     ".  .  .  .  .  .  .  .  .  .  X"
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  X"
                      ".  .  .  .  .  .  .  .  .  .  X"
                      ".  .  .  .  .  .  .  .  .  .  X"
                      ".  .  .  .  .  .  .  .  .  .  X"
                      ".  .  .  .  .  .  .  .  .  .  .";
-    const string p2 = ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  X"
-                     ".  .  .  .  .  .  .  .  .  .  X"
-                     ".  .  .  .  .  .  .  .  .  .  X"
-                     ".  .  .  .  .  .  .  .  .  .  X"
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  ."
-                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+    test_corner_paths_1(b, p);
   }
   SECTION("east adjacent no escape") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2608,7 +2535,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  X  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("east adjacent -> north") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2633,7 +2560,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("east adjacent -> south") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2658,7 +2585,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  X  ."
                      ".  .  .  .  .  .  .  .  .  X  ."
                      ".  .  .  .  .  .  .  .  .  X  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("east adjacent -> both") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2672,29 +2599,18 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  .";
-    const string p2 = ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  X  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+    const string p = ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  .  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  ."
+                     ".  .  .  .  .  .  .  .  .  X  .";
+    test_corner_paths_1(b, p);
   }
   SECTION("west no escape") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2708,7 +2624,7 @@ TEST_CASE("test corner_paths_1") {
                     "X  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("west -> north") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2733,7 +2649,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("west -> south") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2758,7 +2674,7 @@ TEST_CASE("test corner_paths_1") {
                      "X  .  .  .  .  .  .  .  .  .  ."
                      "X  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("west -> both") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2772,29 +2688,18 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
+    const string p = ".  .  .  .  .  .  .  .  .  .  ."
+                      "X  .  .  .  .  .  .  .  .  .  ."
+                      "X  .  .  .  .  .  .  .  .  .  ."
+                      "X  .  .  .  .  .  .  .  .  .  ."
+                      "X  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  ."
                       "X  .  .  .  .  .  .  .  .  .  ."
                       "X  .  .  .  .  .  .  .  .  .  ."
                       "X  .  .  .  .  .  .  .  .  .  ."
                       "X  .  .  .  .  .  .  .  .  .  ."
                       ".  .  .  .  .  .  .  .  .  .  .";
-    const string p2 = ".  .  .  .  .  .  .  .  .  .  ."
-                      "X  .  .  .  .  .  .  .  .  .  ."
-                      "X  .  .  .  .  .  .  .  .  .  ."
-                      "X  .  .  .  .  .  .  .  .  .  ."
-                      "X  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+    test_corner_paths_1(b, p);
   }
   SECTION("west adjacent no escape") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2808,7 +2713,7 @@ TEST_CASE("test corner_paths_1") {
                     ".  X  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {});
+    test_corner_paths_1(b, "");
   }
   SECTION("west adjacent -> north") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2833,7 +2738,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  ."
                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("west adjacent -> south") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2858,7 +2763,7 @@ TEST_CASE("test corner_paths_1") {
                      ".  X  .  .  .  .  .  .  .  .  ."
                      ".  X  .  .  .  .  .  .  .  .  ."
                      ".  X  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p});
+    test_corner_paths_1(b, p);
   }
   SECTION("west adjacent -> both") {
     const char *b = ".  .  .  .  .  .  .  .  .  .  ."
@@ -2872,29 +2777,18 @@ TEST_CASE("test corner_paths_1") {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-    const string p1 = ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  .";
-    const string p2 = ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  X  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  ."
-                      ".  .  .  .  .  .  .  .  .  .  .";
-    test_corner_paths_1(b, {p1, p2});
+    const string p = ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  .  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  ."
+                     ".  X  .  .  .  .  .  .  .  .  .";
+    test_corner_paths_1(b, p);
   }
 }
 
@@ -3058,7 +2952,7 @@ TEST_CASE("test corner access 2 sw") {
         ".  .  .  .  .  .  .  .  .  .  ."
         "X  .  .  .  .  .  .  .  .  .  ."
         ".  .  .  .  .  .  .  .  .  .  ."
-        ".  .  .  X  .  .  .  .  .  .  ."
+  {p1, p2}      ".  .  .  X  .  .  .  .  .  .  ."
         ".  .  .  .  .  .  .  .  .  .  .",
         'X');
     layer occ_r = rotate_layer(occ);
