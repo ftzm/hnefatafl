@@ -58,6 +58,8 @@
           pkgs.cmake
           pkgs.clangStdenv
           pkgs.just
+
+          pkgs.python312Packages.cogapp
         ];
 
         withHoogle = true;

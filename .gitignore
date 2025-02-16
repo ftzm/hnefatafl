@@ -2,6 +2,8 @@ dist
 dist-*
 cabal-dev
 *.o
+*.d
+*.a
 *.hi
 *.hie
 *.chi
@@ -34,7 +36,6 @@ CMakeCache.txt
 CMakeFiles
 CMakeScripts
 Testing
-Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
