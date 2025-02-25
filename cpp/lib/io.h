@@ -1,3 +1,5 @@
+#pragma once
+
 #include "layer.h"
 #include "board.h"
 
@@ -22,3 +24,5 @@ void fmt_board(board board, char *input);
 void print_board(board b);
 
 void print_row(uint16_t row);
+
+void overlay_move(char *board, int orig, int dest, layer captures);

@@ -15,7 +15,7 @@ layer surround_masks_r[120];
 
 //******************************************************************************
 
-inline void gen_foe_masks() {
+void gen_foe_masks() {
   int i, modDest, target, target_r;
   for (i = 0; i < 120; i++) {
     modDest = i % 11;
@@ -58,7 +58,7 @@ inline void gen_foe_masks() {
 }
 
 
-inline void gen_surround_masks() {
+void gen_surround_masks() {
   int i, modDest, target, target_r;
   for (i = 0; i < 120; i++) {
     modDest = i % 11;
@@ -98,7 +98,7 @@ inline void gen_surround_masks() {
 }
 
 
-inline void gen_ally_masks() {
+void gen_ally_masks() {
   int i, modDest, target, target_r;
   for (i = 0; i < 120; i++) {
     modDest = i % 11;
@@ -139,8 +139,9 @@ inline void gen_ally_masks() {
 
 //******************************************************************************
 
-inline __attribute__((always_inline)) uint8_t
-apply_captures_niave_count(const layer friends, layer *foes, layer *foes_r, int dest) {
+// inline __attribute__((always_inline)) uint8_t
+uint8_t
+apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) {
   uint8_t count = 0;
 
   int modDest = dest % 11;

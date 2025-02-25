@@ -76,7 +76,6 @@ uint8_t sub_layer_row_offset_upper[57] = {
 
 #define get_lower_row(layer, index) (0x7ff & ((layer._[0] >> sub_layer_row_offset[index])))
 #define get_upper_row(layer, index) (0x7ff & ((layer._[1] >> sub_layer_row_offset_upper[index])))
-#define get_center_row(layer) (((uint64_t)layer._[0] >> 55) | ((((uint64_t)layer._[1] & 0x3) << 9) & 0b11111111111))
 
 #define dirty_get_row_0(l) (uint64_t)l._[0]
 #define dirty_get_row_1(l) ((uint64_t)l._[0] >> 11)
@@ -236,9 +235,6 @@ const uint8_t rotate_left[121] = {
   120, 109, 98, 87, 76, 65, 54, 43, 32, 21, 10
 };
 
-const uint64_t inverted_throne_mask = 0b11111011111;
-#define INVERTED_THRONE_MASK = (uint16_t) 0b11111011111;
-
 layer rotate_layer_right(const layer input) {
   layer output = {0};
 
@@ -306,4 +302,3 @@ const uint8_t file_table[121] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
-

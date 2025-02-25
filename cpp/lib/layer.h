@@ -13,6 +13,7 @@ typedef struct layer {
 extern const uint8_t sub_layer_offset_direct[121];
 
 layer rotate_layer_right(const layer input);
+layer rotate_layer_left(const layer input);
 
 extern const uint8_t sub_layer_table[121];
 
@@ -54,3 +55,9 @@ extern const uint8_t rotate_left[121];
   layer._[sub_layer[i]] |= ((uint64_t)1 << sub_layer_offset_direct[i])
 
 extern layer corners;
+
+#define get_center_row(layer) (((uint64_t)layer._[0] >> 55) | ((((uint64_t)layer._[1] & 0x3) << 9) & 0b11111111111))
+
+#define INVERTED_THRONE_MASK ((uint16_t) 0b11111011111)
+
+#define LAYERS_EQUAL(a, b) (a._[0] == b._[0] && a._[1] == b._[1])

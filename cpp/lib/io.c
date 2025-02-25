@@ -170,3 +170,20 @@ void print_row(uint16_t row) {
   puts(output);
   printf("\n");
 }
+
+void overlay_move(char *board, int orig, int dest, layer captures) {
+  board[fmt_index(orig) - 1] = '[';
+  board[fmt_index(orig) + 1] = ']';
+  board[fmt_index(orig)] = ' ';
+  board[fmt_index(dest) - 1] = '[';
+  board[fmt_index(dest) + 1] = ']';
+
+  while (captures._[0]) {
+    board[fmt_index(_tzcnt_u64(captures._[0]))] = '!';
+    captures._[0] = _blsr_u64(captures._[0]);
+  }
+  while (captures._[1]) {
+    board[fmt_index(64 + _tzcnt_u64(captures._[1]))] = '!';
+    captures._[1] = _blsr_u64(captures._[1]);
+  }
+};

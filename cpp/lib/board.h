@@ -15,3 +15,7 @@ typedef struct board {
 extern const char* start_board_string;
 
 int boards_equal(board a, board b);
+
+layer board_occ(board b);
+
+layer board_occ_r(board b);

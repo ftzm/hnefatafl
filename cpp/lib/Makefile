@@ -1,5 +1,4 @@
-CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3
-
+CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2
 
 .PHONY: clean
 
@@ -26,6 +25,11 @@ build_test_capture: test_capture.c layer.o board.o io.o capture.o
 	@echo deps: $^
 	gcc -o test_capture test_capture.c layer.o board.o io.o capture.o
 
+build_test_move: test_move.c layer.o board.o io.o capture.o move.o
+	@echo target is $@, source is $<
+	@echo deps: $^
+	gcc -o test_move $^
+
 test_capture: build_test_capture
 	./test_capture
 
@@ -34,6 +38,9 @@ build_bench_capture: bench_capture.c layer.o board.o io.o capture.o
 
 bench_capture: build_bench_capture
 	time ./bench_capture
+
+gen_constants: gen_constants.c layer.o io.o
+	gcc -o gen_constants $^
 
 clean:
 	rm *.o
