@@ -49,7 +49,7 @@ extern const uint8_t rotate_left[121];
 ((layer) {(l._[0] >> n) | (l._[1] << (64 - n)), l._[1] >> n})
 
 #define check_index(layer, i) \
-  layer._[sub_layer[i]] & ((uint64_t)1 << sub_layer_offset_direct[i])
+  layer._[sub_layer(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])
 
 #define toggle_index(layer, i) \
   layer._[sub_layer[i]] |= ((uint64_t)1 << sub_layer_offset_direct[i])

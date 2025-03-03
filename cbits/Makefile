@@ -1,10 +1,7 @@
 VENDOR = vendor
 OBJDIR = .obj
-TEST_SRC = test
-TEST_BIN = .test_bin
 SRC = src
 SRCS = $(wildcard $(SRC)/*.c)
-OBJS = $(SRCS:.c=.o)
 
 CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
@@ -28,6 +25,8 @@ include $(wildcard $(DEPFILES))
 # ------------------------------------------------------------------------------
 # Compile a shared library which can be linked in executables
 
+OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
+
 $(OBJDIR)/lib.so: $(OBJS)
 	$(CC) -o $@ $^ -shared
 
@@ -37,8 +36,18 @@ $(OBJDIR)/lib.so: $(OBJS)
 # Running `make test_name` will build and run a test file named `name`
 # in the test directory.
 
+TEST_SRC = test
+TEST_BIN = .test_bin
+
 $(TEST_BIN)/%: $(TEST_SRC)/%.c $(OBJDIR)/lib.so
-	$(CC) -o $@ -L$(OBJDIR) -l:lib.so -I src $(TEST_SRC)/$*.c
+	@$(CC) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc $(TEST_SRC)/$*.c $(OBJDIR)/libtheft.a 
 
 test_%: $(TEST_BIN)/%
-	LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./.test_bin/$*
+	@LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./.test_bin/$*
+
+# ------------------------------------------------------------------------------
+# Clean
+
+.PHONY: clean
+clean:
+	rm -r $(OBJDIR)

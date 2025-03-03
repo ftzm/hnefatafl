@@ -7,6 +7,8 @@ typedef struct move {
   uint8_t dest;
 } move;
 
+#define moves_equal(a, b) (a.orig == b.orig && a.dest == b.dest)
+
 void get_team_moves_black(
     const board current,
     int *total,
