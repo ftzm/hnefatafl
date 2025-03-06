@@ -40,7 +40,7 @@ TEST_SRC = test
 TEST_BIN = .test_bin
 
 $(TEST_BIN)/%: $(TEST_SRC)/%.c $(OBJDIR)/lib.so
-	@$(CC) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc $(TEST_SRC)/$*.c $(OBJDIR)/libtheft.a 
+	$(CC) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc -I vendor/ubench.h -lm $(TEST_SRC)/$*.c $(OBJDIR)/libtheft.a 
 
 test_%: $(TEST_BIN)/%
 	@LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./.test_bin/$*

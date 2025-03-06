@@ -187,3 +187,4 @@ void overlay_move(char *board, int orig, int dest, layer captures) {
     captures._[1] = _blsr_u64(captures._[1]);
   }
 };
+

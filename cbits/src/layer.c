@@ -45,35 +45,6 @@ const uint8_t sub_layer_table[121] = {
 //   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 //   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 // };
-
-/**
- * This lookup table only contains 55 elements as positions above 55
- * should be handled separately, being split between two layers.
- */
-const uint8_t sub_layer_row_offset[55] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-  22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
-  33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
-  44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44
-};
-
-
-/**
- * The first two indices should not be used, as these represent
- * squares of a row split between both halves which need to be handled
- * separately. They're only here so that the upper element index
- * numbers are correct.
- */
-uint8_t sub_layer_row_offset_upper[57] = {
-  0, 0,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,
-  24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
-  35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35,
-  46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46
-};
-
 #define get_lower_row(layer, index) (0x7ff & ((layer._[0] >> sub_layer_row_offset[index])))
 #define get_upper_row(layer, index) (0x7ff & ((layer._[1] >> sub_layer_row_offset_upper[index])))
 

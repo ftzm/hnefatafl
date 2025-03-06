@@ -23,4 +23,14 @@ void get_team_moves_white(
     uint8_t *cap_counts,
     board *boards);
 
+void get_king_moves(
+    const board current,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    board *boards);
+
 void init_move_globals();
+
+layer find_capture_destinations(
+    const layer allies, const layer foes, const layer occ);

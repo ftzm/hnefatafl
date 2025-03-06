@@ -2,8 +2,8 @@
 #include "board.h"
 #include "capture.h"
 #include "layer.h"
-#include "stdio.h"
 #include "stdbool.h"
+#include "stdio.h"
 #include "x86intrin.h"
 
 uint16_t row_moves_table[2048][11];
@@ -159,150 +159,147 @@ cog.outl("""
 ]]]*/
 
 inline uint8_t get_team_move_count(
-  const layer occ,
-  const layer team,
-  const layer occ_r,
-  const layer team_r) {
+    const layer occ, const layer team, const layer occ_r, const layer team_r) {
 
   uint8_t total = 0;
   uint16_t movers;
   uint16_t blockers;
 
-  movers = ((uint64_t) team._[0] >> 0) & 0b11111111111;
-  blockers = ((uint64_t) occ._[0] >> 0) & 0b11111111111;
+  movers = ((uint64_t)team._[0] >> 0) & 0b11111111111;
+  blockers = ((uint64_t)occ._[0] >> 0) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[0] >> 11) & 0b11111111111;
-  blockers = ((uint64_t) occ._[0] >> 11) & 0b11111111111;
+  movers = ((uint64_t)team._[0] >> 11) & 0b11111111111;
+  blockers = ((uint64_t)occ._[0] >> 11) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[0] >> 22) & 0b11111111111;
-  blockers = ((uint64_t) occ._[0] >> 22) & 0b11111111111;
+  movers = ((uint64_t)team._[0] >> 22) & 0b11111111111;
+  blockers = ((uint64_t)occ._[0] >> 22) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[0] >> 33) & 0b11111111111;
-  blockers = ((uint64_t) occ._[0] >> 33) & 0b11111111111;
+  movers = ((uint64_t)team._[0] >> 33) & 0b11111111111;
+  blockers = ((uint64_t)occ._[0] >> 33) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[0] >> 44) & 0b11111111111;
-  blockers = ((uint64_t) occ._[0] >> 44) & 0b11111111111;
+  movers = ((uint64_t)team._[0] >> 44) & 0b11111111111;
+  blockers = ((uint64_t)occ._[0] >> 44) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[1] >> 2) & 0b11111111111;
-  blockers = ((uint64_t) occ._[1] >> 2) & 0b11111111111;
+  movers = ((uint64_t)team._[1] >> 2) & 0b11111111111;
+  blockers = ((uint64_t)occ._[1] >> 2) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[1] >> 13) & 0b11111111111;
-  blockers = ((uint64_t) occ._[1] >> 13) & 0b11111111111;
+  movers = ((uint64_t)team._[1] >> 13) & 0b11111111111;
+  blockers = ((uint64_t)occ._[1] >> 13) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[1] >> 24) & 0b11111111111;
-  blockers = ((uint64_t) occ._[1] >> 24) & 0b11111111111;
+  movers = ((uint64_t)team._[1] >> 24) & 0b11111111111;
+  blockers = ((uint64_t)occ._[1] >> 24) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[1] >> 35) & 0b11111111111;
-  blockers = ((uint64_t) occ._[1] >> 35) & 0b11111111111;
+  movers = ((uint64_t)team._[1] >> 35) & 0b11111111111;
+  blockers = ((uint64_t)occ._[1] >> 35) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team._[1] >> 46) & 0b11111111111;
-  blockers = ((uint64_t) occ._[1] >> 46) & 0b11111111111;
+  movers = ((uint64_t)team._[1] >> 46) & 0b11111111111;
+  blockers = ((uint64_t)occ._[1] >> 46) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[0] >> 0) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[0] >> 0) & 0b11111111111;
+  movers = ((uint64_t)team_r._[0] >> 0) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[0] >> 0) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[0] >> 11) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[0] >> 11) & 0b11111111111;
+  movers = ((uint64_t)team_r._[0] >> 11) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[0] >> 11) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[0] >> 22) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[0] >> 22) & 0b11111111111;
+  movers = ((uint64_t)team_r._[0] >> 22) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[0] >> 22) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[0] >> 33) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[0] >> 33) & 0b11111111111;
+  movers = ((uint64_t)team_r._[0] >> 33) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[0] >> 33) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[0] >> 44) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[0] >> 44) & 0b11111111111;
+  movers = ((uint64_t)team_r._[0] >> 44) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[0] >> 44) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[1] >> 2) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[1] >> 2) & 0b11111111111;
+  movers = ((uint64_t)team_r._[1] >> 2) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[1] >> 2) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[1] >> 13) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[1] >> 13) & 0b11111111111;
+  movers = ((uint64_t)team_r._[1] >> 13) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[1] >> 13) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[1] >> 24) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[1] >> 24) & 0b11111111111;
+  movers = ((uint64_t)team_r._[1] >> 24) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[1] >> 24) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[1] >> 35) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[1] >> 35) & 0b11111111111;
+  movers = ((uint64_t)team_r._[1] >> 35) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[1] >> 35) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t) team_r._[1] >> 46) & 0b11111111111;
-  blockers = ((uint64_t) occ_r._[1] >> 46) & 0b11111111111;
+  movers = ((uint64_t)team_r._[1] >> 46) & 0b11111111111;
+  blockers = ((uint64_t)occ_r._[1] >> 46) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
@@ -443,17 +440,16 @@ void process_move_black_lower(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.black._[0] -= (uint64_t)1 << orig;
   b.black._[0] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
-  
+
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
@@ -464,11 +460,8 @@ void process_move_black_lower(
     layer friends = layer_or(b.black, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.white,
-        &b.white_r,
-        false);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
 
   shield_wall_black(&b, false);
@@ -486,11 +479,10 @@ void process_move_black_middle(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
@@ -498,7 +490,7 @@ void process_move_black_middle(
   op_layer_bit(b.black, dest, |=);
 
   is_capture = op_layer_bit(cap_dests, dest, &);
-  
+
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
@@ -509,11 +501,8 @@ void process_move_black_middle(
     layer friends = layer_or(b.black, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.white,
-        &b.white_r,
-        false);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
 
   shield_wall_black(&b, false);
@@ -531,17 +520,16 @@ void process_move_black_upper(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.black._[1] -= (uint64_t)1 << orig;
   b.black._[1] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
-  
+
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
   // offset_coords(is_upper, 64);
@@ -557,11 +545,8 @@ void process_move_black_upper(
     layer friends = layer_or(b.black, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.white,
-        &b.white_r,
-        false);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
 
   shield_wall_black(&b, false);
@@ -579,17 +564,16 @@ void process_move_black_r_lower(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.black_r._[0] -= (uint64_t)1 << orig;
   b.black_r._[0] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
-  
+
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
@@ -600,11 +584,8 @@ void process_move_black_r_lower(
     layer friends = layer_or(b.black_r, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.white_r,
-        &b.white,
-        true);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
 
   shield_wall_black(&b, true);
@@ -622,11 +603,10 @@ void process_move_black_r_middle(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
@@ -634,7 +614,7 @@ void process_move_black_r_middle(
   op_layer_bit(b.black_r, dest, |=);
 
   is_capture = op_layer_bit(cap_dests, dest, &);
-  
+
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
@@ -645,11 +625,8 @@ void process_move_black_r_middle(
     layer friends = layer_or(b.black_r, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.white_r,
-        &b.white,
-        true);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
 
   shield_wall_black(&b, true);
@@ -667,17 +644,16 @@ void process_move_black_r_upper(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.black_r._[1] -= (uint64_t)1 << orig;
   b.black_r._[1] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
-  
+
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
   // offset_coords(is_upper, 64);
@@ -693,11 +669,8 @@ void process_move_black_r_upper(
     layer friends = layer_or(b.black_r, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.white_r,
-        &b.white,
-        true);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
 
   shield_wall_black(&b, true);
@@ -715,17 +688,16 @@ void process_move_white_lower(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.white._[0] -= (uint64_t)1 << orig;
   b.white._[0] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
-  
+
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
@@ -736,11 +708,8 @@ void process_move_white_lower(
     layer friends = layer_or(b.white, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.black,
-        &b.black_r,
-        false);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
 
   shield_wall_white(&b, false);
@@ -758,11 +727,10 @@ void process_move_white_middle(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
@@ -770,7 +738,7 @@ void process_move_white_middle(
   op_layer_bit(b.white, dest, |=);
 
   is_capture = op_layer_bit(cap_dests, dest, &);
-  
+
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
@@ -781,11 +749,8 @@ void process_move_white_middle(
     layer friends = layer_or(b.white, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.black,
-        &b.black_r,
-        false);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
 
   shield_wall_white(&b, false);
@@ -803,17 +768,16 @@ void process_move_white_upper(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.white._[1] -= (uint64_t)1 << orig;
   b.white._[1] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
-  
+
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
   // offset_coords(is_upper, 64);
@@ -829,11 +793,8 @@ void process_move_white_upper(
     layer friends = layer_or(b.white, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.black,
-        &b.black_r,
-        false);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
 
   shield_wall_white(&b, false);
@@ -851,17 +812,16 @@ void process_move_white_r_lower(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.white_r._[0] -= (uint64_t)1 << orig;
   b.white_r._[0] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
-  
+
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
@@ -872,11 +832,8 @@ void process_move_white_r_lower(
     layer friends = layer_or(b.white_r, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.black_r,
-        &b.black,
-        true);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
 
   shield_wall_white(&b, true);
@@ -894,11 +851,10 @@ void process_move_white_r_middle(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
@@ -906,7 +862,7 @@ void process_move_white_r_middle(
   op_layer_bit(b.white_r, dest, |=);
 
   is_capture = op_layer_bit(cap_dests, dest, &);
-  
+
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
@@ -917,11 +873,8 @@ void process_move_white_r_middle(
     layer friends = layer_or(b.white_r, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.black_r,
-        &b.black,
-        true);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
 
   shield_wall_white(&b, true);
@@ -939,17 +892,16 @@ void process_move_white_r_upper(
     int *total,
     uint8_t orig,
     uint8_t dest,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   board b = base_board;
   bool is_capture;
-  
+
   b.white_r._[1] -= (uint64_t)1 << orig;
   b.white_r._[1] |= (uint64_t)1 << dest;
 
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
-  
+
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
   // offset_coords(is_upper, 64);
@@ -965,11 +917,8 @@ void process_move_white_r_upper(
     layer friends = layer_or(b.white_r, corners);
     friends = layer_or(friends, b.king);
 
-    cap_counts[*total] = apply_captures_niave(
-        friends,
-        &b.black_r,
-        &b.black,
-        true);
+    cap_counts[*total] =
+        apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
 
   shield_wall_white(&b, true);
@@ -1059,244 +1008,220 @@ for (color, rotation) in product(["black", "white"], ["", "_r"]):
 ]]]*/
 
 void get_next_row_boards_black_0(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->black._[0] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->black._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_black_lower(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_black_lower(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_black_1(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->black._[1] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->black._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_black_upper(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_black_upper(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_black_r_0(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->black_r._[0] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->black_r._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_black_r_lower(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_black_r_lower(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_black_r_1(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->black_r._[1] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->black_r._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_black_r_upper(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_black_r_upper(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_white_0(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->white._[0] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->white._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_white_lower(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_white_lower(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_white_1(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->white._[1] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->white._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_white_upper(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_white_upper(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_white_r_0(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->white_r._[0] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->white_r._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_white_r_lower(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_white_r_lower(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_white_r_1(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  const layer cap_dests,
-  int row_offset
-) {
-  unsigned short movers =
-   (board->white_r._[1] >> row_offset) & 0b11111111111;
+    board *boards,
+    const uint64_t occ,
+    const board *board,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    const layer cap_dests,
+    int row_offset) {
+  unsigned short movers = (board->white_r._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
     const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
-        orig += row_offset;
-        while (row_moves) {
-          uint8_t dest = _tzcnt_u64(row_moves);
-          process_move_white_r_upper(
-            *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
-          row_moves = _blsr_u64(row_moves);
+        ((uint64_t)occ >> row_offset) & 0b11111111111;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
+                         << row_offset;
+    orig += row_offset;
+    while (row_moves) {
+      uint8_t dest = _tzcnt_u64(row_moves);
+      process_move_white_r_upper(
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+      row_moves = _blsr_u64(row_moves);
     }
     movers &= movers - 1;
   }
 }
-    
 
 void get_next_row_boards_center_black(
     board *boards,
@@ -1305,8 +1230,7 @@ void get_next_row_boards_center_black(
     int *total,
     move *moves,
     uint8_t *cap_counts,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   unsigned short movers = get_center_row(board->black);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
@@ -1319,13 +1243,12 @@ void get_next_row_boards_center_black(
         continue;
       }
       process_move_black_middle(
-        *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
       row_moves &= row_moves - 1;
     }
     movers &= movers - 1;
   }
 }
-
 
 void get_next_row_boards_center_black_r(
     board *boards,
@@ -1334,8 +1257,7 @@ void get_next_row_boards_center_black_r(
     int *total,
     move *moves,
     uint8_t *cap_counts,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   unsigned short movers = get_center_row(board->black_r);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
@@ -1348,13 +1270,12 @@ void get_next_row_boards_center_black_r(
         continue;
       }
       process_move_black_r_middle(
-        *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
       row_moves &= row_moves - 1;
     }
     movers &= movers - 1;
   }
 }
-
 
 void get_next_row_boards_center_white(
     board *boards,
@@ -1363,8 +1284,7 @@ void get_next_row_boards_center_white(
     int *total,
     move *moves,
     uint8_t *cap_counts,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   unsigned short movers = get_center_row(board->white);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
@@ -1377,13 +1297,12 @@ void get_next_row_boards_center_white(
         continue;
       }
       process_move_white_middle(
-        *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
       row_moves &= row_moves - 1;
     }
     movers &= movers - 1;
   }
 }
-
 
 void get_next_row_boards_center_white_r(
     board *boards,
@@ -1392,8 +1311,7 @@ void get_next_row_boards_center_white_r(
     int *total,
     move *moves,
     uint8_t *cap_counts,
-    const layer cap_dests
-) {
+    const layer cap_dests) {
   unsigned short movers = get_center_row(board->white_r);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
@@ -1406,7 +1324,7 @@ void get_next_row_boards_center_white_r(
         continue;
       }
       process_move_white_r_middle(
-        *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
+          *board, boards, moves, cap_counts, total, orig, dest, cap_dests);
       row_moves &= row_moves - 1;
     }
     movers &= movers - 1;
@@ -1446,66 +1364,81 @@ the position to each of those in parallel. uint8_t to_blocker = _tzcnt_u64(occ);
 }
 */
 
-  /*
+/*
 template <bool is_black>
 inline __attribute__((always_inline)) void
-get_team_moves(const board current, int *total, move *moves, uint8_t *cap_counts,
-                     board *boards) {
-  const layer occ = {
-      current.black[0] | current.white[0] | current.king[0] | corners[0],
-      current.black[1] | current.white[1] | current.king[1] | corners[1]};
+get_team_moves(const board current, int *total, move *moves, uint8_t
+*cap_counts, board *boards) { const layer occ = { current.black[0] |
+current.white[0] | current.king[0] | corners[0], current.black[1] |
+current.white[1] | current.king[1] | corners[1]};
 
-  layer allies = name_layer(current, is_black, false) | corners;
-  if (!is_black) {
-    allies = allies | current.king;
-  }
-  const layer capture_dests =
-    find_capture_destinations_op(allies, name_layer(current, !is_black, false), occ);
+layer allies = name_layer(current, is_black, false) | corners;
+if (!is_black) {
+  allies = allies | current.king;
+}
+const layer capture_dests =
+  find_capture_destinations_op(allies, name_layer(current, !is_black, false),
+occ);
 
-  // print_layer(capture_dests);
+// print_layer(capture_dests);
 
-  // // lower 5 rows
-  get_next_row_boards<is_black, false, 0, 0>(boards, occ[0], current,  total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 0, 11>(boards, occ[0], current, total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 0, 22>(boards, occ[0], current, total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 0, 33>(boards, occ[0], current, total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 0, 44>(boards, occ[0], current, total, moves, cap_counts, capture_dests);
+// // lower 5 rows
+get_next_row_boards<is_black, false, 0, 0>(boards, occ[0], current,  total,
+moves, cap_counts, capture_dests); get_next_row_boards<is_black, false, 0,
+11>(boards, occ[0], current, total, moves, cap_counts, capture_dests);
+get_next_row_boards<is_black, false, 0, 22>(boards, occ[0], current, total,
+moves, cap_counts, capture_dests); get_next_row_boards<is_black, false, 0,
+33>(boards, occ[0], current, total, moves, cap_counts, capture_dests);
+get_next_row_boards<is_black, false, 0, 44>(boards, occ[0], current, total,
+moves, cap_counts, capture_dests);
 
-  get_next_row_boards_center<is_black, false>(boards, occ, current, total, moves, cap_counts, capture_dests);
+get_next_row_boards_center<is_black, false>(boards, occ, current, total, moves,
+cap_counts, capture_dests);
 
-  // // upper 5 rows
-  get_next_row_boards<is_black, false, 1, 2>(boards, occ[1], current,  total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 1, 13>(boards, occ[1], current, total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 1, 24>(boards, occ[1], current, total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 1, 35>(boards, occ[1], current, total, moves, cap_counts, capture_dests);
-  get_next_row_boards<is_black, false, 1, 46>(boards, occ[1], current, total, moves, cap_counts, capture_dests);
+// // upper 5 rows
+get_next_row_boards<is_black, false, 1, 2>(boards, occ[1], current,  total,
+moves, cap_counts, capture_dests); get_next_row_boards<is_black, false, 1,
+13>(boards, occ[1], current, total, moves, cap_counts, capture_dests);
+get_next_row_boards<is_black, false, 1, 24>(boards, occ[1], current, total,
+moves, cap_counts, capture_dests); get_next_row_boards<is_black, false, 1,
+35>(boards, occ[1], current, total, moves, cap_counts, capture_dests);
+get_next_row_boards<is_black, false, 1, 46>(boards, occ[1], current, total,
+moves, cap_counts, capture_dests);
 
-  const layer occ_r = {
-      current.black_r[0] | current.white_r[0] | current.king_r[0] | corners[0],
-      current.black_r[1] | current.white_r[1] | current.king_r[1] | corners[1]};
+const layer occ_r = {
+    current.black_r[0] | current.white_r[0] | current.king_r[0] | corners[0],
+    current.black_r[1] | current.white_r[1] | current.king_r[1] | corners[1]};
 
-  layer allies_r = name_layer(current, is_black, true) | corners;
-  if (!is_black) {
-    allies_r = allies_r | current.king_r;
-  }
-  const layer capture_dests_r =
-      find_capture_destinations_op(allies_r, name_layer(current, !is_black, true), occ_r);
+layer allies_r = name_layer(current, is_black, true) | corners;
+if (!is_black) {
+  allies_r = allies_r | current.king_r;
+}
+const layer capture_dests_r =
+    find_capture_destinations_op(allies_r, name_layer(current, !is_black, true),
+occ_r);
 
-  // lower 5 rows
-  get_next_row_boards<is_black, true, 0, 0>( boards, occ_r[0], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 0, 11>(boards, occ_r[0], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 0, 22>(boards, occ_r[0], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 0, 33>(boards, occ_r[0], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 0, 44>(boards, occ_r[0], current, total, moves, cap_counts, capture_dests_r);
+// lower 5 rows
+get_next_row_boards<is_black, true, 0, 0>( boards, occ_r[0], current, total,
+moves, cap_counts, capture_dests_r); get_next_row_boards<is_black, true, 0,
+11>(boards, occ_r[0], current, total, moves, cap_counts, capture_dests_r);
+get_next_row_boards<is_black, true, 0, 22>(boards, occ_r[0], current, total,
+moves, cap_counts, capture_dests_r); get_next_row_boards<is_black, true, 0,
+33>(boards, occ_r[0], current, total, moves, cap_counts, capture_dests_r);
+get_next_row_boards<is_black, true, 0, 44>(boards, occ_r[0], current, total,
+moves, cap_counts, capture_dests_r);
 
-  get_next_row_boards_center<is_black, true>(boards, occ_r, current, total, moves, cap_counts, capture_dests_r);
+get_next_row_boards_center<is_black, true>(boards, occ_r, current, total, moves,
+cap_counts, capture_dests_r);
 
-  // upper 5 rows
-  get_next_row_boards<is_black, true, 1, 2>( boards, occ_r[1], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 1, 13>(boards, occ_r[1], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 1, 24>(boards, occ_r[1], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 1, 35>(boards, occ_r[1], current, total, moves, cap_counts, capture_dests_r);
-  get_next_row_boards<is_black, true, 1, 46>(boards, occ_r[1], current, total, moves, cap_counts, capture_dests_r);
+// upper 5 rows
+get_next_row_boards<is_black, true, 1, 2>( boards, occ_r[1], current, total,
+moves, cap_counts, capture_dests_r); get_next_row_boards<is_black, true, 1,
+13>(boards, occ_r[1], current, total, moves, cap_counts, capture_dests_r);
+get_next_row_boards<is_black, true, 1, 24>(boards, occ_r[1], current, total,
+moves, cap_counts, capture_dests_r); get_next_row_boards<is_black, true, 1,
+35>(boards, occ_r[1], current, total, moves, cap_counts, capture_dests_r);
+get_next_row_boards<is_black, true, 1, 46>(boards, occ_r[1], current, total,
+moves, cap_counts, capture_dests_r);
 }
 */
 
@@ -1516,8 +1449,10 @@ layer find_capture_destinations(
     const layer allies, const layer foes, const layer occ) {
   layer north = layer_shiftl(layer_and(layer_shiftl(allies, 11), foes), 11);
   layer south = layer_shiftr(layer_and(layer_shiftr(allies, 11), foes), 11);
-  layer east = layer_shiftr(layer_and(layer_shiftr(layer_and(allies, drop_2_east), 1), foes), 1);
-  layer west = layer_shiftl(layer_and(layer_shiftl(layer_and(allies, drop_2_west), 1), foes), 1);
+  layer east = layer_shiftr(
+      layer_and(layer_shiftr(layer_and(allies, drop_2_east), 1), foes), 1);
+  layer west = layer_shiftl(
+      layer_and(layer_shiftl(layer_and(allies, drop_2_west), 1), foes), 1);
   return (layer){
       (north._[0] | south._[0] | east._[0] | west._[0]) & (~occ._[0]),
       (north._[1] | south._[1] | east._[1] | west._[1]) & (~occ._[1])};
@@ -1556,7 +1491,7 @@ void get_team_moves_{color}(
             out += f"""
   get_next_row_boards_{color}{r}_{sub}(
     boards,
-    occ._[{sub}],
+    occ{r}._[{sub}],
     &current,
     total,
     moves,
@@ -1589,7 +1524,7 @@ void get_team_moves_{color}(
 
     out += "\n}"
     return out
- 
+
 
 for color in ["white", "black"]:
     cog.outl(build(color))
@@ -1597,12 +1532,11 @@ for color in ["white", "black"]:
 ]]]*/
 
 void get_team_moves_white(
-  const board current,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  board *boards
-) {
+    const board current,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    board *boards) {
   const layer occ = board_occ(current);
   const layer occ_r = board_occ_r(current);
   layer allies = layer_or(current.white, corners);
@@ -1611,512 +1545,521 @@ void get_team_moves_white(
   layer foes = current.black;
   layer foes_r = current.black_r;
 
-  const layer capture_dests =
-    find_capture_destinations(allies, foes, occ);
+  const layer capture_dests = find_capture_destinations(allies, foes, occ);
 
   const layer capture_dests_r =
-    find_capture_destinations(allies_r, foes_r, occ_r);
+      find_capture_destinations(allies_r, foes_r, occ_r);
 
   get_next_row_boards_white_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    0
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 0);
 
   get_next_row_boards_white_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    11
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 11);
 
   get_next_row_boards_white_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    22
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 22);
 
   get_next_row_boards_white_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    33
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 33);
 
   get_next_row_boards_white_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    44
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 44);
 
   get_next_row_boards_white_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    2
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 2);
 
   get_next_row_boards_white_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    13
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 13);
 
   get_next_row_boards_white_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    24
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 24);
 
   get_next_row_boards_white_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    35
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 35);
 
   get_next_row_boards_white_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    46
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 46);
 
   get_next_row_boards_white_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    0
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      0);
 
   get_next_row_boards_white_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    11
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      11);
 
   get_next_row_boards_white_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    22
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      22);
 
   get_next_row_boards_white_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    33
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      33);
 
   get_next_row_boards_white_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    44
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      44);
 
   get_next_row_boards_white_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    2
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      2);
 
   get_next_row_boards_white_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    13
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      13);
 
   get_next_row_boards_white_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    24
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      24);
 
   get_next_row_boards_white_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    35
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      35);
 
   get_next_row_boards_white_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    46
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      46);
 
   get_next_row_boards_center_white(
-    boards,
-    occ,
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests
-  );
+      boards, occ, &current, total, moves, cap_counts, capture_dests);
 
   get_next_row_boards_center_white_r(
-    boards,
-    occ_r,
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests
-  );
+      boards, occ_r, &current, total, moves, cap_counts, capture_dests);
 }
 
 void get_team_moves_black(
-  const board current,
-  int *total,
-  move *moves,
-  uint8_t *cap_counts,
-  board *boards
-) {
+    const board current,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    board *boards) {
   const layer occ = board_occ(current);
   const layer occ_r = board_occ_r(current);
   layer allies = layer_or(current.black, corners);
-  
+
   layer allies_r = layer_or(current.black_r, corners);
   layer foes = current.white;
   layer foes_r = current.white_r;
 
-  const layer capture_dests =
-    find_capture_destinations(allies, foes, occ);
+  const layer capture_dests = find_capture_destinations(allies, foes, occ);
 
   const layer capture_dests_r =
-    find_capture_destinations(allies_r, foes_r, occ_r);
+      find_capture_destinations(allies_r, foes_r, occ_r);
 
   get_next_row_boards_black_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    0
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 0);
 
   get_next_row_boards_black_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    11
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 11);
 
   get_next_row_boards_black_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    22
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 22);
 
   get_next_row_boards_black_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    33
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 33);
 
   get_next_row_boards_black_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    44
-  );
+      boards, occ._[0], &current, total, moves, cap_counts, capture_dests, 44);
 
   get_next_row_boards_black_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    2
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 2);
 
   get_next_row_boards_black_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    13
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 13);
 
   get_next_row_boards_black_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    24
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 24);
 
   get_next_row_boards_black_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    35
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 35);
 
   get_next_row_boards_black_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests,
-    46
-  );
+      boards, occ._[1], &current, total, moves, cap_counts, capture_dests, 46);
 
   get_next_row_boards_black_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    0
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      0);
 
   get_next_row_boards_black_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    11
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      11);
 
   get_next_row_boards_black_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    22
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      22);
 
   get_next_row_boards_black_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    33
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      33);
 
   get_next_row_boards_black_r_0(
-    boards,
-    occ._[0],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    44
-  );
+      boards,
+      occ_r._[0],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      44);
 
   get_next_row_boards_black_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    2
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      2);
 
   get_next_row_boards_black_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    13
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      13);
 
   get_next_row_boards_black_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    24
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      24);
 
   get_next_row_boards_black_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    35
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      35);
 
   get_next_row_boards_black_r_1(
-    boards,
-    occ._[1],
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests_r,
-    46
-  );
+      boards,
+      occ_r._[1],
+      &current,
+      total,
+      moves,
+      cap_counts,
+      capture_dests_r,
+      46);
 
   get_next_row_boards_center_black(
-    boards,
-    occ,
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests
-  );
+      boards, occ, &current, total, moves, cap_counts, capture_dests);
 
   get_next_row_boards_center_black_r(
-    boards,
-    occ_r,
-    &current,
-    total,
-    moves,
-    cap_counts,
-    capture_dests
-  );
+      boards, occ_r, &current, total, moves, cap_counts, capture_dests);
 }
 //[[[end]]]
+
+void get_king_moves(
+    const board current,
+    int *total,
+    move *moves,
+    uint8_t *cap_counts,
+    board *boards) {
+  const layer occ = {
+      current.white._[0] | current.black._[0] | current.king._[0],
+      current.white._[1] | current.black._[1] | current.king._[1]};
+
+  // const layer capture_dests = find_capture_destinations_op(current.white,
+  // current.black);
+
+  uint8_t orig = current.king._[0] ? _tzcnt_u64(current.king._[0])
+                                   : _tzcnt_u64(current.king._[1]) + 64;
+
+  if (orig < 55) {
+    const uint row_offset = sub_layer_row_offset[orig];
+    const uint8_t row_orig = orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ._[0] >> row_offset) & 0x7FF;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
+                         << row_offset;
+    while (row_moves) {
+      const uint8_t dest = _tzcnt_u64(row_moves);
+      const uint8_t dest_r = rotate_right[dest];
+      // register move
+      moves[*total] = (struct move){orig, dest};
+      // generate board
+      board new_board = current;
+      new_board.king._[0] = (uint64_t)1 << dest;
+      new_board.king._[1] = 0;
+      new_board.king_r._[!sub_layer(dest_r)] = 0;
+      new_board.king_r._[sub_layer(dest_r)] =
+          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+      // handle captures
+      // if (capture_dests[0] & (1 << dest)) {
+      cap_counts[*total] = apply_captures_niave(
+          layer_or(new_board.white, corners),
+          &new_board.black,
+          &new_board.black_r,
+          dest);
+      // }
+      shield_wall_white(&new_board, dest);
+      // bookkeep
+      boards[*total] = new_board;
+      (*total)++;
+      row_moves = _blsr_u64(row_moves);
+    }
+  } else if (orig > 65) {
+    const uint8_t sub_orig = orig - 64;
+    const uint row_offset = sub_layer_row_offset_upper[sub_orig];
+    const uint8_t row_orig = sub_orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ._[1] >> row_offset) & 0x7FF;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
+                         << row_offset;
+    while (row_moves) {
+      const uint8_t sub_dest = _tzcnt_u64(row_moves);
+      const uint8_t dest = sub_dest + 64;
+      const uint8_t dest_r = rotate_right[dest];
+      // register move
+      moves[*total] = (struct move){orig, dest};
+      // generate board
+      board new_board = current;
+      new_board.king._[0] = 0;
+      new_board.king._[1] = (uint64_t)1 << sub_dest;
+      new_board.king_r._[!sub_layer(dest_r)] = 0;
+      new_board.king_r._[sub_layer(dest_r)] =
+          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+      cap_counts[*total] = apply_captures_niave(
+          layer_or(new_board.white, corners),
+          &new_board.black,
+          &new_board.black_r,
+          dest);
+      shield_wall_white(&new_board, dest);
+      // bookkeep
+      boards[*total] = new_board;
+      (*total)++;
+      row_moves = _blsr_u64(row_moves);
+    }
+  } else {
+    // center
+
+    uint8_t local_orig = orig - 55;
+    uint16_t blockers = get_center_row(occ);
+    // we can use the normal one because we're the king
+    uint16_t row_moves = row_moves_table[blockers][local_orig];
+    while (row_moves) {
+      const uint8_t dest = _tzcnt_u16(row_moves) + 55;
+      const uint8_t dest_r = rotate_right[dest];
+      // register move
+      moves[*total] = (struct move){orig, dest};
+      // generate board
+      board new_board = current;
+      new_board.king._[!sub_layer(dest)] = 0;
+      new_board.king._[sub_layer(dest)] = (uint64_t)1
+                                          << (sub_layer_offset_direct[dest]);
+      new_board.king_r._[!sub_layer(dest_r)] = 0;
+      new_board.king_r._[sub_layer(dest_r)] =
+          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+      // handle captures
+      // if (capture_dests[1] & (1 << sub_dest)) {
+      cap_counts[*total] = apply_captures_niave(
+          layer_or(new_board.white, corners),
+          &new_board.black,
+          &new_board.black_r,
+          dest);
+      // }
+      shield_wall_white(&new_board, dest);
+      // bookkeep
+      boards[*total] = new_board;
+      (*total)++;
+      row_moves = _blsr_u64(row_moves);
+    }
+  }
+
+  const layer occ_r = {
+      current.white_r._[0] | current.black_r._[0] | current.king_r._[0],
+      current.white_r._[1] | current.black_r._[1] | current.king_r._[1]};
+
+  uint8_t orig_r = rotate_right[orig];
+
+  if (orig_r < 55) {
+    const uint row_offset = sub_layer_row_offset[orig_r];
+    const uint8_t row_orig = orig_r - row_offset;
+    const uint16_t blockers = ((uint64_t)occ_r._[0] >> row_offset) & 0x7FF;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
+                         << row_offset;
+    while (row_moves) {
+      const uint8_t dest_r = _tzcnt_u64(row_moves);
+      const uint8_t dest = rotate_left[dest_r];
+      // register move
+      moves[*total] = (struct move){orig, dest};
+      // generate board
+      board new_board = current;
+      new_board.king._[sub_layer(dest)] = (uint64_t)1
+                                          << (sub_layer_offset_direct[dest]);
+      new_board.king._[!sub_layer(dest)] = 0;
+      new_board.king_r._[0] = (uint64_t)1 << dest_r;
+      new_board.king_r._[1] = 0;
+      // handle captures
+      // if (capture_dests[0] & (1 << dest)) {
+      cap_counts[*total] = apply_captures_niave(
+          layer_or(new_board.white, corners),
+          &new_board.black,
+          &new_board.black_r,
+          dest);
+      // }
+      shield_wall_white(&new_board, dest);
+      // APPLY_CAPTURES_king;
+      // bookkeep
+      boards[*total] = new_board;
+      (*total)++;
+      row_moves = _blsr_u64(row_moves);
+    }
+  } else if (orig_r > 65) {
+    const uint8_t sub_orig = orig_r - 64;
+    const uint row_offset = sub_layer_row_offset_upper[sub_orig];
+    const uint8_t row_orig = sub_orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ_r._[1] >> row_offset) & 0x7FF;
+    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
+                         << row_offset;
+    while (row_moves) {
+      const uint8_t sub_dest = _tzcnt_u64(row_moves);
+      const uint8_t dest_r = sub_dest + 64;
+      const uint8_t dest = rotate_left[dest_r];
+      // register move
+      moves[*total] = (struct move){orig, dest};
+      // generate board
+      board new_board = current;
+      new_board.king._[!sub_layer(dest)] = 0;
+      new_board.king._[sub_layer(dest)] = (uint64_t)1
+                                          << (sub_layer_offset_direct[dest]);
+      new_board.king_r._[0] = 0;
+      new_board.king_r._[1] = (uint64_t)1 << sub_dest;
+      cap_counts[*total] = apply_captures_niave(
+          layer_or(new_board.white, corners),
+          &new_board.black,
+          &new_board.black_r,
+          dest);
+      shield_wall_white(&new_board, dest);
+      // bookkeep
+      boards[*total] = new_board;
+      (*total)++;
+      row_moves = _blsr_u64(row_moves);
+    }
+  } else {
+    // center
+
+    uint8_t local_orig = orig_r - 55;
+    uint16_t blockers = get_center_row(occ_r);
+    // we can use the normal one because we're the king
+    uint16_t row_moves = row_moves_table[blockers][local_orig];
+    while (row_moves) {
+      const uint8_t dest_r = _tzcnt_u16(row_moves) + 55;
+      const uint8_t dest = rotate_left[dest_r];
+      // register move
+      moves[*total] = (struct move){orig, dest};
+      // generate board
+      board new_board = current;
+      new_board.king._[!sub_layer(dest)] = 0;
+      new_board.king._[sub_layer(dest)] = (uint64_t)1
+                                          << (sub_layer_offset_direct[dest]);
+      new_board.king_r._[!sub_layer(dest_r)] = 0;
+      new_board.king_r._[sub_layer(dest_r)] =
+          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+
+      cap_counts[*total] = apply_captures_niave(
+          layer_or(new_board.white, corners),
+          &new_board.black,
+          &new_board.black_r,
+          dest);
+      shield_wall_white(&new_board, dest);
+      // bookkeep
+      boards[*total] = new_board;
+      (*total)++;
+      row_moves = _blsr_u64(row_moves);
+    }
+  }
+}

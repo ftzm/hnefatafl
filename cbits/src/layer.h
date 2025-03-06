@@ -12,6 +12,35 @@ typedef struct layer {
 
 extern const uint8_t sub_layer_offset_direct[121];
 
+
+/**
+ * This lookup table only contains 55 elements as positions above 55
+ * should be handled separately, being split between two layers.
+ */
+static const uint8_t sub_layer_row_offset[55] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+  22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+  33, 33, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+  44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44
+};
+
+
+/**
+ * The first two indices should not be used, as these represent
+ * squares of a row split between both halves which need to be handled
+ * separately. They're only here so that the upper element index
+ * numbers are correct.
+ */
+static const uint8_t sub_layer_row_offset_upper[57] = {
+  0, 0,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13,
+  24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24,
+  35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35,
+  46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46
+};
+
 layer rotate_layer_right(const layer input);
 layer rotate_layer_left(const layer input);
 
@@ -49,7 +78,7 @@ extern const uint8_t rotate_left[121];
 ((layer) {(l._[0] >> n) | (l._[1] << (64 - n)), l._[1] >> n})
 
 #define check_index(layer, i) \
-  layer._[sub_layer(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])
+  (layer._[sub_layer(i)] & ((uint64_t)1 << sub_layer_offset_direct[i]))
 
 #define toggle_index(layer, i) \
   layer._[sub_layer[i]] |= ((uint64_t)1 << sub_layer_offset_direct[i])
