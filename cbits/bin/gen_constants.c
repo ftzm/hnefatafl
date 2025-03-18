@@ -26,6 +26,18 @@ char *drop_2_east = "X  X  X  X  X  X  X  X  X  .  ."
                     "X  X  X  X  X  X  X  X  X  .  ."
                     "X  X  X  X  X  X  X  X  X  .  .";
 
+char *edges = "X  X  X  X  X  X  X  X  X  X  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  .  .  .  .  .  .  .  .  .  X"
+              "X  X  X  X  X  X  X  X  X  X  X";
+
 void print_layer_info(char *layer_str, char *name_str) {
   printf("LAYER: %s\n\n", name_str);
   layer l = read_layer(layer_str, 'X');
@@ -40,4 +52,5 @@ int main() {
   printf("\n");
   PRINT_LAYER(drop_2_west);
   PRINT_LAYER(drop_2_east);
+  PRINT_LAYER(edges);
   }

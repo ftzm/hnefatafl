@@ -26,3 +26,5 @@ void print_board(board b);
 void print_row(uint16_t row);
 
 void overlay_move(char *board, int orig, int dest, layer captures);
+
+void print_board_move(board b, int orig, int dest, layer captures);

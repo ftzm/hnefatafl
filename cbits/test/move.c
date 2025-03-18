@@ -12,6 +12,7 @@
 #include "theft_types.h"
 #include "time.h"
 #include "ubench.h"
+#include "x86intrin.h"
 
 bool board_rotation_correct(board b) {
   bool res = true;
@@ -47,9 +48,8 @@ void test_start_board_moves() {
   board bs[235];
   move ms[235];
   int total = 0;
-  uint8_t cap_counts[235] = {0};
 
-  get_team_moves_black(start_board, &total, ms, cap_counts, bs);
+  get_team_moves_black(start_board, &total, ms, bs);
 
   for (int i; i < total; i++) {
     char output[strlen(base) + 1];
@@ -65,7 +65,7 @@ void test_start_board_moves() {
   }
 
   total = 0;
-  get_team_moves_white(start_board, &total, ms, cap_counts, bs);
+  get_team_moves_white(start_board, &total, ms, bs);
 
   for (int i; i < total; i++) {
     char output[strlen(base) + 1];
@@ -96,8 +96,8 @@ board theft_create_board(struct theft *t) {
   op_layer_bit(occ, 60, |=);
 
   layer black = EMPTY_LAYER;
-  // uint64_t black_count = theft_random_choice_between(t, 1, 25);
-  uint64_t black_count = 1;
+  uint64_t black_count = theft_random_choice_between(t, 1, 25);
+  // uint64_t black_count = 1;
   while (black_count) {
     uint64_t index = my_random_choice(t, 120);
     // printf("black index: %ld\n", index);
@@ -111,7 +111,8 @@ board theft_create_board(struct theft *t) {
   layer black_r = rotate_layer_right(black);
 
   layer white = EMPTY_LAYER;
-  uint64_t white_count = theft_random_choice_between(t, 1, 12);
+  // uint64_t white_count = theft_random_choice_between(t, 1, 12);
+  uint64_t white_count = 1;
   while (white_count) {
     uint64_t index = my_random_choice(t, 120);
     // printf("white index: %ld\n", index);
@@ -237,13 +238,13 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
   *total = 0;
   layer occ = board_occ(b);
 
-
   const layer capture_dests = find_capture_destinations(b.black, b.white, occ);
 
   int dest;
+  int orig = 0;
   for (int rank = 0; rank < 11; rank++) {
     for (int file = 0; file < 11; file++) {
-      int orig = file + (rank * 11);
+      orig++;
       if (!check_index(b.black, orig))
         continue;
 
@@ -323,15 +324,129 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
         op_layer_bit(b2.black, dest, |=);
         op_layer_bit(b2.black_r, rotate_right[dest], |=);
 
-
-        if (check_index(capture_dests, dest))
-          apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
         bs[(*total)] = b2;
         ms[(*total)] = (move){orig, dest};
         (*total)++;
       }
     }
+  }
+}
+
+// Alternate approach 2
+void gen_reference_moves_black2(board b, int *total, move *ms, board *bs) {
+  *total = 0;
+  layer occ = board_occ(b);
+
+  const layer capture_dests = find_capture_destinations(b.black, b.white, occ);
+
+  int dest;
+
+  int orig = 0;
+  uint64_t pieces = b.black._[0];
+  bool lower = true;
+
+process:
+  while (pieces) {
+    int to_next = _tzcnt_u64(pieces);
+    orig += to_next;
+
+    // north
+    dest = orig;
+    int rank = rank(orig);
+    for (int north = rank + 1; north < 11; north++) {
+      dest += 11;
+      if (check_index(occ, dest))
+        break;
+
+      board b2 = b;
+      op_layer_bit(b2.black, orig, |=);
+      op_layer_bit(b2.black_r, rotate_right[orig], |=);
+      op_layer_bit(b2.black, dest, |=);
+      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+
+      if (check_index(capture_dests, dest))
+        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+
+      bs[(*total)] = b2;
+      ms[(*total)] = (move){orig, dest};
+      (*total)++;
+    }
+
+    // south
+    dest = orig;
+    rank = rank(orig);
+    for (int south = rank - 1; south >= 0; south--) {
+      dest -= 11;
+      if (check_index(occ, dest))
+        break;
+
+      board b2 = b;
+      op_layer_bit(b2.black, orig, |=);
+      op_layer_bit(b2.black_r, rotate_right[orig], |=);
+      op_layer_bit(b2.black, dest, |=);
+      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+
+      if (check_index(capture_dests, dest))
+        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+
+      bs[(*total)] = b2;
+      ms[(*total)] = (move){orig, dest};
+      (*total)++;
+    }
+
+    // east
+    dest = orig;
+    int file = file(orig);
+    for (int east = file - 1; east >= 0; east--) {
+      dest -= 1;
+      if (check_index(occ, dest))
+        break;
+
+      board b2 = b;
+      op_layer_bit(b2.black, orig, |=);
+      op_layer_bit(b2.black_r, rotate_right[orig], |=);
+      op_layer_bit(b2.black, dest, |=);
+      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+
+      if (check_index(capture_dests, dest))
+        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+
+      bs[(*total)] = b2;
+      ms[(*total)] = (move){orig, dest};
+      (*total)++;
+    }
+
+    // west
+    dest = orig;
+    file = file(orig);
+    for (int west = file + 1; west < 11; west++) {
+      dest += 1;
+      if (check_index(occ, dest))
+        break;
+
+      board b2 = b;
+      op_layer_bit(b2.black, orig, |=);
+      op_layer_bit(b2.black_r, rotate_right[orig], |=);
+      op_layer_bit(b2.black, dest, |=);
+      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+
+      apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+
+      bs[(*total)] = b2;
+      ms[(*total)] = (move){orig, dest};
+      (*total)++;
+    }
+
+    pieces -= 1;
+    pieces >>= to_next;
+  }
+  if (lower) {
+    orig = 64;
+    pieces = b.black._[1];
+    lower = false;
+    goto process;
   }
 }
 
@@ -344,7 +459,7 @@ void test_start_board_moves_gen() {
   int total = 0;
 
   printf("running\n");
-  gen_reference_moves_black(start_board, &total, ms, bs);
+  gen_reference_moves_black2(start_board, &total, ms, bs);
 
   for (int i; i < total; i++) {
     char output[strlen(base) + 1];
@@ -583,16 +698,8 @@ struct move_breakdown_diff get_move_breakdown_diff(
   return diff;
 };
 
-void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
-  board bs[235];
-  move ms[235];
-  int total = 0;
-  uint8_t cap_counts[235] = {0};
-
-  get_team_moves_black(b, &total, ms, cap_counts, bs);
-  // printf("generated moves\n");
-
-  // printf("\ntotal: %d\n", total);
+void get_move_breakdown(
+    board b, board bs[235], move ms[235], int total, move_breakdown r) {
 
   for (int i = 0; i < total; i++) {
     move m = ms[i];
@@ -600,7 +707,6 @@ void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
     as_notation(m.orig, orig_notation);
     char dest_notation[] = "   ";
     as_notation(m.dest, dest_notation);
-    // printf("\n%s -> %s\n", orig_notation, dest_notation);
     assert(m.orig >= 0);
     assert(m.orig < 121);
     assert(m.dest >= 0);
@@ -608,23 +714,27 @@ void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
     assert(m.orig != m.dest);
     board b = bs[i];
     if (m.dest > (m.orig + 10)) {
-      // printf("north\n");
       r[m.orig].north[r[m.orig].north_count] = (struct move_set){m, b};
       r[m.orig].north_count++;
     } else if (m.dest > m.orig) {
-      // printf("west\n");
       r[m.orig].west[r[m.orig].west_count] = (struct move_set){m, b};
       r[m.orig].west_count++;
     } else if (m.dest < (m.orig - 10)) {
-      // printf("south\n");
       r[m.orig].south[r[m.orig].south_count] = (struct move_set){m, b};
       r[m.orig].south_count++;
     } else if (m.dest < m.orig) {
-      // printf("east\n");
       r[m.orig].east[r[m.orig].east_count] = (struct move_set){m, b};
       r[m.orig].east_count++;
     }
   }
+}
+
+void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
+  board bs[235];
+  move ms[235];
+  int total = 0;
+  get_team_moves_black(b, &total, ms, bs);
+  get_move_breakdown(b, bs, ms, total, r);
 }
 
 bool move_breakdown_diff_empty(struct move_breakdown_diff d) {
@@ -756,7 +866,6 @@ static struct theft_type_info get_team_moves_black_info = {
 
 bool test_get_team_moves_black(void) {
   /* Get a seed based on the current time */
-  srand(time(NULL));
   theft_seed seed = theft_seed_of_time();
 
   struct theft_run_config config = {
@@ -855,9 +964,8 @@ void get_team_moves_white_move_breakdown(board b, move_breakdown r) {
   board bs[235];
   move ms[235];
   int total = 0;
-  uint8_t cap_counts[235] = {0};
 
-  get_team_moves_white(b, &total, ms, cap_counts, bs);
+  get_team_moves_white(b, &total, ms, bs);
 
   for (int i = 0; i < total; i++) {
     move m = ms[i];
@@ -1011,9 +1119,8 @@ void get_team_moves_king_move_breakdown(board b, move_breakdown r) {
   board bs[235];
   move ms[235];
   int total = 0;
-  uint8_t cap_counts[235] = {0};
 
-  get_king_moves(b, &total, ms, cap_counts, bs);
+  get_king_moves(b, &total, ms, bs);
 
   for (int i = 0; i < total; i++) {
     move m = ms[i];
@@ -1086,36 +1193,512 @@ bool test_get_team_moves_king(void) {
 }
 
 // -----------------------------------------------------------------------------
+// Smaller simpler tests
+
+struct moves_diffs {
+  board b;
+  move a_excess[235];
+  int a_excess_len;
+  move b_excess[235];
+  int b_excess_len;
+};
+
+/* requires input lists to be sorted and unique.
+ */
+struct moves_diffs compare_moves(
+    const move a[235], const int a_len, const move b[235], const int b_len) {
+  struct moves_diffs d;
+  memset(&d, 0, sizeof(d));
+
+  int a_index = 0;
+  int b_index = 0;
+  d.a_excess_len = 0;
+  d.b_excess_len = 0;
+
+  // while there are elements remaining in both lists we walk through
+  // both, incrementing only one if it "falls behind".
+  while ((a_index < a_len) && (b_index < b_len)) {
+    move move_a = a[a_index];
+    move move_b = b[b_index];
+    int cmp = cmp_moves(&move_a, &move_b);
+    if (cmp == 0) {
+      // printf("found match");
+      a_index++;
+      b_index++;
+    } else if (cmp < 0) {
+      printf("found missing in a");
+      d.a_excess[d.a_excess_len] = move_a;
+      d.a_excess_len++;
+      a_index++;
+    } else if (cmp > 0) {
+      printf("found missing in b\n");
+      printf("orig: %d\n", move_b.orig);
+      printf("dest: %d\n", move_b.dest);
+      d.b_excess[d.b_excess_len] = move_b;
+      d.b_excess_len++;
+      b_index++;
+    }
+  }
+
+  // once one of the arrays is exhausted the remaining elements in the
+  // other must be excess. We collect those here.
+  while (a_index < a_len) {
+    move move_a = a[a_index];
+    d.a_excess[d.a_excess_len] = move_a;
+    d.a_excess_len++;
+    a_index++;
+  }
+  while (b_index < b_len) {
+    move move_b = b[b_index];
+    d.b_excess[d.b_excess_len] = move_b;
+    d.b_excess_len++;
+    b_index++;
+  }
+
+  return d;
+}
+
+void moves_diffs_print_cb(FILE *f, const void *instance, void *env) {
+  struct moves_diffs *d = (struct moves_diffs *)instance;
+
+  char output[strlen(base) + 1];
+  strcpy(output, base);
+  fmt_board(d->b, output);
+  fprintf(f, "%s", output);
+
+  for (int i = 0; i < d->a_excess_len; i++) {
+    move m = d->a_excess[i];
+    char orig_notation[] = "   ";
+    as_notation(m.orig, orig_notation);
+    char dest_notation[] = "   ";
+    as_notation(m.dest, dest_notation);
+    printf("missing: %s -> %s\n", orig_notation, dest_notation);
+  }
+
+  for (int i = 0; i < d->b_excess_len; i++) {
+    move m = d->b_excess[i];
+    char orig_notation[] = "   ";
+    as_notation(m.orig, orig_notation);
+    char dest_notation[] = "   ";
+    as_notation(m.dest, dest_notation);
+    printf("extra: %s -> %s\n", orig_notation, dest_notation);
+  }
+}
+
+static enum theft_trial_res
+prop_moves_diffs_empty(struct theft *t, void *arg1) {
+  struct moves_diffs *input = (struct moves_diffs *)arg1;
+  if (!input->a_excess_len && !input->b_excess_len) {
+    return THEFT_TRIAL_PASS;
+  } else {
+    return THEFT_TRIAL_FAIL;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// test reference moves black
+
+typedef int (*ConstCompareListElements)(const void *, const void *);
+
+static enum theft_alloc_res
+create_reference_moves_black_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[235];
+  move ms[235];
+  int total = 0;
+  get_team_moves_black(b, &total, ms, bs);
+
+  // to test
+  board bs2[235];
+  move ms2[235];
+  int total2 = 0;
+  gen_reference_moves_black3(b, &total2, ms2, bs2);
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+bool test_reference_moves_black(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info get_reference_moves_black_info = {
+      .alloc = create_reference_moves_black_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&get_reference_moves_black_info},
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+// -----------------------------------------------------------------------------
+// test reference moves white
+
+typedef int (*ConstCompareListElements)(const void *, const void *);
+
+static enum theft_alloc_res
+create_reference_moves_white_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[235];
+  move ms[235];
+  int total = 0;
+  get_team_moves_white(b, &total, ms, bs);
+
+  // to test
+  board bs2[235];
+  move ms2[235];
+  int total2 = 0;
+  gen_reference_moves_white3(b, &total2, ms2, bs2);
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+bool test_reference_moves_white(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info get_reference_moves_white_info = {
+      .alloc = create_reference_moves_white_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&get_reference_moves_white_info},
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+// -----------------------------------------------------------------------------
+// test mm white
+
+static enum theft_alloc_res
+create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[235];
+  move ms[235];
+  int total = 0;
+  get_team_moves_white(b, &total, ms, bs);
+
+  // to test
+  board bs2[235];
+  move ms2[235];
+  int total2 = 0;
+
+  move_map mm;
+  memset(mm, 0, sizeof(mm));
+  build_mm(b.white, board_occ(b), mm);
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  free._[1] &= 144115188075855871;
+  gen_moves_from_mm(b, free, mm, ms2, bs2, &total2);
+
+  // compare
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+bool test_mm_moves_white(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = create_mm_moves_white_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+// -----------------------------------------------------------------------------
+// mm move results
+
+struct mm_move_result {
+  move m;
+  board b;
+  struct move_maps mm_adjusted;
+  struct move_maps mm_recomputed;
+};
+
+struct mm_move_results {
+  int len;
+  struct mm_move_result moves[96];
+};
+
+bool move_results_equal(struct mm_move_results mm) {
+  for (int i = 0; i < mm.len; i++) {
+    struct mm_move_result res = mm.moves[i];
+    if (memcmp(
+            &res.mm_adjusted, &res.mm_recomputed, sizeof(struct move_maps))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// -----------------------------------------------------------------------------
+// Southward move
+
+struct mm_move_results gen_southern_moves_white(board b, struct move_maps mm) {
+  int len = 0;
+  layer occ = board_occ(b);
+  struct mm_move_results res;
+  memset(&res, 0, sizeof(res));
+  for (int i = 0; i < 121; i++) {
+    if (!check_index(occ, i) && mm.white[i].north) {
+
+      // move
+      move m = {mm.white[i].north, i};
+
+      // new board
+      board b2 = b;
+      op_layer_bit(b2.white, m.dest, |=);
+      op_layer_bit(b2.white_r, rotate_right[m.dest], |=);
+      op_layer_bit(b2.white, m.orig, |=);
+      op_layer_bit(b2.white_r, rotate_right[m.orig], |=);
+
+      // adjusted mm
+      struct move_maps mm2;
+      memcpy(&mm2, &mm, sizeof(mm2));
+      apply_southward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
+
+      // recomputed mm
+      struct move_maps mm3 = build_mms(b2);
+
+      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
+      len++;
+    }
+  }
+  res.len = len;
+  return res;
+}
+
+static enum theft_alloc_res
+gen_southern_moves_white_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+  struct move_maps mms = build_mms(b);
+
+  struct mm_move_results *output = malloc(sizeof(struct mm_move_results));
+  *output = gen_southern_moves_white(b, mms);
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+}
+
+void print_mm_diff_cb(FILE *f, const void *instance, void *env) {
+  struct mm_move_results *mm = (struct mm_move_results *)instance;
+  for (int i = 0; i < mm->len; i++) {
+    struct mm_move_result res = mm->moves[i];
+    if (memcmp(
+            &res.mm_adjusted, &res.mm_recomputed, sizeof(struct move_maps))) {
+      print_board_move(res.b, res.m.orig, res.m.dest, EMPTY_LAYER);
+      printf("unequal at index: %d\n", i);
+      for (int j = 0; j < 121; j++) {
+        uint8_t white_adjusted_north = res.mm_adjusted.white[j].north;
+        uint8_t white_recomputed_north = res.mm_recomputed.white[j].north;
+        if (white_adjusted_north != white_recomputed_north) {
+          char dest_notation[] = "   ";
+          as_notation(j, dest_notation);
+          char adjusted_notation[] = "   ";
+          as_notation(white_adjusted_north, adjusted_notation);
+          char recomputed_notation[] = "   ";
+          as_notation(white_recomputed_north, recomputed_notation);
+          fprintf(
+              f,
+              "dest: %s, recomputed: %s, adjusted: %s\n",
+              dest_notation,
+              recomputed_notation,
+              adjusted_notation);
+        }
+      }
+    }
+  }
+}
+
+static enum theft_trial_res
+move_results_equal_prop(struct theft *t, void *arg1) {
+  struct mm_move_results *mm = (struct mm_move_results *)arg1;
+
+  if (move_results_equal(*mm)) {
+    return THEFT_TRIAL_PASS;
+  } else {
+    return THEFT_TRIAL_FAIL;
+  }
+}
+
+bool test_southern_moves_white(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = gen_southern_moves_white_cb,
+      .free = theft_generic_free_cb,
+      .print = print_mm_diff_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = move_results_equal_prop,
+      .type_info = {&info},
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+// -----------------------------------------------------------------------------
 // Run
 
+const char *sanity_capture_king_string = " .  .  X  .  X  .  .  O  .  .  . "
+                                         " .  X  .  X  .  .  .  .  .  .  . "
+                                         " X  .  .  O  O  X  .  .  X  .  . "
+                                         " .  .  .  .  .  #  X  .  .  X  . "
+                                         " .  X  .  .  .  .  O  .  .  .  X "
+                                         " X  .  .  O  O  .  O  .  .  X  X "
+                                         " X  .  .  .  O  O  O  .  .  .  X "
+                                         " X  .  .  .  .  O  .  .  .  .  X "
+                                         " .  .  .  .  .  .  .  .  O  .  . "
+                                         " .  .  .  .  .  X  .  .  .  .  . "
+                                         " .  .  X  .  X  X  X  X  .  .  . ";
+
 UBENCH_EX(foo, gen) {
-  const board start_board = read_board(start_board_string);
+  const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
     board bs[235];
     move ms[235];
     int total = 0;
     gen_reference_moves_black(start_board, &total, ms, bs);
+    UBENCH_DO_NOTHING(ms);
   }
 }
 
 UBENCH_EX(foo, orig) {
-  const board start_board = read_board(start_board_string);
+  const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
     board bs[235];
     move ms[235];
     int total = 0;
-    uint8_t cap_counts[235] = {0};
-    get_team_moves_black(start_board, &total, ms, cap_counts, bs);
+    get_team_moves_black(start_board, &total, ms, bs);
+    UBENCH_DO_NOTHING(ms);
   }
 }
 
-UBENCH_EX(foo, gen2) {
-  const board start_board = read_board(start_board_string);
+UBENCH_EX(foo2, gen) {
+  const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
     board bs[235];
     move ms[235];
     int total = 0;
     gen_reference_moves_black(start_board, &total, ms, bs);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(foo2, gen2) {
+  const board start_board = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    gen_reference_moves_black2(start_board, &total, ms, bs);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(foo3, gen3) {
+  const board start_board = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    board bs[235];
+    move ms[235];
+    int total = 0;
+    gen_reference_moves_black3(start_board, &total, ms, bs);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(move, mm_white) {
+  const board b = read_board(sanity_capture_king_string);
+  board bs[235];
+  move ms[235];
+  int total = 0;
+  move_map mm;
+  memset(mm, 0, sizeof(mm));
+  move_map mm2;
+  memset(mm2, 0, sizeof(mm));
+  move_map mm3;
+  memset(mm3, 0, sizeof(mm));
+  build_mm(b.white, board_occ(b), mm);
+  build_mm(b.white, board_occ(b), mm2);
+  build_mm(b.white, board_occ(b), mm3);
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  free._[1] &= 144115188075855871;
+  UBENCH_DO_BENCHMARK() {
+    apply_southward_move(66, 11, mm2, mm2, mm3);
+    gen_king_mm(b, EMPTY_LAYER, 12, mm3);
+    UBENCH_DO_NOTHING(mm2);
+    UBENCH_DO_NOTHING(mm3);
+    gen_moves_from_mm(b, free, mm, ms, bs, &total);
+    UBENCH_DO_NOTHING(ms);
   }
 }
 
@@ -1123,7 +1706,6 @@ UBENCH_EX(foo, gen2) {
 UBENCH_STATE();
 
 int main() {
-  printf("hello\n");
   // Setup
   init_move_globals();
 
@@ -1132,10 +1714,54 @@ int main() {
   // test_get_team_moves_black();
   // test_get_team_moves_white();
   // test_get_team_moves_king();
+  // test_reference_moves_black();
 
   // test_start_board_moves_gen();
 
-  return ubench_main(0, NULL);
+  // test_mm_moves_white();
+
+  test_southern_moves_white();
+
+  // return ubench_main(0, NULL);
+
+  const char *base = " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . ";
+  const char *sone = " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  X  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  X  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  X ";
+  const char *stwo = " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  X  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  X  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  X  .  .  X  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  X "
+                     " .  .  .  .  .  .  .  .  .  .  . "
+                     " .  .  .  .  .  .  .  .  .  .  . ";
+  // const layer one = read_layer(sone, 'X');
+  // const layer two = read_layer(stwo, 'X');
+
+  // const layer res = {one._[0] - two._[0], one._[1] - two._[1]};
+  // print_layer(res);
 }
 
 // MAYBE TODO:

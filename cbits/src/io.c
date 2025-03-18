@@ -188,3 +188,11 @@ void overlay_move(char *board, int orig, int dest, layer captures) {
   }
 };
 
+
+void print_board_move(board b, int orig, int dest, layer captures) {
+    char output[strlen(base) + 1];
+    strcpy(output, base);
+    fmt_board(b, output);
+    overlay_move(output, orig, dest, captures);
+    puts(output);
+}

@@ -25,11 +25,10 @@ static const uint8_t sub_layer_row_offset[55] = {
   44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44
 };
 
-
 /**
- * The first two indices should not be used, as these represent
+ * the first two indices should not be used, as these represent
  * squares of a row split between both halves which need to be handled
- * separately. They're only here so that the upper element index
+ * separately. they're only here so that the upper element index
  * numbers are correct.
  */
 static const uint8_t sub_layer_row_offset_upper[57] = {
@@ -51,6 +50,7 @@ extern const uint8_t rotate_right[121];
 extern const uint8_t rotate_left[121];
 
 // #define sub_layer(i) (i > 63)
+// benchmarks suggest the lookup table is actually faster
 #define sub_layer(i) (sub_layer_table[i])
 
 #define op_layer_bit(l, b, op) (l._[sub_layer(b)] op ((uint64_t) 1 << sub_layer_offset_direct[b]))
@@ -67,7 +67,7 @@ extern const uint8_t rotate_left[121];
 //#define layer_xor(a, b) ((layer) {._ = {a._[0] ^ b._[0], a._[1] ^ b._[1]}})
 #define layer_xor(a, b) layer_bin_op(a, b, ^)
 
-#define layer_neg(a, b) ((layer) {._ = {~a._[0], ~a._[1]}})
+#define layer_neg(a) ((layer) {._ = {~a._[0], ~a._[1]}})
 
 // can only be called with n > 0 && n < 65
 #define layer_shiftl(l, n) \
@@ -90,3 +90,42 @@ extern layer corners;
 #define INVERTED_THRONE_MASK ((uint16_t) 0b11111011111)
 
 #define LAYERS_EQUAL(a, b) (a._[0] == b._[0] && a._[1] == b._[1])
+
+#define NOT_EMPTY(l) (l._[0] | l._[1])
+#define IS_EMPTY(l) (!(NOT_EMPTY(l)))
+
+
+static const uint8_t rank_table[121] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+  5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+  6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+  10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+};
+
+#define rank(_a) (rank_table[_a])
+
+static const uint8_t file_table[121] = {
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+};
+
+
+#define file(_a) (file_table[_a])
+
+static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
