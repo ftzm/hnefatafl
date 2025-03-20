@@ -59,3 +59,9 @@ gen_constants: bin/gen_constants.c $(OBJDIR)/lib.so
 .PHONY: clean
 clean:
 	rm -r $(OBJDIR)
+
+# ------------------------------------------------------------------------------
+# Bear
+
+bear:
+	bear -- make test_move

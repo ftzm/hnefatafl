@@ -1496,6 +1496,15 @@ bool move_results_equal(struct mm_move_results mm) {
 // -----------------------------------------------------------------------------
 // Southward move
 
+board make_move(board b, move m) {
+      board b2 = b;
+      op_layer_bit(b2.white, m.dest, ^=);
+      op_layer_bit(b2.white_r, rotate_right[m.dest], ^=);
+      op_layer_bit(b2.white, m.orig, ^=);
+      op_layer_bit(b2.white_r, rotate_right[m.orig], ^=);
+      return b2;
+}
+
 struct mm_move_results gen_southern_moves_white(board b, struct move_maps mm) {
   int len = 0;
   layer occ = board_occ(b);
@@ -1504,20 +1513,29 @@ struct mm_move_results gen_southern_moves_white(board b, struct move_maps mm) {
   for (int i = 0; i < 121; i++) {
     if (!check_index(occ, i) && mm.white[i].north) {
 
-      // move
       move m = {mm.white[i].north, i};
-
-      // new board
-      board b2 = b;
-      op_layer_bit(b2.white, m.dest, |=);
-      op_layer_bit(b2.white_r, rotate_right[m.dest], |=);
-      op_layer_bit(b2.white, m.orig, |=);
-      op_layer_bit(b2.white_r, rotate_right[m.orig], |=);
+      board b2 = make_move(b, m);
 
       // adjusted mm
       struct move_maps mm2;
       memcpy(&mm2, &mm, sizeof(mm2));
       apply_southward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
+
+      // recomputed mm
+      struct move_maps mm3 = build_mms(b2);
+
+      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
+      len++;
+    }
+    if (!check_index(occ, i) && mm.white[i].south) {
+
+      move m = {mm.white[i].south, i};
+      board b2 = make_move(b, m);
+
+      // adjusted mm
+      struct move_maps mm2;
+      memcpy(&mm2, &mm, sizeof(mm2));
+      apply_northward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
 
       // recomputed mm
       struct move_maps mm3 = build_mms(b2);
@@ -1548,9 +1566,12 @@ void print_mm_diff_cb(FILE *f, const void *instance, void *env) {
     struct mm_move_result res = mm->moves[i];
     if (memcmp(
             &res.mm_adjusted, &res.mm_recomputed, sizeof(struct move_maps))) {
+      print_move(res.m);
+      print_board(res.b);
       print_board_move(res.b, res.m.orig, res.m.dest, EMPTY_LAYER);
       printf("unequal at index: %d\n", i);
       for (int j = 0; j < 121; j++) {
+	// white north
         uint8_t white_adjusted_north = res.mm_adjusted.white[j].north;
         uint8_t white_recomputed_north = res.mm_recomputed.white[j].north;
         if (white_adjusted_north != white_recomputed_north) {
@@ -1562,7 +1583,61 @@ void print_mm_diff_cb(FILE *f, const void *instance, void *env) {
           as_notation(white_recomputed_north, recomputed_notation);
           fprintf(
               f,
-              "dest: %s, recomputed: %s, adjusted: %s\n",
+              "white -- dest: %s, recomputed: %s, adjusted: %s\n",
+              dest_notation,
+              recomputed_notation,
+              adjusted_notation);
+        }
+
+	// white south
+        uint8_t white_adjusted_south = res.mm_adjusted.white[j].south;
+        uint8_t white_recomputed_south = res.mm_recomputed.white[j].south;
+        if (white_adjusted_south != white_recomputed_south) {
+          char dest_notation[] = "   ";
+          as_notation(j, dest_notation);
+          char adjusted_notation[] = "   ";
+          as_notation(white_adjusted_south, adjusted_notation);
+          char recomputed_notation[] = "   ";
+          as_notation(white_recomputed_south, recomputed_notation);
+          fprintf(
+              f,
+              "white -- dest: %s, recomputed: %s, adjusted: %s\n",
+              dest_notation,
+              recomputed_notation,
+              adjusted_notation);
+        }
+
+	// black north
+        uint8_t black_adjusted_north = res.mm_adjusted.black[j].north;
+        uint8_t black_recomputed_north = res.mm_recomputed.black[j].north;
+        if (black_adjusted_north != black_recomputed_north) {
+          char dest_notation[] = "   ";
+          as_notation(j, dest_notation);
+          char adjusted_notation[] = "   ";
+          as_notation(black_adjusted_north, adjusted_notation);
+          char recomputed_notation[] = "   ";
+          as_notation(black_recomputed_north, recomputed_notation);
+          fprintf(
+              f,
+              "black -- dest: %s, recomputed: %s, adjusted: %s\n",
+              dest_notation,
+              recomputed_notation,
+              adjusted_notation);
+        }
+
+	// black south
+        uint8_t black_adjusted_south = res.mm_adjusted.black[j].south;
+        uint8_t black_recomputed_south = res.mm_recomputed.black[j].south;
+        if (black_adjusted_south != black_recomputed_south) {
+          char dest_notation[] = "   ";
+          as_notation(j, dest_notation);
+          char adjusted_notation[] = "   ";
+          as_notation(black_adjusted_south, adjusted_notation);
+          char recomputed_notation[] = "   ";
+          as_notation(black_recomputed_south, recomputed_notation);
+          fprintf(
+              f,
+              "black -- dest: %s, recomputed: %s, adjusted: %s\n",
               dest_notation,
               recomputed_notation,
               adjusted_notation);
