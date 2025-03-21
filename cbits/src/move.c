@@ -1993,7 +1993,7 @@ process:
 // -----------------------------------------------------------------------------
 // Move map methods
 
-static const uint8_t rank_mod[121] = {
+const uint8_t rank_mod[121] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,  0,  0,  11, 11, 11, 11,  11,
     11,  11,  11,  11,  11,  11,  22,  22,  22, 22, 22, 22, 22, 22, 22,  22,
     22,  33,  33,  33,  33,  33,  33,  33,  33, 33, 33, 33, 44, 44, 44,  44,
@@ -2125,7 +2125,7 @@ inline void departure_file_correction(const uint8_t pos, move_map allies,
   {
     const uint8_t south_occ =
         allies[pos].south | them1[pos].south | them2[pos].south;
-    const uint8_t southmost = south_occ ? south_occ : file_table[pos];
+    const uint8_t southmost = south_occ ? south_occ : file(pos);
     for (int i = southmost; i < pos; i += 11) {
       allies[i].north = allies[pos].north;
       them1[i].north = them1[pos].north;
@@ -2137,7 +2137,7 @@ inline void departure_file_correction(const uint8_t pos, move_map allies,
   {
     const uint8_t north_occ =
         allies[pos].north | them1[pos].north | them2[pos].north;
-    const uint8_t northmost = north_occ ? north_occ : (rank_mod[pos] + 110);
+    const uint8_t northmost = north_occ ? north_occ : (file(pos) + 110);
     for (int i = northmost; i > pos; i -= 11) {
       allies[i].south = allies[pos].south;
       them1[i].south = them1[pos].south;
@@ -2146,43 +2146,71 @@ inline void departure_file_correction(const uint8_t pos, move_map allies,
   }
 }
 
-void apply_southward_move(const uint8_t src, const uint8_t dest,
+inline void arrival_file_correction(const uint8_t pos, move_map allies,
+                                    move_map them1, move_map them2) {
+  // correct the rank to the south
+  {
+    const uint8_t south_occ =
+        allies[pos].south | them1[pos].south | them2[pos].south;
+    const uint8_t southmost = south_occ ? south_occ : file(pos);
+    for (int i = southmost; i < pos; i += 11) {
+      allies[i].north = pos;
+      them1[i].north = 0;
+      them2[i].north = 0;
+    }
+  }
+
+  // correct the rank to the north
+  {
+    const uint8_t north_occ =
+        allies[pos].north | them1[pos].north | them2[pos].north;
+    const uint8_t northmost = north_occ ? north_occ : (file(pos) + 110);
+    for (int i = northmost; i > pos; i -= 11) {
+      allies[i].south = pos;
+      them1[i].south = 0;
+      them2[i].south = 0;
+    }
+  }
+}
+
+
+void apply_southward_move(const uint8_t orig, const uint8_t dest,
                           move_map allies, move_map them1, move_map them2) {
   // correct file positions north of the src
   const uint8_t north_occ =
-      allies[src].north | them1[src].north | them2[src].north;
-  for (int i = src + 11; i <= (north_occ ? north_occ : 120); i += 11) {
+      allies[orig].north | them1[orig].north | them2[orig].north;
+  for (int i = orig + 11; i <= (north_occ ? north_occ : 120); i += 11) {
     allies[i].south = dest;
   }
 
   // correct file positions south of the destination
   const uint8_t south_occ =
-      allies[src].south | them1[src].south | them2[src].south;
+      allies[orig].south | them1[orig].south | them2[orig].south;
   for (int i = dest - 11; i >= (south_occ ? south_occ : 0); i -= 11) {
     allies[i].north = dest;
   }
 
   // correct file positions between src and dest
-  for (int i = src - 11; i > dest; i -= 11) {
-    allies[i].north = allies[src].north;
+  for (int i = orig - 11; i > dest; i -= 11) {
+    allies[i].north = allies[orig].north;
     allies[i].south = dest;
-    them1[i].north = them1[src].north;
+    them1[i].north = them1[orig].north;
     them1[i].south = 0;
-    them2[i].north = them2[src].north;
+    them2[i].north = them2[orig].north;
     them2[i].south = 0;
   }
 
   // correct dest north
-  allies[dest].north = allies[src].north;
-  them1[dest].north = them1[src].north;
-  them2[dest].north = them2[src].north;
+  allies[dest].north = allies[orig].north;
+  them1[dest].north = them1[orig].north;
+  them2[dest].north = them2[orig].north;
 
   // correct src south
-  allies[src].south = dest;
-  them1[src].south = 0;
-  them2[src].south = 0;
+  allies[orig].south = dest;
+  them1[orig].south = 0;
+  them2[orig].south = 0;
 
-  departure_rank_correction(src, allies, them1, them2);
+  departure_rank_correction(orig, allies, them1, them2);
   arrival_rank_correction(dest, allies, them1, them2);
 }
 
@@ -2226,8 +2254,107 @@ void apply_northward_move(const uint8_t src, const uint8_t dest,
   arrival_rank_correction(dest, allies, them1, them2);
 }
 
-// generate: remember to also generate for occupied squares.
+#define ALL_DIR(_x, _dir) (allies[_x]._dir | them1[_x]._dir | them2[_x]._dir)
+#define FALLBACK(_x, _y) (_x ? _x : _y)
 
+#define DIR_EDGE_north(_pos) (file(_pos) + 110)
+#define DIR_EDGE_south(_pos) (file(_pos))
+#define DIR_EDGE_east(_pos) (rank_mod[_pos])
+#define DIR_EDGE_west(_pos) (rank_mod[_pos] + 10)
+#define DIR_EDGE(_pos, _dir) DIR_EDGE_##_dir(_pos)
+
+/* Given a position index and a direction, return the  */
+#define DIRMOST(_pos, _dir) (FALLBACK(ALL_DIR(_pos, _dir), DIR_EDGE(_pos, _dir)))
+#define NORTHMOST(_pos) DIRMOST(_pos, north)
+#define SOUTHMOST(_pos) DIRMOST(_pos, south)
+#define EASTMOST(_pos) DIRMOST(_pos, east)
+#define WESTMOST(_pos) DIRMOST(_pos, west)
+
+void apply_eastward_move(
+    const uint8_t orig,
+    const uint8_t dest,
+    move_map allies,
+    move_map them1,
+    move_map them2) {
+  // correct rank positions west of the orig
+  const uint8_t westmost = DIRMOST(orig, west);
+  for (int i = westmost; i > orig; i--) {
+    allies[i].east = dest;
+  }
+
+  // correct rank positions east of the dest
+  const uint8_t eastmost = DIRMOST(dest, east);
+  for (int i = eastmost; i < dest; i++) {
+    allies[i].west = dest;
+  }
+
+  // correct rank positions between src and dest
+  for (int i = dest + 1; i < orig; i++) {
+    allies[i].west = allies[orig].west;
+    allies[i].east = dest;
+    them1[i].west = them1[orig].west;
+    them1[i].east = 0;
+    them2[i].west = them2[orig].west;
+    them2[i].east = 0;
+  }
+
+  // correct dest west
+  allies[dest].west = allies[orig].west;
+  them1[dest].west = them1[orig].west;
+  them2[dest].west = them2[orig].west;
+
+  // correct orig east
+  allies[orig].east = dest;
+  them1[orig].east = 0;
+  them2[orig].east = 0;
+
+  departure_file_correction(orig, allies, them1, them2);
+  arrival_file_correction(dest, allies, them1, them2);
+}
+
+
+void apply_westward_move(
+    const uint8_t orig,
+    const uint8_t dest,
+    move_map allies,
+    move_map them1,
+    move_map them2) {
+
+  // correct rank positions west of the dest
+  for (int i = WESTMOST(dest); i > dest; i--) {
+    allies[i].east = dest;
+  }
+
+  // correct rank positions east of the orig
+  for (int i = EASTMOST(orig); i < orig; i++) {
+    allies[i].west = dest;
+  }
+
+  // correct rank positions between src and dest
+  for (int i = orig + 1; i < dest; i++) {
+    allies[i].west = dest;
+    allies[i].east = allies[orig].east;
+    them1[i].west = 0;
+    them1[i].east = them1[orig].east;
+    them2[i].west = 0;
+    them2[i].east = them2[orig].east;
+  }
+
+  // correct dest east
+  allies[dest].east = allies[orig].east;
+  them1[dest].east = them1[orig].east;
+  them2[dest].east = them2[orig].east;
+
+  // correct orig west
+  allies[orig].west = dest;
+  them1[orig].west = 0;
+  them2[orig].west = 0;
+
+  departure_file_correction(orig, allies, them1, them2);
+  arrival_file_correction(dest, allies, them1, them2);
+}
+
+// generate: remember to also generate for occupied squares.
 void gen_moves_from_mm(board b, layer dests, move_map mm, move *ms, board *bs,
                        int *total) {
   *total = 0;

@@ -1543,6 +1543,38 @@ struct mm_move_results gen_southern_moves_white(board b, struct move_maps mm) {
       res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
       len++;
     }
+    if (!check_index(occ, i) && mm.white[i].east) {
+
+      move m = {mm.white[i].east, i};
+      board b2 = make_move(b, m);
+
+      // adjusted mm
+      struct move_maps mm2;
+      memcpy(&mm2, &mm, sizeof(mm2));
+      apply_westward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
+
+      // recomputed mm
+      struct move_maps mm3 = build_mms(b2);
+
+      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
+      len++;
+    }
+    if (!check_index(occ, i) && mm.white[i].west) {
+
+      move m = {mm.white[i].west, i};
+      board b2 = make_move(b, m);
+
+      // adjusted mm
+      struct move_maps mm2;
+      memcpy(&mm2, &mm, sizeof(mm2));
+      apply_eastward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
+
+      // recomputed mm
+      struct move_maps mm3 = build_mms(b2);
+
+      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
+      len++;
+    }
   }
   res.len = len;
   return res;
@@ -1607,6 +1639,25 @@ void print_mm_diff_cb(FILE *f, const void *instance, void *env) {
               adjusted_notation);
         }
 
+	// white east
+        uint8_t white_adjusted_east = res.mm_adjusted.white[j].east;
+        uint8_t white_recomputed_east = res.mm_recomputed.white[j].east;
+        if (white_adjusted_east != white_recomputed_east) {
+          char dest_notation[] = "   ";
+          as_notation(j, dest_notation);
+          char adjusted_notation[] = "   ";
+          as_notation(white_adjusted_east, adjusted_notation);
+          char recomputed_notation[] = "   ";
+          as_notation(white_recomputed_east, recomputed_notation);
+          fprintf(
+              f,
+              "white -- dest: %s, recomputed: %s, adjusted: %s\n",
+              dest_notation,
+              recomputed_notation,
+              adjusted_notation);
+        }
+
+
 	// black north
         uint8_t black_adjusted_north = res.mm_adjusted.black[j].north;
         uint8_t black_recomputed_north = res.mm_recomputed.black[j].north;
@@ -1635,6 +1686,24 @@ void print_mm_diff_cb(FILE *f, const void *instance, void *env) {
           as_notation(black_adjusted_south, adjusted_notation);
           char recomputed_notation[] = "   ";
           as_notation(black_recomputed_south, recomputed_notation);
+          fprintf(
+              f,
+              "black -- dest: %s, recomputed: %s, adjusted: %s\n",
+              dest_notation,
+              recomputed_notation,
+              adjusted_notation);
+        }
+
+	// black east
+        uint8_t black_adjusted_east = res.mm_adjusted.black[j].east;
+        uint8_t black_recomputed_east = res.mm_recomputed.black[j].east;
+        if (black_adjusted_east != black_recomputed_east) {
+          char dest_notation[] = "   ";
+          as_notation(j, dest_notation);
+          char adjusted_notation[] = "   ";
+          as_notation(black_adjusted_east, adjusted_notation);
+          char recomputed_notation[] = "   ";
+          as_notation(black_recomputed_east, recomputed_notation);
           fprintf(
               f,
               "black -- dest: %s, recomputed: %s, adjusted: %s\n",

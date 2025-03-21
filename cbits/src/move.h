@@ -51,6 +51,12 @@ void gen_moves_from_mm(
 
 void apply_southward_move(uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
 
+void apply_northward_move(uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
+
+void apply_eastward_move(uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
+
+void apply_westward_move(uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
+
 void gen_king_mm(board b, layer occ, int orig, move_map mm);
 
 struct move_maps build_mms(board b);
