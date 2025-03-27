@@ -196,3 +196,16 @@ void print_board_move(board b, int orig, int dest, layer captures) {
     overlay_move(output, orig, dest, captures);
     puts(output);
 }
+
+
+struct move_string fmt_move(int orig, int dest) {
+  struct move_string ret;
+  char orig_notation[] = "   ";
+  as_notation(orig, orig_notation);
+  char dest_notation[] = "   ";
+  as_notation(dest, dest_notation);
+  snprintf(ret.buf, sizeof(ret.buf), "%s -> %s", orig_notation, dest_notation);
+  return ret;
+}
+
+void print_move(int orig, int dest) { printf("%s", fmt_move(orig, dest).buf); }

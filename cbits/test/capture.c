@@ -469,5 +469,4 @@ int main() {
   test_capture_n_l();
   test_capture_n_l_king ();
   printf("all tests passed\n"); 
-  print_layer((layer){36046397799139328, 0});
   }

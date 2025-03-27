@@ -10,8 +10,6 @@
 #include "string.h"
 #include "theft.h"
 #include "theft_types.h"
-#include "time.h"
-#include "ubench.h"
 #include "x86intrin.h"
 
 bool board_rotation_correct(board b) {
@@ -111,8 +109,8 @@ board theft_create_board(struct theft *t) {
   layer black_r = rotate_layer_right(black);
 
   layer white = EMPTY_LAYER;
-  // uint64_t white_count = theft_random_choice_between(t, 1, 12);
-  uint64_t white_count = 1;
+  uint64_t white_count = theft_random_choice_between(t, 1, 12);
+  // uint64_t white_count = 1;
   while (white_count) {
     uint64_t index = my_random_choice(t, 120);
     // printf("white index: %ld\n", index);
@@ -179,8 +177,6 @@ static struct theft_type_info board_info = {
 
 static enum theft_trial_res prop_board_printable(struct theft *t, void *arg1) {
   board *input = (board *)arg1;
-  // [compress & uncompress input, compare output & original input]
-  // return THEFT_TRIAL_PASS, FAIL, SKIP, or ERROR
   printf("\n");
   print_board(*input);
   return THEFT_TRIAL_PASS;
@@ -569,14 +565,6 @@ void gen_reference_move_breakdown_black(board b, move_breakdown r) {
     // west
     reference_dir_moves_black(b, occ, i, r, 1, (r[i].west), &(r[i].west_count));
   }
-}
-
-void print_move(move m) {
-  char orig_notation[] = "   ";
-  as_notation(m.orig, orig_notation);
-  char dest_notation[] = "   ";
-  as_notation(m.dest, dest_notation);
-  printf("%s -> %s\n", orig_notation, dest_notation);
 }
 
 // TODO: optimize this.
@@ -1468,386 +1456,7 @@ bool test_mm_moves_white(void) {
 }
 
 // -----------------------------------------------------------------------------
-// mm move results
-
-struct mm_move_result {
-  move m;
-  board b;
-  struct move_maps mm_adjusted;
-  struct move_maps mm_recomputed;
-};
-
-struct mm_move_results {
-  int len;
-  struct mm_move_result moves[96];
-};
-
-bool move_results_equal(struct mm_move_results mm) {
-  for (int i = 0; i < mm.len; i++) {
-    struct mm_move_result res = mm.moves[i];
-    if (memcmp(
-            &res.mm_adjusted, &res.mm_recomputed, sizeof(struct move_maps))) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// -----------------------------------------------------------------------------
-// Southward move
-
-board make_move(board b, move m) {
-      board b2 = b;
-      op_layer_bit(b2.white, m.dest, ^=);
-      op_layer_bit(b2.white_r, rotate_right[m.dest], ^=);
-      op_layer_bit(b2.white, m.orig, ^=);
-      op_layer_bit(b2.white_r, rotate_right[m.orig], ^=);
-      return b2;
-}
-
-struct mm_move_results gen_southern_moves_white(board b, struct move_maps mm) {
-  int len = 0;
-  layer occ = board_occ(b);
-  struct mm_move_results res;
-  memset(&res, 0, sizeof(res));
-  for (int i = 0; i < 121; i++) {
-    if (!check_index(occ, i) && mm.white[i].north) {
-
-      move m = {mm.white[i].north, i};
-      board b2 = make_move(b, m);
-
-      // adjusted mm
-      struct move_maps mm2;
-      memcpy(&mm2, &mm, sizeof(mm2));
-      apply_southward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
-
-      // recomputed mm
-      struct move_maps mm3 = build_mms(b2);
-
-      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
-      len++;
-    }
-    if (!check_index(occ, i) && mm.white[i].south) {
-
-      move m = {mm.white[i].south, i};
-      board b2 = make_move(b, m);
-
-      // adjusted mm
-      struct move_maps mm2;
-      memcpy(&mm2, &mm, sizeof(mm2));
-      apply_northward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
-
-      // recomputed mm
-      struct move_maps mm3 = build_mms(b2);
-
-      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
-      len++;
-    }
-    if (!check_index(occ, i) && mm.white[i].east) {
-
-      move m = {mm.white[i].east, i};
-      board b2 = make_move(b, m);
-
-      // adjusted mm
-      struct move_maps mm2;
-      memcpy(&mm2, &mm, sizeof(mm2));
-      apply_westward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
-
-      // recomputed mm
-      struct move_maps mm3 = build_mms(b2);
-
-      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
-      len++;
-    }
-    if (!check_index(occ, i) && mm.white[i].west) {
-
-      move m = {mm.white[i].west, i};
-      board b2 = make_move(b, m);
-
-      // adjusted mm
-      struct move_maps mm2;
-      memcpy(&mm2, &mm, sizeof(mm2));
-      apply_eastward_move(m.orig, m.dest, mm2.white, mm2.black, mm2.king);
-
-      // recomputed mm
-      struct move_maps mm3 = build_mms(b2);
-
-      res.moves[len] = (struct mm_move_result){m, b2, mm2, mm3};
-      len++;
-    }
-  }
-  res.len = len;
-  return res;
-}
-
-static enum theft_alloc_res
-gen_southern_moves_white_cb(struct theft *t, void *env, void **instance) {
-  board b = theft_create_board(t);
-  struct move_maps mms = build_mms(b);
-
-  struct mm_move_results *output = malloc(sizeof(struct mm_move_results));
-  *output = gen_southern_moves_white(b, mms);
-  *instance = output;
-
-  return THEFT_ALLOC_OK;
-}
-
-void print_mm_diff_cb(FILE *f, const void *instance, void *env) {
-  struct mm_move_results *mm = (struct mm_move_results *)instance;
-  for (int i = 0; i < mm->len; i++) {
-    struct mm_move_result res = mm->moves[i];
-    if (memcmp(
-            &res.mm_adjusted, &res.mm_recomputed, sizeof(struct move_maps))) {
-      print_move(res.m);
-      print_board(res.b);
-      print_board_move(res.b, res.m.orig, res.m.dest, EMPTY_LAYER);
-      printf("unequal at index: %d\n", i);
-      for (int j = 0; j < 121; j++) {
-	// white north
-        uint8_t white_adjusted_north = res.mm_adjusted.white[j].north;
-        uint8_t white_recomputed_north = res.mm_recomputed.white[j].north;
-        if (white_adjusted_north != white_recomputed_north) {
-          char dest_notation[] = "   ";
-          as_notation(j, dest_notation);
-          char adjusted_notation[] = "   ";
-          as_notation(white_adjusted_north, adjusted_notation);
-          char recomputed_notation[] = "   ";
-          as_notation(white_recomputed_north, recomputed_notation);
-          fprintf(
-              f,
-              "white -- dest: %s, recomputed: %s, adjusted: %s\n",
-              dest_notation,
-              recomputed_notation,
-              adjusted_notation);
-        }
-
-	// white south
-        uint8_t white_adjusted_south = res.mm_adjusted.white[j].south;
-        uint8_t white_recomputed_south = res.mm_recomputed.white[j].south;
-        if (white_adjusted_south != white_recomputed_south) {
-          char dest_notation[] = "   ";
-          as_notation(j, dest_notation);
-          char adjusted_notation[] = "   ";
-          as_notation(white_adjusted_south, adjusted_notation);
-          char recomputed_notation[] = "   ";
-          as_notation(white_recomputed_south, recomputed_notation);
-          fprintf(
-              f,
-              "white -- dest: %s, recomputed: %s, adjusted: %s\n",
-              dest_notation,
-              recomputed_notation,
-              adjusted_notation);
-        }
-
-	// white east
-        uint8_t white_adjusted_east = res.mm_adjusted.white[j].east;
-        uint8_t white_recomputed_east = res.mm_recomputed.white[j].east;
-        if (white_adjusted_east != white_recomputed_east) {
-          char dest_notation[] = "   ";
-          as_notation(j, dest_notation);
-          char adjusted_notation[] = "   ";
-          as_notation(white_adjusted_east, adjusted_notation);
-          char recomputed_notation[] = "   ";
-          as_notation(white_recomputed_east, recomputed_notation);
-          fprintf(
-              f,
-              "white -- dest: %s, recomputed: %s, adjusted: %s\n",
-              dest_notation,
-              recomputed_notation,
-              adjusted_notation);
-        }
-
-
-	// black north
-        uint8_t black_adjusted_north = res.mm_adjusted.black[j].north;
-        uint8_t black_recomputed_north = res.mm_recomputed.black[j].north;
-        if (black_adjusted_north != black_recomputed_north) {
-          char dest_notation[] = "   ";
-          as_notation(j, dest_notation);
-          char adjusted_notation[] = "   ";
-          as_notation(black_adjusted_north, adjusted_notation);
-          char recomputed_notation[] = "   ";
-          as_notation(black_recomputed_north, recomputed_notation);
-          fprintf(
-              f,
-              "black -- dest: %s, recomputed: %s, adjusted: %s\n",
-              dest_notation,
-              recomputed_notation,
-              adjusted_notation);
-        }
-
-	// black south
-        uint8_t black_adjusted_south = res.mm_adjusted.black[j].south;
-        uint8_t black_recomputed_south = res.mm_recomputed.black[j].south;
-        if (black_adjusted_south != black_recomputed_south) {
-          char dest_notation[] = "   ";
-          as_notation(j, dest_notation);
-          char adjusted_notation[] = "   ";
-          as_notation(black_adjusted_south, adjusted_notation);
-          char recomputed_notation[] = "   ";
-          as_notation(black_recomputed_south, recomputed_notation);
-          fprintf(
-              f,
-              "black -- dest: %s, recomputed: %s, adjusted: %s\n",
-              dest_notation,
-              recomputed_notation,
-              adjusted_notation);
-        }
-
-	// black east
-        uint8_t black_adjusted_east = res.mm_adjusted.black[j].east;
-        uint8_t black_recomputed_east = res.mm_recomputed.black[j].east;
-        if (black_adjusted_east != black_recomputed_east) {
-          char dest_notation[] = "   ";
-          as_notation(j, dest_notation);
-          char adjusted_notation[] = "   ";
-          as_notation(black_adjusted_east, adjusted_notation);
-          char recomputed_notation[] = "   ";
-          as_notation(black_recomputed_east, recomputed_notation);
-          fprintf(
-              f,
-              "black -- dest: %s, recomputed: %s, adjusted: %s\n",
-              dest_notation,
-              recomputed_notation,
-              adjusted_notation);
-        }
-      }
-    }
-  }
-}
-
-static enum theft_trial_res
-move_results_equal_prop(struct theft *t, void *arg1) {
-  struct mm_move_results *mm = (struct mm_move_results *)arg1;
-
-  if (move_results_equal(*mm)) {
-    return THEFT_TRIAL_PASS;
-  } else {
-    return THEFT_TRIAL_FAIL;
-  }
-}
-
-bool test_southern_moves_white(void) {
-  theft_seed seed = theft_seed_of_time();
-
-  static struct theft_type_info info = {
-      .alloc = gen_southern_moves_white_cb,
-      .free = theft_generic_free_cb,
-      .print = print_mm_diff_cb,
-      .autoshrink_config = {.enable = false},
-  };
-
-  struct theft_run_config config = {
-      .name = __func__,
-      .prop1 = move_results_equal_prop,
-      .type_info = {&info},
-      .seed = seed,
-  };
-
-  enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
-}
-
-// -----------------------------------------------------------------------------
 // Run
-
-const char *sanity_capture_king_string = " .  .  X  .  X  .  .  O  .  .  . "
-                                         " .  X  .  X  .  .  .  .  .  .  . "
-                                         " X  .  .  O  O  X  .  .  X  .  . "
-                                         " .  .  .  .  .  #  X  .  .  X  . "
-                                         " .  X  .  .  .  .  O  .  .  .  X "
-                                         " X  .  .  O  O  .  O  .  .  X  X "
-                                         " X  .  .  .  O  O  O  .  .  .  X "
-                                         " X  .  .  .  .  O  .  .  .  .  X "
-                                         " .  .  .  .  .  .  .  .  O  .  . "
-                                         " .  .  .  .  .  X  .  .  .  .  . "
-                                         " .  .  X  .  X  X  X  X  .  .  . ";
-
-UBENCH_EX(foo, gen) {
-  const board start_board = read_board(sanity_capture_king_string);
-  UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    gen_reference_moves_black(start_board, &total, ms, bs);
-    UBENCH_DO_NOTHING(ms);
-  }
-}
-
-UBENCH_EX(foo, orig) {
-  const board start_board = read_board(sanity_capture_king_string);
-  UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    get_team_moves_black(start_board, &total, ms, bs);
-    UBENCH_DO_NOTHING(ms);
-  }
-}
-
-UBENCH_EX(foo2, gen) {
-  const board start_board = read_board(sanity_capture_king_string);
-  UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    gen_reference_moves_black(start_board, &total, ms, bs);
-    UBENCH_DO_NOTHING(ms);
-  }
-}
-
-UBENCH_EX(foo2, gen2) {
-  const board start_board = read_board(sanity_capture_king_string);
-  UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    gen_reference_moves_black2(start_board, &total, ms, bs);
-    UBENCH_DO_NOTHING(ms);
-  }
-}
-
-UBENCH_EX(foo3, gen3) {
-  const board start_board = read_board(sanity_capture_king_string);
-  UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
-    int total = 0;
-    gen_reference_moves_black3(start_board, &total, ms, bs);
-    UBENCH_DO_NOTHING(ms);
-  }
-}
-
-UBENCH_EX(move, mm_white) {
-  const board b = read_board(sanity_capture_king_string);
-  board bs[235];
-  move ms[235];
-  int total = 0;
-  move_map mm;
-  memset(mm, 0, sizeof(mm));
-  move_map mm2;
-  memset(mm2, 0, sizeof(mm));
-  move_map mm3;
-  memset(mm3, 0, sizeof(mm));
-  build_mm(b.white, board_occ(b), mm);
-  build_mm(b.white, board_occ(b), mm2);
-  build_mm(b.white, board_occ(b), mm3);
-  layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
-  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
-  free._[1] &= 144115188075855871;
-  UBENCH_DO_BENCHMARK() {
-    apply_southward_move(66, 11, mm2, mm2, mm3);
-    gen_king_mm(b, EMPTY_LAYER, 12, mm3);
-    UBENCH_DO_NOTHING(mm2);
-    UBENCH_DO_NOTHING(mm3);
-    gen_moves_from_mm(b, free, mm, ms, bs, &total);
-    UBENCH_DO_NOTHING(ms);
-  }
-}
-
-// needs to be at top level
-UBENCH_STATE();
 
 int main() {
   // Setup
@@ -1863,10 +1472,6 @@ int main() {
   // test_start_board_moves_gen();
 
   // test_mm_moves_white();
-
-  test_southern_moves_white();
-
-  // return ubench_main(0, NULL);
 
   const char *base = " .  .  .  .  .  .  .  .  .  .  . "
                      " .  .  .  .  .  .  .  .  .  .  . "

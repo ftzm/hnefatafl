@@ -28,3 +28,11 @@ void print_row(uint16_t row);
 void overlay_move(char *board, int orig, int dest, layer captures);
 
 void print_board_move(board b, int orig, int dest, layer captures);
+
+struct move_string {
+  char buf[12];
+};
+
+struct move_string fmt_move(int orig, int dest); 
+
+void print_move(int orig, int dest); 

@@ -26,6 +26,7 @@ cabal.project.local~
 result
 result-data
 .direnv
+*.so
 
 *.out*
 **/test_capture
@@ -46,3 +47,5 @@ CPackConfig.cmake
 CPackSourceConfig.cmake
 cmake
 .ccls-cache/
+
+.test_bin
