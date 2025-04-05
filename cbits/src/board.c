@@ -40,3 +40,16 @@ inline layer board_occ_r(board b) {
       b.black_r._[1] | b.white_r._[1] | b.king_r._[1] | corners._[1]};
 }
  
+
+inline layer king_board_occ(board b) {
+  return (layer){
+      b.black._[0] | b.white._[0] | b.king._[0],
+      b.black._[1] | b.white._[1] | b.king._[1]};
+}
+
+inline layer king_board_occ_r(board b) {
+  return (layer){
+      b.black_r._[0] | b.white_r._[0] | b.king_r._[0],
+      b.black_r._[1] | b.white_r._[1] | b.king_r._[1]};
+}
+ 

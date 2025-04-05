@@ -19,3 +19,7 @@ int boards_equal(board a, board b);
 layer board_occ(board b);
 
 layer board_occ_r(board b);
+
+layer king_board_occ(board b);
+
+layer king_board_occ_r(board b);

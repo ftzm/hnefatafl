@@ -3,7 +3,7 @@ OBJDIR = .obj
 SRC = src
 SRCS = $(wildcard $(SRC)/*.c)
 
-CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3
+CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 
 # ------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ TEST_BINS = $(patsubst $(TEST_SRC)/%.c,$(TEST_BIN)/%,$(TEST_SRCS))
 .PRECIOUS: $(TEST_BIN)/%
 $(TEST_BIN)/%: $(TEST_SRC)/%.c $(OBJDIR)/lib.so
 	mkdir -p $(TEST_BIN)
-	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc -I vendor/ubench.h -lm $(TEST_SRC)/$*.c vendor/theft/build/libtheft.a 
+	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h -lm $(TEST_SRC)/$*.c vendor/theft/build/libtheft.a 
 
 test_%: $(TEST_BIN)/%
 	@LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./.test_bin/$*
@@ -77,8 +77,10 @@ bench_%: $(BENCH_BIN)/%
 # ------------------------------------------------------------------------------
 # Bins
 
+.PHONY: gen_constants
 gen_constants: bin/gen_constants.c $(OBJDIR)/lib.so
-	$(CC) $(CFLAGS) -o gen_constants -L$(OBJDIR) -l:lib.so -I src bin/gen_constants.c
+	$(CC) $(CFLAGS) -o gen_constants -L$(OBJDIR) -l:lib.so -I src -lm bin/gen_constants.c
+	LD_LIBRARY_PATH=.obj:$LD_LIBRARY_PATH ./gen_constants
 
 # ------------------------------------------------------------------------------
 # Clean

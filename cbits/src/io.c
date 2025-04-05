@@ -22,6 +22,8 @@ layer read_layer(const char *string, uint8_t symbol) {
       index--; // skip other chars but increment
     }
   }
+
+
   return output;
 }
 

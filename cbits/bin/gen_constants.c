@@ -2,55 +2,325 @@
 #include "layer.h"
 #include "stdio.h"
 
-char *drop_2_west = ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X"
-                    ".  .  X  X  X  X  X  X  X  X  X";
-
-char *drop_2_east = "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  ."
-                    "X  X  X  X  X  X  X  X  X  .  .";
-
-char *edges = "X  X  X  X  X  X  X  X  X  X  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  .  .  .  .  .  .  .  .  .  X"
-              "X  X  X  X  X  X  X  X  X  X  X";
+// -----------------------------------------------------------------------------
+// Setup
 
 void print_layer_info(char *layer_str, char *name_str) {
-  printf("LAYER: %s\n\n", name_str);
   layer l = read_layer(layer_str, 'X');
-  print_layer(l);
-  printf("{%juULL, %juULL}\n\n", l._[0], l._[1]);
-  printf("------------------------------------------------------------\n\n");
+  printf("const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
 };
 
-#define PRINT_LAYER(name) print_layer_info(name, #name)
+void print_layer_direct(layer l, char *name_str) {
+  printf("const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
+};
 
-int main() {
+#define PRINT_LAYER_DIRECT(name) print_layer_direct(name, #name);
+
+// -----------------------------------------------------------------------------
+
+int   main() {
   printf("\n");
-  PRINT_LAYER(drop_2_west);
-  PRINT_LAYER(drop_2_east);
-  PRINT_LAYER(edges);
+  print_layer_info(
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X"
+".  .  X  X  X  X  X  X  X  X  X",
+"drop_2_west");
+  print_layer_info(
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  ."
+"X  X  X  X  X  X  X  X  X  .  .",
+"drop_2_east");
+
+  printf("\n");
+
+  print_layer_info(
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  .  .  .  .  .  .  .  .  .  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"edges");
+
+  printf("\n");
+
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_10");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_9");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_8");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_7");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_6");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_5");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_4");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_3");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_2");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  X  X  X  X  X  X  X  X  X  X",
+"below_1");
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  .",
+"below_0");
+
+  printf("\n");
+
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  X",
+"file_mask_0");
+
+  print_layer_info(
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  ."
+".  .  .  .  .  .  .  .  .  X  .",
+"file_mask_1");
+
+  print_layer_info(
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  ."
+".  X  .  .  .  .  .  .  .  .  .",
+"file_mask_9");
+
+  print_layer_info(
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  .",
+"file_mask_10");
+
+  printf("\n");
+
+  print_layer_info(
+"X  .  .  .  .  .  .  .  .  .  X"
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+".  .  .  .  .  .  .  .  .  .  ."
+"X  .  .  .  .  .  .  .  .  .  X",
+"corners");
+
+  print_layer_info(
+".  X  X  X  X  X  X  X  X  X  ."
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+"X  X  X  X  X  X  X  X  X  X  X"
+".  X  X  X  X  X  X  X  X  X  .",
+"not_corners");
+
+layer above_0 = layer_shiftl(layer_neg(EMPTY_LAYER), 11);
+layer above_1 = layer_shiftl(above_0, 11);
+layer above_2 = layer_shiftl(above_1, 11);
+layer above_3 = layer_shiftl(above_2, 11);
+layer above_4 = layer_shiftl(above_3, 11);
+layer above_5 = layer_shiftl(above_4, 11);
+layer above_6 = layer_shiftl(above_5, 11);
+layer above_7 = layer_shiftl(above_6, 11);
+layer above_8 = layer_shiftl(above_7, 11);
+layer above_9 = layer_shiftl(above_8, 11);
+layer above_10 = layer_shiftl(above_9, 11);
+  
+printf("\n");
+  
+PRINT_LAYER_DIRECT(above_0);
+PRINT_LAYER_DIRECT(above_1);
+PRINT_LAYER_DIRECT(above_2);
+PRINT_LAYER_DIRECT(above_3);
+PRINT_LAYER_DIRECT(above_4);
+PRINT_LAYER_DIRECT(above_5);
+PRINT_LAYER_DIRECT(above_6);
+PRINT_LAYER_DIRECT(above_7);
+PRINT_LAYER_DIRECT(above_8);
+PRINT_LAYER_DIRECT(above_9);
+PRINT_LAYER_DIRECT(above_10);
+ 
   }

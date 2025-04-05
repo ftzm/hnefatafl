@@ -434,8 +434,6 @@ void process_move_{color}{rotation}_{level}(
 for (is_black, is_rotated, level) in product(["black", "white"], ["", "_r"],
 levels): cog.outl(build_func(is_black, is_rotated, level))
 
-
-
 cog.outl()
 
 ]]]*/
@@ -2288,18 +2286,18 @@ inline void departure_file_correction(
 inline void arrival_file_correction(
     const uint8_t pos, move_map allies, move_map them1, move_map them2) {
   // correct the rank to the south
-    for (int i = SOUTHMOST(pos); i < pos; i += 11) {
-      allies[i].north = pos;
-      them1[i].north = 0;
-      them2[i].north = 0;
-    }
+  for (int i = SOUTHMOST(pos); i < pos; i += 11) {
+    allies[i].north = pos;
+    them1[i].north = 0;
+    them2[i].north = 0;
+  }
 
   // correct the rank to the north
-    for (int i = NORTHMOST(pos); i > pos; i -= 11) {
-      allies[i].south = pos;
-      them1[i].south = 0;
-      them2[i].south = 0;
-    }
+  for (int i = NORTHMOST(pos); i > pos; i -= 11) {
+    allies[i].south = pos;
+    them1[i].south = 0;
+    them2[i].south = 0;
+  }
 }
 
 inline void capture_correction(
@@ -2476,74 +2474,6 @@ void apply_westward_move(
   arrival_file_correction(dest, allies, them1, them2);
 }
 
-// generate: remember to also generate for occupied squares.
-void gen_moves_from_mm(
-    board b, layer dests, move_map mm, move *ms, board *bs, int *total) {
-  *total = 0;
-  layer occ = board_occ(b);
-
-  uint64_t remaining = dests._[0];
-  int dest = 0;
-  bool lower = true;
-
-process:
-  while (remaining) {
-    int to_next = _tzcnt_u64(remaining);
-    dest += to_next;
-
-    // type pun the source to a uint32_t and check it, breaking if false
-
-    board departed = b;
-    op_layer_bit(departed.white, dest, |=);
-    op_layer_bit(departed.white_r, rotate_right[dest], |=);
-
-    if (mm[dest].north) {
-      ms[(*total)] = (move){mm[dest].north, dest};
-      board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].north, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].north], -=);
-      bs[(*total)] = b2;
-      (*total)++;
-    }
-
-    if (mm[dest].south) {
-      ms[(*total)] = (move){mm[dest].south, dest};
-      board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].south, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].south], -=);
-      bs[(*total)] = b2;
-      (*total)++;
-    }
-
-    if (mm[dest].east) {
-      ms[(*total)] = (move){mm[dest].east, dest};
-      board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].east, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].east], -=);
-      bs[(*total)] = b2;
-      (*total)++;
-    }
-
-    if (mm[dest].west) {
-      ms[(*total)] = (move){mm[dest].west, dest};
-      board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].west, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].west], -=);
-      bs[(*total)] = b2;
-      (*total)++;
-    }
-
-    remaining -= 1;
-    remaining >>= to_next;
-  }
-  if (lower) {
-    dest = 64;
-    remaining = dests._[1];
-    lower = false;
-    goto process;
-  }
-}
-
 void build_mm(layer movers, const layer occ, move_map mm) {
 
   int dest;
@@ -2563,9 +2493,7 @@ process:
     int remaining_north = 10 - rank;
     while (remaining_north--) {
       dest += 11;
-
       mm[dest].south = orig;
-
       // if this position is occupied we stop here
       if (check_index(occ, dest))
         break;
@@ -2575,9 +2503,7 @@ process:
     dest = orig;
     while (rank--) {
       dest -= 11;
-
       mm[dest].north = orig;
-
       // if this position is occupied we stop here
       if (check_index(occ, dest))
         break;
@@ -2589,9 +2515,7 @@ process:
     int remaining_south = 10 - file;
     while (remaining_south--) {
       dest += 1;
-
       mm[dest].east = orig;
-
       // if this position is occupied we stop here
       if (check_index(occ, dest))
         break;
@@ -2602,9 +2526,7 @@ process:
     // file = file(orig);
     while (file--) {
       dest -= 1;
-
       mm[dest].west = orig;
-
       // if this position is occupied we stop here
       if (check_index(occ, dest))
         break;
@@ -2632,3 +2554,765 @@ struct move_maps build_mms(board b) {
 
   return mms;
 }
+
+void gen_moves_from_mm_white(
+    board b,
+    layer dests,
+    move_map mm,
+    move *ms,
+    dir *ds,
+    board *bs,
+    int *total) {
+  *total = 0;
+  layer occ = board_occ(b);
+
+  uint64_t remaining = dests._[0];
+  int dest = 0;
+  bool lower = true;
+
+process:
+  while (remaining) {
+    int to_next = _tzcnt_u64(remaining);
+    dest += to_next;
+
+    // type pun the source to a uint32_t and check it, breaking if false
+
+    board departed = b;
+    op_layer_bit(departed.white, dest, |=);
+    op_layer_bit(departed.white_r, rotate_right[dest], |=);
+
+    if (mm[dest].north) {
+      ms[(*total)] = (move){mm[dest].north, dest};
+      ds[(*total)] = south;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].north, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].north], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].south) {
+      ms[(*total)] = (move){mm[dest].south, dest};
+      ds[(*total)] = north;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].south, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].south], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].east) {
+      ms[(*total)] = (move){mm[dest].east, dest};
+      ds[(*total)] = west;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].east, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].east], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].west) {
+      ms[(*total)] = (move){mm[dest].west, dest};
+      ds[(*total)] = east;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].west, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].west], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    remaining -= 1;
+    remaining >>= to_next;
+  }
+  if (lower) {
+    dest = 64;
+    remaining = dests._[1];
+    lower = false;
+    goto process;
+  }
+}
+
+void gen_moves_from_mm_white_capture(
+    board b,
+    layer dests,
+    move_map mm,
+    move *ms,
+    dir *ds,
+    board *bs,
+    int *total) {
+  *total = 0;
+  layer occ = board_occ(b);
+
+  uint64_t remaining = dests._[0];
+  int dest = 0;
+  bool lower = true;
+
+process:
+  while (remaining) {
+    int to_next = _tzcnt_u64(remaining);
+    dest += to_next;
+
+    // type pun the source to a uint32_t and check it, breaking if false
+
+    board departed = b;
+    op_layer_bit(departed.white, dest, |=);
+    op_layer_bit(departed.white_r, rotate_right[dest], |=);
+
+    if (mm[dest].north) {
+      ms[(*total)] = (move){mm[dest].north, dest};
+      ds[(*total)] = south;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].north, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].north], -=);
+      apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].south) {
+      ms[(*total)] = (move){mm[dest].south, dest};
+      ds[(*total)] = north;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].south, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].south], -=);
+      apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].east) {
+      ms[(*total)] = (move){mm[dest].east, dest};
+      ds[(*total)] = west;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].east, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].east], -=);
+      apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].west) {
+      ms[(*total)] = (move){mm[dest].west, dest};
+      ds[(*total)] = east;
+      board b2 = departed;
+      op_layer_bit(b2.white, mm[dest].west, -=);
+      op_layer_bit(b2.white_r, rotate_right[mm[dest].west], -=);
+      apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    remaining -= 1;
+    remaining >>= to_next;
+  }
+  if (lower) {
+    dest = 64;
+    remaining = dests._[1];
+    lower = false;
+    goto process;
+  }
+}
+
+void gen_moves_from_mm_black(
+    board b,
+    layer dests,
+    move_map mm,
+    move *ms,
+    dir *ds,
+    board *bs,
+    int *total) {
+  *total = 0;
+  layer occ = board_occ(b);
+
+  uint64_t remaining = dests._[0];
+  int dest = 0;
+  bool lower = true;
+
+process:
+  while (remaining) {
+    int to_next = _tzcnt_u64(remaining);
+    dest += to_next;
+
+    // type pun the source to a uint32_t and check it, breaking if false
+
+    board departed = b;
+    op_layer_bit(departed.black, dest, |=);
+    op_layer_bit(departed.black_r, rotate_right[dest], |=);
+
+    if (mm[dest].north) {
+      ms[(*total)] = (move){mm[dest].north, dest};
+      ds[(*total)] = south;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].north, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].north], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].south) {
+      ms[(*total)] = (move){mm[dest].south, dest};
+      ds[(*total)] = north;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].south, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].south], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].east) {
+      ms[(*total)] = (move){mm[dest].east, dest};
+      ds[(*total)] = west;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].east, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].east], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].west) {
+      ms[(*total)] = (move){mm[dest].west, dest};
+      ds[(*total)] = east;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].west, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].west], -=);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    remaining -= 1;
+    remaining >>= to_next;
+  }
+  if (lower) {
+    dest = 64;
+    remaining = dests._[1];
+    lower = false;
+    goto process;
+  }
+}
+
+void gen_moves_from_mm_black_capture(
+    board b,
+    layer dests,
+    move_map mm,
+    move *ms,
+    dir *ds,
+    board *bs,
+    int *total) {
+  *total = 0;
+  layer occ = board_occ(b);
+
+  uint64_t remaining = dests._[0];
+  int dest = 0;
+  bool lower = true;
+
+process:
+  while (remaining) {
+    int to_next = _tzcnt_u64(remaining);
+    dest += to_next;
+
+    // type pun the source to a uint32_t and check it, breaking if false
+
+    board departed = b;
+    op_layer_bit(departed.black, dest, |=);
+    op_layer_bit(departed.black_r, rotate_right[dest], |=);
+
+    if (mm[dest].north) {
+      ms[(*total)] = (move){mm[dest].north, dest};
+      ds[(*total)] = south;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].north, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].north], -=);
+      apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].south) {
+      ms[(*total)] = (move){mm[dest].south, dest};
+      ds[(*total)] = north;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].south, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].south], -=);
+      apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].east) {
+      ms[(*total)] = (move){mm[dest].east, dest};
+      ds[(*total)] = west;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].east, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].east], -=);
+      apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    if (mm[dest].west) {
+      ms[(*total)] = (move){mm[dest].west, dest};
+      ds[(*total)] = east;
+      board b2 = departed;
+      op_layer_bit(b2.black, mm[dest].west, -=);
+      op_layer_bit(b2.black_r, rotate_right[mm[dest].west], -=);
+      apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      bs[(*total)] = b2;
+      (*total)++;
+    }
+
+    remaining -= 1;
+    remaining >>= to_next;
+  }
+  if (lower) {
+    dest = 64;
+    remaining = dests._[1];
+    lower = false;
+    goto process;
+  }
+}
+
+void gen_moves_from_mm_king(
+    const board b,
+    const int orig,
+    const move_map allies,
+    const move_map them1,
+    const move_map them2,
+    move *ms,
+    dir *ds,
+    board *bs,
+    int *total) {
+  *total = 0;
+
+  // north moves
+  int north_occ = FALLBACK(them1[orig].north | them2[orig].north, 121);
+  for (int dest = orig + 11; dest < north_occ; dest += 11) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = north;
+    (*total)++;
+  }
+
+  // south moves
+  int south_occ = FALLBACK(them1[orig].south | them2[orig].south, -1);
+  for (int dest = orig - 11; dest > south_occ; dest -= 11) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = south;
+    (*total)++;
+  }
+
+  // east moves
+  int east_occ =
+      FALLBACK(them1[orig].east | them2[orig].east, rank_mod[orig] - 1);
+  for (int dest = orig - 1; dest > east_occ; dest--) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = east;
+    (*total)++;
+  }
+
+  // west moves
+  int west_occ =
+      FALLBACK(them1[orig].west | them2[orig].west, rank_mod[orig] + 11);
+  for (int dest = orig + 1; dest < west_occ; dest++) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = west;
+    (*total)++;
+  }
+}
+
+void gen_moves_from_mm_king_capture(
+    const board b,
+    const int orig,
+    const move_map allies,
+    const move_map them1,
+    const move_map them2,
+    move *ms,
+    dir *ds,
+    board *bs,
+    int *total) {
+  *total = 0;
+
+  // north moves
+  int north_occ = FALLBACK(them1[orig].north | them2[orig].north, 121);
+  for (int dest = orig + 11; dest < north_occ; dest += 11) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = north;
+    (*total)++;
+  }
+
+  // south moves
+  int south_occ = FALLBACK(them1[orig].south | them2[orig].south, -1);
+  for (int dest = orig - 11; dest > south_occ; dest -= 11) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = south;
+    (*total)++;
+  }
+
+  // east moves
+  int east_occ =
+      FALLBACK(them1[orig].east | them2[orig].east, rank_mod[orig] - 1);
+  for (int dest = orig - 1; dest > east_occ; dest--) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = east;
+    (*total)++;
+  }
+
+  // west moves
+  int west_occ =
+      FALLBACK(them1[orig].west | them2[orig].west, rank_mod[orig] + 11);
+  for (int dest = orig + 1; dest < west_occ; dest++) {
+    board b2 = b;
+    b2.king = EMPTY_LAYER;
+    b2.king_r = EMPTY_LAYER;
+    op_layer_bit(b2.king, dest, |=);
+    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
+    bs[(*total)] = b2;
+    ms[*total] = (struct move){orig, dest};
+    ds[(*total)] = west;
+    (*total)++;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// king corner access
+
+#define dirty_get_row_0(l) (uint64_t) l._[0]
+#define dirty_get_row_1(l) ((uint64_t)l._[0] >> 11)
+#define dirty_get_row_2(l) ((uint64_t)l._[0] >> 22)
+#define dirty_get_row_3(l) ((uint64_t)l._[0] >> 33)
+#define dirty_get_row_4(l) ((uint64_t)l._[0] >> 44)
+#define dirty_get_row_5(l)                                                     \
+  ((uint64_t)l._[0] >> 55) | ((((uint64_t)l._[1] & 0x3) << 9))
+#define dirty_get_row_6(l) ((uint64_t)l._[1] >> 2)
+#define dirty_get_row_7(l) ((uint64_t)l._[1] >> 13)
+#define dirty_get_row_8(l) ((uint64_t)l._[1] >> 24)
+#define dirty_get_row_9(l) ((uint64_t)l._[1] >> 35)
+#define dirty_get_row_10(l) ((uint64_t)l._[1] >> 46)
+
+#define mask_rightward(x) (((uint16_t)1 << x) - 1)
+#define mask_leftward(x) ((0x7fe << x) & 0x7fe)
+
+const layer below_0 = {0ULL, 0ULL};
+const layer below_1 = {2047ULL, 0ULL};
+const layer below_2 = {4194303ULL, 0ULL};
+const layer below_3 = {8589934591ULL, 0ULL};
+const layer below_4 = {17592186044415ULL, 0ULL};
+const layer below_5 = {36028797018963967ULL, 0ULL};
+const layer below_6 = {18446744073709551615ULL, 3ULL};
+const layer below_7 = {18446744073709551615ULL, 8191ULL};
+const layer below_8 = {18446744073709551615ULL, 16777215ULL};
+const layer below_9 = {18446744073709551615ULL, 34359738367ULL};
+const layer below_10 = {18446744073709551615ULL, 70368744177663ULL};
+
+layer below_n[11] = {
+    below_0,
+    below_1,
+    below_2,
+    below_3,
+    below_4,
+    below_5,
+    below_6,
+    below_7,
+    below_8,
+    below_9,
+    below_10,
+};
+
+const layer above_0 = {18446744073709549568ULL, 18446744073709551615ULL};
+const layer above_1 = {18446744073705357312ULL, 18446744073709551615ULL};
+const layer above_2 = {18446744065119617024ULL, 18446744073709551615ULL};
+const layer above_3 = {18446726481523507200ULL, 18446744073709551615ULL};
+const layer above_4 = {18410715276690587648ULL, 18446744073709551615ULL};
+const layer above_5 = {0ULL, 18446744073709551612ULL};
+const layer above_6 = {0ULL, 18446744073709543424ULL};
+const layer above_7 = {0ULL, 18446744073692774400ULL};
+const layer above_8 = {0ULL, 18446744039349813248ULL};
+const layer above_9 = {0ULL, 18446673704965373952ULL};
+const layer above_10 = {0ULL, 18302628885633695744ULL};
+
+layer above_n[11] = {
+    above_0,
+    above_1,
+    above_2,
+    above_3,
+    above_4,
+    above_5,
+    above_6,
+    above_7,
+    above_8,
+    above_9,
+    above_10,
+};
+
+const layer file_mask_0 = {36046397799139329ULL, 70403120701444ULL};
+const layer file_mask_1 = {72092795598278658ULL, 140806241402888ULL};
+const layer file_mask_9 = {9011599449784832ULL, 36046397799139329ULL};
+const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
+
+const layer not_corners = {18446744073709550590ULL, 71987225293750271ULL};
+
+/**
+ * Check if the king can reach the se corner in 1 move.
+ *
+ * because this is used on white's turn we can skip actually
+ * generating moves, because it's enough to know that the king can
+ * reach the corner. Instead it should be used as a static heuristic.
+ */
+bool corner_moves_1(
+    const layer occ, const layer occ_r, const int rank, const int file) {
+
+  uint16_t row;
+
+  if (rank == 0) {
+    row = dirty_get_row_0(occ);
+    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+      return true;
+    }
+  } else if (rank == 1) {
+    row = dirty_get_row_1(occ);
+    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+      return true;
+    }
+  } else if (rank == 9) {
+    row = dirty_get_row_9(occ);
+    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+      return true;
+    }
+  } else if (rank == 10) {
+    row = dirty_get_row_10(occ);
+    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+      return true;
+    }
+  }
+
+  if (file == 0) {
+    row = dirty_get_row_0(occ_r);
+    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+      return true;
+    }
+  } else if (file == 1) {
+    row = dirty_get_row_1(occ_r);
+    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+      return true;
+    }
+  } else if (file == 9) {
+    row = dirty_get_row_9(occ_r);
+    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+      return true;
+    }
+  } else if (file == 10) {
+    row = dirty_get_row_10(occ_r);
+    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+#define not_rank file
+#define not_file rank
+
+#define APPLY_LEGAL_EDGE_MASK_0 path._[0] &= legal_edge_mask;
+#define APPLY_LEGAL_EDGE_MASK_1
+#define APPLY_LEGAL_EDGE_MASK_9
+#define APPLY_LEGAL_EDGE_MASK_10 path._[1] &= legal_edge_mask;
+#define APPLY_LEGAL_EDGE_MASK(_n) APPLY_LEGAL_EDGE_MASK_##_n
+
+#define OFFSET_ROW_0
+#define OFFSET_ROW_1 path._[0] <<= 11;
+#define OFFSET_ROW_9 path._[1] <<= 35;
+#define OFFSET_ROW_10 path._[1] <<= 35;
+#define OFFSET_ROW()
+
+#define CORNER_PATH_1_LANE_SIDE(_i, _side)                                     \
+  const uint16_t mask_ = mask_##_side##ward(file);                             \
+  if (!(row & mask)) {                                                         \
+    layer path = {(uint64_t)mask, _i};                                         \
+    APPLY_LEGAL_EDGE_MASK(_i);                                                 \
+    OFFSET_ROW(_i);                                                            \
+    LAYER_OR_ASSG(paths, path);                                                \
+  }
+
+#define CORNER_PATH_1_LANE(_i, _orientation)                                   \
+  case _i: {                                                                   \
+    uint16_t row = dirty_get_row_##_i(occ);                                    \
+    CORNER_PATH_1_LANE_SIDE(left);                                             \
+    CORNER_PATH_1_LANE_SIDE(right);                                            \
+  }; break;
+
+/**
+ * Get layer mask for all open 1-move routes to a corner.
+ */
+layer corner_paths_1(
+    const layer occ, const layer occ_r, const int rank, const int file) {
+  layer paths = EMPTY_LAYER;
+
+  const uint16_t legal_edge_mask = 0b01111111110;
+
+  switch (rank) {
+  case 0: {
+    uint16_t row = dirty_get_row_0(occ);
+    const uint16_t mask_left = mask_leftward(file);
+    if (!(row & mask_left)) {
+      // layer path = {(uint64_t)mask_left & legal_edge_mask, 0};
+      layer path = {(uint64_t)mask_left, 0};
+      path._[0] &= legal_edge_mask;
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t mask_right = mask_rightward(file);
+    if (!(row & mask_right)) {
+      layer path = {(uint64_t)mask_right & legal_edge_mask, 0};
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  case 1: {
+    uint16_t row = dirty_get_row_1(occ);
+    uint16_t mask_left = mask_leftward(file);
+    if (!(row & mask_left)) {
+      layer path = {(uint64_t)mask_left, 0};
+      path._[0] <<= 11;
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t mask_right = mask_rightward(file);
+    if (!(row & mask_right)) {
+      layer path = {(uint64_t)mask_right << 11, 0};
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  case 9: {
+    uint16_t row = dirty_get_row_9(occ);
+    uint16_t rank_mask_right = mask_rightward(file);
+    if (!(row & rank_mask_right)) {
+      layer path = {0, (uint64_t)rank_mask_right << 35};
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t rank_mask_left = mask_leftward(file);
+    if (!(row & rank_mask_left)) {
+      layer path = {0, (uint64_t)rank_mask_left << 35};
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  case 10: {
+    uint16_t row = dirty_get_row_10(occ);
+    uint16_t rank_mask_right = mask_rightward(file);
+    if (!(row & rank_mask_right)) {
+      layer path = {0, (uint64_t)(rank_mask_right & legal_edge_mask) << 46};
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t rank_mask_left = mask_leftward(file);
+    if (!(row & rank_mask_left)) {
+      layer path = {0, (uint64_t)(rank_mask_left & legal_edge_mask) << 46};
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  }
+
+  switch (file) {
+  case 0: {
+    uint16_t row = dirty_get_row_0(occ_r);
+    uint16_t mask_left = mask_leftward(rank);
+    if (!(row & mask_left)) {
+      layer path =
+          layer_and(not_corners, layer_and(file_mask_0, below_n[rank]));
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t mask_right = mask_rightward(rank);
+    if (!(row & mask_right)) {
+      layer path =
+          layer_and(not_corners, layer_and(file_mask_0, above_n[rank]));
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  case 1: {
+    uint16_t row = dirty_get_row_1(occ_r);
+    uint16_t mask_left = mask_leftward(rank);
+    if (!(row & mask_left)) {
+      layer path =
+          layer_and(not_corners, layer_and(file_mask_1, below_n[rank]));
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t mask_right = mask_rightward(rank);
+    if (!(row & mask_right)) {
+      layer path =
+          layer_and(not_corners, layer_and(file_mask_1, above_n[rank]));
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  case 9: {
+    uint16_t row = dirty_get_row_9(occ_r);
+    uint16_t rank_mask_right = mask_rightward(rank);
+    if (!(row & rank_mask_right)) {
+      layer path = layer_and(file_mask_9, above_n[rank]);
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t rank_mask_left = mask_leftward(rank);
+    if (!(row & rank_mask_left)) {
+      layer path = layer_and(file_mask_9, below_n[rank]);
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  case 10: {
+    uint16_t row = dirty_get_row_10(occ_r);
+    uint16_t rank_mask_right = mask_rightward(rank);
+    if (!(row & rank_mask_right)) {
+      layer path =
+          layer_and(not_corners, layer_and(file_mask_10, above_n[rank]));
+      LAYER_OR_ASSG(paths, path);
+    }
+    uint16_t rank_mask_left = mask_leftward(rank);
+    if (!(row & rank_mask_left)) {
+      layer path =
+          layer_and(not_corners, layer_and(file_mask_10, below_n[rank]));
+      LAYER_OR_ASSG(paths, path);
+    }
+  }; break;
+  }
+  return paths;
+}
+
+// -----------------------------------------------------------------------------

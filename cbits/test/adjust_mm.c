@@ -62,33 +62,6 @@ board make_move_king(board b, move m) {
   return b2;
 }
 
-
-enum dir {
-  north,
-  south,
-  east,
-  west,
-};
-
-const char *dir_str(enum dir d) {
-  const char *dir_strs[] = {
-      [north] = "north",
-      [south] = "south",
-      [east] = "east",
-      [west] = "west",
-  };
-  return dir_strs[d];
-}
-
-enum dir other_dir(enum dir d) {
-  enum dir others[4];
-  others[north] = south;
-  others[south] = north;
-  others[east] = west;
-  others[west] = east;
-  return others[d];
-}
-
 typedef void (*apply_move_func)(
     const uint8_t, const uint8_t, move_map, move_map, move_map);
 

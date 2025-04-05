@@ -50,12 +50,14 @@ void test_start_board_moves() {
   get_team_moves_black(start_board, &total, ms, bs);
 
   for (int i; i < total; i++) {
+    /*
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
     layer captures = layer_xor(start_board.white, bs[i].white);
     overlay_move(output, ms[i].orig, ms[i].dest, captures);
     puts(output);
+    */
     bool rot_rus = board_rotation_correct(bs[i]);
     if (!rot_rus) {
       exit(1);
@@ -66,12 +68,14 @@ void test_start_board_moves() {
   get_team_moves_white(start_board, &total, ms, bs);
 
   for (int i; i < total; i++) {
+    /*
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
     layer captures = layer_xor(start_board.black, bs[i].black);
     overlay_move(output, ms[i].orig, ms[i].dest, captures);
     puts(output);
+     */
     bool rot_rus = board_rotation_correct(bs[i]);
     if (!rot_rus) {
       exit(1);
@@ -447,23 +451,23 @@ process:
 }
 
 void test_start_board_moves_gen() {
-  printf("in\n");
   const board start_board = read_board(start_board_string);
 
   board bs[235];
   move ms[235];
   int total = 0;
 
-  printf("running\n");
   gen_reference_moves_black2(start_board, &total, ms, bs);
 
   for (int i; i < total; i++) {
+    /*
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
     layer captures = layer_xor(start_board.white, bs[i].white);
     overlay_move(output, ms[i].orig, ms[i].dest, captures);
     puts(output);
+    */
     bool rot_rus = board_rotation_correct(bs[i]);
     if (!rot_rus) {
       exit(1);
@@ -1403,12 +1407,14 @@ create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
   // orig
   board bs[235];
   move ms[235];
+  dir ds[235];
   int total = 0;
   get_team_moves_white(b, &total, ms, bs);
 
   // to test
   board bs2[235];
   move ms2[235];
+  dir ds2[235];
   int total2 = 0;
 
   move_map mm;
@@ -1418,7 +1424,7 @@ create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
   op_layer_bit(throne_mask, 60, |=);
   layer free = layer_neg(layer_or(board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
-  gen_moves_from_mm(b, free, mm, ms2, bs2, &total2);
+  gen_moves_from_mm_white(b, free, mm, ms2, ds2, bs2, &total2);
 
   // compare
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -1456,22 +1462,151 @@ bool test_mm_moves_white(void) {
 }
 
 // -----------------------------------------------------------------------------
+// test mm black
+
+static enum theft_alloc_res
+create_mm_moves_black_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[235];
+  move ms[235];
+  dir ds[235];
+  int total = 0;
+  get_team_moves_black(b, &total, ms, bs);
+
+  // to test
+  board bs2[235];
+  move ms2[235];
+  dir ds2[235];
+  int total2 = 0;
+
+  move_map mm;
+  memset(mm, 0, sizeof(mm));
+  build_mm(b.black, board_occ(b), mm);
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  free._[1] &= 144115188075855871;
+  gen_moves_from_mm_black(b, free, mm, ms2, ds2, bs2, &total2);
+
+  // compare
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+bool test_mm_moves_black(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = create_mm_moves_black_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+// -----------------------------------------------------------------------------
+// test mm black
+
+static enum theft_alloc_res
+create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[235];
+  move ms[235];
+  dir ds[235];
+  int total = 0;
+  get_king_moves(b, &total, ms, bs);
+
+  // to test
+  board bs2[235];
+  move ms2[235];
+  dir ds2[235];
+  int total2 = 0;
+
+  struct move_maps mms = build_mms(b);
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+  layer free = layer_neg(layer_or(king_board_occ(b), throne_mask));
+  free._[1] &= 144115188075855871;
+  uint king_pos = b.king._[0] ? _tzcnt_u64(b.king._[0]) : _tzcnt_u64(b.king._[1]) + 64;
+  gen_moves_from_mm_king(b, king_pos, mms.king, mms.white, mms.black, ms2, ds2, bs2, &total2);
+
+  // compare
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+bool test_mm_moves_king(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = create_mm_moves_king_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+// -----------------------------------------------------------------------------
 // Run
 
 int main() {
   // Setup
   init_move_globals();
 
-  // test_start_board_moves();
+  test_start_board_moves();
   // test_board_printable();
-  // test_get_team_moves_black();
-  // test_get_team_moves_white();
-  // test_get_team_moves_king();
-  // test_reference_moves_black();
+  test_get_team_moves_black();
+  test_get_team_moves_white();
+  test_get_team_moves_king();
+  test_reference_moves_black();
 
-  // test_start_board_moves_gen();
+  test_start_board_moves_gen();
 
-  // test_mm_moves_white();
+  test_mm_moves_white();
+  test_mm_moves_black();
+  test_mm_moves_king();
 
   const char *base = " .  .  .  .  .  .  .  .  .  .  . "
                      " .  .  .  .  .  .  .  .  .  .  . "

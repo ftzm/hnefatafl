@@ -85,6 +85,7 @@ UBENCH_EX(move, mm_white) {
   const board b = read_board(sanity_capture_king_string);
   board bs[235];
   move ms[235];
+  dir ds[235];
   int total = 0;
   move_map mm;
   memset(mm, 0, sizeof(mm));
@@ -93,8 +94,8 @@ UBENCH_EX(move, mm_white) {
   move_map mm3;
   memset(mm3, 0, sizeof(mm));
   build_mm(b.white, board_occ(b), mm);
-  build_mm(b.white, board_occ(b), mm2);
-  build_mm(b.white, board_occ(b), mm3);
+  build_mm(b.black, board_occ(b), mm2);
+  build_mm(b.king, board_occ(b), mm3);
   layer throne_mask = EMPTY_LAYER;
   op_layer_bit(throne_mask, 60, |=);
   layer free = layer_neg(layer_or(board_occ(b), throne_mask));
@@ -103,8 +104,9 @@ UBENCH_EX(move, mm_white) {
     apply_southward_move(66, 11, mm2, mm2, mm3);
     UBENCH_DO_NOTHING(mm2);
     UBENCH_DO_NOTHING(mm3);
-    gen_moves_from_mm(b, free, mm, ms, bs, &total);
+    gen_moves_from_mm_white(b, free, mm, ms, ds, bs, &total);
     UBENCH_DO_NOTHING(ms);
+    UBENCH_DO_NOTHING(ds);
   }
 }
 

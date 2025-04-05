@@ -104,3 +104,8 @@ extern const uint8_t file_table[121];
 #define file(_a) (file_table[_a])
 
 static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
+
+#define LAYER_OR_ASSG(_x, _y) _x._[0] |= _y._[0]; _x._[1] |= _y._[1]
+
+#define lowest_index(layer)                                                    \
+  (layer._[0] ? _tzcnt_u64(layer._[0]) : _tzcnt_u64(layer._[1]) + 64)
