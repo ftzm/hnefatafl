@@ -109,3 +109,6 @@ static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
 
 #define lowest_index(layer)                                                    \
   (layer._[0] ? _tzcnt_u64(layer._[0]) : _tzcnt_u64(layer._[1]) + 64)
+
+#define LOWER_HALF_MASK ((uint64_t) 36028797018963967ULL)
+#define UPPER_HALF_MASK ((uint64_t) 144115188075855868ULL)

@@ -2,8 +2,9 @@ VENDOR = vendor
 OBJDIR = .obj
 SRC = src
 SRCS = $(wildcard $(SRC)/*.c)
+CC = gcc
 
-CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2
+CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 
 # ------------------------------------------------------------------------------
@@ -64,6 +65,8 @@ test: $(TEST_BINS)
 
 BENCH_SRC = bench
 BENCH_BIN = .bench_bin
+BENCH_SRCS = $(wildcard $(BENCH_SRC)/*.c)
+BENCH_BINS = $(patsubst $(BENCH_SRC)/%.c,$(BENCH_BIN)/%,$(BENCH_SRCS))
 
 $(BENCH_BIN)/%: $(BENCH_SRC)/%.c $(OBJDIR)/lib.so
 	mkdir -p $(BENCH_BIN)
@@ -92,8 +95,16 @@ clean:
 	rm -rf $(BENCH_BIN)
 	rm -rf $(DEPDIR)
 
+
+# ------------------------------------------------------------------------------
+# All
+
+all: $(OBJDIR)/lib.so $(TEST_BINS) $(BENCH_BINS)
+
 # ------------------------------------------------------------------------------
 # Bear
 
+.PHONY: bear
 bear:
-	bear -- make test_move
+	make clean
+	bear -- make all

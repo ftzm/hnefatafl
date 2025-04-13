@@ -157,3 +157,15 @@ bool corner_moves_1(
 
 layer corner_paths_1(
     const layer occ, const layer occ_r, const int rank, const int file);
+
+void moves_to(
+    layer targets,
+    layer targets_r,
+    layer movers,
+    layer movers_r,
+    layer occ,
+    layer occ_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total);

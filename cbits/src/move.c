@@ -1,8 +1,10 @@
 #include "move.h"
 #include "board.h"
 #include "capture.h"
+#include "io.h"
 #include "layer.h"
 #include "stdbool.h"
+#include "stdio.h"
 #include "string.h"
 #include "x86intrin.h"
 
@@ -23,8 +25,7 @@ uint16_t center_row_moves_table[2048][11];
  * occupancy of a row.
  * @param occ occupancy of the row, including the bit at `pos`.
  * @param pos the index of the starting position of the moves.
- * @return a uint16_t where the set bits represent positions that can
- * be moved to.
+ * @return a uint16_t wo.
  */
 uint16_t get_row_moves(const uint16_t occ, const uint16_t pos) {
   static const unsigned short lowers[12] = {
@@ -920,20 +921,12 @@ def build(color, rotation, index):
     process_move_name = "process_move_" + color + rotation + "_" + \
     ("upper" if index == "1" else "lower")
     return f"""
-void get_next_row_boards_{color}{rotation}_{index}(
-  board *boards,
-  const uint64_t occ,
-  const board *board,
-  int *total,
-  move *moves,
-  const layer cap_dests,
-  int row_offset
-) {{
-  unsigned short movers =
-   (board->{color}{rotation}._[{index}] >> row_offset) & 0b11111111111;
-  while (movers) {{
-    uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
+static inline __attribute__((always_inline)) void
+get_next_row_boards_{color}{rotation}_{index}( board *boards, const uint64_t
+occ, const board *board, int *total, move *moves, const layer cap_dests, int
+row_offset ) {{ unsigned short movers = (board->{color}{rotation}._[{index}] >>
+row_offset) & 0b11111111111; while (movers) {{ uint8_t orig =
+_tzcnt_u16(movers); const unsigned short blockers =
       ((uint64_t)occ >> row_offset) & 0b11111111111;
       uint64_t row_moves =
         (uint64_t)row_moves_table[blockers][orig] << row_offset;
@@ -987,7 +980,7 @@ for (color, rotation) in product(["black", "white"], ["", "_r"]):
 
 ]]]*/
 
-void get_next_row_boards_black_0(
+static inline __attribute__((always_inline)) void get_next_row_boards_black_0(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -1013,7 +1006,7 @@ void get_next_row_boards_black_0(
   }
 }
 
-void get_next_row_boards_black_1(
+static inline __attribute__((always_inline)) void get_next_row_boards_black_1(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -1039,7 +1032,7 @@ void get_next_row_boards_black_1(
   }
 }
 
-void get_next_row_boards_black_r_0(
+static inline __attribute__((always_inline)) void get_next_row_boards_black_r_0(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -1065,7 +1058,7 @@ void get_next_row_boards_black_r_0(
   }
 }
 
-void get_next_row_boards_black_r_1(
+static inline __attribute__((always_inline)) void get_next_row_boards_black_r_1(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -1091,7 +1084,7 @@ void get_next_row_boards_black_r_1(
   }
 }
 
-void get_next_row_boards_white_0(
+static inline __attribute__((always_inline)) void get_next_row_boards_white_0(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -1117,7 +1110,7 @@ void get_next_row_boards_white_0(
   }
 }
 
-void get_next_row_boards_white_1(
+static inline __attribute__((always_inline)) void get_next_row_boards_white_1(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -1143,7 +1136,7 @@ void get_next_row_boards_white_1(
   }
 }
 
-void get_next_row_boards_white_r_0(
+static inline __attribute__((always_inline)) void get_next_row_boards_white_r_0(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -1169,7 +1162,7 @@ void get_next_row_boards_white_r_0(
   }
 }
 
-void get_next_row_boards_white_r_1(
+static inline __attribute__((always_inline)) void get_next_row_boards_white_r_1(
     board *boards,
     const uint64_t occ,
     const board *board,
@@ -3316,3 +3309,417 @@ layer corner_paths_1(
 }
 
 // -----------------------------------------------------------------------------
+// new move to destination
+
+/* Offset if the index is 1, otherwise do nothing */
+#define OFFSET_0(_)
+#define OFFSET_1(_n) (_n += 64)
+#define OFFSET(_n, _i) OFFSET_##_i(_n)
+
+#define OTHER_right left
+#define OTHER_left right
+#define OTHER(_side) OTHER_##_side
+
+/*
+Pull a left and right bit pair out of the lefts and occ.
+*/
+
+#define EXTRACT(_i, _l)                                                        \
+  uint64_t left_bit = _blsi_u64(lefts);                                        \
+  uint8_t left = _tzcnt_u64(left_bit);                                         \
+  OFFSET(left, _i);                                                            \
+  uint8_t right = 63 - _lzcnt_u64(_blsmsk_u64(left_bit) & _l._[_i]);           \
+  uint64_t right_bit = (uint64_t)1 << right;                                   \
+  OFFSET(right, _i);
+
+#define EXTRACT_CENTER(_l)                                                     \
+  uint16_t left_bit = lefts & -lefts;                                          \
+  uint8_t left = _tzcnt_u16(left_bit);                                         \
+  left += 55;                                                                  \
+  uint8_t right = 15 - __lzcnt16((left_bit - 1) & _l);                         \
+  right += 55;
+
+/*
+Save the move and layers, increment the loop.
+
+because we're generating diff layers that are applied with xor we
+don't actually need to distinguish between the orig and dest in the
+layers, only in the move.
+*/
+
+#define BOOKKEEP(_i, _side)                                                    \
+  ms[(*total)] = (move){_side, OTHER(_side)};                                  \
+  ls[(*total)]._[_i] |= left_bit;                                              \
+  ls[(*total)]._[_i] |= right_bit;                                             \
+  op_layer_bit(ls_r[(*total)], rotate_right[left], |=);                        \
+  op_layer_bit(ls_r[(*total)], rotate_right[right], |=);                       \
+  lefts -= left_bit;                                                           \
+  (*total)++
+
+#define BOOKKEEP_R(_i, _side)                                                  \
+  left = rotate_left[left];                                                    \
+  right = rotate_left[right];                                                  \
+  ms[(*total)] = (move){_side, OTHER(_side)};                                  \
+  ls_r[(*total)]._[_i] |= left_bit;                                            \
+  ls_r[(*total)]._[_i] |= right_bit;                                           \
+  op_layer_bit(ls[(*total)], left, |=);                                        \
+  op_layer_bit(ls[(*total)], right, |=);                                       \
+  lefts -= left_bit;                                                           \
+  (*total)++
+
+#define BOOKKEEP_CENTER(_side)                                                 \
+  ms[(*total)] = (move){_side, OTHER(_side)};                                  \
+  op_layer_bit(ls[(*total)], left, |=);                                        \
+  op_layer_bit(ls[(*total)], right, |=);                                       \
+  op_layer_bit(ls_r[(*total)], rotate_right[left], |=);                        \
+  op_layer_bit(ls_r[(*total)], rotate_right[right], |=);                       \
+  lefts -= left_bit;                                                           \
+  (*total)++
+
+#define BOOKKEEP_CENTER_R(_side)                                               \
+  op_layer_bit(ls_r[(*total)], left, |=);                                      \
+  op_layer_bit(ls_r[(*total)], right, |=);                                     \
+  left = rotate_left[left];                                                    \
+  right = rotate_left[right];                                                  \
+  ms[(*total)] = (move){_side, OTHER(_side)};                                  \
+  op_layer_bit(ls[(*total)], left, |=);                                        \
+  op_layer_bit(ls[(*total)], right, |=);                                       \
+  lefts -= left_bit;                                                           \
+  (*total)++
+
+#define BIT_AT(_i) (uint64_t)1 << _i;
+
+void moves_to(
+    layer targets,
+    layer targets_r,
+    layer movers,
+    layer movers_r,
+    layer occ,
+    layer occ_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total) {
+
+  uint16_t center_occ = get_center_row(occ);
+  uint16_t center_occ_r = get_center_row(occ_r);
+  uint16_t center_movers = get_center_row(movers);
+  uint16_t center_movers_r = get_center_row(movers_r);
+  layer leftward_occ = layer_or(occ, file_mask_0);
+  layer leftward_occ_r = layer_or(occ_r, file_mask_0);
+  layer rightward_occ = layer_or(occ, file_mask_10);
+  layer rightward_occ_r = layer_or(occ_r, file_mask_10);
+  // I thought these might be necessary but maybe not...
+  // rightward_occ._[1] |= 2;
+  // rightward_occ_r._[1] |= 2;
+  movers._[0] &= LOWER_HALF_MASK;
+  movers._[1] &= UPPER_HALF_MASK;
+  movers_r._[0] &= LOWER_HALF_MASK;
+  movers_r._[1] &= UPPER_HALF_MASK;
+
+  // lower westward
+  {
+    uint64_t lefts = targets._[0] & (leftward_occ._[0] - (movers._[0] << 1) &
+                                     18410697675910412286ULL);
+    while (lefts) {
+      EXTRACT(0, leftward_occ);
+      BOOKKEEP(0, right);
+    }
+  }
+
+  // upper westward
+  {
+    uint64_t lefts = targets._[1] & (leftward_occ._[1] - (movers._[1] << 1) &
+                                     144044784955154427ULL);
+    while (lefts) {
+      EXTRACT(1, leftward_occ);
+      BOOKKEEP(1, right);
+    }
+  }
+
+  // center westward
+  {
+    uint16_t lefts =
+        get_center_row(targets) & (center_occ - (center_movers << 1));
+    while (lefts) {
+      EXTRACT_CENTER(center_occ);
+      BOOKKEEP_CENTER(right);
+    }
+  }
+
+  // lower eastward
+  {
+    uint64_t origs = movers._[0] & ~(rightward_occ._[0] - targets._[0]);
+    while (origs) {
+      // orig
+      uint64_t orig_bit = _blsi_u64(origs);
+      uint8_t orig = _tzcnt_u64(orig_bit);
+      origs -= orig_bit;
+
+      // dests
+      uint64_t below = orig_bit - 1;
+      uint64_t above_highest_occ_mask =
+          ~((uint64_t)-1 >> _lzcnt_u64(rightward_occ._[0] & below));
+      uint64_t dests = targets._[0] & below & above_highest_occ_mask;
+      while (dests) {
+        uint8_t dest = _tzcnt_u64(dests);
+        uint64_t dest_bit = (uint64_t)1 << dest;
+
+        ms[(*total)] = (move){orig, dest};
+        ls[(*total)]._[0] |= orig_bit;
+        ls[(*total)]._[0] |= dest_bit;
+        op_layer_bit(ls_r[(*total)], rotate_right[orig], |=);
+        op_layer_bit(ls_r[(*total)], rotate_right[dest], |=);
+
+        dests -= dest_bit;
+        (*total)++;
+      }
+    }
+    // exit(1);
+  }
+
+  // upper eastward
+  {
+    uint64_t origs = movers._[1] & ~(rightward_occ._[1] - targets._[1]);
+    while (origs) {
+      // orig
+      uint64_t orig_bit = _blsi_u64(origs);
+      uint8_t orig = _tzcnt_u64(orig_bit);
+      origs -= orig_bit;
+      orig += 64;
+
+      // dests
+      uint64_t below = orig_bit - 1;
+      uint64_t above_highest_occ_mask =
+          ~((uint64_t)-1 >> _lzcnt_u64(rightward_occ._[1] & below));
+      uint64_t dests = targets._[1] & below & above_highest_occ_mask;
+      while (dests) {
+        uint8_t dest = _tzcnt_u64(dests);
+        uint64_t dest_bit = (uint64_t)1 << dest;
+        dest += 64;
+
+        ms[(*total)] = (move){orig, dest};
+        ls[(*total)]._[1] |= orig_bit;
+        ls[(*total)]._[1] |= dest_bit;
+        op_layer_bit(ls_r[(*total)], rotate_right[orig], |=);
+        op_layer_bit(ls_r[(*total)], rotate_right[dest], |=);
+
+        dests -= dest_bit;
+        (*total)++;
+      }
+    }
+  }
+
+  // center eastward
+  {
+    uint16_t origs = center_movers & ~(center_occ - (get_center_row(targets)));
+
+    while (origs) {
+      // orig
+      uint16_t orig_bit = origs & -origs;
+      uint8_t orig = _tzcnt_u16(orig_bit);
+      origs -= orig_bit;
+      orig += 55;
+
+      // dests
+      uint16_t below = orig_bit - 1;
+      uint16_t above_highest_occ_mask =
+          (center_occ & below)
+              ? ((uint16_t)-1 << (16 - __lzcnt16(center_occ & below)))
+              : (uint16_t)-1;
+      uint16_t dests = get_center_row(targets) & below & above_highest_occ_mask;
+      while (dests) {
+        uint8_t dest = _tzcnt_u16(dests);
+        uint16_t dest_bit = (uint16_t)1 << dest;
+        dest += 55;
+
+        ms[(*total)] = (move){orig, dest};
+        op_layer_bit(ls[(*total)], orig, |=);
+        op_layer_bit(ls[(*total)], dest, |=);
+        op_layer_bit(ls_r[(*total)], rotate_right[orig], |=);
+        op_layer_bit(ls_r[(*total)], rotate_right[dest], |=);
+
+        dests -= dest_bit;
+        (*total)++;
+      }
+    }
+  }
+
+  // lower southward
+  {
+    uint64_t lefts = targets_r._[0] &
+                     (leftward_occ_r._[0] - (movers_r._[0] << 1)) &
+                     18410697675910412286ULL;
+    while (lefts) {
+      EXTRACT(0, leftward_occ_r);
+      BOOKKEEP_R(0, right);
+    }
+  }
+  // upper southward
+  {
+    uint64_t lefts = targets_r._[1] &
+                     (leftward_occ_r._[1] - (movers_r._[1] << 1)) &
+                     144044784955154427ULL;
+    while (lefts) {
+      EXTRACT(1, leftward_occ_r);
+      BOOKKEEP_R(1, right);
+    }
+  }
+  // center southward
+  {
+    uint16_t lefts =
+        get_center_row(targets_r) & (center_occ_r - (center_movers_r << 1));
+    while (lefts) {
+      EXTRACT_CENTER(center_occ_r);
+      BOOKKEEP_CENTER_R(right);
+    }
+  }
+
+  // lower northward
+  {
+    uint64_t origs = movers_r._[0] & ~(rightward_occ_r._[0] - targets_r._[0]);
+    while (origs) {
+
+      // orig
+      uint64_t orig_bit = _blsi_u64(origs);
+      uint8_t orig = _tzcnt_u64(orig_bit);
+      uint8_t orig_unrotated = rotate_left[orig];
+      origs -= orig_bit;
+
+      // dests
+      uint64_t below = orig_bit - 1;
+      uint64_t above_highest_occ_mask =
+          ~((uint64_t)-1 >> _lzcnt_u64(rightward_occ_r._[0] & below));
+      uint64_t dests = targets_r._[0] & below & above_highest_occ_mask;
+      while (dests) {
+        uint8_t dest = _tzcnt_u64(dests);
+        uint64_t dest_bit = (uint64_t)1 << dest;
+
+        op_layer_bit(ls_r[(*total)], orig, |=);
+        op_layer_bit(ls_r[(*total)], dest, |=);
+        ms[(*total)] = (move){orig_unrotated, rotate_left[dest]};
+        op_layer_bit(ls[(*total)], orig_unrotated, |=);
+        op_layer_bit(ls[(*total)], rotate_left[dest], |=);
+
+        dests -= dest_bit;
+        (*total)++;
+      }
+    }
+  }
+
+  // upper northward
+  {
+    uint64_t origs = movers_r._[1] & ~(rightward_occ_r._[1] - targets_r._[1]);
+    while (origs) {
+
+      // orig
+      uint64_t orig_bit = _blsi_u64(origs);
+      uint8_t orig = _tzcnt_u64(orig_bit);
+      orig += 64;
+      uint8_t orig_unrotated = rotate_left[orig];
+      origs -= orig_bit;
+
+      // dests
+      uint64_t below = orig_bit - 1;
+      uint64_t above_highest_occ_mask =
+          ~((uint64_t)-1 >> _lzcnt_u64(rightward_occ_r._[1] & below));
+      uint64_t dests = targets_r._[1] & below & above_highest_occ_mask;
+      while (dests) {
+        uint8_t dest = _tzcnt_u64(dests);
+        uint64_t dest_bit = (uint64_t)1 << dest;
+        dest += 64;
+
+        op_layer_bit(ls_r[(*total)], orig, |=);
+        op_layer_bit(ls_r[(*total)], dest, |=);
+        ms[(*total)] = (move){orig_unrotated, rotate_left[dest]};
+        op_layer_bit(ls[(*total)], orig_unrotated, |=);
+        op_layer_bit(ls[(*total)], rotate_left[dest], |=);
+
+        dests -= dest_bit;
+        (*total)++;
+      }
+    }
+  }
+
+  // center northward
+  {
+    uint16_t origs =
+        center_movers_r & ~(center_occ_r - (get_center_row(targets_r)));
+    while (origs) {
+
+      // orig
+      uint16_t orig_bit = origs & -origs;
+      uint8_t orig = _tzcnt_u16(orig_bit);
+      origs -= orig_bit;
+      orig += 55;
+      uint8_t orig_unrotated = rotate_left[orig];
+
+      // dests
+      uint16_t below = orig_bit - 1;
+      uint16_t above_highest_occ_mask =
+          (center_occ_r & below)
+              ? ((uint16_t)-1 << (16 - __lzcnt16(center_occ_r & below)))
+              : (uint16_t)-1;
+      // uint16_t above_highest_occ_mask = (uint16_t)-1;
+
+      uint16_t dests =
+          get_center_row(targets_r) & below & above_highest_occ_mask;
+      while (dests) {
+        uint8_t dest = _tzcnt_u16(dests);
+        uint16_t dest_bit = (uint16_t)1 << dest;
+        dest += 55;
+
+        ms[(*total)] = (move){orig_unrotated, rotate_left[dest]};
+        op_layer_bit(ls[(*total)], orig_unrotated, |=);
+        op_layer_bit(ls[(*total)], rotate_left[dest], |=);
+        op_layer_bit(ls_r[(*total)], orig, |=);
+        op_layer_bit(ls_r[(*total)], dest, |=);
+
+        dests -= dest_bit;
+        (*total)++;
+      }
+    }
+  }
+}
+
+/*
+new plan for rightward moves:
+
+I can still do this king of thing:
+    uint64_t lefts = movers_r._[1] & ~(occ_r._[1] - targets_r._[1]);
+to isolate movers that can actually reach targets. But I do need another
+approach to extract moves.
+
+The current approach is just broken because I zero the mover bit after
+extracting just the closest target, which obviously isn't correct. Instead I
+need a way to re-use the mover bit.
+
+- I can't just start iterating up targets, because I don't have a way to isolate
+only targets I can arrive at, I have to iterate over the movers and find a way
+to locate targets relative to that. One idea:
+1. find lowest mover bit
+2. mask below that
+3. apply mask to occ
+4. find highest occ bit
+5. mask above that
+6. combine that with the mask below the mover to isolate the moving bits.
+
+this feels like kind of a lot though. Given 2 or three targets on a u64
+kogge-stone might actually be faster.
+
+with kogge stone we can can limit generation to movers that can reach targets.
+This means we won't need to exclude any target bits during extraction,
+simplifying things. That leaves two options for extraction:
+
+1. extract destinations bottom up, creating a mask below each bit, inverting
+that, applying that mask to movers, and doing a tzcnt.
+
+2. extract movers bottom up, creating a mask below each. for each mask, and it
+with destinations, and extract those bottom up, reusing the value for the
+
+
+One possibility would be to do a popcnt of the movers in play and select an
+implementation based on that :man thinking:
+
+
+*/

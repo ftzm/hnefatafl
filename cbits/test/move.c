@@ -11,6 +11,19 @@
 #include "theft.h"
 #include "theft_types.h"
 #include "x86intrin.h"
+#include <stdint.h>
+
+uint64_t eastOccl(uint64_t gen, uint64_t pro) {
+   // pro &= 18428720874809981951ULL;
+   gen |= pro & (gen >> 1);
+   pro &=       (pro >> 1);
+   gen |= pro & (gen >> 2);
+   pro &=       (pro >> 2);
+   gen |= pro & (gen >> 4);
+   pro &=       (pro >> 4);
+   gen |= pro & (gen >> 8);
+   return gen;
+}
 
 bool board_rotation_correct(board b) {
   bool res = true;
@@ -1469,16 +1482,16 @@ create_mm_moves_black_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // orig
-  board bs[235];
-  move ms[235];
-  dir ds[235];
+  board bs[735];
+  move ms[735];
+  dir ds[735];
   int total = 0;
   get_team_moves_black(b, &total, ms, bs);
 
   // to test
-  board bs2[235];
-  move ms2[235];
-  dir ds2[235];
+  board bs2[735];
+  move ms2[735];
+  dir ds2[735];
   int total2 = 0;
 
   move_map mm;
@@ -1550,8 +1563,10 @@ create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
   op_layer_bit(throne_mask, 60, |=);
   layer free = layer_neg(layer_or(king_board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
-  uint king_pos = b.king._[0] ? _tzcnt_u64(b.king._[0]) : _tzcnt_u64(b.king._[1]) + 64;
-  gen_moves_from_mm_king(b, king_pos, mms.king, mms.white, mms.black, ms2, ds2, bs2, &total2);
+  uint king_pos =
+      b.king._[0] ? _tzcnt_u64(b.king._[0]) : _tzcnt_u64(b.king._[1]) + 64;
+  gen_moves_from_mm_king(
+      b, king_pos, mms.king, mms.white, mms.black, ms2, ds2, bs2, &total2);
 
   // compare
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -1589,6 +1604,77 @@ bool test_mm_moves_king(void) {
 }
 
 // -----------------------------------------------------------------------------
+// test moves_to white
+
+typedef int (*ConstCompareListElements)(const void *, const void *);
+
+static enum theft_alloc_res
+moves_to_black_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+
+  // orig
+  board bs[335];
+  move ms[335];
+  int total = 0;
+  get_team_moves_black(b, &total, ms, bs);
+
+  // to test
+  layer ls[235];
+  layer ls_r[335];
+  board bs2[335];
+  move ms2[335];
+  int total2 = 0;
+  moves_to(
+      layer_and(layer_neg(board_occ(b)), layer_neg(throne_mask)),
+      layer_and(layer_neg(board_occ_r(b)), layer_neg(throne_mask)),
+      b.black,
+      b.black_r,
+      board_occ(b),
+      board_occ_r(b),
+      ms2,
+      ls,
+      ls_r,
+      &total2);
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+bool test_moves_to_black(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = moves_to_black_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+// -----------------------------------------------------------------------------
 // Run
 
 int main() {
@@ -1608,6 +1694,40 @@ int main() {
   test_mm_moves_black();
   test_mm_moves_king();
 
+  test_moves_to_black();
+
+  const char *blockers_s = " X  .  .  .  .  .  .  .  .  .  . "
+                           " X  X  .  .  .  .  .  .  .  .  . "
+                           " X  .  X  .  .  .  .  .  .  .  . "
+                           " X  .  .  X  .  .  .  .  .  .  . "
+                           " X  .  .  .  X  .  .  .  .  .  . "
+                           " X  .  .  .  .  X  .  .  .  .  . "
+                           " X  .  .  .  .  .  X  .  .  .  . "
+                           " X  .  .  .  .  .  .  X  .  .  . "
+                           " X  .  .  .  .  .  .  .  X  .  . "
+                           " X  .  .  .  .  .  .  .  .  X  . "
+                           " X  .  .  .  .  .  .  .  .  .  X ";
+
+  const char *movers_s = " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . "
+                         " X  .  .  .  .  .  .  .  .  .  . ";
+
+  layer movers = read_layer(movers_s, 'X');
+  layer blockers = layer_neg(read_layer(blockers_s, 'X'));
+  print_layer(movers);
+  print_layer(blockers);
+  layer res = (layer){eastOccl(movers._[0], blockers._[0]), 0};
+  print_layer(res);
+
+  /*
   const char *base = " .  .  .  .  .  .  .  .  .  .  . "
                      " .  .  .  .  .  .  .  .  .  .  . "
                      " .  .  .  .  .  .  .  .  .  .  . "
@@ -1619,33 +1739,312 @@ int main() {
                      " .  .  .  .  .  .  .  .  .  .  . "
                      " .  .  .  .  .  .  .  .  .  .  . "
                      " .  .  .  .  .  .  .  .  .  .  . ";
-  const char *sone = " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  X  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  X  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  X ";
-  const char *stwo = " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  X  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  X  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  X  .  .  X  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  X "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . ";
-  // const layer one = read_layer(sone, 'X');
-  // const layer two = read_layer(stwo, 'X');
+  {
+    const char *targets_s = " .  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  X  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  X  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  X  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . ";
+    const char *barrier_s = " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  .  .  X ";
+    const char *movers_s = " .  .  .  .  .  .  .  .  .  X  . "
+                           " .  .  .  .  X  .  .  .  .  .  . "
+                           " .  .  .  .  .  X  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  X  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  X  .  .  X  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  X "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . ";
+    const char *occ_s = " .  .  .  .  .  .  .  .  .  X  . "
+                        " .  .  .  .  X  .  .  .  .  .  . "
+                        " .  .  .  .  .  X  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  X  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  X  .  .  X  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  X  .  .  .  X "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . ";
+    layer targets = read_layer(targets_s, 'X');
+    layer barrier = read_layer(barrier_s, 'X');
+    layer movers = read_layer(movers_s, 'X');
+    layer occ = read_layer(occ_s, 'X');
 
-  // const layer res = {one._[0] - two._[0], one._[1] - two._[1]};
-  // print_layer(res);
+    // east movers:
+    const layer protected_occ = layer_or(occ, barrier);
+    layer res = protected_occ;
+    print_layer(res);
+    res._[0] -= (movers._[0] << 1);
+    res._[1] -= (movers._[1] << 1);
+    print_layer(res);
+    layer dests = layer_and(res, targets);
+    printf("dests\n");
+    print_layer(dests);
+    // to extract, process top down, using lzcnt
+
+    while (dests._[1]) {
+      // printf("-----------------------------------------------\n");
+
+      uint64_t dest_bit = _blsi_u64(dests._[1]);
+      uint8_t dest = 64 + _tzcnt_u64(dest_bit);
+
+      uint8_t orig = 63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & occ._[1]);
+      uint64_t orig_bit = (uint64_t)1 << orig;
+      orig += 64;
+
+      // printf("dest: %d\n", dest);
+      // printf("orig: %d\n", orig);
+
+      move m = (move){orig, dest};
+      layer b = EMPTY_LAYER;
+      b._[1] |= orig_bit;
+      b._[1] |= dest_bit;
+      // print_layer(b);
+
+      // inc
+      dests._[1] -= dest_bit;
+    }
+  }
+
+  // west movers:
+  {
+    const char *base = " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . "
+                       " .  .  .  .  .  .  .  .  .  .  . ";
+
+    const char *barrier_s = " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . "
+                            " X  .  .  .  .  .  .  .  .  .  . ";
+
+    const char *targets_s = " .  .  .  .  .  .  .  X  .  .  . "
+                            " .  .  .  .  .  .  .  .  X  .  . "
+                            " .  .  .  .  .  .  .  .  .  X  . "
+                            " .  .  .  .  .  .  .  X  .  .  . "
+                            " .  .  .  .  .  .  X  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . ";
+
+    const char *movers_s = " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  X  .  .  .  .  X "
+                           " .  .  X  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  X  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . ";
+
+    const char *occ_s = " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  X  .  .  .  .  X "
+                        " .  .  X  .  .  X  .  .  .  .  . "
+                        " .  .  .  .  .  X  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . ";
+
+    layer targets = read_layer(targets_s, 'X');
+    layer barrier = read_layer(barrier_s, 'X');
+    layer movers = read_layer(movers_s, 'X');
+    layer occ = read_layer(occ_s, 'X');
+
+    const layer protected_occ = layer_or(occ, barrier);
+    layer res = protected_occ;
+    print_layer(res);
+
+    res._[1] -= targets._[1];
+    print_layer(res);
+
+    res._[1] = ~res._[1];
+    print_layer(res);
+
+    layer origs = layer_and(res, movers);
+    print_layer(origs);
+
+    while (origs._[1]) {
+      // printf("-----------------------------------------------\n");
+
+      uint64_t orig_bit = _blsi_u64(origs._[1]);
+      uint8_t orig = 64 + _tzcnt_u64(orig_bit);
+
+      uint8_t dest = 63 - _lzcnt_u64(_blsmsk_u64(orig_bit) & targets._[1]);
+      uint64_t dest_bit = (uint64_t)1 << dest;
+      dest += 64;
+
+      move m = (move){orig, dest};
+      layer b = EMPTY_LAYER;
+      b._[1] |= orig_bit;
+      b._[1] |= dest_bit;
+
+      // inc
+      origs._[1] -= orig_bit;
+    }
+  }
+  */
+
+  /*
+  {
+    const char *targets_s = " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  .  .  .  .  .  . "
+                            " .  .  .  .  .  X  .  .  .  .  . "
+                            " .  .  .  .  .  X  .  .  .  .  . "
+                            " .  .  .  .  .  X  .  .  .  .  . "
+                            " .  .  .  .  .  X  .  .  .  .  . "
+                            " .  .  .  .  .  X  .  .  .  .  . ";
+    const char *occ_s = " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  .  .  . "
+                        " .  X  .  .  .  .  .  .  X  X  . "
+                        " .  X  X  .  .  .  .  .  .  X  . "
+                        " .  .  X  .  .  .  .  .  .  .  . "
+                        " .  .  .  .  .  .  .  .  X  .  . "
+                        " .  .  X  .  .  .  .  .  X  .  . ";
+    const char *movers_s = " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  .  .  . "
+                           " .  X  .  .  .  .  .  .  .  X  . "
+                           " .  X  .  .  .  .  .  .  .  X  . "
+                           " .  .  X  .  .  .  .  .  .  .  . "
+                           " .  .  .  .  .  .  .  .  X  .  . "
+                           " .  .  X  .  .  .  .  .  X  .  . ";
+    layer targets = read_layer(targets_s, 'X');
+    layer occ = read_layer(occ_s, 'X');
+    layer movers = read_layer(movers_s, 'X');
+
+    while (targets._[0]) {
+      uint64_t cur = _blsi_u64(targets._[0]);
+      //print_layer((layer){cur, 0});
+
+      // below
+      uint64_t mask = _blsmsk_u64(cur);
+      //print_layer((layer){mask, 0});
+      uint64_t highest_i = 63-_lzcnt_u64(mask & occ._[0]);
+      //printf("%d\n", highest_i);
+      if (highest_i) {
+        uint64_t highest = 1 << highest_i;
+        if (highest & movers._[0]) {
+          //printf("hit\n");
+          // add move and board
+
+        }
+      }
+
+      // above
+
+
+      // inc
+      targets._[0] = _blsr_u64(targets._[0]);
+    }
+  }
+*/
+
+  // const layer res2 = {one._[0] - two._[0], one._[1] - two._[1]};
+
+  /*
+  const char *test_board_s = " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  .  .  .  X  .  .  .  .  . "
+                             " .  .  .  .  .  X  .  .  .  .  . "
+                             " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  X  X  .  X  .  X  X  .  . "
+                             " .  .  .  .  .  X  .  .  .  .  . "
+                             " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  .  .  .  X  .  .  .  .  . "
+                             " .  .  .  .  .  X  .  .  .  .  . ";
+  const char *test_targets_s = " .  .  .  .  .  .  .  .  .  .  . "
+                               " .  .  .  .  .  .  .  .  X  .  . "
+                               " .  .  X  .  .  .  .  .  .  .  . "
+                               " .  .  .  .  .  X  .  .  .  .  . "
+                               " .  .  .  .  .  .  .  .  .  .  . "
+                               " .  .  X  .  .  .  .  .  X  .  . "
+                               " .  .  .  .  .  .  .  .  .  .  . "
+                               " .  .  .  .  .  .  .  .  .  .  . "
+                               " .  .  .  X  .  X  .  X  .  .  . "
+                               " .  .  .  .  .  .  .  .  X  .  . "
+                               " .  .  X  .  .  .  .  .  .  .  . ";
+
+  board test_board = read_board(test_board_s);
+  layer test_targets = read_layer(test_targets_s, 'X');
+  layer test_targets_r = rotate_layer_right(test_targets);
+  move ms[400] = {0};
+  layer ls[400] = {0};
+  layer ls_r[400] = {0};
+  int total = 0;
+  moves_to(
+      test_targets,
+      test_targets_r,
+      test_board.black,
+      test_board.black_r,
+      board_occ(test_board),
+      board_occ_r(test_board),
+      ms,
+      ls,
+      ls_r,
+      &total);
+
+  printf("test results ++++++++++++++++++++++++\n");
+  printf("total: %d", total);
+  for (int i = 0; i < total; i++) {
+    printf("orig: %d\n", ms[i].orig);
+    printf("dest: %d\n", ms[i].dest);
+    print_layer(ls[i]);
+  }
+  */
 }
 
 // MAYBE TODO:
