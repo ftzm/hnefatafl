@@ -5,6 +5,9 @@
 
 uint8_t apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest);
 
+void apply_captures_z_black(board *b, uint64_t *z, uint8_t dest);
+void apply_captures_z_white(board *b, uint64_t *z, uint8_t dest);
+
 void shield_wall_black(board *b, uint pos);
 void shield_wall_white(board *b, uint pos);
 

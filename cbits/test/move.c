@@ -14,15 +14,15 @@
 #include <stdint.h>
 
 uint64_t eastOccl(uint64_t gen, uint64_t pro) {
-   // pro &= 18428720874809981951ULL;
-   gen |= pro & (gen >> 1);
-   pro &=       (pro >> 1);
-   gen |= pro & (gen >> 2);
-   pro &=       (pro >> 2);
-   gen |= pro & (gen >> 4);
-   pro &=       (pro >> 4);
-   gen |= pro & (gen >> 8);
-   return gen;
+  // pro &= 18428720874809981951ULL;
+  gen |= pro & (gen >> 1);
+  pro &= (pro >> 1);
+  gen |= pro & (gen >> 2);
+  pro &= (pro >> 2);
+  gen |= pro & (gen >> 4);
+  pro &= (pro >> 4);
+  gen |= pro & (gen >> 8);
+  return gen;
 }
 
 bool board_rotation_correct(board b) {
@@ -1675,6 +1675,118 @@ bool test_moves_to_black(void) {
 }
 
 // -----------------------------------------------------------------------------
+// test moves_to layers
+
+struct move_to_entry {
+  move m;
+  layer l;
+  layer l_r;
+};
+
+struct move_to_entries {
+  struct move_to_entry entries[400];
+  int len;
+};
+
+static enum theft_alloc_res
+test_moves_to_layers(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  free._[1] &= 144115188075855871;
+  layer free_r = rotate_layer_right(free);
+
+  layer ls[235] = {0};
+  layer ls_r[335] = {0};
+  board bs[335] = {0};
+  move ms[335] = {0};
+  int total = 0;
+
+  moves_to(
+      free,
+      free_r,
+      b.black,
+      b.black_r,
+      board_occ(b),
+      board_occ_r(b),
+      ms,
+      ls,
+      ls_r,
+      &total);
+
+  struct move_to_entries incorrect_entries = {{0}, 0};
+  for (int i = 0; i < total; i++) {
+    move m = ms[i];
+    layer correct_layer = EMPTY_LAYER;
+    op_layer_bit(correct_layer, m.orig, |=);
+    op_layer_bit(correct_layer, m.dest, |=);
+    layer correct_layer_r = rotate_layer_right(correct_layer);
+    if (!LAYERS_EQUAL(correct_layer, ls[i]) ||
+        !LAYERS_EQUAL(correct_layer_r, ls_r[i])) {
+      incorrect_entries.entries[incorrect_entries.len] =
+          (struct move_to_entry){m, ls[i], ls_r[i]};
+      incorrect_entries.len++;
+    }
+  };
+
+  struct move_to_entries *e = calloc(1, sizeof(*e));
+  *e = incorrect_entries;
+  *instance = e;
+
+  return THEFT_ALLOC_OK;
+}
+
+static enum theft_trial_res
+move_to_entries_empty(struct theft *t, void *arg1) {
+  struct move_to_entries *input = (struct move_to_entries *)arg1;
+  if (!input->len) {
+    return THEFT_TRIAL_PASS;
+  } else {
+    return THEFT_TRIAL_FAIL;
+  }
+}
+
+void move_to_entries_print_cb(FILE *f, const void *instance, void *env) {
+  struct move_to_entries *input = (struct move_to_entries *)instance;
+  
+  for (int i = 0; i < input->len; i++) {
+    struct move_string ms = fmt_move(input->entries[i].m.orig, input->entries[i].m.dest);
+    layer_string l = stringify(input->entries[i].l);
+    layer_string l_r = stringify(input->entries[i].l_r);
+    fprintf(f, "%s\n", ms.buf);
+    fprintf(f, "%s\n\n", l._);
+    fprintf(f, "%s\n\n", l_r._);
+    fprintf(f, "--------------------------------------\n");
+  }
+}
+
+bool test_moves_to_layers_correct(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = test_moves_to_layers,
+      .free = theft_generic_free_cb,
+      .print = move_to_entries_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = move_to_entries_empty,
+      .type_info = {&info},
+      .trials = 100,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+  return res == THEFT_RUN_PASS;
+}
+
+
+
+// -----------------------------------------------------------------------------
 // Run
 
 int main() {
@@ -1695,7 +1807,9 @@ int main() {
   test_mm_moves_king();
 
   test_moves_to_black();
+  test_moves_to_layers_correct();
 
+  /*
   const char *blockers_s = " X  .  .  .  .  .  .  .  .  .  . "
                            " X  X  .  .  .  .  .  .  .  .  . "
                            " X  .  X  .  .  .  .  .  .  .  . "
@@ -1726,6 +1840,7 @@ int main() {
   print_layer(blockers);
   layer res = (layer){eastOccl(movers._[0], blockers._[0]), 0};
   print_layer(res);
+*/
 
   /*
   const char *base = " .  .  .  .  .  .  .  .  .  .  . "

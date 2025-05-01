@@ -169,3 +169,42 @@ void moves_to(
     layer *ls,
     layer *ls_r,
     int *total);
+
+typedef struct moves_to {
+  move ms[335];
+  layer ls[335];
+  layer ls_r[335];
+  int total;
+} moves_to_t;
+
+static inline moves_to_t moves_to_black(board b, layer targets, layer targets_r) {
+  moves_to_t results;
+  moves_to(
+      targets,
+      targets_r,
+      b.black,
+      b.black_r,
+      board_occ(b),
+      board_occ_r(b),
+      results.ms,
+      results.ls,
+      results.ls_r,
+      &results.total);
+  return results;
+}
+
+static inline moves_to_t moves_to_white(board b, layer targets, layer targets_r) {
+  moves_to_t results;
+  moves_to(
+      targets,
+      targets_r,
+      b.white,
+      b.white_r,
+      board_occ(b),
+      board_occ_r(b),
+      results.ms,
+      results.ls,
+      results.ls_r,
+      &results.total);
+  return results;
+}

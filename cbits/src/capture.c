@@ -5,6 +5,7 @@
 #include "stdio.h"
 #include "x86intrin.h"
 #include "stdbool.h"
+#include "zobrist.h"
 
 layer foe_masks[120];
 layer foe_masks_r[120];
@@ -202,6 +203,81 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
 
   return count;
 }
+
+uint8_t
+apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, uint64_t *z, uint64_t hash_table[121], int dest) {
+  uint8_t count = 0;
+
+  int modDest = dest % 11;
+  int target;
+  int behind;
+
+  //northCapture
+  target = dest + 11;
+  behind = dest + 22;
+  if (dest < 99 &&
+      foes->_[sub_layer(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends._[sub_layer(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes->_[sub_layer(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r->_[sub_layer(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      *z ^= hash_table[target];
+      count++;
+  }
+
+  //southCapture
+  target = dest - 11;
+  behind = dest - 22;
+  if (dest > 21 &&
+      foes->_[sub_layer(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends._[sub_layer(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes->_[sub_layer(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r->_[sub_layer(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      *z ^= hash_table[target];
+      count++;
+  }
+
+  //westCapture
+  target = dest + 1;
+  behind = dest + 2;
+  if (modDest < 9 &&
+      foes->_[sub_layer(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends._[sub_layer(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes->_[sub_layer(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r->_[sub_layer(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      *z ^= hash_table[target];
+      count++;
+  }
+   
+  //eastCapture
+  target = dest - 1;
+  behind = dest - 2;
+  if (modDest > 1 &&
+      foes->_[sub_layer(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
+      friends._[sub_layer(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+    {
+      foes->_[sub_layer(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      int target_r = rotate_right[target];
+      foes_r->_[sub_layer(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      *z ^= hash_table[target];
+      count++;
+  }
+
+  return count;
+}
+
+void apply_captures_z_black(board *b, uint64_t *z, uint8_t dest) {
+  apply_captures_niave_z(b->black, &b->white, &b->white_r, z, white_hashes, dest);
+}  
+
+void apply_captures_z_white(board *b, uint64_t *z, uint8_t dest) {
+  apply_captures_niave_z(b->white, &b->black, &b->black_r, z, black_hashes, dest);
+}  
 
 //******************************************************************************
 // Capture functions
