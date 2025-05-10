@@ -2,6 +2,13 @@
 
 #include "stdint.h"
 
+
+
+#define u8 uint8_t
+#define u16 uint16_t
+#define u32 uint32_t
+#define u64 uint64_t
+
 typedef struct layer {
   uint64_t _[2];
 } layer;
@@ -86,6 +93,7 @@ extern const uint8_t rotate_left[121];
 extern layer corners;
 
 #define get_center_row(layer) (((uint64_t)layer._[0] >> 55) | ((((uint64_t)layer._[1] & 0x3) << 9) & 0b11111111111))
+#define SET_CENTER_ROW(_layer, _row) (_layer._[0] |= ((uint64_t)_row << 55), _layer._[1] |= (_row >> 9))
 
 #define INVERTED_THRONE_MASK ((uint16_t) 0b11111011111)
 

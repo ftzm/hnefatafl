@@ -459,6 +459,42 @@ UBENCH_EX(triple_nested, mm_black) {
   printf("%d\n", total_total);
 }
 
+UBENCH_EX(move_count, white_orig) {
+  const board b = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    uint16_t c = get_team_move_count(board_occ(b), b.white, board_occ_r(b), b.white_r);
+    UBENCH_DO_NOTHING(&c);
+  }
+}
+
+UBENCH_EX(move_count, white_new) {
+  board b = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    int c = white_moves_count(&b);
+    UBENCH_DO_NOTHING(&c);
+  }
+}
+
+UBENCH_EX(move_count, king_moves_count) {
+  board b = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    int c = king_moves_count(&b);
+    UBENCH_DO_NOTHING(&c);
+  }
+}
+
+UBENCH_EX(move_count, get_king_move_count) {
+  board b = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    int c = get_king_move_count(b);
+    UBENCH_DO_NOTHING(&c);
+  }
+}
+
+
+
+
+
 // needs to be at top level
 UBENCH_STATE();
 

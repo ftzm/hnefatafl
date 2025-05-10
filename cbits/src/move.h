@@ -2,6 +2,7 @@
 
 #include "board.h"
 #include "stdbool.h"
+#include <stdio.h>
 
 // -----------------------------------------------------------------------------
 // dir
@@ -170,6 +171,19 @@ void moves_to(
     layer *ls_r,
     int *total);
 
+void moves_to_king_impl(
+    layer targets,
+    layer targets_r,
+    layer movers,
+    layer movers_r,
+    layer occ,
+    layer occ_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total);
+
+
 typedef struct moves_to {
   move ms[335];
   layer ls[335];
@@ -177,8 +191,10 @@ typedef struct moves_to {
   int total;
 } moves_to_t;
 
-static inline moves_to_t moves_to_black(board b, layer targets, layer targets_r) {
+static inline moves_to_t
+moves_to_black(board b, layer targets, layer targets_r) {
   moves_to_t results;
+  results.total = 0;
   moves_to(
       targets,
       targets_r,
@@ -193,8 +209,10 @@ static inline moves_to_t moves_to_black(board b, layer targets, layer targets_r)
   return results;
 }
 
-static inline moves_to_t moves_to_white(board b, layer targets, layer targets_r) {
+static inline moves_to_t
+moves_to_white(board b, layer targets, layer targets_r) {
   moves_to_t results;
+  results.total = 0;
   moves_to(
       targets,
       targets_r,
@@ -208,3 +226,32 @@ static inline moves_to_t moves_to_white(board b, layer targets, layer targets_r)
       &results.total);
   return results;
 }
+
+static inline moves_to_t
+moves_to_king(board b, layer targets, layer targets_r) {
+  moves_to_t results;
+  results.total = 0;
+  moves_to_king_impl(
+      targets,
+      targets_r,
+      b.king,
+      b.king_r,
+      king_board_occ(b),
+      king_board_occ_r(b),
+      results.ms,
+      results.ls,
+      results.ls_r,
+      &results.total);
+  return results;
+}
+
+layer rightward_moves_layer(layer movers, layer occ);
+
+int black_moves_count(board *b);
+int white_moves_count(board *b);
+int king_moves_count(board *b);
+
+uint16_t get_team_move_count(
+    const layer occ, const layer team, const layer occ_r, const layer team_r);
+
+int get_king_move_count(const board b);

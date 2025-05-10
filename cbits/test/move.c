@@ -2,6 +2,7 @@
 #include "assert.h"
 #include "board.h"
 #include "capture.h"
+#include "greatest.h"
 #include "io.h"
 #include "layer.h"
 #include "stdbool.h"
@@ -13,8 +14,9 @@
 #include "x86intrin.h"
 #include <stdint.h>
 
-uint64_t eastOccl(uint64_t gen, uint64_t pro) {
-  // pro &= 18428720874809981951ULL;
+uint64_t rightward_moves_lower(uint64_t gen, uint64_t pro) {
+  uint64_t orig = gen;
+  pro &= 18428720874809981951ULL;
   gen |= pro & (gen >> 1);
   pro &= (pro >> 1);
   gen |= pro & (gen >> 2);
@@ -22,10 +24,10 @@ uint64_t eastOccl(uint64_t gen, uint64_t pro) {
   gen |= pro & (gen >> 4);
   pro &= (pro >> 4);
   gen |= pro & (gen >> 8);
-  return gen;
+  return gen ^ orig;
 }
 
-bool board_rotation_correct(board b) {
+TEST board_rotation_correct(board b) {
   bool res = true;
 
   layer black_unrotated = rotate_layer_left(b.black_r);
@@ -199,7 +201,7 @@ static enum theft_trial_res prop_board_printable(struct theft *t, void *arg1) {
   return THEFT_TRIAL_PASS;
 }
 
-bool test_board_printable(void) {
+TEST test_board_printable(void) {
   /* Get a seed based on the current time */
   theft_seed seed = theft_seed_of_time();
 
@@ -211,7 +213,9 @@ bool test_board_printable(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -869,7 +873,7 @@ static struct theft_type_info get_team_moves_black_info = {
         },
 };
 
-bool test_get_team_moves_black(void) {
+TEST test_get_team_moves_black(void) {
   /* Get a seed based on the current time */
   theft_seed seed = theft_seed_of_time();
 
@@ -881,7 +885,9 @@ bool test_get_team_moves_black(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1027,7 +1033,7 @@ static struct theft_type_info get_team_moves_white_info = {
         },
 };
 
-bool test_get_team_moves_white(void) {
+TEST test_get_team_moves_white(void) {
   /* Get a seed based on the current time */
   theft_seed seed = theft_seed_of_time();
 
@@ -1039,7 +1045,9 @@ bool test_get_team_moves_white(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1182,7 +1190,7 @@ static struct theft_type_info get_team_moves_king_info = {
         },
 };
 
-bool test_get_team_moves_king(void) {
+TEST test_get_team_moves_king(void) {
   /* Get a seed based on the current time */
   theft_seed seed = theft_seed_of_time();
 
@@ -1194,7 +1202,9 @@ bool test_get_team_moves_king(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1334,7 +1344,7 @@ create_reference_moves_black_cb(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 };
 
-bool test_reference_moves_black(void) {
+TEST test_reference_moves_black(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info get_reference_moves_black_info = {
@@ -1352,7 +1362,9 @@ bool test_reference_moves_black(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1389,7 +1401,7 @@ create_reference_moves_white_cb(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 };
 
-bool test_reference_moves_white(void) {
+TEST test_reference_moves_white(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info get_reference_moves_white_info = {
@@ -1407,7 +1419,9 @@ bool test_reference_moves_white(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1453,7 +1467,7 @@ create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 };
 
-bool test_mm_moves_white(void) {
+TEST test_mm_moves_white(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info info = {
@@ -1471,7 +1485,9 @@ bool test_mm_moves_white(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1517,7 +1533,7 @@ create_mm_moves_black_cb(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 };
 
-bool test_mm_moves_black(void) {
+TEST test_mm_moves_black(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info info = {
@@ -1535,7 +1551,9 @@ bool test_mm_moves_black(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1582,7 +1600,7 @@ create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 };
 
-bool test_mm_moves_king(void) {
+TEST test_mm_moves_king(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info info = {
@@ -1600,11 +1618,13 @@ bool test_mm_moves_king(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
-// test moves_to white
+// test moves_to black
 
 typedef int (*ConstCompareListElements)(const void *, const void *);
 
@@ -1652,7 +1672,7 @@ moves_to_black_cb(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 };
 
-bool test_moves_to_black(void) {
+TEST test_moves_to_black(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info info = {
@@ -1671,7 +1691,137 @@ bool test_moves_to_black(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+// -----------------------------------------------------------------------------
+// test moves_to white
+
+static enum theft_alloc_res
+moves_to_white_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+
+  // orig
+  board bs[335];
+  move ms[335];
+  int total = 0;
+  get_team_moves_white(b, &total, ms, bs);
+
+  // to test
+  layer ls[235];
+  layer ls_r[335];
+  board bs2[335];
+  move ms2[335];
+  int total2 = 0;
+  moves_to(
+      layer_and(layer_neg(board_occ(b)), layer_neg(throne_mask)),
+      layer_and(layer_neg(board_occ_r(b)), layer_neg(throne_mask)),
+      b.white,
+      b.white_r,
+      board_occ(b),
+      board_occ_r(b),
+      ms2,
+      ls,
+      ls_r,
+      &total2);
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+TEST test_moves_to_white(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = moves_to_white_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+
+// -----------------------------------------------------------------------------
+// test moves_to king
+
+static enum theft_alloc_res
+moves_to_king_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[335];
+  move ms[335];
+  int total = 0;
+  get_king_moves(b, &total, ms, bs);
+
+  // to test
+  moves_to_t r = moves_to_king(
+		b,
+      layer_neg(king_board_occ(b)),
+      layer_neg(king_board_occ_r(b)));
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(r.ms, r.total, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, r.ms, r.total);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+TEST test_moves_to_king(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = moves_to_king_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
 // -----------------------------------------------------------------------------
@@ -1738,8 +1888,7 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 }
 
-static enum theft_trial_res
-move_to_entries_empty(struct theft *t, void *arg1) {
+static enum theft_trial_res move_to_entries_empty(struct theft *t, void *arg1) {
   struct move_to_entries *input = (struct move_to_entries *)arg1;
   if (!input->len) {
     return THEFT_TRIAL_PASS;
@@ -1750,9 +1899,10 @@ move_to_entries_empty(struct theft *t, void *arg1) {
 
 void move_to_entries_print_cb(FILE *f, const void *instance, void *env) {
   struct move_to_entries *input = (struct move_to_entries *)instance;
-  
+
   for (int i = 0; i < input->len; i++) {
-    struct move_string ms = fmt_move(input->entries[i].m.orig, input->entries[i].m.dest);
+    struct move_string ms =
+        fmt_move(input->entries[i].m.orig, input->entries[i].m.dest);
     layer_string l = stringify(input->entries[i].l);
     layer_string l_r = stringify(input->entries[i].l_r);
     fprintf(f, "%s\n", ms.buf);
@@ -1762,7 +1912,7 @@ void move_to_entries_print_cb(FILE *f, const void *instance, void *env) {
   }
 }
 
-bool test_moves_to_layers_correct(void) {
+TEST test_moves_to_layers_correct(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info info = {
@@ -1781,18 +1931,210 @@ bool test_moves_to_layers_correct(void) {
   };
 
   enum theft_run_res res = theft_run(&config);
-  return res == THEFT_RUN_PASS;
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
 }
 
+// -----------------------------------------------------------------------------
+// test white_moves_count
 
+struct move_counts {
+  board b;
+  int from_move_func;
+  int from_move_count;
+};
+
+static enum theft_alloc_res
+white_moves_count_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+
+  moves_to_t r = moves_to_white(
+      b,
+      layer_neg(layer_or(throne_mask, board_occ(b))),
+      layer_neg(layer_or(throne_mask, board_occ_r(b))));
+
+  int move_count = white_moves_count(&b);
+
+  struct move_counts mc = {.b = b, r.total, move_count};
+
+  struct move_counts *output = malloc(sizeof(mc));
+  *output = mc;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+static enum theft_trial_res
+prop_move_counts_equal(struct theft *t, void *arg1) {
+  struct move_counts *input = (struct move_counts *)arg1;
+
+  if (input->from_move_func == input->from_move_count) {
+    return THEFT_TRIAL_PASS;
+  } else {
+    return THEFT_TRIAL_FAIL;
+  }
+}
+
+void move_counts_print_cb(FILE *f, const void *instance, void *env) {
+  struct move_counts *input = (struct move_counts *)instance;
+
+  // print board
+  char output[strlen(base) + 1];
+  strcpy(output, base);
+  fmt_board(input->b, output);
+  fprintf(f, "%s\n", output);
+
+  fprintf(f, "from_move_func: %d\n", input->from_move_func);
+  fprintf(f, "from_move_count: %d\n", input->from_move_count);
+}
+
+TEST test_white_moves_count(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = white_moves_count_cb,
+      .free = theft_generic_free_cb,
+      .print = move_counts_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_move_counts_equal,
+      .type_info = {&info},
+      .trials = 100,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+// -----------------------------------------------------------------------------
+// test black_moves_count
+
+static enum theft_alloc_res
+black_moves_count_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  layer throne_mask = EMPTY_LAYER;
+  op_layer_bit(throne_mask, 60, |=);
+
+  moves_to_t r = moves_to_black(
+      b,
+      layer_neg(layer_or(throne_mask, board_occ(b))),
+      layer_neg(layer_or(throne_mask, board_occ_r(b))));
+
+  int move_count = black_moves_count(&b);
+
+  struct move_counts mc = {.b = b, r.total, move_count};
+
+  struct move_counts *output = malloc(sizeof(mc));
+  *output = mc;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+
+TEST test_black_moves_count(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = black_moves_count_cb,
+      .free = theft_generic_free_cb,
+      .print = move_counts_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_move_counts_equal,
+      .type_info = {&info},
+      .trials = 100,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+// -----------------------------------------------------------------------------
+// test king_moves_count
+
+static enum theft_alloc_res
+king_moves_count_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  moves_to_t r = moves_to_king(
+      b,
+      layer_neg(king_board_occ(b)),
+      layer_neg(king_board_occ_r(b)));
+
+  int move_count = king_moves_count(&b);
+
+  struct move_counts mc = {.b = b, r.total, move_count};
+
+  struct move_counts *output = malloc(sizeof(mc));
+  *output = mc;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+
+TEST test_king_moves_count(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = king_moves_count_cb,
+      .free = theft_generic_free_cb,
+      .print = move_counts_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_move_counts_equal,
+      .type_info = {&info},
+      .trials = 100,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
 
 // -----------------------------------------------------------------------------
 // Run
 
-int main() {
+GREATEST_MAIN_DEFS();
+
+int main(int argc, char **argv) {
   // Setup
   init_move_globals();
 
+  GREATEST_MAIN_BEGIN();
+
+  // RUN_TEST(test_moves_to_white);
+  // RUN_TEST(test_moves_to_black);
+  // RUN_TEST(test_moves_to_king);
+  // RUN_TEST(test_moves_to_layers_correct);
+  // RUN_TEST(test_black_moves_count);
+  // RUN_TEST(test_white_moves_count);
+  RUN_TEST(test_king_moves_count);
+
+  /*
   test_start_board_moves();
   // test_board_printable();
   test_get_team_moves_black();
@@ -1808,358 +2150,9 @@ int main() {
 
   test_moves_to_black();
   test_moves_to_layers_correct();
-
-  /*
-  const char *blockers_s = " X  .  .  .  .  .  .  .  .  .  . "
-                           " X  X  .  .  .  .  .  .  .  .  . "
-                           " X  .  X  .  .  .  .  .  .  .  . "
-                           " X  .  .  X  .  .  .  .  .  .  . "
-                           " X  .  .  .  X  .  .  .  .  .  . "
-                           " X  .  .  .  .  X  .  .  .  .  . "
-                           " X  .  .  .  .  .  X  .  .  .  . "
-                           " X  .  .  .  .  .  .  X  .  .  . "
-                           " X  .  .  .  .  .  .  .  X  .  . "
-                           " X  .  .  .  .  .  .  .  .  X  . "
-                           " X  .  .  .  .  .  .  .  .  .  X ";
-
-  const char *movers_s = " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . "
-                         " X  .  .  .  .  .  .  .  .  .  . ";
-
-  layer movers = read_layer(movers_s, 'X');
-  layer blockers = layer_neg(read_layer(blockers_s, 'X'));
-  print_layer(movers);
-  print_layer(blockers);
-  layer res = (layer){eastOccl(movers._[0], blockers._[0]), 0};
-  print_layer(res);
-*/
-
-  /*
-  const char *base = " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . "
-                     " .  .  .  .  .  .  .  .  .  .  . ";
-  {
-    const char *targets_s = " .  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  X  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  X  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  X  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . ";
-    const char *barrier_s = " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X "
-                            " .  .  .  .  .  .  .  .  .  .  X ";
-    const char *movers_s = " .  .  .  .  .  .  .  .  .  X  . "
-                           " .  .  .  .  X  .  .  .  .  .  . "
-                           " .  .  .  .  .  X  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  X  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  X  .  .  X  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  X "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . ";
-    const char *occ_s = " .  .  .  .  .  .  .  .  .  X  . "
-                        " .  .  .  .  X  .  .  .  .  .  . "
-                        " .  .  .  .  .  X  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  X  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  X  .  .  X  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  X  .  .  .  X "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . ";
-    layer targets = read_layer(targets_s, 'X');
-    layer barrier = read_layer(barrier_s, 'X');
-    layer movers = read_layer(movers_s, 'X');
-    layer occ = read_layer(occ_s, 'X');
-
-    // east movers:
-    const layer protected_occ = layer_or(occ, barrier);
-    layer res = protected_occ;
-    print_layer(res);
-    res._[0] -= (movers._[0] << 1);
-    res._[1] -= (movers._[1] << 1);
-    print_layer(res);
-    layer dests = layer_and(res, targets);
-    printf("dests\n");
-    print_layer(dests);
-    // to extract, process top down, using lzcnt
-
-    while (dests._[1]) {
-      // printf("-----------------------------------------------\n");
-
-      uint64_t dest_bit = _blsi_u64(dests._[1]);
-      uint8_t dest = 64 + _tzcnt_u64(dest_bit);
-
-      uint8_t orig = 63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & occ._[1]);
-      uint64_t orig_bit = (uint64_t)1 << orig;
-      orig += 64;
-
-      // printf("dest: %d\n", dest);
-      // printf("orig: %d\n", orig);
-
-      move m = (move){orig, dest};
-      layer b = EMPTY_LAYER;
-      b._[1] |= orig_bit;
-      b._[1] |= dest_bit;
-      // print_layer(b);
-
-      // inc
-      dests._[1] -= dest_bit;
-    }
-  }
-
-  // west movers:
-  {
-    const char *base = " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . "
-                       " .  .  .  .  .  .  .  .  .  .  . ";
-
-    const char *barrier_s = " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . "
-                            " X  .  .  .  .  .  .  .  .  .  . ";
-
-    const char *targets_s = " .  .  .  .  .  .  .  X  .  .  . "
-                            " .  .  .  .  .  .  .  .  X  .  . "
-                            " .  .  .  .  .  .  .  .  .  X  . "
-                            " .  .  .  .  .  .  .  X  .  .  . "
-                            " .  .  .  .  .  .  X  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . ";
-
-    const char *movers_s = " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  X  .  .  .  .  X "
-                           " .  .  X  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  X  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . ";
-
-    const char *occ_s = " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  X  .  .  .  .  X "
-                        " .  .  X  .  .  X  .  .  .  .  . "
-                        " .  .  .  .  .  X  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . ";
-
-    layer targets = read_layer(targets_s, 'X');
-    layer barrier = read_layer(barrier_s, 'X');
-    layer movers = read_layer(movers_s, 'X');
-    layer occ = read_layer(occ_s, 'X');
-
-    const layer protected_occ = layer_or(occ, barrier);
-    layer res = protected_occ;
-    print_layer(res);
-
-    res._[1] -= targets._[1];
-    print_layer(res);
-
-    res._[1] = ~res._[1];
-    print_layer(res);
-
-    layer origs = layer_and(res, movers);
-    print_layer(origs);
-
-    while (origs._[1]) {
-      // printf("-----------------------------------------------\n");
-
-      uint64_t orig_bit = _blsi_u64(origs._[1]);
-      uint8_t orig = 64 + _tzcnt_u64(orig_bit);
-
-      uint8_t dest = 63 - _lzcnt_u64(_blsmsk_u64(orig_bit) & targets._[1]);
-      uint64_t dest_bit = (uint64_t)1 << dest;
-      dest += 64;
-
-      move m = (move){orig, dest};
-      layer b = EMPTY_LAYER;
-      b._[1] |= orig_bit;
-      b._[1] |= dest_bit;
-
-      // inc
-      origs._[1] -= orig_bit;
-    }
-  }
   */
 
-  /*
-  {
-    const char *targets_s = " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  .  .  .  .  .  . "
-                            " .  .  .  .  .  X  .  .  .  .  . "
-                            " .  .  .  .  .  X  .  .  .  .  . "
-                            " .  .  .  .  .  X  .  .  .  .  . "
-                            " .  .  .  .  .  X  .  .  .  .  . "
-                            " .  .  .  .  .  X  .  .  .  .  . ";
-    const char *occ_s = " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  .  .  . "
-                        " .  X  .  .  .  .  .  .  X  X  . "
-                        " .  X  X  .  .  .  .  .  .  X  . "
-                        " .  .  X  .  .  .  .  .  .  .  . "
-                        " .  .  .  .  .  .  .  .  X  .  . "
-                        " .  .  X  .  .  .  .  .  X  .  . ";
-    const char *movers_s = " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  .  .  . "
-                           " .  X  .  .  .  .  .  .  .  X  . "
-                           " .  X  .  .  .  .  .  .  .  X  . "
-                           " .  .  X  .  .  .  .  .  .  .  . "
-                           " .  .  .  .  .  .  .  .  X  .  . "
-                           " .  .  X  .  .  .  .  .  X  .  . ";
-    layer targets = read_layer(targets_s, 'X');
-    layer occ = read_layer(occ_s, 'X');
-    layer movers = read_layer(movers_s, 'X');
-
-    while (targets._[0]) {
-      uint64_t cur = _blsi_u64(targets._[0]);
-      //print_layer((layer){cur, 0});
-
-      // below
-      uint64_t mask = _blsmsk_u64(cur);
-      //print_layer((layer){mask, 0});
-      uint64_t highest_i = 63-_lzcnt_u64(mask & occ._[0]);
-      //printf("%d\n", highest_i);
-      if (highest_i) {
-        uint64_t highest = 1 << highest_i;
-        if (highest & movers._[0]) {
-          //printf("hit\n");
-          // add move and board
-
-        }
-      }
-
-      // above
-
-
-      // inc
-      targets._[0] = _blsr_u64(targets._[0]);
-    }
-  }
-*/
-
-  // const layer res2 = {one._[0] - two._[0], one._[1] - two._[1]};
-
-  /*
-  const char *test_board_s = " .  .  .  .  .  .  .  .  .  .  . "
-                             " .  .  .  .  .  X  .  .  .  .  . "
-                             " .  .  .  .  .  X  .  .  .  .  . "
-                             " .  .  .  .  .  .  .  .  .  .  . "
-                             " .  .  X  X  .  X  .  X  X  .  . "
-                             " .  .  .  .  .  X  .  .  .  .  . "
-                             " .  .  .  .  .  .  .  .  .  .  . "
-                             " .  .  .  .  .  .  .  .  .  .  . "
-                             " .  .  .  .  .  .  .  .  .  .  . "
-                             " .  .  .  .  .  X  .  .  .  .  . "
-                             " .  .  .  .  .  X  .  .  .  .  . ";
-  const char *test_targets_s = " .  .  .  .  .  .  .  .  .  .  . "
-                               " .  .  .  .  .  .  .  .  X  .  . "
-                               " .  .  X  .  .  .  .  .  .  .  . "
-                               " .  .  .  .  .  X  .  .  .  .  . "
-                               " .  .  .  .  .  .  .  .  .  .  . "
-                               " .  .  X  .  .  .  .  .  X  .  . "
-                               " .  .  .  .  .  .  .  .  .  .  . "
-                               " .  .  .  .  .  .  .  .  .  .  . "
-                               " .  .  .  X  .  X  .  X  .  .  . "
-                               " .  .  .  .  .  .  .  .  X  .  . "
-                               " .  .  X  .  .  .  .  .  .  .  . ";
-
-  board test_board = read_board(test_board_s);
-  layer test_targets = read_layer(test_targets_s, 'X');
-  layer test_targets_r = rotate_layer_right(test_targets);
-  move ms[400] = {0};
-  layer ls[400] = {0};
-  layer ls_r[400] = {0};
-  int total = 0;
-  moves_to(
-      test_targets,
-      test_targets_r,
-      test_board.black,
-      test_board.black_r,
-      board_occ(test_board),
-      board_occ_r(test_board),
-      ms,
-      ls,
-      ls_r,
-      &total);
-
-  printf("test results ++++++++++++++++++++++++\n");
-  printf("total: %d", total);
-  for (int i = 0; i < total; i++) {
-    printf("orig: %d\n", ms[i].orig);
-    printf("dest: %d\n", ms[i].dest);
-    print_layer(ls[i]);
-  }
-  */
+  GREATEST_MAIN_END();
 }
 
 // MAYBE TODO:

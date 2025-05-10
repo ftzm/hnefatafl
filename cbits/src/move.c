@@ -168,10 +168,10 @@ cog.outl("""
 }""")
 ]]]*/
 
-inline uint8_t get_team_move_count(
+uint16_t get_team_move_count(
     const layer occ, const layer team, const layer occ_r, const layer team_r) {
 
-  uint8_t total = 0;
+  uint16_t total = 0;
   uint16_t movers;
   uint16_t blockers;
 
@@ -3092,7 +3092,7 @@ const layer not_corners = {18446744073709550590ULL, 71987225293750271ULL};
  * Check if the king can reach the se corner in 1 move.
  *
  * because this is used on white's turn we can skip actually
- * generating moves, because it's enough to know that the king can
+ * generating moves--it's enough to know that the king can
  * reach the corner. Instead it should be used as a static heuristic.
  */
 bool corner_moves_1(
@@ -3324,6 +3324,7 @@ layer corner_paths_1(
 leftward
 */
 
+// TODO: explain how extraction works
 #define EXTRACT_LEFTWARD(_i, _r)                                               \
   uint64_t dest_bit = _blsi_u64(dests);                                        \
   uint8_t dest = _tzcnt_u64(dest_bit);                                         \
@@ -3343,6 +3344,13 @@ leftward
 #define DROP_1_EAST_0 18410697675910412286ULL
 #define DROP_1_EAST_1 144044784955154427ULL
 
+// TODO: I don't know what the DROP_1_EAST is about; I'm not doing it
+// in move counts but in move counts I am doing & LOWER_HALF_MASK. I
+// should unify them so the logic is the same.
+//
+// In move count I'm doing & ~occ to remove everything that isn't a
+// ray; because targets here are a subset of ~occ then it performs the
+// same function.
 #define LEFTWARD(_i, _r)                                                       \
   {                                                                            \
     uint64_t dests = targets##_r._[_i] &                                       \
@@ -3411,6 +3419,78 @@ leftward
                                                                                \
         dests -= dest_bit;                                                     \
       }                                                                        \
+    }                                                                          \
+  }
+
+#define HALF_MASK_0 LOWER_HALF_MASK
+#define HALF_MASK_1 UPPER_HALF_MASK
+
+#define RIGHTWARD1(_i, _r)                                                     \
+  {                                                                            \
+    u64 blockers = occ##_r._[_i] | file_mask_10._[_i];                         \
+    u64 movers_ext = _pext_u64(movers##_r._[_i], blockers) >> 1;               \
+    u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));                   \
+    u64 move_mask =                                                            \
+        (movers##_r._[_i] - movers_dep) & HALF_MASK_##_i & targets##_r._[_i];  \
+    uint64_t origs =                                                           \
+        movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);            \
+    while (origs) {                                                            \
+                                                                               \
+      uint64_t orig_bit = _blsi_u64(origs);                                    \
+      uint8_t orig = _tzcnt_u64(orig_bit);                                     \
+      OFFSET(orig, _i);                                                        \
+      uint8_t orig_r = ROTATE_DIR(_r)[orig];                                   \
+      origs -= orig_bit;                                                       \
+                                                                               \
+      u64 dests = move_mask & (orig_bit - 1);                                  \
+                                                                               \
+      while (dests) {                                                          \
+        uint8_t dest = _tzcnt_u64(dests);                                      \
+        uint64_t dest_bit = (uint64_t)1 << dest;                               \
+        OFFSET(dest, _i);                                                      \
+        uint8_t dest_r = ROTATE_DIR(_r)[dest];                                 \
+                                                                               \
+        BOOKKEEP##_r(_i);                                                      \
+                                                                               \
+        dests -= dest_bit;                                                     \
+      }                                                                        \
+                                                                               \
+      move_mask &= 0 - orig_bit;                                               \
+    }                                                                          \
+  }
+
+// The only difference with the one above is `1 |` on the blockers.
+#define RIGHTWARD1_KING(_i, _r)                                                \
+  {                                                                            \
+    u64 blockers = occ##_r._[_i] | file_mask_10._[_i];                         \
+    u64 movers_ext = _pext_u64(movers##_r._[_i], 1 | blockers) >> 1;           \
+    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));               \
+    u64 move_mask =                                                            \
+        (movers##_r._[_i] - movers_dep) & HALF_MASK_##_i & targets##_r._[_i];  \
+    uint64_t origs =                                                           \
+        movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);            \
+    while (origs) {                                                            \
+                                                                               \
+      uint64_t orig_bit = _blsi_u64(origs);                                    \
+      uint8_t orig = _tzcnt_u64(orig_bit);                                     \
+      OFFSET(orig, _i);                                                        \
+      uint8_t orig_r = ROTATE_DIR(_r)[orig];                                   \
+      origs -= orig_bit;                                                       \
+                                                                               \
+      u64 dests = move_mask & (orig_bit - 1);                                  \
+                                                                               \
+      while (dests) {                                                          \
+        uint8_t dest = _tzcnt_u64(dests);                                      \
+        uint64_t dest_bit = (uint64_t)1 << dest;                               \
+        OFFSET(dest, _i);                                                      \
+        uint8_t dest_r = ROTATE_DIR(_r)[dest];                                 \
+                                                                               \
+        BOOKKEEP##_r(_i);                                                      \
+                                                                               \
+        dests -= dest_bit;                                                     \
+      }                                                                        \
+                                                                               \
+      move_mask &= 0 - orig_bit;                                               \
     }                                                                          \
   }
 
@@ -3505,21 +3585,92 @@ void moves_to(
   movers_r._[0] &= LOWER_HALF_MASK;
   movers_r._[1] &= UPPER_HALF_MASK;
 
-  LEFTWARD(0, );     // lower westward
-  LEFTWARD(1, );     // upper westward
+  // printf("start total: %d\n", *total);
+  LEFTWARD(0, ); // lower westward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD(1, ); // upper westward
+  // printf("leftward total: %d\n", *total);
   LEFTWARD_CENTER(); // center westward
+  // printf("leftward total: %d\n", *total);
 
-  LEFTWARD(0, _r);     // lower southward
-  LEFTWARD(1, _r);     // upper southward
+  LEFTWARD(0, _r); // lower southward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD(1, _r); // upper southward
+  // printf("leftward total: %d\n", *total);
   LEFTWARD_CENTER(_r); // center southward
+  // printf("leftward total: %d\n", *total);
 
-  RIGHTWARD(0, );     // lower eastward
-  RIGHTWARD(1, );     // upper eastward
+  RIGHTWARD1(0, ); // lower eastward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD1(1, ); // upper eastward
+  // printf("rightward total: %d\n", *total);
   RIGHTWARD_CENTER(); // center eastward
+  // printf("rightward total: %d\n", *total);
 
-  RIGHTWARD(0, _r);     // lower northward
-  RIGHTWARD(1, _r);     // upper northward
+  RIGHTWARD1(0, _r); // lower northward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD1(1, _r); // upper northward
+  // printf("rightward total: %d\n", *total);
   RIGHTWARD_CENTER(_r); // center northward
+  // printf("rightward total: %d\n", *total);
+}
+
+void moves_to_king_impl(
+    layer targets,
+    layer targets_r,
+    layer movers,
+    layer movers_r,
+    layer occ,
+    layer occ_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total) {
+
+  uint16_t center_occ = get_center_row(occ);
+  uint16_t center_occ_r = get_center_row(occ_r);
+  uint16_t center_movers = get_center_row(movers);
+  uint16_t center_movers_r = get_center_row(movers_r);
+  layer leftward_occ = layer_or(occ, file_mask_0);
+  layer leftward_occ_r = layer_or(occ_r, file_mask_0);
+  layer rightward_occ = layer_or(occ, file_mask_10);
+  layer rightward_occ_r = layer_or(occ_r, file_mask_10);
+  // I thought these might be necessary but maybe not...
+  // rightward_occ._[1] |= 2;
+  // rightward_occ_r._[1] |= 2;
+  movers._[0] &= LOWER_HALF_MASK;
+  movers._[1] &= UPPER_HALF_MASK;
+  movers_r._[0] &= LOWER_HALF_MASK;
+  movers_r._[1] &= UPPER_HALF_MASK;
+
+  // printf("start total: %d\n", *total);
+  LEFTWARD(0, ); // lower westward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD(1, ); // upper westward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD_CENTER(); // center westward
+  // printf("leftward total: %d\n", *total);
+
+  LEFTWARD(0, _r); // lower southward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD(1, _r); // upper southward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD_CENTER(_r); // center southward
+  // printf("leftward total: %d\n", *total);
+
+  RIGHTWARD1_KING(0, ); // lower eastward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD1(1, ); // upper eastward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD_CENTER(); // center eastward
+  // printf("rightward total: %d\n", *total);
+
+  RIGHTWARD1_KING(0, _r); // lower northward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD1(1, _r); // upper northward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD_CENTER(_r); // center northward
+  // printf("rightward total: %d\n", *total);
 }
 
 /*
@@ -3557,9 +3708,367 @@ that, applying that mask to movers, and doing a tzcnt.
 2. extract movers bottom up, creating a mask below each. for each mask, and it
 with destinations, and extract those bottom up, reusing the value for the
 
-
 One possibility would be to do a popcnt of the movers in play and select an
 implementation based on that :man thinking:
 
 
 */
+
+/*
+kogge stone
+
+gen is movers, pro is unoccupied squares
+*/
+#define RIGHTWARD_MOVES(_block)                                                \
+  pro &= _block;                                                               \
+  gen |= pro & (gen >> 1);                                                     \
+  pro &= (pro >> 1);                                                           \
+  gen |= pro & (gen >> 2);                                                     \
+  pro &= (pro >> 2);                                                           \
+  gen |= pro & (gen >> 4);                                                     \
+  pro &= (pro >> 4);                                                           \
+  gen |= pro & (gen >> 8);
+
+layer rightward_moves_layer2(layer movers, layer occ) {
+  layer output = EMPTY_LAYER;
+
+  // lower
+  {
+    u64 gen = movers._[0] & LOWER_HALF_MASK;
+    u64 pro = ~occ._[0] & LOWER_HALF_MASK;
+    RIGHTWARD_MOVES(18428720874809981951ULL);
+    output._[0] = (gen ^ movers._[0]) & LOWER_HALF_MASK;
+  }
+
+  // upper
+  {
+    u64 gen = movers._[1] & UPPER_HALF_MASK;
+    u64 pro = ~occ._[1] & UPPER_HALF_MASK;
+    RIGHTWARD_MOVES(72022392477577213ULL);
+    output._[1] = (gen ^ movers._[1]) & UPPER_HALF_MASK;
+  }
+
+  // center
+  {
+    u16 center_movers = get_center_row(movers);
+    u16 gen = center_movers;
+    u16 pro = ~get_center_row(occ);
+    RIGHTWARD_MOVES(~0);
+    SET_CENTER_ROW(output, (gen ^ center_movers));
+  }
+
+  return output;
+}
+
+layer rightward_moves_layer(layer movers, layer occ) {
+  layer output = EMPTY_LAYER;
+
+  // lower
+  {
+
+    u64 blockers = occ._[0] | file_mask_10._[0];
+    u64 movers_ext = _pext_u64(movers._[0], 1 | blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
+    u64 move_mask = movers._[0] - movers_dep;
+    // I might be able to get away with not using LOWER_HALF_MASK here
+    output._[0] = move_mask;
+  }
+
+  // upper
+  {
+    u64 blockers = (occ._[1] | file_mask_10._[1]);
+    u64 movers_ext = _pext_u64(movers._[1], blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
+    u64 subtracted = movers._[1] - movers_dep;
+    output._[1] = subtracted & UPPER_HALF_MASK;
+  }
+
+  // center
+  {
+    u16 blockers = get_center_row(occ);
+    u16 movers_row = get_center_row(movers);
+    u16 movers_ext = _pext_u32(movers_row, 1 | blockers) >> 1;
+    u16 movers_dep = _pdep_u32(movers_ext, 1 | (blockers << 1));
+    u16 move_mask = movers_row - movers_dep;
+    SET_CENTER_ROW(output, move_mask);
+  }
+
+  return output;
+}
+
+inline int rightward_moves_count(layer movers, layer occ) {
+  int output = 0;
+
+  {
+    u64 blockers = occ._[0] | file_mask_10._[0];
+    // print_layer((layer){blockers, 0});
+    // here I depend on the lower right corner being occupied to ensure that I
+    // generate a ray towards it
+    u64 movers_ext = _pext_u64(movers._[0], blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));
+    // print_layer((layer){movers_dep, 0});
+    // I use lower half mask here to prevent generating moves in the center row
+    u64 move_mask = (movers._[0] - movers_dep) & LOWER_HALF_MASK;
+    // print_layer((layer){move_mask, 0});
+    output += __builtin_popcountll(move_mask);
+    // printf("output: %d\n", output);
+  }
+
+  // upper
+  {
+    u64 blockers = (occ._[1] | file_mask_10._[1]);
+    u64 movers_ext = _pext_u64(movers._[1], blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
+    // I use upper half mask here to prevent generating moves in the center row
+    u64 move_mask = (movers._[1] - movers_dep) & UPPER_HALF_MASK;
+    // print_layer((layer){0, move_mask});
+    output += __builtin_popcountll(move_mask);
+    // printf("output: %d\n", output);
+  }
+
+  // center
+  {
+    u16 blockers = get_center_row(occ);
+    // print_row(blockers);
+
+    // I can just remove the lowest bit because it by definition can't move
+    // anywhere
+    u16 movers_row = get_center_row(movers) & 0b11111111110;
+    // print_row(movers_row);
+
+    u16 tail = (blockers & 1) ^ 1;
+    // print_row(tail);
+
+    u16 movers_ext = _pext_u32(movers_row, tail | blockers) >> 1;
+    u16 movers_dep = _pdep_u32(movers_ext, tail | (blockers << 1));
+    // print_row(movers_dep);
+    u16 move_mask = (movers_row - movers_dep) & INVERTED_THRONE_MASK;
+    // print_row(move_mask);
+    output += __builtin_popcount(move_mask);
+    // printf("output: %d\n", output);
+  }
+
+  return output;
+}
+
+inline int rightward_moves_count_king(layer movers, layer occ) {
+  int output = 0;
+
+  if (movers._[0] & LOWER_HALF_MASK) {
+    u64 blockers = occ._[0] | file_mask_10._[0];
+    // print_layer((layer){blockers, 0});
+    // here I depend on the lower right corner being occupied to ensure that I
+    // generate a ray towards it
+    u64 movers_ext = _pext_u64(movers._[0], 1 | blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
+    // print_layer((layer){movers_dep, 0});
+    // I use lower half mask here to prevent generating moves in the center row
+    u64 move_mask = (movers._[0] - movers_dep) & LOWER_HALF_MASK;
+    // print_layer((layer){move_mask, 0});
+    return __builtin_popcountll(move_mask);
+    // printf("output: %d\n", output);
+  }
+
+  // upper
+  if (movers._[1] & UPPER_HALF_MASK) {
+    u64 blockers = (occ._[1] | file_mask_10._[1]);
+    u64 movers_ext = _pext_u64(movers._[1], blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
+    // I use upper half mask here to prevent generating moves in the center row
+    u64 move_mask = (movers._[1] - movers_dep) & UPPER_HALF_MASK;
+    // print_layer((layer){0, move_mask});
+    return __builtin_popcountll(move_mask);
+    // printf("output: %d\n", output);
+  }
+
+  // center
+  if (get_center_row(movers)) {
+    u16 blockers = get_center_row(occ);
+    // print_row(blockers);
+
+    // I can just remove the lowest bit because it by definition can't move
+    // anywhere
+    u16 movers_row = get_center_row(movers) & 0b11111111110;
+    // print_row(movers_row);
+
+    u16 tail = (blockers & 1) ^ 1;
+    // print_row(tail);
+
+    u16 movers_ext = _pext_u32(movers_row, tail | blockers) >> 1;
+    u16 movers_dep = _pdep_u32(movers_ext, tail | (blockers << 1));
+    // print_row(movers_dep);
+    u16 move_mask = (movers_row - movers_dep) & 0b11111111111;
+    // print_row(move_mask);
+    return __builtin_popcount(move_mask);
+    // printf("output: %d\n", output);
+  }
+
+  return output;
+}
+
+inline int leftward_moves_count(layer movers, layer occ) {
+  int output = 0;
+
+  // lower
+  {
+    u64 blockers = occ._[0] | file_mask_0._[0];
+    // we & ~blockers to remove all blockers that haven't been bit flipped by a
+    // substraction, so that all we're left with are subtraction rays we &
+    // LOWER_HALF_MASK to remove anything in the center row
+    // 
+    u64 dests = (blockers - ((movers._[0]) << 1)) & ~blockers & LOWER_HALF_MASK;
+    // print_layer((layer){dests, 0});
+    output += __builtin_popcountll(dests);
+    // printf("output: %d\n", output);
+  }
+
+  // upper
+  {
+    u64 blockers = occ._[1] | file_mask_0._[1];
+    u64 dests = (blockers - ((movers._[1]) << 1)) & ~blockers & UPPER_HALF_MASK;
+    // print_layer((layer){0, dests});
+    output += __builtin_popcountll(dests);
+    // printf("output: %d\n", output);
+  }
+
+  // center
+  {
+    u16 blockers = get_center_row(occ);
+    u64 dests = blockers - (get_center_row(movers) << 1) & ~blockers &
+                INVERTED_THRONE_MASK;
+    // print_row((u16)dests);
+    output += __builtin_popcount(dests);
+    // printf("output: %d\n", output);
+  }
+
+  return output;
+}
+
+inline int leftward_moves_count_king(layer movers, layer occ) {
+  int output = 0;
+
+  // lower
+  if (movers._[0] & LOWER_HALF_MASK) {
+    u64 blockers = occ._[0] | file_mask_0._[0];
+    // we & ~blockers to remove all blockers that haven't been bit flipped by a
+    // substraction, so that all we're left with are subtraction rays we &
+    // LOWER_HALF_MASK to remove anything in the center row
+    u64 dests = (blockers - ((movers._[0]) << 1)) & ~blockers & LOWER_HALF_MASK;
+    // print_layer((layer){dests, 0});
+    return __builtin_popcountll(dests);
+    // printf("output: %d\n", output);
+  }
+
+  if (movers._[1] & UPPER_HALF_MASK) {
+    u64 blockers = occ._[1] | file_mask_0._[1];
+    u64 dests = (blockers - ((movers._[1]) << 1)) & ~blockers & UPPER_HALF_MASK;
+    // print_layer((layer){0, dests});
+    return __builtin_popcountll(dests);
+    // printf("output: %d\n", output);
+  }
+
+  // center
+  if (get_center_row(movers)) {
+    u16 blockers = get_center_row(occ);
+    u64 dests =
+        blockers - (get_center_row(movers) << 1) & ~blockers & 0b11111111111;
+    // print_row((u16)dests);
+    return __builtin_popcount(dests);
+    // printf("output: %d\n", output);
+  }
+
+  return output;
+}
+
+int black_moves_count(board *b) {
+  int total = 0;
+  layer occ = board_occ(*b);
+  layer occ_r = board_occ_r(*b);
+  total += leftward_moves_count(b->black, occ);
+  total += leftward_moves_count(b->black_r, occ_r);
+  total += rightward_moves_count(b->black, occ);
+  total += rightward_moves_count(b->black_r, occ_r);
+  return total;
+}
+
+int white_moves_count(board *b) {
+  int total = 0;
+  layer occ = board_occ(*b);
+  layer occ_r = board_occ_r(*b);
+  // printf("total: %d\n", total);
+  total += leftward_moves_count(b->white, occ);
+  // printf("total: %d\n", total);
+  total += leftward_moves_count(b->white_r, occ_r);
+  // printf("total: %d\n", total);
+  total += rightward_moves_count(b->white, occ);
+  // printf("total: %d\n", total);
+  total += rightward_moves_count(b->white_r, occ_r);
+  // printf("total: %d\n", total);
+  return total;
+}
+
+int king_moves_count(board *b) {
+  int total = 0;
+  layer occ = king_board_occ(*b);
+  layer occ_r = king_board_occ_r(*b);
+  total += leftward_moves_count_king(b->king, occ);
+  total += leftward_moves_count_king(b->king_r, occ_r);
+  total += rightward_moves_count_king(b->king, occ);
+  total += rightward_moves_count_king(b->king_r, occ_r);
+  return total;
+}
+
+// inline __attribute__((always_inline)) int get_king_move_count(const board b)
+// {
+int get_king_move_count(const board b) {
+  int total = 0;
+
+  const layer occ = king_board_occ(b);
+
+  if (b.king._[0] & LOWER_HALF_MASK) {
+    int orig = _tzcnt_u64(b.king._[0]);
+    const uint row_offset = sub_layer_row_offset[orig];
+    const uint8_t row_orig = orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ._[0] >> row_offset) & 0x7FF;
+    // total += row_move_count_table[blockers][row_orig];
+    total += __builtin_popcount(get_row_moves(blockers, row_orig));
+  } else if (b.king._[1] & UPPER_HALF_MASK) {
+    int orig = _tzcnt_u64(b.king._[1]);
+    const uint row_offset = sub_layer_row_offset_upper[orig];
+    const uint8_t row_orig = orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ._[1] >> row_offset) & 0x7FF;
+    // total += row_move_count_table[blockers][row_orig];
+    total += __builtin_popcount(get_row_moves(blockers, row_orig));
+  } else {
+    uint8_t orig = _tzcnt_u16(get_center_row(b.king));
+    uint16_t blockers = get_center_row(occ);
+    // total += row_move_count_table[blockers][local_orig];
+    total += __builtin_popcount(get_row_moves(blockers, orig));
+  }
+
+  const layer occ_r = king_board_occ_r(b);
+
+  uint8_t orig_r = 67;
+
+  if (orig_r < 55) {
+    const uint row_offset = sub_layer_row_offset[orig_r];
+    const uint8_t row_orig = orig_r - row_offset;
+    const uint16_t blockers = ((uint64_t)occ_r._[0] >> row_offset) & 0x7FF;
+    // total += row_move_count_table[blockers][row_orig];
+    total += __builtin_popcount(get_row_moves(blockers, row_orig));
+  } else if (orig_r > 65) {
+    const uint8_t sub_orig = orig_r - 64;
+    const uint row_offset = sub_layer_row_offset_upper[sub_orig];
+    const uint8_t row_orig = sub_orig - row_offset;
+    const uint16_t blockers = ((uint64_t)occ_r._[1] >> row_offset) & 0x7FF;
+    // total += row_move_count_table[blockers][row_orig];
+    total += __builtin_popcount(get_row_moves(blockers, row_orig));
+  } else {
+    // center
+    const uint8_t local_orig = orig_r - 55;
+    const uint16_t blockers = get_center_row(occ_r);
+    // total += row_move_count_table[blockers][local_orig];
+    total += __builtin_popcount(get_row_moves(blockers, local_orig));
+  }
+  return total;
+}

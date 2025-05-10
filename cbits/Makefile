@@ -4,7 +4,7 @@ SRC = src
 SRCS = $(wildcard $(SRC)/*.c)
 CC = gcc
 
-CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3
+CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -fsanitize=address
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 
 # ------------------------------------------------------------------------------
