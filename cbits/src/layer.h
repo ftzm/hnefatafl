@@ -70,6 +70,7 @@ extern const uint8_t rotate_left[121];
 
 //#define layer_and(a, b) ((layer) {._ = {a._[0] & b._[0], a._[1] & b._[1]}})
 #define layer_and(a, b) layer_bin_op(a, b, &)
+#define LAYER_AND layer_and
 
 //#define layer_xor(a, b) ((layer) {._ = {a._[0] ^ b._[0], a._[1] ^ b._[1]}})
 #define layer_xor(a, b) layer_bin_op(a, b, ^)
@@ -114,9 +115,12 @@ extern const uint8_t file_table[121];
 static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
 
 #define LAYER_OR_ASSG(_x, _y) _x._[0] |= _y._[0]; _x._[1] |= _y._[1]
+#define LAYER_OR_ASSG_PTR(_x, _y) _x->_[0] |= _y._[0]; _x->_[1] |= _y._[1]
 
 #define lowest_index(layer)                                                    \
   (layer._[0] ? _tzcnt_u64(layer._[0]) : _tzcnt_u64(layer._[1]) + 64)
 
 #define LOWER_HALF_MASK ((uint64_t) 36028797018963967ULL)
 #define UPPER_HALF_MASK ((uint64_t) 144115188075855868ULL)
+
+u16 dirty_get_row(layer l, int n);

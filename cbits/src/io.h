@@ -8,7 +8,7 @@ layer read_layer(const char *string, uint8_t symbol);
 void print_layer(layer layer);
 
 typedef struct layer_string {
-  char _[374];
+  char _[376];
 } layer_string;
 
 layer_string stringify(layer layer);

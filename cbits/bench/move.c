@@ -5,6 +5,7 @@
 #include "layer.h"
 #include "string.h"
 #include "ubench.h"
+#include "x86intrin.h"
 
 const char *sanity_capture_king_string = " .  .  X  .  X  .  .  O  .  .  . "
                                          " .  X  .  X  .  .  .  .  .  .  . "
@@ -462,7 +463,8 @@ UBENCH_EX(triple_nested, mm_black) {
 UBENCH_EX(move_count, white_orig) {
   const board b = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    uint16_t c = get_team_move_count(board_occ(b), b.white, board_occ_r(b), b.white_r);
+    uint16_t c =
+        get_team_move_count(board_occ(b), b.white, board_occ_r(b), b.white_r);
     UBENCH_DO_NOTHING(&c);
   }
 }
@@ -491,9 +493,39 @@ UBENCH_EX(move_count, get_king_move_count) {
   }
 }
 
+const char *corner_access_double = " .  .  X  .  X  .  .  O  .  .  . "
+                                   " .  X  .  X  .  .  .  .  .  .  . "
+                                   " X  .  .  O  O  X  .  .  X  .  . "
+                                   " .  .  .  .  .  .  X  .  .  X  . "
+                                   " .  X  .  .  .  .  O  .  .  .  X "
+                                   " X  .  .  O  O  .  O  .  .  X  X "
+                                   " X  .  .  .  O  O  O  .  .  .  X "
+                                   " X  .  .  .  .  O  .  .  .  .  X "
+                                   " .  .  .  .  .  .  .  .  O  .  . "
+                                   " .  #  .  .  .  X  .  .  .  .  . "
+                                   " .  .  X  .  X  X  X  X  .  .  . ";
 
+UBENCH_EX(king_mobility, corner_paths_1) {
+  board b = read_board(corner_access_double);
 
+  // setup to generate layers
+  layer occ = board_occ(b);
+  layer occ_r = board_occ_r(b);
 
+  int king_pos = lowest_index(b.king);
+  int king_rank = rank(king_pos);
+  int king_file = file(king_pos);
+
+  UBENCH_DO_BENCHMARK() {
+
+    layer paths = EMPTY_LAYER;
+    layer paths_r = EMPTY_LAYER;
+
+    corner_paths_1(occ, occ_r, king_rank, king_file, &paths, &paths_r);
+    UBENCH_DO_NOTHING(&paths);
+    UBENCH_DO_NOTHING(&paths_r);
+  }
+}
 
 // needs to be at top level
 UBENCH_STATE();

@@ -8,6 +8,8 @@
 #include "string.h"
 #include "x86intrin.h"
 
+#define EXPAND(...) __VA_ARGS__
+
 int cmp_moves(const move *a, const move *b) {
   int orig_cmp = a->orig - b->orig;
   if (orig_cmp == 0) {
@@ -134,16 +136,7 @@ inline uint8_t get_team_move_count(
   uint16_t blockers;""")
 
 for rot in ("", "_r"):
-    for index, offsets in combos:
-        for offset in offsets:
-            o = f"""
-  movers = ((uint64_t) team{rot}._[{index}] >> {offset}) & 0b11111111111;
-  blockers = ((uint64_t) occ{rot}._[{index}] >> {offset}) & 0b11111111111;
-  while (movers) {{
-    total += row_move_count_table[blockers][_tzcnt_u16(movers)];
-    movers &= movers - 1;
-  }}"""
-            cog.outl(o)
+    for index, offse         cog.outl(o)
 
 cog.outl("""
   uint16_t row;
@@ -175,141 +168,141 @@ uint16_t get_team_move_count(
   uint16_t movers;
   uint16_t blockers;
 
-  movers = ((uint64_t)team._[0] >> 0) & 0b11111111111;
-  blockers = ((uint64_t)occ._[0] >> 0) & 0b11111111111;
+  movers = ((u64)team._[0] >> 0) & 0b11111111111;
+  blockers = ((u64)occ._[0] >> 0) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[0] >> 11) & 0b11111111111;
-  blockers = ((uint64_t)occ._[0] >> 11) & 0b11111111111;
+  movers = ((u64)team._[0] >> 11) & 0b11111111111;
+  blockers = ((u64)occ._[0] >> 11) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[0] >> 22) & 0b11111111111;
-  blockers = ((uint64_t)occ._[0] >> 22) & 0b11111111111;
+  movers = ((u64)team._[0] >> 22) & 0b11111111111;
+  blockers = ((u64)occ._[0] >> 22) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[0] >> 33) & 0b11111111111;
-  blockers = ((uint64_t)occ._[0] >> 33) & 0b11111111111;
+  movers = ((u64)team._[0] >> 33) & 0b11111111111;
+  blockers = ((u64)occ._[0] >> 33) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[0] >> 44) & 0b11111111111;
-  blockers = ((uint64_t)occ._[0] >> 44) & 0b11111111111;
+  movers = ((u64)team._[0] >> 44) & 0b11111111111;
+  blockers = ((u64)occ._[0] >> 44) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[1] >> 2) & 0b11111111111;
-  blockers = ((uint64_t)occ._[1] >> 2) & 0b11111111111;
+  movers = ((u64)team._[1] >> 2) & 0b11111111111;
+  blockers = ((u64)occ._[1] >> 2) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[1] >> 13) & 0b11111111111;
-  blockers = ((uint64_t)occ._[1] >> 13) & 0b11111111111;
+  movers = ((u64)team._[1] >> 13) & 0b11111111111;
+  blockers = ((u64)occ._[1] >> 13) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[1] >> 24) & 0b11111111111;
-  blockers = ((uint64_t)occ._[1] >> 24) & 0b11111111111;
+  movers = ((u64)team._[1] >> 24) & 0b11111111111;
+  blockers = ((u64)occ._[1] >> 24) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[1] >> 35) & 0b11111111111;
-  blockers = ((uint64_t)occ._[1] >> 35) & 0b11111111111;
+  movers = ((u64)team._[1] >> 35) & 0b11111111111;
+  blockers = ((u64)occ._[1] >> 35) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team._[1] >> 46) & 0b11111111111;
-  blockers = ((uint64_t)occ._[1] >> 46) & 0b11111111111;
+  movers = ((u64)team._[1] >> 46) & 0b11111111111;
+  blockers = ((u64)occ._[1] >> 46) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[0] >> 0) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[0] >> 0) & 0b11111111111;
+  movers = ((u64)team_r._[0] >> 0) & 0b11111111111;
+  blockers = ((u64)occ_r._[0] >> 0) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[0] >> 11) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[0] >> 11) & 0b11111111111;
+  movers = ((u64)team_r._[0] >> 11) & 0b11111111111;
+  blockers = ((u64)occ_r._[0] >> 11) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[0] >> 22) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[0] >> 22) & 0b11111111111;
+  movers = ((u64)team_r._[0] >> 22) & 0b11111111111;
+  blockers = ((u64)occ_r._[0] >> 22) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[0] >> 33) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[0] >> 33) & 0b11111111111;
+  movers = ((u64)team_r._[0] >> 33) & 0b11111111111;
+  blockers = ((u64)occ_r._[0] >> 33) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[0] >> 44) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[0] >> 44) & 0b11111111111;
+  movers = ((u64)team_r._[0] >> 44) & 0b11111111111;
+  blockers = ((u64)occ_r._[0] >> 44) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[1] >> 2) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[1] >> 2) & 0b11111111111;
+  movers = ((u64)team_r._[1] >> 2) & 0b11111111111;
+  blockers = ((u64)occ_r._[1] >> 2) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[1] >> 13) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[1] >> 13) & 0b11111111111;
+  movers = ((u64)team_r._[1] >> 13) & 0b11111111111;
+  blockers = ((u64)occ_r._[1] >> 13) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[1] >> 24) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[1] >> 24) & 0b11111111111;
+  movers = ((u64)team_r._[1] >> 24) & 0b11111111111;
+  blockers = ((u64)occ_r._[1] >> 24) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[1] >> 35) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[1] >> 35) & 0b11111111111;
+  movers = ((u64)team_r._[1] >> 35) & 0b11111111111;
+  blockers = ((u64)occ_r._[1] >> 35) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
   }
 
-  movers = ((uint64_t)team_r._[1] >> 46) & 0b11111111111;
-  blockers = ((uint64_t)occ_r._[1] >> 46) & 0b11111111111;
+  movers = ((u64)team_r._[1] >> 46) & 0b11111111111;
+  blockers = ((u64)occ_r._[1] >> 46) & 0b11111111111;
   while (movers) {
     total += row_move_count_table[blockers][_tzcnt_u16(movers)];
     movers &= movers - 1;
@@ -377,11 +370,11 @@ def build_func(color, rotation, level):
   is_capture = op_layer_bit(cap_dests, dest, &);"""
 
     main_half_handler = f"""
-  b.{color}{rotation}._[{index}] -= (uint64_t)1 << orig;
-  b.{color}{rotation}._[{index}] |= (uint64_t)1 << dest;
+  b.{color}{rotation}._[{index}] -= (u64)1 << orig;
+  b.{color}{rotation}._[{index}] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[{index}] & ((uint64_t)1 << dest);"""
+  is_capture = cap_dests._[{index}] & ((u64)1 << dest);"""
 
 
     upper_index_adjustment = """
@@ -450,11 +443,11 @@ void process_move_black_lower(
   board b = base_board;
   bool is_capture;
 
-  b.black._[0] -= (uint64_t)1 << orig;
-  b.black._[0] |= (uint64_t)1 << dest;
+  b.black._[0] -= (u64)1 << orig;
+  b.black._[0] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[0] & ((u64)1 << dest);
 
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
@@ -526,11 +519,11 @@ void process_move_black_upper(
   board b = base_board;
   bool is_capture;
 
-  b.black._[1] -= (uint64_t)1 << orig;
-  b.black._[1] |= (uint64_t)1 << dest;
+  b.black._[1] -= (u64)1 << orig;
+  b.black._[1] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[1] & ((u64)1 << dest);
 
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
@@ -568,11 +561,11 @@ void process_move_black_r_lower(
   board b = base_board;
   bool is_capture;
 
-  b.black_r._[0] -= (uint64_t)1 << orig;
-  b.black_r._[0] |= (uint64_t)1 << dest;
+  b.black_r._[0] -= (u64)1 << orig;
+  b.black_r._[0] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[0] & ((u64)1 << dest);
 
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
@@ -644,11 +637,11 @@ void process_move_black_r_upper(
   board b = base_board;
   bool is_capture;
 
-  b.black_r._[1] -= (uint64_t)1 << orig;
-  b.black_r._[1] |= (uint64_t)1 << dest;
+  b.black_r._[1] -= (u64)1 << orig;
+  b.black_r._[1] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[1] & ((u64)1 << dest);
 
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
@@ -686,11 +679,11 @@ void process_move_white_lower(
   board b = base_board;
   bool is_capture;
 
-  b.white._[0] -= (uint64_t)1 << orig;
-  b.white._[0] |= (uint64_t)1 << dest;
+  b.white._[0] -= (u64)1 << orig;
+  b.white._[0] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[0] & ((u64)1 << dest);
 
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
@@ -762,11 +755,11 @@ void process_move_white_upper(
   board b = base_board;
   bool is_capture;
 
-  b.white._[1] -= (uint64_t)1 << orig;
-  b.white._[1] |= (uint64_t)1 << dest;
+  b.white._[1] -= (u64)1 << orig;
+  b.white._[1] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[1] & ((u64)1 << dest);
 
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
@@ -804,11 +797,11 @@ void process_move_white_r_lower(
   board b = base_board;
   bool is_capture;
 
-  b.white_r._[0] -= (uint64_t)1 << orig;
-  b.white_r._[0] |= (uint64_t)1 << dest;
+  b.white_r._[0] -= (u64)1 << orig;
+  b.white_r._[0] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[0] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[0] & ((u64)1 << dest);
 
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
@@ -880,11 +873,11 @@ void process_move_white_r_upper(
   board b = base_board;
   bool is_capture;
 
-  b.white_r._[1] -= (uint64_t)1 << orig;
-  b.white_r._[1] |= (uint64_t)1 << dest;
+  b.white_r._[1] -= (u64)1 << orig;
+  b.white_r._[1] |= (u64)1 << dest;
 
   // use the pre-offset value to check the capture destinations
-  is_capture = cap_dests._[1] & ((uint64_t)1 << dest);
+  is_capture = cap_dests._[1] & ((u64)1 << dest);
 
   // we should offset by 64 to get the layer index from the sub-layer
   // index before recording the move and getting the rotated coords.
@@ -922,14 +915,14 @@ def build(color, rotation, index):
     ("upper" if index == "1" else "lower")
     return f"""
 static inline __attribute__((always_inline)) void
-get_next_row_boards_{color}{rotation}_{index}( board *boards, const uint64_t
+get_next_row_boards_{color}{rotation}_{index}( board *boards, const u64
 occ, const board *board, int *total, move *moves, const layer cap_dests, int
 row_offset ) {{ unsigned short movers = (board->{color}{rotation}._[{index}] >>
 row_offset) & 0b11111111111; while (movers) {{ uint8_t orig =
 _tzcnt_u16(movers); const unsigned short blockers =
-      ((uint64_t)occ >> row_offset) & 0b11111111111;
-      uint64_t row_moves =
-        (uint64_t)row_moves_table[blockers][orig] << row_offset;
+      ((u64)occ >> row_offset) & 0b11111111111;
+      u64 row_moves =
+        (u64)row_moves_table[blockers][orig] << row_offset;
         orig += row_offset;
         while (row_moves) {{
           uint8_t dest = _tzcnt_u64(row_moves);
@@ -982,7 +975,7 @@ for (color, rotation) in product(["black", "white"], ["", "_r"]):
 
 static inline __attribute__((always_inline)) void get_next_row_boards_black_0(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -991,10 +984,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_0(
   unsigned short movers = (board->black._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1008,7 +999,7 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_0(
 
 static inline __attribute__((always_inline)) void get_next_row_boards_black_1(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -1017,10 +1008,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_1(
   unsigned short movers = (board->black._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1034,7 +1023,7 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_1(
 
 static inline __attribute__((always_inline)) void get_next_row_boards_black_r_0(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -1043,10 +1032,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_r_0(
   unsigned short movers = (board->black_r._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1060,7 +1047,7 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_r_0(
 
 static inline __attribute__((always_inline)) void get_next_row_boards_black_r_1(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -1069,10 +1056,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_r_1(
   unsigned short movers = (board->black_r._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1086,7 +1071,7 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_r_1(
 
 static inline __attribute__((always_inline)) void get_next_row_boards_white_0(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -1095,10 +1080,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_0(
   unsigned short movers = (board->white._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1112,7 +1095,7 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_0(
 
 static inline __attribute__((always_inline)) void get_next_row_boards_white_1(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -1121,10 +1104,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_1(
   unsigned short movers = (board->white._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1138,7 +1119,7 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_1(
 
 static inline __attribute__((always_inline)) void get_next_row_boards_white_r_0(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -1147,10 +1128,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_r_0(
   unsigned short movers = (board->white_r._[0] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1164,7 +1143,7 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_r_0(
 
 static inline __attribute__((always_inline)) void get_next_row_boards_white_r_1(
     board *boards,
-    const uint64_t occ,
+    const u64 occ,
     const board *board,
     int *total,
     move *moves,
@@ -1173,10 +1152,8 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_r_1(
   unsigned short movers = (board->white_r._[1] >> row_offset) & 0b11111111111;
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers =
-        ((uint64_t)occ >> row_offset) & 0b11111111111;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][orig]
-                         << row_offset;
+    const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
+    u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
       uint8_t dest = _tzcnt_u64(row_moves);
@@ -1299,11 +1276,11 @@ void attempt_black(board) {
   int total = 0;
   move moves[240];
 
-  static const uint64_t right_barriers = 36046397799139328;
-  uint64_t occ;
+  static const u64 right_barriers = 36046397799139328;
+  u64 occ;
   occ |= right_barriers;
 
-  uint64_t leftward_movers;
+  u64 leftward_movers;
   uint8_t pos = 0;
 
   while (leftward_movers) {
@@ -1590,9 +1567,8 @@ void get_king_moves(
   if (orig < 55) {
     const uint row_offset = sub_layer_row_offset[orig];
     const uint8_t row_orig = orig - row_offset;
-    const uint16_t blockers = ((uint64_t)occ._[0] >> row_offset) & 0x7FF;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
-                         << row_offset;
+    const uint16_t blockers = ((u64)occ._[0] >> row_offset) & 0x7FF;
+    u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
       const uint8_t dest = _tzcnt_u64(row_moves);
       const uint8_t dest_r = rotate_right[dest];
@@ -1600,11 +1576,11 @@ void get_king_moves(
       moves[*total] = (struct move){orig, dest};
       // generate board
       board new_board = current;
-      new_board.king._[0] = (uint64_t)1 << dest;
+      new_board.king._[0] = (u64)1 << dest;
       new_board.king._[1] = 0;
       new_board.king_r._[!sub_layer(dest_r)] = 0;
       new_board.king_r._[sub_layer(dest_r)] =
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+          (u64)1 << (sub_layer_offset_direct[dest_r]);
       // handle captures
       // if (capture_dests[0] & (1 << dest)) {
       apply_captures_niave(
@@ -1623,9 +1599,8 @@ void get_king_moves(
     const uint8_t sub_orig = orig - 64;
     const uint row_offset = sub_layer_row_offset_upper[sub_orig];
     const uint8_t row_orig = sub_orig - row_offset;
-    const uint16_t blockers = ((uint64_t)occ._[1] >> row_offset) & 0x7FF;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
-                         << row_offset;
+    const uint16_t blockers = ((u64)occ._[1] >> row_offset) & 0x7FF;
+    u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
       const uint8_t sub_dest = _tzcnt_u64(row_moves);
       const uint8_t dest = sub_dest + 64;
@@ -1635,10 +1610,10 @@ void get_king_moves(
       // generate board
       board new_board = current;
       new_board.king._[0] = 0;
-      new_board.king._[1] = (uint64_t)1 << sub_dest;
+      new_board.king._[1] = (u64)1 << sub_dest;
       new_board.king_r._[!sub_layer(dest_r)] = 0;
       new_board.king_r._[sub_layer(dest_r)] =
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+          (u64)1 << (sub_layer_offset_direct[dest_r]);
       apply_captures_niave(
           layer_or(new_board.white, corners),
           &new_board.black,
@@ -1665,11 +1640,11 @@ void get_king_moves(
       // generate board
       board new_board = current;
       new_board.king._[!sub_layer(dest)] = 0;
-      new_board.king._[sub_layer(dest)] = (uint64_t)1
+      new_board.king._[sub_layer(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
       new_board.king_r._[!sub_layer(dest_r)] = 0;
       new_board.king_r._[sub_layer(dest_r)] =
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+          (u64)1 << (sub_layer_offset_direct[dest_r]);
       // handle captures
       // if (capture_dests[1] & (1 << sub_dest)) {
       apply_captures_niave(
@@ -1695,9 +1670,8 @@ void get_king_moves(
   if (orig_r < 55) {
     const uint row_offset = sub_layer_row_offset[orig_r];
     const uint8_t row_orig = orig_r - row_offset;
-    const uint16_t blockers = ((uint64_t)occ_r._[0] >> row_offset) & 0x7FF;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
-                         << row_offset;
+    const uint16_t blockers = ((u64)occ_r._[0] >> row_offset) & 0x7FF;
+    u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
       const uint8_t dest_r = _tzcnt_u64(row_moves);
       const uint8_t dest = rotate_left[dest_r];
@@ -1705,10 +1679,10 @@ void get_king_moves(
       moves[*total] = (struct move){orig, dest};
       // generate board
       board new_board = current;
-      new_board.king._[sub_layer(dest)] = (uint64_t)1
+      new_board.king._[sub_layer(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
       new_board.king._[!sub_layer(dest)] = 0;
-      new_board.king_r._[0] = (uint64_t)1 << dest_r;
+      new_board.king_r._[0] = (u64)1 << dest_r;
       new_board.king_r._[1] = 0;
       // handle captures
       // if (capture_dests[0] & (1 << dest)) {
@@ -1729,9 +1703,8 @@ void get_king_moves(
     const uint8_t sub_orig = orig_r - 64;
     const uint row_offset = sub_layer_row_offset_upper[sub_orig];
     const uint8_t row_orig = sub_orig - row_offset;
-    const uint16_t blockers = ((uint64_t)occ_r._[1] >> row_offset) & 0x7FF;
-    uint64_t row_moves = (uint64_t)row_moves_table[blockers][row_orig]
-                         << row_offset;
+    const uint16_t blockers = ((u64)occ_r._[1] >> row_offset) & 0x7FF;
+    u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
       const uint8_t sub_dest = _tzcnt_u64(row_moves);
       const uint8_t dest_r = sub_dest + 64;
@@ -1741,10 +1714,10 @@ void get_king_moves(
       // generate board
       board new_board = current;
       new_board.king._[!sub_layer(dest)] = 0;
-      new_board.king._[sub_layer(dest)] = (uint64_t)1
+      new_board.king._[sub_layer(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
       new_board.king_r._[0] = 0;
-      new_board.king_r._[1] = (uint64_t)1 << sub_dest;
+      new_board.king_r._[1] = (u64)1 << sub_dest;
       apply_captures_niave(
           layer_or(new_board.white, corners),
           &new_board.black,
@@ -1771,11 +1744,11 @@ void get_king_moves(
       // generate board
       board new_board = current;
       new_board.king._[!sub_layer(dest)] = 0;
-      new_board.king._[sub_layer(dest)] = (uint64_t)1
+      new_board.king._[sub_layer(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
       new_board.king_r._[!sub_layer(dest_r)] = 0;
       new_board.king_r._[sub_layer(dest_r)] =
-          (uint64_t)1 << (sub_layer_offset_direct[dest_r]);
+          (u64)1 << (sub_layer_offset_direct[dest_r]);
 
       apply_captures_niave(
           layer_or(new_board.white, corners),
@@ -1807,17 +1780,17 @@ layer gen_shield_wall_triggers(
 
   // north
   {
-    uint64_t edges = foes._[1] & (allies._[1] << 11);
-    uint64_t left = occ._[1] & (edges << 1);
-    uint64_t right = occ._[1] & (edges >> 1);
+    u64 edges = foes._[1] & (allies._[1] << 11);
+    u64 left = occ._[1] & (edges << 1);
+    u64 right = occ._[1] & (edges >> 1);
     triggers._[1] |= left | right;
   }
 
   // south
   {
-    uint64_t edges = foes._[0] & (allies._[0] >> 11);
-    uint64_t left = occ._[0] & (edges << 1);
-    uint64_t right = occ._[0] & (edges >> 1);
+    u64 edges = foes._[0] & (allies._[0] >> 11);
+    u64 left = occ._[0] & (edges << 1);
+    u64 right = occ._[0] & (edges >> 1);
     triggers._[0] |= left | right;
   }
 
@@ -1854,7 +1827,7 @@ void gen_reference_moves_black3(
   int dest;
 
   int orig = 0;
-  uint64_t pieces = b.black._[0];
+  u64 pieces = b.black._[0];
   bool lower = true;
 
 process:
@@ -1994,7 +1967,7 @@ void gen_reference_moves_white3(
   int dest;
 
   int orig = 0;
-  uint64_t pieces = b.white._[0];
+  u64 pieces = b.white._[0];
   bool lower = true;
 
 process:
@@ -2138,7 +2111,7 @@ const uint8_t rank_mod[121] = {
 
 union sources_u {
   struct sources dirs;
-  uint64_t all;
+  u64 all;
 };
 
 void gen_king_mm(board b, layer occ, int orig, move_map mm) {
@@ -2472,7 +2445,7 @@ void build_mm(layer movers, const layer occ, move_map mm) {
   int dest;
 
   int orig = 0;
-  uint64_t pieces = movers._[0];
+  u64 pieces = movers._[0];
   bool lower = true;
 
 process:
@@ -2559,7 +2532,7 @@ void gen_moves_from_mm_white(
   *total = 0;
   layer occ = board_occ(b);
 
-  uint64_t remaining = dests._[0];
+  u64 remaining = dests._[0];
   int dest = 0;
   bool lower = true;
 
@@ -2636,7 +2609,7 @@ void gen_moves_from_mm_white_capture(
   *total = 0;
   layer occ = board_occ(b);
 
-  uint64_t remaining = dests._[0];
+  u64 remaining = dests._[0];
   int dest = 0;
   bool lower = true;
 
@@ -2717,7 +2690,7 @@ void gen_moves_from_mm_black(
   *total = 0;
   layer occ = board_occ(b);
 
-  uint64_t remaining = dests._[0];
+  u64 remaining = dests._[0];
   int dest = 0;
   bool lower = true;
 
@@ -2794,7 +2767,7 @@ void gen_moves_from_mm_black_capture(
   *total = 0;
   layer occ = board_occ(b);
 
-  uint64_t remaining = dests._[0];
+  u64 remaining = dests._[0];
   int dest = 0;
   bool lower = true;
 
@@ -3013,21 +2986,25 @@ void gen_moves_from_mm_king_capture(
 // -----------------------------------------------------------------------------
 // king corner access
 
-#define dirty_get_row_0(l) (uint64_t) l._[0]
-#define dirty_get_row_1(l) ((uint64_t)l._[0] >> 11)
-#define dirty_get_row_2(l) ((uint64_t)l._[0] >> 22)
-#define dirty_get_row_3(l) ((uint64_t)l._[0] >> 33)
-#define dirty_get_row_4(l) ((uint64_t)l._[0] >> 44)
-#define dirty_get_row_5(l)                                                     \
-  ((uint64_t)l._[0] >> 55) | ((((uint64_t)l._[1] & 0x3) << 9))
-#define dirty_get_row_6(l) ((uint64_t)l._[1] >> 2)
-#define dirty_get_row_7(l) ((uint64_t)l._[1] >> 13)
-#define dirty_get_row_8(l) ((uint64_t)l._[1] >> 24)
-#define dirty_get_row_9(l) ((uint64_t)l._[1] >> 35)
-#define dirty_get_row_10(l) ((uint64_t)l._[1] >> 46)
+#define DIRTY_GET_ROW_0(l) (u64) l._[0]
+#define DIRTY_GET_ROW_1(l) ((u64)l._[0] >> 11)
+#define DIRTY_GET_ROW_2(l) ((u64)l._[0] >> 22)
+#define DIRTY_GET_ROW_3(l) ((u64)l._[0] >> 33)
+#define DIRTY_GET_ROW_4(l) ((u64)l._[0] >> 44)
+#define DIRTY_GET_ROW_5(l) ((u64)l._[0] >> 55) | ((((u64)l._[1] & 0x3) << 9))
+#define DIRTY_GET_ROW_6(l) ((u64)l._[1] >> 2)
+#define DIRTY_GET_ROW_7(l) ((u64)l._[1] >> 13)
+#define DIRTY_GET_ROW_8(l) ((u64)l._[1] >> 24)
+#define DIRTY_GET_ROW_9(l) ((u64)l._[1] >> 35)
+#define DIRTY_GET_ROW_10(l) ((u64)l._[1] >> 46)
 
-#define mask_rightward(x) (((uint16_t)1 << x) - 1)
-#define mask_leftward(x) ((0x7fe << x) & 0x7fe)
+#define LEGAL_EDGE_MASK 0b01111111110
+
+#define MASK_RIGHTWARD(x) (((uint16_t)1 << x) - 1)
+#define MASK_LEFTWARD(x) ((0x7fe << x) & 0x7fe)
+
+#define MASK_RIGHTWARD_INC(x) (((uint16_t)2 << x) - 1)
+#define MASK_LEFTWARD_INC(x) ((0x7ff << x) & 0x7ff)
 
 const layer below_0 = {0ULL, 0ULL};
 const layer below_1 = {2047ULL, 0ULL};
@@ -3041,6 +3018,7 @@ const layer below_8 = {18446744073709551615ULL, 16777215ULL};
 const layer below_9 = {18446744073709551615ULL, 34359738367ULL};
 const layer below_10 = {18446744073709551615ULL, 70368744177663ULL};
 
+// TODO: make this and the other defines with index
 layer below_n[11] = {
     below_0,
     below_1,
@@ -3085,8 +3063,78 @@ const layer file_mask_0 = {36046397799139329ULL, 70403120701444ULL};
 const layer file_mask_1 = {72092795598278658ULL, 140806241402888ULL};
 const layer file_mask_9 = {9011599449784832ULL, 36046397799139329ULL};
 const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
+#define LEGAL_FILE_MASK_0_0 36046397799139328ULL
+#define LEGAL_FILE_MASK_0_1 34376523780ULL
+#define LEGAL_FILE_MASK_0 ((layer){36046397799139328ULL, 34376523780ULL})
+#define LEGAL_FILE_MASK_1_0 72092795598278658ULL
+#define LEGAL_FILE_MASK_1_1 140806241402888ULL
+#define LEGAL_FILE_MASK_1 ((layer){72092795598278658ULL, 140806241402888ULL})
+#define LEGAL_FILE_MASK_5_0 1153484729572458528ULL
+#define LEGAL_FILE_MASK_5_1 2252899862446208ULL
+#define LEGAL_FILE_MASK_9_0 9011599449784832ULL
+#define LEGAL_FILE_MASK_9_1 36046397799139329ULL
+#define LEGAL_FILE_MASK_9 ((layer){9011599449784832ULL, 36046397799139329ULL})
+#define LEGAL_FILE_MASK_10_0 18023198899568640ULL
+#define LEGAL_FILE_MASK_10_1 35201560350722ULL
+#define LEGAL_FILE_MASK_10 ((layer){18023198899568640ULL, 35201560350722ULL})
+#define COMBINE(_a, _b) _a##_b
+#define LEGAL_FILE_MASK(_i) COMBINE(LEGAL_FILE_MASK_, _i)
+#define COMBINE3(_a, _b, _c) _a##_b##_c
+#define LEGAL_FILE_MASK_HALF(_i, _half) COMBINE3(LEGAL_FILE_MASK_, _i, _half)
 
-const layer not_corners = {18446744073709550590ULL, 71987225293750271ULL};
+#define FILE_MASK_2 ((layer){144185591196557316ULL, 281612482805776ULL})
+#define FILE_MASK_3 ((layer){288371182393114632ULL, 563224965611552ULL})
+#define FILE_MASK_4 ((layer){576742364786229264ULL, 1126449931223104ULL})
+#define FILE_MASK_5 ((layer){1153484729572458528ULL, 2252899862446208ULL})
+#define FILE_MASK_6 ((layer){2306969459144917056ULL, 4505799724892416ULL})
+#define FILE_MASK_7 ((layer){4613938918289834112ULL, 9011599449784832ULL})
+#define FILE_MASK_8 ((layer){9227877836579668224ULL, 18023198899569664ULL})
+#define FILE_MASK_ADJACENT_2 ((layer){144185591196557312ULL, 137506095120ULL})
+#define FILE_MASK_ADJACENT_3 ((layer){288371182393114624ULL, 275012190240ULL})
+#define FILE_MASK_ADJACENT_4 ((layer){576742364786229248ULL, 550024380480ULL})
+#define FILE_MASK_ADJACENT_5 ((layer){1153484729572458496ULL, 1100048760960ULL})
+#define FILE_MASK_ADJACENT_6 ((layer){2306969459144916992ULL, 2200097521920ULL})
+#define FILE_MASK_ADJACENT_7 ((layer){4613938918289833984ULL, 4400195043840ULL})
+#define FILE_MASK_ADJACENT_8 ((layer){9227877836579667968ULL, 8800390087680ULL})
+
+const layer file_masks[] = {
+    EMPTY_LAYER,
+    EMPTY_LAYER,
+    FILE_MASK_2,
+    FILE_MASK_3,
+    FILE_MASK_4,
+    FILE_MASK_5,
+    FILE_MASK_6,
+    FILE_MASK_7,
+    FILE_MASK_8,
+    EMPTY_LAYER,
+    EMPTY_LAYER,
+};
+
+// TODO: try just shifting file mask 0 for speed
+#define FILE_MASK(_i) file_masks[_i]
+
+const layer file_masks_adjacent[] = {
+    EMPTY_LAYER,
+    EMPTY_LAYER,
+    FILE_MASK_ADJACENT_2,
+    FILE_MASK_ADJACENT_3,
+    FILE_MASK_ADJACENT_4,
+    FILE_MASK_ADJACENT_5,
+    FILE_MASK_ADJACENT_6,
+    FILE_MASK_ADJACENT_7,
+    FILE_MASK_ADJACENT_8,
+    EMPTY_LAYER,
+    EMPTY_LAYER,
+};
+// TODO: try just shifting file mask 0 for speed
+#define FILE_MASK_ADJACENT(_i) file_masks_adjacent[_i]
+
+// const layer not_corners = {18446744073709550590ULL, 71987225293750271ULL};
+
+// get a path
+#define PATH_ABOVE(_x, _y) LAYER_AND(FILE_MASK(_x), above_n[_y])
+#define PATH_BELOW(_x, _y) LAYER_AND(FILE_MASK(_x), below_n[_y])
 
 /**
  * Check if the king can reach the se corner in 1 move.
@@ -3101,45 +3149,45 @@ bool corner_moves_1(
   uint16_t row;
 
   if (rank == 0) {
-    row = dirty_get_row_0(occ);
-    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+    row = DIRTY_GET_ROW_0(occ);
+    if (!(row & MASK_LEFTWARD(file)) || !(row & MASK_RIGHTWARD(file))) {
       return true;
     }
   } else if (rank == 1) {
-    row = dirty_get_row_1(occ);
-    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+    row = DIRTY_GET_ROW_1(occ);
+    if (!(row & MASK_LEFTWARD(file)) || !(row & MASK_RIGHTWARD(file))) {
       return true;
     }
   } else if (rank == 9) {
-    row = dirty_get_row_9(occ);
-    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+    row = DIRTY_GET_ROW_9(occ);
+    if (!(row & MASK_LEFTWARD(file)) || !(row & MASK_RIGHTWARD(file))) {
       return true;
     }
   } else if (rank == 10) {
-    row = dirty_get_row_10(occ);
-    if (!(row & mask_leftward(file)) || !(row & mask_rightward(file))) {
+    row = DIRTY_GET_ROW_10(occ);
+    if (!(row & MASK_LEFTWARD(file)) || !(row & MASK_RIGHTWARD(file))) {
       return true;
     }
   }
 
   if (file == 0) {
-    row = dirty_get_row_0(occ_r);
-    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+    row = DIRTY_GET_ROW_0(occ_r);
+    if (!(row & MASK_LEFTWARD(rank)) || !(row & MASK_RIGHTWARD(rank))) {
       return true;
     }
   } else if (file == 1) {
-    row = dirty_get_row_1(occ_r);
-    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+    row = DIRTY_GET_ROW_1(occ_r);
+    if (!(row & MASK_LEFTWARD(rank)) || !(row & MASK_RIGHTWARD(rank))) {
       return true;
     }
   } else if (file == 9) {
-    row = dirty_get_row_9(occ_r);
-    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+    row = DIRTY_GET_ROW_9(occ_r);
+    if (!(row & MASK_LEFTWARD(rank)) || !(row & MASK_RIGHTWARD(rank))) {
       return true;
     }
   } else if (file == 10) {
-    row = dirty_get_row_10(occ_r);
-    if (!(row & mask_leftward(rank)) || !(row & mask_rightward(rank))) {
+    row = DIRTY_GET_ROW_10(occ_r);
+    if (!(row & MASK_LEFTWARD(rank)) || !(row & MASK_RIGHTWARD(rank))) {
       return true;
     }
   }
@@ -3147,165 +3195,298 @@ bool corner_moves_1(
   return false;
 }
 
-#define not_rank file
-#define not_file rank
+#define INTO_ROW_0(_layer, _row) (_layer->_[0] |= _row)
+#define INTO_ROW_1(_layer, _row) (_layer->_[0] |= ((u64)_row << 11))
+#define INTO_ROW_2(_layer, _row) (_layer->_[0] |= ((u64)_row << 22))
+#define INTO_ROW_3(_layer, _row) (_layer->_[0] |= ((u64)_row << 33))
+#define INTO_ROW_4(_layer, _row) (_layer->_[0] |= ((u64)_row << 44))
+#define INTO_ROW_5(_layer, _row)                                               \
+  (_layer->_[0] |= ((u64)_row << 55), _layer->_[1] |= (_row >> 9))
+#define INTO_ROW_6(_layer, _row) (_layer->_[1] |= ((u64)_row << 2))
+#define INTO_ROW_7(_layer, _row) (_layer->_[1] |= ((u64)_row << 13))
+#define INTO_ROW_8(_layer, _row) (_layer->_[1] |= ((u64)_row << 24))
+#define INTO_ROW_9(_layer, _row) (_layer->_[1] |= ((u64)_row << 35))
+#define INTO_ROW_10(_layer, _row) (_layer->_[1] |= ((u64)_row << 46))
 
-#define APPLY_LEGAL_EDGE_MASK_0 path._[0] &= legal_edge_mask;
-#define APPLY_LEGAL_EDGE_MASK_1
-#define APPLY_LEGAL_EDGE_MASK_9
-#define APPLY_LEGAL_EDGE_MASK_10 path._[1] &= legal_edge_mask;
-#define APPLY_LEGAL_EDGE_MASK(_n) APPLY_LEGAL_EDGE_MASK_##_n
+inline void into_row(layer *l, u16 row, int n) {
+  switch (n) {
+  case 0:
+    INTO_ROW_0(l, row);
+    break;
+  case 1:
+    INTO_ROW_1(l, row);
+    break;
+  case 2:
+    INTO_ROW_2(l, row);
+    break;
+  case 3:
+    INTO_ROW_3(l, row);
+    break;
+  case 4:
+    INTO_ROW_4(l, row);
+    break;
+  case 5:
+    INTO_ROW_5(l, row);
+    break;
+  case 6:
+    INTO_ROW_6(l, row);
+    break;
+  case 7:
+    INTO_ROW_7(l, row);
+    break;
+  case 8:
+    INTO_ROW_8(l, row);
+    break;
+  case 9:
+    INTO_ROW_9(l, row);
+    break;
+  case 10:
+    INTO_ROW_10(l, row);
+    break;
+  }
+}
 
-#define OFFSET_ROW_0
-#define OFFSET_ROW_1 path._[0] <<= 11;
-#define OFFSET_ROW_9 path._[1] <<= 35;
-#define OFFSET_ROW_10 path._[1] <<= 35;
-#define OFFSET_ROW()
+#define APPLY_LEGAL_EDGE_MASK_0(_row) (_row & LEGAL_EDGE_MASK)
+#define APPLY_LEGAL_EDGE_MASK_1(_row) (_row)
+#define APPLY_LEGAL_EDGE_MASK_5(_row) (_row)
+#define APPLY_LEGAL_EDGE_MASK_9(_row) (_row)
+#define APPLY_LEGAL_EDGE_MASK_10(_row) (_row & LEGAL_EDGE_MASK)
 
-#define CORNER_PATH_1_LANE_SIDE(_i, _side)                                     \
-  const uint16_t mask_ = mask_##_side##ward(file);                             \
-  if (!(row & mask)) {                                                         \
-    layer path = {(uint64_t)mask, _i};                                         \
-    APPLY_LEGAL_EDGE_MASK(_i);                                                 \
-    OFFSET_ROW(_i);                                                            \
-    LAYER_OR_ASSG(paths, path);                                                \
+// when converting bits left/right of a position in a row mask to a
+// perpendicular layer representation, are those bits above or below
+// the position
+#define left_file above_n
+#define right_file below_n
+#define left_rank below_n
+#define right_rank above_n
+
+#define VERT_INDEX_rank(_i) _i
+#define VERT_INDEX_file_0 10
+#define VERT_INDEX_file_1 9
+#define VERT_INDEX_file_9 1
+#define VERT_INDEX_file_10 0
+#define VERT_INDEX_file(_i) VERT_INDEX_file_##_i
+#define VERT_INDEX(_variable, _i) VERT_INDEX_##_variable(_i)
+
+#define APPLY_EXPAND(F, X) F(X)
+
+#define ADD_PATHS(_i, _variable, _side, _parallel_paths, _perpendicular_paths) \
+  {                                                                            \
+    INTO_ROW_##_i(_parallel_paths, APPLY_LEGAL_EDGE_MASK_##_i(mask));          \
+    _perpendicular_paths->_[0] |=                                              \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_variable, _i), _0) &                 \
+         _side##_##_variable[_variable]._[0]);                                 \
+    _perpendicular_paths->_[1] |=                                              \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_variable, _i), _1) &                 \
+         _side##_##_variable[_variable]._[1]);                                 \
   }
 
-#define CORNER_PATH_1_LANE(_i, _orientation)                                   \
-  case _i: {                                                                   \
-    uint16_t row = dirty_get_row_##_i(occ);                                    \
-    CORNER_PATH_1_LANE_SIDE(left);                                             \
-    CORNER_PATH_1_LANE_SIDE(right);                                            \
+#define BOTH_SIDES(_i, _variable, _occ, _parallel_paths, _perpendicular_paths) \
+  u16 row = DIRTY_GET_ROW_##_i(_occ);                                          \
+  {                                                                            \
+    const u16 mask = MASK_LEFTWARD(_variable);                                 \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(_i, _variable, left, _parallel_paths, _perpendicular_paths);   \
+    }                                                                          \
+  }                                                                            \
+  {                                                                            \
+    const u16 mask = MASK_RIGHTWARD(_variable);                                \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(_i, _variable, right, _parallel_paths, _perpendicular_paths);  \
+    }                                                                          \
+  }
+
+#define CASE(_x, _body)                                                        \
+  case _x: {                                                                   \
+    _body                                                                      \
   }; break;
 
 /**
  * Get layer mask for all open 1-move routes to a corner.
  */
-layer corner_paths_1(
-    const layer occ, const layer occ_r, const int rank, const int file) {
-  layer paths = EMPTY_LAYER;
-
-  const uint16_t legal_edge_mask = 0b01111111110;
+void corner_paths_1(
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file,
+    layer *paths,
+    layer *paths_r) {
 
   switch (rank) {
-  case 0: {
-    uint16_t row = dirty_get_row_0(occ);
-    const uint16_t mask_left = mask_leftward(file);
-    if (!(row & mask_left)) {
-      // layer path = {(uint64_t)mask_left & legal_edge_mask, 0};
-      layer path = {(uint64_t)mask_left, 0};
-      path._[0] &= legal_edge_mask;
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t mask_right = mask_rightward(file);
-    if (!(row & mask_right)) {
-      layer path = {(uint64_t)mask_right & legal_edge_mask, 0};
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
-  case 1: {
-    uint16_t row = dirty_get_row_1(occ);
-    uint16_t mask_left = mask_leftward(file);
-    if (!(row & mask_left)) {
-      layer path = {(uint64_t)mask_left, 0};
-      path._[0] <<= 11;
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t mask_right = mask_rightward(file);
-    if (!(row & mask_right)) {
-      layer path = {(uint64_t)mask_right << 11, 0};
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
-  case 9: {
-    uint16_t row = dirty_get_row_9(occ);
-    uint16_t rank_mask_right = mask_rightward(file);
-    if (!(row & rank_mask_right)) {
-      layer path = {0, (uint64_t)rank_mask_right << 35};
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t rank_mask_left = mask_leftward(file);
-    if (!(row & rank_mask_left)) {
-      layer path = {0, (uint64_t)rank_mask_left << 35};
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
-  case 10: {
-    uint16_t row = dirty_get_row_10(occ);
-    uint16_t rank_mask_right = mask_rightward(file);
-    if (!(row & rank_mask_right)) {
-      layer path = {0, (uint64_t)(rank_mask_right & legal_edge_mask) << 46};
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t rank_mask_left = mask_leftward(file);
-    if (!(row & rank_mask_left)) {
-      layer path = {0, (uint64_t)(rank_mask_left & legal_edge_mask) << 46};
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
+    CASE(0, BOTH_SIDES(0, file, occ, paths, paths_r));
+    CASE(1, BOTH_SIDES(1, file, occ, paths, paths_r));
+    CASE(9, BOTH_SIDES(9, file, occ, paths, paths_r));
+    CASE(10, BOTH_SIDES(10, file, occ, paths, paths_r));
   }
 
   switch (file) {
-  case 0: {
-    uint16_t row = dirty_get_row_0(occ_r);
-    uint16_t mask_left = mask_leftward(rank);
-    if (!(row & mask_left)) {
-      layer path =
-          layer_and(not_corners, layer_and(file_mask_0, below_n[rank]));
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t mask_right = mask_rightward(rank);
-    if (!(row & mask_right)) {
-      layer path =
-          layer_and(not_corners, layer_and(file_mask_0, above_n[rank]));
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
-  case 1: {
-    uint16_t row = dirty_get_row_1(occ_r);
-    uint16_t mask_left = mask_leftward(rank);
-    if (!(row & mask_left)) {
-      layer path =
-          layer_and(not_corners, layer_and(file_mask_1, below_n[rank]));
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t mask_right = mask_rightward(rank);
-    if (!(row & mask_right)) {
-      layer path =
-          layer_and(not_corners, layer_and(file_mask_1, above_n[rank]));
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
-  case 9: {
-    uint16_t row = dirty_get_row_9(occ_r);
-    uint16_t rank_mask_right = mask_rightward(rank);
-    if (!(row & rank_mask_right)) {
-      layer path = layer_and(file_mask_9, above_n[rank]);
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t rank_mask_left = mask_leftward(rank);
-    if (!(row & rank_mask_left)) {
-      layer path = layer_and(file_mask_9, below_n[rank]);
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
-  case 10: {
-    uint16_t row = dirty_get_row_10(occ_r);
-    uint16_t rank_mask_right = mask_rightward(rank);
-    if (!(row & rank_mask_right)) {
-      layer path =
-          layer_and(not_corners, layer_and(file_mask_10, above_n[rank]));
-      LAYER_OR_ASSG(paths, path);
-    }
-    uint16_t rank_mask_left = mask_leftward(rank);
-    if (!(row & rank_mask_left)) {
-      layer path =
-          layer_and(not_corners, layer_and(file_mask_10, below_n[rank]));
-      LAYER_OR_ASSG(paths, path);
-    }
-  }; break;
+    CASE(0, BOTH_SIDES(0, rank, occ_r, paths_r, paths));
+    CASE(1, BOTH_SIDES(1, rank, occ_r, paths_r, paths));
+    CASE(9, BOTH_SIDES(9, rank, occ_r, paths_r, paths));
+    CASE(10, BOTH_SIDES(10, rank, occ_r, paths_r, paths));
   }
-  return paths;
+}
+
+/*
+// Mask (_from, _to]
+#define MASK_BETWEEN_0_1 0b10
+#define MASK_BETWEEN_0_9 0b1111111110
+#define MASK_BETWEEN_0_10 0b11111111110
+#define MASK_BETWEEN_1_0 1
+#define MASK_BETWEEN_1_9 0b1111111100
+#define MASK_BETWEEN_1_10 0b11111111100
+#define MASK_BETWEEN_9_0 0b1111111111
+#define MASK_BETWEEN_9_1 0b1111111110
+#define MASK_BETWEEN_9_10 0b10000000000
+#define MASK_BETWEEN_10_0 0b01111111111
+#define MASK_BETWEEN_10_1 0b01111111110
+#define MASK_BETWEEN_10_9 0b01000000000
+#define MASK_BETWEEN(_from, _to)
+*/
+
+#define FILE_SIDE_0 right
+#define FILE_SIDE_1 right
+#define FILE_SIDE_9 left
+#define FILE_SIDE_10 left
+
+// TODO: try implemting with lookup table and see if it's faster
+// Mask (_from, _to]
+#define MASK_LEFT_FROM_TO(_from, _to) (((u16)2 << _to) - ((u16)2 << _from))
+#define MASK_RIGHT_FROM_TO(_from, _to) (((u16)1 << _from) - (1 << _to))
+
+  // args can be simplified to axis (rank or file), pos on axis, target on axis, axis index (if it's the 4th rank or 2nd file)
+// additionally handle adding the previous path (stem) to paths if a
+// corner path is found
+#define BOTH_SIDES_STEM(                                                       \
+    _i, _variable, _occ, _parallel_paths, _perpendicular_paths)                \
+  bool escape = false;                                                         \
+  u16 row = DIRTY_GET_ROW_##_i(_occ);                                          \
+  {                                                                            \
+    const u16 mask = MASK_LEFTWARD(_variable);                                 \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(_i, _variable, left, _parallel_paths, _perpendicular_paths);   \
+      escape = true;                                                           \
+    }                                                                          \
+  }                                                                            \
+  {                                                                            \
+    const u16 mask = MASK_RIGHTWARD(_variable);                                \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(_i, _variable, right, _parallel_paths, _perpendicular_paths);  \
+      escape = true;                                                           \
+    }                                                                          \
+  }                                                                            \
+  if (escape) {                                                                \
+    into_row(paths, stem, 5);                                                  \
+  }
+
+#define BOTH_SIDES_INC(                                                        \
+    _i, _variable, _occ, _parallel_paths, _perpendicular_paths)                \
+  u16 row = DIRTY_GET_ROW_##_i(_occ);                                          \
+  {                                                                            \
+    const u16 mask = MASK_LEFTWARD_INC(_variable);                             \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(_i, _variable, left, _parallel_paths, _perpendicular_paths);   \
+    }                                                                          \
+  }                                                                            \
+  {                                                                            \
+    const u16 mask = MASK_RIGHTWARD_INC(_variable);                            \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(_i, _variable, right, _parallel_paths, _perpendicular_paths);  \
+    }                                                                          \
+  }
+
+void scratch(u16 row, int i) {
+  u16 pos = (u16)1 << i;
+  u16 l = (row - pos) & 0b11000000000 & ~row;
+  u16 r1 = pos & (row - 2);
+  u16 r0 = pos & (row - 1);
+  u16 bits = (l >> 9) | (r1 >> (i - 1)) | (r0 >> i);
+ }
+
+void corner_paths_2(
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file,
+    layer *paths,
+    layer *paths_r) {
+
+  u16 row = (uint64_t)occ._[0];
+  u16 pos = 1 << file;
+  if (pos & (row - 1)) { BOTH_SIDES(0, rank, occ_r, paths_r, paths) }
+  if (pos & (row - 2)) { BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths) }
+  if (0b10000000000 & ~row & (row - pos)) {
+    // fake
+    BOTH_SIDES(9, rank, occ_r, paths_r, paths)
+  }
+  if (0b01000000000 & ~row & (row - pos)) {
+    // fake
+    BOTH_SIDES(10, rank, occ_r, paths_r, paths)
+  } 
+  /*
+  switch (rank) {
+  case 0: {
+    {
+      { BOTH_SIDES(0, rank, occ_r, paths_r, paths) }
+      { BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths) }
+    }
+  }
+  case 1: {
+    {
+      { BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths) }
+      { BOTH_SIDES(1, rank, occ_r, paths_r, paths) }
+    }
+  }
+  case 9: {
+    {
+      { BOTH_SIDES(9, rank, occ_r, paths_r, paths) }
+      { BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths) }
+    }
+  }
+  case 10: {
+    {
+      { BOTH_SIDES_INC(9, rank, occ_r, paths_r, paths) }
+      { BOTH_SIDES(10, rank, occ_r, paths_r, paths) }
+    }
+  }
+
+  case 5: {
+    {
+      u16 row = dirty_get_row(occ, rank);
+      {
+        u16 stem = MASK_LEFT_FROM_TO(file, 10);
+        print_layer(PATH_ABOVE(file, rank));
+        if (!(row & stem)) {
+          BOTH_SIDES_STEM(10, rank, occ_r, paths_r, paths)
+        }
+      }
+      {
+        u16 stem = MASK_LEFT_FROM_TO(file, 9);
+        if (!(row & stem)) {
+          BOTH_SIDES_STEM(9, rank, occ_r, paths_r, paths)
+        }
+      }
+      {
+        u16 stem = MASK_RIGHT_FROM_TO(file, 1);
+        if (!(row & stem)) {
+          BOTH_SIDES_STEM(1, rank, occ_r, paths_r, paths)
+        }
+      }
+      {
+        u16 stem = MASK_RIGHT_FROM_TO(file, 0);
+        if (!(row & stem)) {
+          BOTH_SIDES_STEM(0, rank, occ_r, paths_r, paths)
+        }
+      }
+    }
+  }
+  }
+  */
+
+  // print_row(MASK_LEFT_FROM_TO(file, 9));
+  // print_row(MASK_RIGHT_FROM_TO(file, 1));
+  // print_row(MASK_LEFT_FROM_TO(file, 10));
+  // print_row(MASK_RIGHT_FROM_TO(file, 0));
 }
 
 // -----------------------------------------------------------------------------
@@ -3326,12 +3507,12 @@ leftward
 
 // TODO: explain how extraction works
 #define EXTRACT_LEFTWARD(_i, _r)                                               \
-  uint64_t dest_bit = _blsi_u64(dests);                                        \
+  u64 dest_bit = _blsi_u64(dests);                                             \
   uint8_t dest = _tzcnt_u64(dest_bit);                                         \
   OFFSET(dest, _i);                                                            \
   uint8_t orig =                                                               \
       63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & leftward_occ##_r._[_i]);         \
-  uint64_t orig_bit = (uint64_t)1 << orig;                                     \
+  u64 orig_bit = (u64)1 << orig;                                               \
   OFFSET(orig, _i);
 
 #define EXTRACT_CENTER_LEFTWARD(_l)                                            \
@@ -3353,9 +3534,9 @@ leftward
 // same function.
 #define LEFTWARD(_i, _r)                                                       \
   {                                                                            \
-    uint64_t dests = targets##_r._[_i] &                                       \
-                     (leftward_occ##_r._[_i] - (movers##_r._[_i] << 1)) &      \
-                     DROP_1_EAST_##_i;                                         \
+    u64 dests = targets##_r._[_i] &                                            \
+                (leftward_occ##_r._[_i] - (movers##_r._[_i] << 1)) &           \
+                DROP_1_EAST_##_i;                                              \
     while (dests) {                                                            \
       EXTRACT_LEFTWARD(_i, _r);                                                \
       uint8_t orig_r = ROTATE_DIR(_r)[orig];                                   \
@@ -3382,10 +3563,10 @@ leftward
 */
 
 #define RIGHTWARD_DESTS(_i, _r)                                                \
-  uint64_t below = orig_bit - 1;                                               \
-  uint64_t above_highest_occ_mask =                                            \
-      ~((uint64_t)-1 >> _lzcnt_u64(rightward_occ##_r._[_i] & below));          \
-  uint64_t dests = targets##_r._[_i] & below & above_highest_occ_mask;
+  u64 below = orig_bit - 1;                                                    \
+  u64 above_highest_occ_mask =                                                 \
+      ~((u64)-1 >> _lzcnt_u64(rightward_occ##_r._[_i] & below));               \
+  u64 dests = targets##_r._[_i] & below & above_highest_occ_mask;
 
 #define RIGHTWARD_DESTS_CENTER(_r)                                             \
   uint16_t below = orig_bit - 1;                                               \
@@ -3397,11 +3578,11 @@ leftward
 
 #define RIGHTWARD(_i, _r)                                                      \
   {                                                                            \
-    uint64_t origs =                                                           \
+    u64 origs =                                                                \
         movers##_r._[_i] & ~(rightward_occ##_r._[_i] - targets##_r._[_i]);     \
     while (origs) {                                                            \
                                                                                \
-      uint64_t orig_bit = _blsi_u64(origs);                                    \
+      u64 orig_bit = _blsi_u64(origs);                                         \
       uint8_t orig = _tzcnt_u64(orig_bit);                                     \
       OFFSET(orig, _i);                                                        \
       uint8_t orig_r = ROTATE_DIR(_r)[orig];                                   \
@@ -3411,7 +3592,7 @@ leftward
                                                                                \
       while (dests) {                                                          \
         uint8_t dest = _tzcnt_u64(dests);                                      \
-        uint64_t dest_bit = (uint64_t)1 << dest;                               \
+        u64 dest_bit = (u64)1 << dest;                                         \
         OFFSET(dest, _i);                                                      \
         uint8_t dest_r = ROTATE_DIR(_r)[dest];                                 \
                                                                                \
@@ -3432,11 +3613,10 @@ leftward
     u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));                   \
     u64 move_mask =                                                            \
         (movers##_r._[_i] - movers_dep) & HALF_MASK_##_i & targets##_r._[_i];  \
-    uint64_t origs =                                                           \
-        movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);            \
+    u64 origs = movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);    \
     while (origs) {                                                            \
                                                                                \
-      uint64_t orig_bit = _blsi_u64(origs);                                    \
+      u64 orig_bit = _blsi_u64(origs);                                         \
       uint8_t orig = _tzcnt_u64(orig_bit);                                     \
       OFFSET(orig, _i);                                                        \
       uint8_t orig_r = ROTATE_DIR(_r)[orig];                                   \
@@ -3446,7 +3626,7 @@ leftward
                                                                                \
       while (dests) {                                                          \
         uint8_t dest = _tzcnt_u64(dests);                                      \
-        uint64_t dest_bit = (uint64_t)1 << dest;                               \
+        u64 dest_bit = (u64)1 << dest;                                         \
         OFFSET(dest, _i);                                                      \
         uint8_t dest_r = ROTATE_DIR(_r)[dest];                                 \
                                                                                \
@@ -3467,11 +3647,10 @@ leftward
     u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));               \
     u64 move_mask =                                                            \
         (movers##_r._[_i] - movers_dep) & HALF_MASK_##_i & targets##_r._[_i];  \
-    uint64_t origs =                                                           \
-        movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);            \
+    u64 origs = movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);    \
     while (origs) {                                                            \
                                                                                \
-      uint64_t orig_bit = _blsi_u64(origs);                                    \
+      u64 orig_bit = _blsi_u64(origs);                                         \
       uint8_t orig = _tzcnt_u64(orig_bit);                                     \
       OFFSET(orig, _i);                                                        \
       uint8_t orig_r = ROTATE_DIR(_r)[orig];                                   \
@@ -3481,7 +3660,7 @@ leftward
                                                                                \
       while (dests) {                                                          \
         uint8_t dest = _tzcnt_u64(dests);                                      \
-        uint64_t dest_bit = (uint64_t)1 << dest;                               \
+        u64 dest_bit = (u64)1 << dest;                                         \
         OFFSET(dest, _i);                                                      \
         uint8_t dest_r = ROTATE_DIR(_r)[dest];                                 \
                                                                                \
@@ -3555,7 +3734,7 @@ layers, only in the move.
   op_layer_bit(ls_r[(*total)], dest_r, |=);                                    \
   (*total)++;
 
-#define BIT_AT(_i) ((uint64_t)1 << _i)
+#define BIT_AT(_i) ((u64)1 << _i)
 
 void moves_to(
     layer targets,
@@ -3677,7 +3856,7 @@ void moves_to_king_impl(
 new plan for rightward moves:
 
 I can still do this king of thing:
-    uint64_t lefts = movers_r._[1] & ~(occ_r._[1] - targets_r._[1]);
+    u64 lefts = movers_r._[1] & ~(occ_r._[1] - targets_r._[1]);
 to isolate movers that can actually reach targets. But I do need another
 approach to extract moves.
 
@@ -3915,7 +4094,7 @@ inline int leftward_moves_count(layer movers, layer occ) {
     // we & ~blockers to remove all blockers that haven't been bit flipped by a
     // substraction, so that all we're left with are subtraction rays we &
     // LOWER_HALF_MASK to remove anything in the center row
-    // 
+    //
     u64 dests = (blockers - ((movers._[0]) << 1)) & ~blockers & LOWER_HALF_MASK;
     // print_layer((layer){dests, 0});
     output += __builtin_popcountll(dests);
@@ -4029,14 +4208,14 @@ int get_king_move_count(const board b) {
     int orig = _tzcnt_u64(b.king._[0]);
     const uint row_offset = sub_layer_row_offset[orig];
     const uint8_t row_orig = orig - row_offset;
-    const uint16_t blockers = ((uint64_t)occ._[0] >> row_offset) & 0x7FF;
+    const uint16_t blockers = ((u64)occ._[0] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else if (b.king._[1] & UPPER_HALF_MASK) {
     int orig = _tzcnt_u64(b.king._[1]);
     const uint row_offset = sub_layer_row_offset_upper[orig];
     const uint8_t row_orig = orig - row_offset;
-    const uint16_t blockers = ((uint64_t)occ._[1] >> row_offset) & 0x7FF;
+    const uint16_t blockers = ((u64)occ._[1] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else {
@@ -4053,14 +4232,14 @@ int get_king_move_count(const board b) {
   if (orig_r < 55) {
     const uint row_offset = sub_layer_row_offset[orig_r];
     const uint8_t row_orig = orig_r - row_offset;
-    const uint16_t blockers = ((uint64_t)occ_r._[0] >> row_offset) & 0x7FF;
+    const uint16_t blockers = ((u64)occ_r._[0] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else if (orig_r > 65) {
     const uint8_t sub_orig = orig_r - 64;
     const uint row_offset = sub_layer_row_offset_upper[sub_orig];
     const uint8_t row_orig = sub_orig - row_offset;
-    const uint16_t blockers = ((uint64_t)occ_r._[1] >> row_offset) & 0x7FF;
+    const uint16_t blockers = ((u64)occ_r._[1] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else {

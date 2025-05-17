@@ -31,24 +31,26 @@ layer read_layer(const char *string, uint8_t symbol) {
 layer_string stringify(layer layer) {
   // initialize empty string
   layer_string string;
-  memset(string._, ' ', 373);
-  string._[373] = '\0';
+  memset(string._, ' ', 375);
 
   // insert newlines
-  for (int i = 33; i < 373; i += 34) {
+  for (int i = 34; i < 375; i += 34) {
     string._[i] = '\n';
   }
 
   // set board positions with the appropriate unsigned char
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
-    int index = 373 - (((i * 3) + 1) + newline_offset);
+    int index = 375 - (((i * 3) + 3) + newline_offset);
     if (layer._[sub_layer(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])) {
       string._[index] = 'X';
     } else {
       string._[index] = '.';
     }
   }
+  string._[0] = '\n';
+  string._[374] = '\n';
+  string._[375] = '\0';
   return string;
 }
 

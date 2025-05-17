@@ -576,6 +576,7 @@ layer above_n[] = {
 #define position_row_1(r) shiftl_lower(11, r)
 #define position_row_9(r) shiftl_upper(35, r)
 #define position_row_10(r) shiftl_upper(46, r)
+
 /**
  * Get layer masks for all open 1-move routes to a corner.
  */

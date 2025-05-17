@@ -60,7 +60,7 @@ const uint8_t sub_layer_table[121] = {
 #define dirty_get_row_9(l) ((uint64_t)l._[1] >> 35)
 #define dirty_get_row_10(l) ((uint64_t)l._[1] >> 46)
 
-uint16_t dirty_get_row(layer l, int n) {
+u16 dirty_get_row(layer l, int n) {
   switch (n) {
   case 0:
     return dirty_get_row_0(l);

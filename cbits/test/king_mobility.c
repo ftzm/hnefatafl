@@ -428,6 +428,7 @@ SUITE(corner_moves_1_suite) {
 
 TEST test_corner_paths_1(const char *b, const char *e) {
   layer expected = read_layer(e, 'X');
+  layer expected_r = rotate_layer_right(expected);
 
   // setup to generate layers
   layer occ = read_layer(b, 'X');
@@ -439,26 +440,26 @@ TEST test_corner_paths_1(const char *b, const char *e) {
   int king_file = file(king_pos);
 
   int count = 0;
+  layer paths = EMPTY_LAYER;
+  layer paths_r = EMPTY_LAYER;
 
-  // generate layer
-  layer result = corner_paths_1(occ, occ_r, king_rank, king_file);
+  // generate layers
+  corner_paths_1(occ, occ_r, king_rank, king_file, &paths, &paths_r);
 
-  // error string
-  layer_string result_string = stringify(result);
-  layer_string expected_string = stringify(expected);
-  char divider[] = "\n\n =/= \n\n";
-  char buf[sizeof(layer_string) * 2 + strlen(divider) + 2];
-  snprintf(
-      buf,
-      sizeof(buf),
-      "\n%s%s%s\n",
-      result_string._,
-      divider,
-      expected_string._);
+  {
+    // error string
+    layer_string result_string = stringify(paths);
+    layer_string expected_string = stringify(expected);
+    ASSERT_STR_EQ(expected_string._, result_string._);
+  }
 
-  // test
+  {
+    // error string r
+    layer_string result_string = stringify(paths_r);
+    layer_string expected_string = stringify(expected_r);
+    ASSERT_STR_EQ(expected_string._, result_string._);
+  }
 
-  ASSERTm(buf, LAYERS_EQUAL(result, expected));
   PASS();
 }
 
@@ -1199,6 +1200,72 @@ SUITE(corner_paths_1_suite) {
       ".  X  .  .  .  .  .  .  .  .  .");
 }
 
+TEST test_corner_paths_2(const char *b, const char *e) {
+  layer expected = read_layer(e, 'X');
+  layer expected_r = rotate_layer_right(expected);
+
+  // setup to generate layers
+  layer occ = read_layer(b, 'X');
+  layer occ_r = rotate_layer_right(occ);
+
+  layer l = read_layer(b, '#');
+  int king_pos = lowest_index(l);
+  int king_rank = rank(king_pos);
+  int king_file = file(king_pos);
+
+  int count = 0;
+  layer paths = EMPTY_LAYER;
+  layer paths_r = EMPTY_LAYER;
+
+  // generate layers
+  corner_paths_2(occ, occ_r, king_rank, king_file, &paths, &paths_r);
+
+  {
+    // error string
+    layer_string result_string = stringify(paths);
+    layer_string expected_string = stringify(expected);
+    ASSERT_STR_EQ(expected_string._, result_string._);
+  }
+
+  {
+    // error string r
+    layer_string result_string = stringify(paths_r);
+    layer_string expected_string = stringify(expected_r);
+    ASSERT_STR_EQ(expected_string._, result_string._);
+  }
+
+  PASS();
+}
+
+SUITE(corner_paths_2_suite) {
+  
+  RUN_TESTp(
+      test_corner_paths_2,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      "X  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  X  .  .  #  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  X  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .");
+  
+}
+
 GREATEST_MAIN_DEFS();
 
 int main(int argc, char **argv) {
@@ -1206,6 +1273,7 @@ int main(int argc, char **argv) {
 
   RUN_SUITE(corner_moves_1_suite);
   RUN_SUITE(corner_paths_1_suite);
+  RUN_SUITE(corner_paths_2_suite);
 
   GREATEST_MAIN_END();
 }
