@@ -10,6 +10,20 @@
 
 #define EXPAND(...) __VA_ARGS__
 
+/* join tokens with an understore */
+#define JOIN(_a, _b) _a##_##_b
+#define JOIN3(_a, _b, _c) _a##_##_b##_##_c
+
+/* Inserts a macro expension phase between a function and its
+arguments, allowing those arguments to expand before being used inside
+of the body of the function. */
+#define APPLY(_func, _a) _func(_a)
+#define APPLY2(_func, _a, _b) _func(_a, _b)
+#define APPLY3(_func, _a, _b, _c) _func(_a, _b, _c)
+#define APPLY4(_func, _a, _b, _c, _d) _func(_a, _b, _c, _e)
+#define APPLY5(_func, _a, _b, _c, _d, _e) _func(_a, _b, _c, _d, _e)
+#define APPLY6(_func, _a, _b, _c, _d, _e, _f) _func(_a, _b, _c, _d, _e, _f)
+
 int cmp_moves(const move *a, const move *b) {
   int orig_cmp = a->orig - b->orig;
   if (orig_cmp == 0) {
@@ -2997,6 +3011,7 @@ void gen_moves_from_mm_king_capture(
 #define DIRTY_GET_ROW_8(l) ((u64)l._[1] >> 24)
 #define DIRTY_GET_ROW_9(l) ((u64)l._[1] >> 35)
 #define DIRTY_GET_ROW_10(l) ((u64)l._[1] >> 46)
+#define DIRTY_GET_ROW(_i, _l) JOIN(DIRTY_GET_ROW, _i)(_l)
 
 #define LEGAL_EDGE_MASK 0b01111111110
 
@@ -3063,6 +3078,22 @@ const layer file_mask_0 = {36046397799139329ULL, 70403120701444ULL};
 const layer file_mask_1 = {72092795598278658ULL, 140806241402888ULL};
 const layer file_mask_9 = {9011599449784832ULL, 36046397799139329ULL};
 const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
+
+#define COMBINE(_a, _b) _a##_b
+#define LEGAL_FILE_MASK(_i) COMBINE(LEGAL_FILE_MASK_, _i)
+#define COMBINE3(_a, _b, _c) _a##_b##_c
+#define COMBINE4(_a, _b, _c, _d) _a##_b##_c##_d
+#define COMBINE5(_a, _b, _c, _d, _e) _a##_b##_c##_d##_e
+#define LEGAL_FILE_MASK_HALF(_i, _half) COMBINE3(LEGAL_FILE_MASK_, _i, _half)
+
+#define FILE_MASK_2 ((layer){144185591196557316ULL, 281612482805776ULL})
+#define FILE_MASK_3 ((layer){288371182393114632ULL, 563224965611552ULL})
+#define FILE_MASK_4 ((layer){576742364786229264ULL, 1126449931223104ULL})
+#define FILE_MASK_5 ((layer){1153484729572458528ULL, 2252899862446208ULL})
+#define FILE_MASK_6 ((layer){2306969459144917056ULL, 4505799724892416ULL})
+#define FILE_MASK_7 ((layer){4613938918289834112ULL, 9011599449784832ULL})
+#define FILE_MASK_8 ((layer){9227877836579668224ULL, 18023198899569664ULL})
+
 #define LEGAL_FILE_MASK_0_0 36046397799139328ULL
 #define LEGAL_FILE_MASK_0_1 34376523780ULL
 #define LEGAL_FILE_MASK_0 ((layer){36046397799139328ULL, 34376523780ULL})
@@ -3077,18 +3108,24 @@ const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
 #define LEGAL_FILE_MASK_10_0 18023198899568640ULL
 #define LEGAL_FILE_MASK_10_1 35201560350722ULL
 #define LEGAL_FILE_MASK_10 ((layer){18023198899568640ULL, 35201560350722ULL})
-#define COMBINE(_a, _b) _a##_b
-#define LEGAL_FILE_MASK(_i) COMBINE(LEGAL_FILE_MASK_, _i)
-#define COMBINE3(_a, _b, _c) _a##_b##_c
-#define LEGAL_FILE_MASK_HALF(_i, _half) COMBINE3(LEGAL_FILE_MASK_, _i, _half)
 
-#define FILE_MASK_2 ((layer){144185591196557316ULL, 281612482805776ULL})
-#define FILE_MASK_3 ((layer){288371182393114632ULL, 563224965611552ULL})
-#define FILE_MASK_4 ((layer){576742364786229264ULL, 1126449931223104ULL})
-#define FILE_MASK_5 ((layer){1153484729572458528ULL, 2252899862446208ULL})
-#define FILE_MASK_6 ((layer){2306969459144917056ULL, 4505799724892416ULL})
-#define FILE_MASK_7 ((layer){4613938918289834112ULL, 9011599449784832ULL})
-#define FILE_MASK_8 ((layer){9227877836579668224ULL, 18023198899569664ULL})
+const layer legal_file_masks[] = {
+    LEGAL_FILE_MASK_0,
+    LEGAL_FILE_MASK_1,
+    FILE_MASK_2,
+    FILE_MASK_3,
+    FILE_MASK_4,
+    FILE_MASK_5,
+    FILE_MASK_6,
+    FILE_MASK_7,
+    FILE_MASK_8,
+    LEGAL_FILE_MASK_9,
+    LEGAL_FILE_MASK_10};
+
+#define LEGAL_FILE_MASK_DYN(_i) legal_file_masks[_i]
+
+#define FILE_MASK_ADJACENT_0 ((layer){36046397799139328ULL, 34376523780ULL})
+#define FILE_MASK_ADJACENT_1 ((layer){72092795598278656ULL, 68753047560ULL})
 #define FILE_MASK_ADJACENT_2 ((layer){144185591196557312ULL, 137506095120ULL})
 #define FILE_MASK_ADJACENT_3 ((layer){288371182393114624ULL, 275012190240ULL})
 #define FILE_MASK_ADJACENT_4 ((layer){576742364786229248ULL, 550024380480ULL})
@@ -3096,6 +3133,23 @@ const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
 #define FILE_MASK_ADJACENT_6 ((layer){2306969459144916992ULL, 2200097521920ULL})
 #define FILE_MASK_ADJACENT_7 ((layer){4613938918289833984ULL, 4400195043840ULL})
 #define FILE_MASK_ADJACENT_8 ((layer){9227877836579667968ULL, 8800390087680ULL})
+#define FILE_MASK_ADJACENT_9 ((layer){9011599449784320ULL, 17600780175361ULL})
+#define FILE_MASK_ADJACENT_10 ((layer){18023198899568640ULL, 35201560350722ULL})
+
+const layer file_mask_adjacent[] = {
+    FILE_MASK_ADJACENT_0,
+    FILE_MASK_ADJACENT_1,
+    FILE_MASK_ADJACENT_2,
+    FILE_MASK_ADJACENT_3,
+    FILE_MASK_ADJACENT_4,
+    FILE_MASK_ADJACENT_5,
+    FILE_MASK_ADJACENT_6,
+    FILE_MASK_ADJACENT_7,
+    FILE_MASK_ADJACENT_8,
+    FILE_MASK_ADJACENT_9,
+    FILE_MASK_ADJACENT_10};
+
+#define FILE_MASK_ADJACENT_DYN(_i) file_mask_adjacent[_i]
 
 const layer file_masks[] = {
     EMPTY_LAYER,
@@ -3129,6 +3183,10 @@ const layer file_masks_adjacent[] = {
 };
 // TODO: try just shifting file mask 0 for speed
 #define FILE_MASK_ADJACENT(_i) file_masks_adjacent[_i]
+
+#define NOT_rank file
+#define NOT_file rank
+#define NOT_AXIS(_axis) NOT_##_axis
 
 // const layer not_corners = {18446744073709550590ULL, 71987225293750271ULL};
 
@@ -3207,6 +3265,7 @@ bool corner_moves_1(
 #define INTO_ROW_8(_layer, _row) (_layer->_[1] |= ((u64)_row << 24))
 #define INTO_ROW_9(_layer, _row) (_layer->_[1] |= ((u64)_row << 35))
 #define INTO_ROW_10(_layer, _row) (_layer->_[1] |= ((u64)_row << 46))
+#define INTO_ROW(_i, _layer, _row) JOIN(INTO_ROW, _i)(_layer, _row)
 
 inline void into_row(layer *l, u16 row, int n) {
   switch (n) {
@@ -3255,10 +3314,11 @@ inline void into_row(layer *l, u16 row, int n) {
 // when converting bits left/right of a position in a row mask to a
 // perpendicular layer representation, are those bits above or below
 // the position
-#define left_file above_n
-#define right_file below_n
-#define left_rank below_n
-#define right_rank above_n
+#define left_file below_n
+#define right_file above_n
+#define left_rank above_n
+#define right_rank below_n
+#define ROT_SIDE(_side, _axis) JOIN(_side, _axis)
 
 #define VERT_INDEX_rank(_i) _i
 #define VERT_INDEX_file_0 10
@@ -3266,19 +3326,17 @@ inline void into_row(layer *l, u16 row, int n) {
 #define VERT_INDEX_file_9 1
 #define VERT_INDEX_file_10 0
 #define VERT_INDEX_file(_i) VERT_INDEX_file_##_i
-#define VERT_INDEX(_variable, _i) VERT_INDEX_##_variable(_i)
+#define VERT_INDEX(_axis, _i) JOIN(VERT_INDEX, _axis)(_i)
 
-#define APPLY_EXPAND(F, X) F(X)
-
-#define ADD_PATHS(_i, _variable, _side, _parallel_paths, _perpendicular_paths) \
+#define ADD_PATHS(_i, _axis, _side, _parallel_paths, _perpendicular_paths)     \
   {                                                                            \
-    INTO_ROW_##_i(_parallel_paths, APPLY_LEGAL_EDGE_MASK_##_i(mask));          \
+    INTO_ROW(_i, _parallel_paths, JOIN(APPLY_LEGAL_EDGE_MASK, _i)(mask));           \
     _perpendicular_paths->_[0] |=                                              \
-        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_variable, _i), _0) &                 \
-         _side##_##_variable[_variable]._[0]);                                 \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), _0) &                     \
+         ROT_SIDE(_side, NOT_AXIS(_axis))[_axis]._[0]);                        \
     _perpendicular_paths->_[1] |=                                              \
-        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_variable, _i), _1) &                 \
-         _side##_##_variable[_variable]._[1]);                                 \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), _1) &                     \
+         ROT_SIDE(_side, NOT_AXIS(_axis))[_axis]._[1]);                        \
   }
 
 #define BOTH_SIDES(_i, _variable, _occ, _parallel_paths, _perpendicular_paths) \
@@ -3354,29 +3412,171 @@ void corner_paths_1(
 #define MASK_LEFT_FROM_TO(_from, _to) (((u16)2 << _to) - ((u16)2 << _from))
 #define MASK_RIGHT_FROM_TO(_from, _to) (((u16)1 << _from) - (1 << _to))
 
-  // args can be simplified to axis (rank or file), pos on axis, target on axis, axis index (if it's the 4th rank or 2nd file)
+#define AXIS_PATHS_file paths_r
+#define AXIS_PATHS_rank paths
+#define AXIS_PATHS(_axis) COMBINE(AXIS_PATHS_, _axis)
+
+#define AXIS_OCC_file occ_r
+#define AXIS_OCC_rank occ
+#define AXIS_OCC(_axis) COMBINE(AXIS_OCC_, _axis)
+
+#define TARGET_MASKER_10 MASK_LEFT_FROM_TO
+#define TARGET_MASKER_9 MASK_LEFT_FROM_TO
+#define TARGET_MASKER_1 MASK_RIGHT_FROM_TO
+#define TARGET_MASKER_0 MASK_RIGHT_FROM_TO
+#define TARGET_MASKER(_target) COMBINE(TARGET_MASKER_, _target)
+
+#define FILE_MASK_EDGE_ADJACENT_0_0 36046397799139328ULL
+#define FILE_MASK_EDGE_ADJACENT_0_1 34376523780ULL
+#define FILE_MASK_EDGE_ADJACENT_0                                              \
+  ((layer){36046397799139328ULL, 34376523780ULL})
+#define FILE_MASK_EDGE_ADJACENT_1_0 72092795598278656ULL
+#define FILE_MASK_EDGE_ADJACENT_1_1 68753047560ULL
+#define FILE_MASK_EDGE_ADJACENT_1                                              \
+  ((layer){72092795598278656ULL, 68753047560ULL})
+#define FILE_MASK_EDGE_ADJACENT_2_0 144185591196557312ULL
+#define FILE_MASK_EDGE_ADJACENT_2_1 137506095120ULL
+#define FILE_MASK_EDGE_ADJACENT_2                                              \
+  ((layer){144185591196557312ULL, 137506095120ULL})
+#define FILE_MASK_EDGE_ADJACENT_3_0 288371182393114624ULL
+#define FILE_MASK_EDGE_ADJACENT_3_1 275012190240ULL
+#define FILE_MASK_EDGE_ADJACENT_3                                              \
+  ((layer){288371182393114624ULL, 275012190240ULL})
+#define FILE_MASK_EDGE_ADJACENT_4_0 576742364786229248ULL
+#define FILE_MASK_EDGE_ADJACENT_4_1 550024380480ULL
+#define FILE_MASK_EDGE_ADJACENT_4                                              \
+  ((layer){576742364786229248ULL, 550024380480ULL})
+#define FILE_MASK_EDGE_ADJACENT_5_0 1153484729572458496ULL
+#define FILE_MASK_EDGE_ADJACENT_5_1 1100048760960ULL
+#define FILE_MASK_EDGE_ADJACENT_5                                              \
+  ((layer){1153484729572458496ULL, 1100048760960ULL})
+#define FILE_MASK_EDGE_ADJACENT_6_0 2306969459144916992ULL
+#define FILE_MASK_EDGE_ADJACENT_6_1 2200097521920ULL
+#define FILE_MASK_EDGE_ADJACENT_6                                              \
+  ((layer){2306969459144916992ULL, 2200097521920ULL})
+#define FILE_MASK_EDGE_ADJACENT_7_0 4613938918289833984ULL
+#define FILE_MASK_EDGE_ADJACENT_7_1 4400195043840ULL
+#define FILE_MASK_EDGE_ADJACENT_7                                              \
+  ((layer){4613938918289833984ULL, 4400195043840ULL})
+#define FILE_MASK_EDGE_ADJACENT_8_0 9227877836579667968ULL
+#define FILE_MASK_EDGE_ADJACENT_8_1 8800390087680ULL
+#define FILE_MASK_EDGE_ADJACENT_8                                              \
+  ((layer){9227877836579667968ULL, 8800390087680ULL})
+#define FILE_MASK_EDGE_ADJACENT_9_0 9011599449784320ULL
+#define FILE_MASK_EDGE_ADJACENT_9_1 17600780175361ULL
+#define FILE_MASK_EDGE_ADJACENT_9                                              \
+  ((layer){9011599449784320ULL, 17600780175361ULL})
+#define FILE_MASK_EDGE_ADJACENT_10_0 18023198899568640ULL
+#define FILE_MASK_EDGE_ADJACENT_10_1 35201560350722ULL
+#define FILE_MASK_EDGE_ADJACENT_10                                             \
+  ((layer){18023198899568640ULL, 35201560350722ULL})
+
+#define PERP_STEM_BASE_0 LEGAL_FILE_MASK_DYN
+#define PERP_STEM_BASE_1 FILE_MASK_ADJACENT_DYN
+#define PERP_STEM_BASE_9 FILE_MASK_ADJACENT_DYN
+#define PERP_STEM_BASE_10 LEGAL_FILE_MASK_DYN
+#define PERP_STEM_BASE(_i) PERP_STEM_BASE_##_i
+
+#define STEM_BASE_HALF(_axis, _target, _half)                                  \
+  APPLY(PERP_STEM_BASE(_target), _axis)._[_half]
+
+#define TARGET_0 right
+#define TARGET_1 right
+#define TARGET_9 left
+#define TARGET_10 left
+#define TARGET_SIDE(_target) JOIN(TARGET, _target)
+
 // additionally handle adding the previous path (stem) to paths if a
 // corner path is found
-#define BOTH_SIDES_STEM(                                                       \
-    _i, _variable, _occ, _parallel_paths, _perpendicular_paths)                \
+#define BOTH_SIDES_STEM(_axis, _pos, _target)                                  \
   bool escape = false;                                                         \
-  u16 row = DIRTY_GET_ROW_##_i(_occ);                                          \
+  u16 row = DIRTY_GET_ROW_##_target(AXIS_OCC(NOT_AXIS(_axis)));                \
   {                                                                            \
-    const u16 mask = MASK_LEFTWARD(_variable);                                 \
+    const u16 mask = MASK_LEFTWARD(NOT_AXIS(_axis));                           \
     if (!(row & mask)) {                                                       \
-      ADD_PATHS(_i, _variable, left, _parallel_paths, _perpendicular_paths);   \
+      ADD_PATHS(                                                               \
+          _target,                                                             \
+          _axis,                                                               \
+          left,                                                                \
+          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
+          AXIS_PATHS(_axis));                                                  \
       escape = true;                                                           \
     }                                                                          \
   }                                                                            \
   {                                                                            \
-    const u16 mask = MASK_RIGHTWARD(_variable);                                \
+    const u16 mask = MASK_RIGHTWARD(NOT_AXIS(_axis));                          \
     if (!(row & mask)) {                                                       \
-      ADD_PATHS(_i, _variable, right, _parallel_paths, _perpendicular_paths);  \
+      ADD_PATHS(                                                               \
+          _target,                                                             \
+          _axis,                                                               \
+          right,                                                               \
+          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
+          AXIS_PATHS(_axis));                                                  \
       escape = true;                                                           \
     }                                                                          \
   }                                                                            \
   if (escape) {                                                                \
-    into_row(paths, stem, 5);                                                  \
+    u16 stem = TARGET_MASKER(_target)(_pos, _target);                          \
+    into_row(AXIS_PATHS(_axis), stem, rank);                                   \
+    AXIS_PATHS(NOT_AXIS(_axis))->_[0] |=                                       \
+        STEM_BASE_HALF(_target, 0) &                                           \
+        ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[0];           \
+    AXIS_PATHS(NOT_AXIS(_axis))->_[1] |=                                       \
+        STEM_BASE_HALF(_target, 1) &                                           \
+        ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[1];           \
+  }
+
+#define ADJUST_AXIS_VAL_file(_i) _i
+#define ADJUST_AXIS_VAL_rank(_i) (10 - _i)
+#define ADJUST_AXIS_VAL(_axis) JOIN(ADJUST_AXIS_VAL, _axis)(_axis)
+
+#define BOTH_SIDES_STEM_GEN(_axis, _target)                                    \
+  bool escape = false;                                                         \
+  u16 row =                                                                    \
+      DIRTY_GET_ROW(VERT_INDEX(_axis, _target), AXIS_OCC(NOT_AXIS(_axis)));    \
+  {                                                                            \
+    const u16 mask = MASK_LEFTWARD(ADJUST_AXIS_VAL(_axis));                    \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(                                                               \
+          VERT_INDEX(_axis, _target),                                                             \
+          _axis,                                                               \
+          left,                                                                \
+          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
+          AXIS_PATHS(_axis));                                                  \
+      /*                                                                       \
+       */                                                                      \
+      escape = true;                                                           \
+    }                                                                          \
+  }                                                                            \
+  {                                                                            \
+    const u16 mask = MASK_RIGHTWARD(ADJUST_AXIS_VAL(_axis));                   \
+    if (!(row & mask)) {                                                       \
+      ADD_PATHS(                                                               \
+          VERT_INDEX(_axis, _target),                                                             \
+          _axis,                                                               \
+          right,                                                               \
+          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
+          AXIS_PATHS(_axis));                                                  \
+      /*                                                                       \
+       */                                                                      \
+      escape = true;                                                           \
+    }                                                                          \
+  }                                                                            \
+  if (escape) {                                                                \
+    u16 stem = TARGET_MASKER(_target)(ADJUST_AXIS_VAL(NOT_AXIS(_axis)), _target);               \
+    into_row(AXIS_PATHS(_axis), stem, _axis);                                  \
+    /* I should select  the stem base half also using the axis to get the      \
+     * right column but right now I'm erroneously using the target for both.   \
+     * And I don't know the value at compile time so I'll have to make this    \
+     * dynamic*/                                                               \
+    AXIS_PATHS(NOT_AXIS(_axis))->_[0] |=                                       \
+        STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 0) &                   \
+        ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[0];           \
+    AXIS_PATHS(NOT_AXIS(_axis))->_[1] |=                                       \
+        STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 1) &                   \
+        ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[1];           \
+    /*                                                                         \
+     */                                                                        \
   }
 
 #define BOTH_SIDES_INC(                                                        \
@@ -3401,7 +3601,7 @@ void scratch(u16 row, int i) {
   u16 r1 = pos & (row - 2);
   u16 r0 = pos & (row - 1);
   u16 bits = (l >> 9) | (r1 >> (i - 1)) | (r0 >> i);
- }
+}
 
 void corner_paths_2(
     const layer occ,
@@ -3411,18 +3611,73 @@ void corner_paths_2(
     layer *paths,
     layer *paths_r) {
 
-  u16 row = (uint64_t)occ._[0];
-  u16 pos = 1 << file;
-  if (pos & (row - 1)) { BOTH_SIDES(0, rank, occ_r, paths_r, paths) }
-  if (pos & (row - 2)) { BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths) }
-  if (0b10000000000 & ~row & (row - pos)) {
-    // fake
-    BOTH_SIDES(9, rank, occ_r, paths_r, paths)
+  {
+    u16 row = dirty_get_row(occ, rank);
+    u16 pos = 1 << file;
+
+    switch (rank) {
+    default: {
+      if (pos & (row - 1)) {
+        BOTH_SIDES_STEM_GEN(rank, 0)
+      }
+      if (pos & (row - 2)) {
+        BOTH_SIDES_STEM_GEN(rank, 1)
+      }
+      if (0b10000000000 & ~row & (row - pos)) {
+        BOTH_SIDES_STEM_GEN(rank, 9)
+      }
+      if (0b01000000000 & ~row & (row - pos)) {
+        // fake
+        BOTH_SIDES_STEM_GEN(rank, 10)
+      }
+    }
+    }
   }
-  if (0b01000000000 & ~row & (row - pos)) {
-    // fake
-    BOTH_SIDES(10, rank, occ_r, paths_r, paths)
-  } 
+
+  {
+    u16 row = dirty_get_row(occ_r, file);
+    u16 pos = 1 << (10 - rank);
+
+    switch (file) {
+    case 9: {
+      /*
+      if (pos & (row - 1)) {
+        BOTH_SIDES_STEM_GEN(file, 0)
+      }
+      if (pos & (row - 2)) {
+        BOTH_SIDES_STEM_GEN(file, 1)
+      }
+      */
+    }; break;
+    default: {
+      if (pos & (row - 1)) {
+        BOTH_SIDES_STEM_GEN(file, 0)
+      }
+      if (pos & (row - 2)) {
+        BOTH_SIDES_STEM_GEN(file, 1)
+      }
+      if (0b10000000000 & ~row & (row - pos)) {
+        BOTH_SIDES_STEM_GEN(file, 9)
+      }
+      if (0b01000000000 & ~row & (row - pos)) {
+        BOTH_SIDES_STEM_GEN(file, 10)
+      }
+    }
+    }
+  }
+  /*
+   */
+
+  /*
+  if (pos & (row - 1)) {
+    BOTH_SIDES(0, rank, occ_r, paths_r, paths)
+  }
+  if (pos & (row - 2)) {
+    BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths)
+  }
+  */
+  /*
+   */
   /*
   switch (rank) {
   case 0: {

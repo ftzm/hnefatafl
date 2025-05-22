@@ -204,6 +204,7 @@ UBENCH_EX(foo3, moves_to_white) {
   }
 }
 
+/*
 UBENCH_EX(triple_nested, gen3_white) {
   int total_total = 0;
   const board start_board = read_board(sanity_capture_king_string);
@@ -459,6 +460,7 @@ UBENCH_EX(triple_nested, mm_black) {
   }
   printf("%d\n", total_total);
 }
+  */
 
 UBENCH_EX(move_count, white_orig) {
   const board b = read_board(sanity_capture_king_string);
@@ -526,6 +528,42 @@ UBENCH_EX(king_mobility, corner_paths_1) {
     UBENCH_DO_NOTHING(&paths_r);
   }
 }
+
+const char *corner_access_double2 = " .  .  X  .  X  .  .  O  .  .  . "
+                                   " .  X  .  X  .  .  .  .  .  .  . "
+                                   " X  .  .  O  O  X  .  .  X  .  . "
+                                   " .  .  .  .  .  .  X  .  .  X  . "
+                                   " .  X  .  .  .  .  O  .  .  .  X "
+                                   " X  .  .  O  O  .  O  .  .  X  X "
+                                   " X  .  .  .  O  O  O  .  .  .  X "
+                                   " X  .  .  .  .  O  .  .  .  .  X "
+                                   " .  .  .  .  .  .  .  #  O  .  . "
+                                   " .  .  .  .  .  X  .  .  .  .  . "
+                                   " .  .  X  .  X  X  X  X  .  .  . ";
+
+
+UBENCH_EX(king_mobility, corner_paths_2) {
+  board b = read_board(corner_access_double2);
+
+  // setup to generate layers
+  layer occ = layer_or(b.black, b.white);
+  layer occ_r = layer_or(b.black_r, b.white_r);
+
+  int king_pos = lowest_index(b.king);
+  int king_rank = rank(king_pos);
+  int king_file = file(king_pos);
+
+  UBENCH_DO_BENCHMARK() {
+
+    layer paths = EMPTY_LAYER;
+    layer paths_r = EMPTY_LAYER;
+
+    corner_paths_2(occ, occ_r, king_rank, king_file, &paths, &paths_r);
+    UBENCH_DO_NOTHING(&paths);
+    UBENCH_DO_NOTHING(&paths_r);
+  }
+}
+
 
 // needs to be at top level
 UBENCH_STATE();
