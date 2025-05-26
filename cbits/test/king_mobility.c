@@ -1,10 +1,13 @@
 #include "assert.h"
 #include "greatest.h"
+#include "theft.h"
+#include "theft_types.h"
 #include "io.h"
 #include "layer.h"
 #include "move.h"
 #include "stdio.h"
 #include "x86intrin.h"
+#include "fixtures.h"
 
 TEST test_corner_moves_1(const char *b, bool should_escape) {
   layer occ = read_layer(b, 'X');
@@ -1765,6 +1768,199 @@ SUITE(corner_paths_2_suite) {
       ".  .  .  .  .  X  X  X  X  X  .");
 }
 
+// -----------------------------------------------------------------------------
+// corner moves 2
+
+#define ADJACENTS ((layer){2099712ULL, 36204753239146496ULL})
+
+void draw_horizontal(int rank, int file, int dest_file, layer *l) {
+  if (dest_file > file) {
+    for (int f = file + 1; f <= dest_file; f++) {
+      int pos = (rank * 11) + f;
+      op_layer_bit_ptr(l, pos, |=);
+    }
+  } else if (dest_file < file) {
+    for (int f = file - 1; f >= dest_file; f--) {
+      int pos = (rank * 11) + f;
+      op_layer_bit_ptr(l, pos, |=);
+    }
+  }
+}
+
+void draw_vertical(int rank, int file, int dest_rank, layer *l) {
+  if (dest_rank > rank) {
+    for (int r = rank + 1; r <= dest_rank; r++) {
+      int pos = (r * 11) + file;
+      op_layer_bit_ptr(l, pos, |=);
+    }
+  } else if (dest_rank < rank) {
+    for (int r = rank - 1; r >= dest_rank; r--) {
+      int pos = (r * 11) + file;
+      op_layer_bit_ptr(l, pos, |=);
+    }
+  }
+}
+
+void paths_to(
+    layer occ, int rank, int file, int dest_rank, int dest_file, layer *l) {
+  // vertical then horizontal
+  {
+    layer candidate = EMPTY_LAYER;
+    draw_vertical(rank, file, dest_rank, &candidate);
+    if ((rank != 0 && rank != 10 && file != 0 && file != 10) || 
+        IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
+      draw_horizontal(dest_rank, file, dest_file, &candidate);
+      if (IS_EMPTY(LAYER_AND(candidate, occ))) {
+        LAYER_OR_ASSG_PTR(l, candidate);
+        LAYER_OR_ASSG_PTR(l, candidate);
+      }
+    }
+  }
+
+  // horizontal then vertical
+  {
+    layer candidate = EMPTY_LAYER;
+    draw_horizontal(rank, file, dest_file, &candidate);
+    if ((rank != 0 && rank != 10 && file != 0 && file != 10) ||
+        IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
+      draw_vertical(rank, dest_file, dest_rank, &candidate);
+      if (IS_EMPTY(LAYER_AND(candidate, occ))) {
+        LAYER_OR_ASSG_PTR(l, candidate);
+      }
+    }
+  }
+}
+
+/* A reference implementation of corner_moves_2 which is obviously correct but
+ * very slow */
+void corner_paths_2_ref(
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file,
+    layer *paths,
+    layer *paths_r) {
+
+  paths_to(occ, rank, file, 0, 1, paths);
+  paths_to(occ, rank, file, 0, 9, paths);
+  paths_to(occ, rank, file, 1, 0, paths);
+  paths_to(occ, rank, file, 1, 10, paths);
+  paths_to(occ, rank, file, 9, 0, paths);
+  paths_to(occ, rank, file, 9, 10, paths);
+  paths_to(occ, rank, file, 10, 1, paths);
+  paths_to(occ, rank, file, 10, 9, paths);
+  *paths_r = rotate_layer_right(*paths);
+
+  // east
+  // edge left
+  // edge right
+  // adjacent left
+  // adjacent right
+
+  // west
+  // edge left
+  // edge right
+  // adjacent left
+  // adjacent right
+}
+
+struct layer_comparison {
+  board b;
+  layer x;
+  layer x_r;
+  layer y;
+  layer y_r;
+};
+
+static enum theft_alloc_res
+corner_paths_2_cb(struct theft *t, void *env, void **instance) {
+  board b = theft_create_board(t);
+
+  layer x = EMPTY_LAYER;
+  layer x_r = EMPTY_LAYER;
+  layer y = EMPTY_LAYER;
+  layer y_r = EMPTY_LAYER;
+
+  int king_pos = lowest_index(b.king);
+  int king_rank = rank(king_pos);
+  int king_file = file(king_pos);
+
+  layer occ = layer_or(b.white, b.black);
+  layer occ_r = layer_or(b.white_r, b.black_r);
+
+  corner_paths_2(occ, occ_r, king_rank, king_file, &x, &x_r);
+  corner_paths_2_ref(
+      board_occ(b), board_occ_r(b), king_rank, king_file, &y, &y_r);
+
+  struct layer_comparison c = {b, x, x_r, y, y_r};
+
+  struct layer_comparison *output = malloc(sizeof(c));
+  *output = c;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+static enum theft_trial_res prop_layers_equal(struct theft *t, void *arg1) {
+  struct layer_comparison *input = (struct layer_comparison *)arg1;
+
+  if (LAYERS_EQUAL(input->x, input->y) &&
+      LAYERS_EQUAL(input->x_r, input->y_r)) {
+    return THEFT_TRIAL_PASS;
+  } else {
+    return THEFT_TRIAL_FAIL;
+  }
+}
+
+void layer_comparison_print_cb(FILE *f, const void *instance, void *env) {
+  struct layer_comparison *d = (struct layer_comparison *)instance;
+
+  // print board
+  char output[strlen(base) + 1];
+  strcpy(output, base);
+  fmt_board(d->b, output);
+  fprintf(f, "%s", output);
+
+  if (!LAYERS_EQUAL(d->x, d->y)) {
+    layer_string l = stringify(d->x);
+    fprintf(f, "unrotated:\n%s\n\n", l._);
+    layer_string l2 = stringify(d->y);
+    fprintf(f, "unrotated ref:\n%s\n\n", l2._);
+  }
+
+  if (!LAYERS_EQUAL(d->x_r, d->y_r)) {
+    layer_string l = stringify(d->x_r);
+    fprintf(f, "unrotated:\n%s\n\n", l._);
+    layer_string l2 = stringify(d->y_r);
+    fprintf(f, "unrotated ref:\n%s\n\n", l2._);
+  }
+};
+
+TEST prop_test_corner_paths_2(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = corner_paths_2_cb,
+      .free = theft_generic_free_cb,
+      .print = layer_comparison_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_layers_equal,
+      .type_info = {&info},
+      .trials = 100,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+
 
 GREATEST_MAIN_DEFS();
 
@@ -1774,6 +1970,7 @@ int main(int argc, char **argv) {
   RUN_SUITE(corner_moves_1_suite);
   RUN_SUITE(corner_paths_1_suite);
   RUN_SUITE(corner_paths_2_suite);
+  RUN_TEST(prop_test_corner_paths_2);
 
   GREATEST_MAIN_END();
 }

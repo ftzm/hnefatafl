@@ -1,4 +1,6 @@
 #include "move.h"
+#include "move_legacy.h"
+#include "move_legacy_mm.h"
 #include "assert.h"
 #include "board.h"
 #include "io.h"
