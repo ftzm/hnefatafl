@@ -44,25 +44,6 @@ int cmp_moves(const move *a, const move *b);
 
 #define moves_equal(a, b) (a.orig == b.orig && a.dest == b.dest)
 
-bool corner_moves_1(
-    const layer occ, const layer occ_r, const int rank, const int file);
-
-void corner_paths_1(
-    const layer occ,
-    const layer occ_r,
-    const int rank,
-    const int file,
-    layer *paths,
-    layer *paths_r);
-
-void corner_paths_2(
-    const layer occ,
-    const layer occ_r,
-    const int rank,
-    const int file,
-    layer *paths,
-    layer *paths_r);
-
 void moves_to(
     layer targets,
     layer targets_r,

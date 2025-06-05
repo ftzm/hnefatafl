@@ -155,6 +155,7 @@ inline void into_row(layer *l, u16 row, int n) {
 #define ADJUST_AXIS_VAL_file(_i) _i
 #define ADJUST_AXIS_VAL_rank(_i) (10 - _i)
 #define ADJUST_AXIS_VAL(_axis) JOIN(ADJUST_AXIS_VAL, _axis)(_axis)
+#define ADJUST_AXIS_VAL_I(_axis, _i) JOIN(ADJUST_AXIS_VAL, _axis)(_i)
 
 // excludes origin, includes edges (corners)
 #define MASK_RIGHTWARD(x) (((uint16_t)1 << x) - 1)
@@ -345,29 +346,37 @@ const layer file_mask_adjacent[] = {
 #define TARGET_MASKER_0 MASK_RIGHT_FROM_TO
 #define TARGET_MASKER(_target) JOIN(TARGET_MASKER, _target)
 
+#define CAN_REACH_POS_0 (pos & (row - 1))
+#define CAN_REACH_POS_1 (pos & (row - 2))
+#define CAN_REACH_POS_9 (0b01000000000 & ~row & (row - pos))
+#define CAN_REACH_POS_10 (0b10000000000 & ~row & (row - pos))
+#define CAN_REACH_POS(_i) JOIN(CAN_REACH_POS, _i)
+
 #define BOTH_SIDES_INC(                                                        \
     _target, _axis, _occ, _parallel_paths, _perpendicular_paths)               \
-  u16 row = DIRTY_GET_ROW(_target, AXIS_OCC(NOT_AXIS(_axis)));                 \
   {                                                                            \
-    const u16 mask = MASK_LEFTWARD_INC(ADJUST_AXIS_VAL(_axis));                \
-    if (!(row & mask)) {                                                       \
-      ADD_PATHS_INC(                                                           \
-          _target,                                                             \
-          _axis,                                                               \
-          left,                                                                \
-          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
-          AXIS_PATHS(_axis));                                                  \
+    u16 row = DIRTY_GET_ROW(_target, AXIS_OCC(NOT_AXIS(_axis)));               \
+    {                                                                          \
+      const u16 mask = MASK_LEFTWARD_INC(ADJUST_AXIS_VAL(_axis));              \
+      if (!(row & mask)) {                                                     \
+        ADD_PATHS_INC(                                                         \
+            _target,                                                           \
+            _axis,                                                             \
+            left,                                                              \
+            AXIS_PATHS(NOT_AXIS(_axis)),                                       \
+            AXIS_PATHS(_axis));                                                \
+      }                                                                        \
     }                                                                          \
-  }                                                                            \
-  {                                                                            \
-    const u16 mask = MASK_RIGHTWARD_INC(ADJUST_AXIS_VAL(_axis));               \
-    if (!(row & mask)) {                                                       \
-      ADD_PATHS_INC(                                                           \
-          _target,                                                             \
-          _axis,                                                               \
-          right,                                                               \
-          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
-          AXIS_PATHS(_axis));                                                  \
+    {                                                                          \
+      const u16 mask = MASK_RIGHTWARD_INC(ADJUST_AXIS_VAL(_axis));             \
+      if (!(row & mask)) {                                                     \
+        ADD_PATHS_INC(                                                         \
+            _target,                                                           \
+            _axis,                                                             \
+            right,                                                             \
+            AXIS_PATHS(NOT_AXIS(_axis)),                                       \
+            AXIS_PATHS(_axis));                                                \
+      }                                                                        \
     }                                                                          \
   }
 
@@ -394,62 +403,73 @@ const layer file_mask_adjacent[] = {
   }
 
 #define BOTH_SIDES(_i, _variable, _occ, _parallel_paths, _perpendicular_paths) \
-  u16 row = DIRTY_GET_ROW(_i, _occ);                                           \
   {                                                                            \
-    const u16 mask = CHOOSE_MASKER(_i, left)(ADJUST_AXIS_VAL(_variable));      \
-    if (!(row & mask)) {                                                       \
-      ADD_PATHS(_i, _variable, left, _parallel_paths, _perpendicular_paths);   \
+    u16 row = DIRTY_GET_ROW(_i, _occ);                                         \
+    {                                                                          \
+      const u16 mask = CHOOSE_MASKER(_i, left)(ADJUST_AXIS_VAL(_variable));    \
+      if (!(row & mask)) {                                                     \
+        ADD_PATHS(_i, _variable, left, _parallel_paths, _perpendicular_paths); \
+      }                                                                        \
     }                                                                          \
-  }                                                                            \
-  {                                                                            \
-    const u16 mask = CHOOSE_MASKER(_i, right)(ADJUST_AXIS_VAL(_variable));     \
-    if (!(row & mask)) {                                                       \
-      ADD_PATHS(_i, _variable, right, _parallel_paths, _perpendicular_paths);  \
+    {                                                                          \
+      const u16 mask = CHOOSE_MASKER(_i, right)(ADJUST_AXIS_VAL(_variable));   \
+      if (!(row & mask)) {                                                     \
+        ADD_PATHS(                                                             \
+            _i, _variable, right, _parallel_paths, _perpendicular_paths);      \
+      }                                                                        \
     }                                                                          \
   }
 
+// TODO: even though the checks for adjacent squares will overlap, it doesn't
+// appear to help performance to gate them behind each other. Might be a matter
+// of inaccurate microbenchmarks. An alternative version to try would double
+// this macro up: take two targets, the inner and outer, do and exclusive origin
+// check at the inner target, an inclusive at the outer targer, and then add a
+// stem to the adjacent row in the event of any escape.
 #define BOTH_SIDES_STEM_GEN(_axis, _target)                                    \
-  bool escape = false;                                                         \
-  u16 row =                                                                    \
-      DIRTY_GET_ROW(VERT_INDEX(_axis, _target), AXIS_OCC(NOT_AXIS(_axis)));    \
-  {                                                                            \
-    const u16 mask = MASK_LEFTWARD(ADJUST_AXIS_VAL(_axis));                    \
-    if (!(row & mask)) {                                                       \
-      ADD_PATHS(                                                               \
-          VERT_INDEX(_axis, _target),                                          \
-          _axis,                                                               \
-          left,                                                                \
-          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
-          AXIS_PATHS(_axis));                                                  \
-      /*                                                                       \
-       */                                                                      \
-      escape = true;                                                           \
+  if (CAN_REACH_POS(_target)) {                                                \
+    bool escape = false;                                                       \
+    u16 row =                                                                  \
+        DIRTY_GET_ROW(VERT_INDEX(_axis, _target), AXIS_OCC(NOT_AXIS(_axis)));  \
+    {                                                                          \
+      const u16 mask = MASK_LEFTWARD(ADJUST_AXIS_VAL(_axis));                  \
+      if (!(row & mask)) {                                                     \
+        ADD_PATHS(                                                             \
+            VERT_INDEX(_axis, _target),                                        \
+            _axis,                                                             \
+            left,                                                              \
+            AXIS_PATHS(NOT_AXIS(_axis)),                                       \
+            AXIS_PATHS(_axis));                                                \
+        /*                                                                     \
+         */                                                                    \
+        escape = true;                                                         \
+      }                                                                        \
     }                                                                          \
-  }                                                                            \
-  {                                                                            \
-    const u16 mask = MASK_RIGHTWARD(ADJUST_AXIS_VAL(_axis));                   \
-    if (!(row & mask)) {                                                       \
-      ADD_PATHS(                                                               \
-          VERT_INDEX(_axis, _target),                                          \
-          _axis,                                                               \
-          right,                                                               \
-          AXIS_PATHS(NOT_AXIS(_axis)),                                         \
-          AXIS_PATHS(_axis));                                                  \
-      /*                                                                       \
-       */                                                                      \
-      escape = true;                                                           \
+    {                                                                          \
+      const u16 mask = MASK_RIGHTWARD(ADJUST_AXIS_VAL(_axis));                 \
+      if (!(row & mask)) {                                                     \
+        ADD_PATHS(                                                             \
+            VERT_INDEX(_axis, _target),                                        \
+            _axis,                                                             \
+            right,                                                             \
+            AXIS_PATHS(NOT_AXIS(_axis)),                                       \
+            AXIS_PATHS(_axis));                                                \
+        /*                                                                     \
+         */                                                                    \
+        escape = true;                                                         \
+      }                                                                        \
     }                                                                          \
-  }                                                                            \
-  if (escape) {                                                                \
-    u16 stem =                                                                 \
-        TARGET_MASKER(_target)(ADJUST_AXIS_VAL(NOT_AXIS(_axis)), _target);     \
-    into_row(AXIS_PATHS(_axis), stem, _axis);                                  \
-    AXIS_PATHS(NOT_AXIS(_axis))->_[0] |=                                       \
-        STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 0) &                   \
-        ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[0];           \
-    AXIS_PATHS(NOT_AXIS(_axis))->_[1] |=                                       \
-        STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 1) &                   \
-        ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[1];           \
+    if (escape) {                                                              \
+      u16 stem =                                                               \
+          TARGET_MASKER(_target)(ADJUST_AXIS_VAL(NOT_AXIS(_axis)), _target);   \
+      into_row(AXIS_PATHS(_axis), stem, _axis);                                \
+      AXIS_PATHS(NOT_AXIS(_axis))->_[0] |=                                     \
+          STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 0) &                 \
+          ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[0];         \
+      AXIS_PATHS(NOT_AXIS(_axis))->_[1] |=                                     \
+          STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 1) &                 \
+          ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[1];         \
+    }                                                                          \
   }
 
 #define CASE(_x, _body)                                                        \
@@ -495,62 +515,40 @@ void corner_paths_2(
   if (file == 0) {
     u16 row = dirty_get_row(occ, rank);
     u16 pos = 1 << file;
-    { BOTH_SIDES(0, rank, occ_r, paths_r, paths) }
-    { BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths) }
-    if (0b10000000000 & ~row & (row - pos)) {
-      BOTH_SIDES_STEM_GEN(rank, 10)
-    }
-    if (0b01000000000 & ~row & (row - pos)) {
-      BOTH_SIDES_STEM_GEN(rank, 9)
-    }
+    BOTH_SIDES(0, rank, occ_r, paths_r, paths);
+    BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths);
+    BOTH_SIDES_STEM_GEN(rank, 10);
+    BOTH_SIDES_STEM_GEN(rank, 9);
     return;
   }
   if (file == 10) {
     u16 row = dirty_get_row(occ, rank);
     u16 pos = 1 << file;
-    if (pos & (row - 1)) {
-      BOTH_SIDES_STEM_GEN(rank, 0)
-    }
-    if (pos & (row - 2)) {
-      BOTH_SIDES_STEM_GEN(rank, 1)
-    }
-    { BOTH_SIDES_INC(9, rank, occ_r, paths_r, paths) }
-    { BOTH_SIDES(10, rank, occ_r, paths_r, paths) }
+    BOTH_SIDES_STEM_GEN(rank, 0);
+    BOTH_SIDES_STEM_GEN(rank, 1);
+    BOTH_SIDES_INC(9, rank, occ_r, paths_r, paths);
+    BOTH_SIDES(10, rank, occ_r, paths_r, paths);
     return;
   }
 
   // on rank 0 or 10 we should only do the rank methods
   if (rank == 0) {
     u16 row = dirty_get_row(occ_r, file);
-    // print_row(row);
     u16 pos = 1 << (10 - rank);
-    // print_row(pos);
-    { BOTH_SIDES(0, file, occ, paths, paths_r) }
-    { BOTH_SIDES_INC(1, file, occ, paths, paths_r) }
-    if (pos & (row - 1)) {
-      {
-        BOTH_SIDES_STEM_GEN(file, 0)
-      }
-    }
-    if (pos & (row - 2)) {
-      {
-        BOTH_SIDES_STEM_GEN(file, 1)
-      }
-    }
+    BOTH_SIDES(0, file, occ, paths, paths_r);
+    BOTH_SIDES_INC(1, file, occ, paths, paths_r);
+    BOTH_SIDES_STEM_GEN(file, 0);
+    BOTH_SIDES_STEM_GEN(file, 1);
     return;
   }
 
   if (rank == 10) {
     u16 row = dirty_get_row(occ_r, file);
     u16 pos = 1 << (10 - rank);
-    { BOTH_SIDES_INC(9, file, occ, paths, paths_r) }
-    { BOTH_SIDES(10, file, occ, paths, paths_r) }
-    if (0b01000000000 & ~row & (row - pos)) {
-      BOTH_SIDES_STEM_GEN(file, 9)
-    }
-    if (0b10000000000 & ~row & (row - pos)) {
-      BOTH_SIDES_STEM_GEN(file, 10)
-    }
+    BOTH_SIDES_INC(9, file, occ, paths, paths_r);
+    BOTH_SIDES(10, file, occ, paths, paths_r);
+    BOTH_SIDES_STEM_GEN(file, 9);
+    BOTH_SIDES_STEM_GEN(file, 10);
     return;
   }
 
@@ -566,40 +564,22 @@ void corner_paths_2(
 
     switch (file) {
     case 1: {
-      {
-        BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths)
-      }
+      BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths);
       // file 1 covered by other axis
-      if (0b01000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(rank, 9)
-      }
-      if (0b10000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(rank, 10)
-      }
+      BOTH_SIDES_STEM_GEN(rank, 9);
+      BOTH_SIDES_STEM_GEN(rank, 10);
     }; break;
     case 9: {
-      if (pos & (row - 1)) {
-        BOTH_SIDES_STEM_GEN(rank, 0)
-      }
-      if (pos & (row - 2)) {
-        BOTH_SIDES_STEM_GEN(rank, 1)
-      }
+      BOTH_SIDES_STEM_GEN(rank, 0);
+      BOTH_SIDES_STEM_GEN(rank, 1);
       // file 9 covered by other axis
-      { BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths) }
+      BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths);
     }; break;
     default: {
-      if (pos & (row - 1)) {
-        BOTH_SIDES_STEM_GEN(rank, 0)
-      }
-      if (pos & (row - 2)) {
-        BOTH_SIDES_STEM_GEN(rank, 1)
-      }
-      if (0b01000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(rank, 9)
-      }
-      if (0b10000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(rank, 10)
-      }
+      BOTH_SIDES_STEM_GEN(rank, 0);
+      BOTH_SIDES_STEM_GEN(rank, 1);
+      BOTH_SIDES_STEM_GEN(rank, 9);
+      BOTH_SIDES_STEM_GEN(rank, 10);
     }; break;
     }
   }
@@ -607,52 +587,196 @@ void corner_paths_2(
   {
     u16 row = dirty_get_row(occ_r, file);
     u16 pos = 1 << (10 - rank);
-
     switch (rank) {
     case 1: {
-      {
-        BOTH_SIDES_INC(0, file, occ, paths, paths_r)
-      }
+      BOTH_SIDES_INC(0, file, occ, paths, paths_r);
       // rank 9 covered by other axis
-      if (pos & (row - 1)) {
-        BOTH_SIDES_STEM_GEN(file, 0)
-      }
-      if (pos & (row - 2)) {
-        BOTH_SIDES_STEM_GEN(file, 1)
-      }
+      BOTH_SIDES_STEM_GEN(file, 0);
+      BOTH_SIDES_STEM_GEN(file, 1);
     }; break;
     case 9: {
-      {
-        BOTH_SIDES_INC(10, file, occ, paths, paths_r)
-      }
+      BOTH_SIDES_INC(10, file, occ, paths, paths_r);
       // rank 9 covered by other axis
-      if (0b01000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(file, 9)
-      }
-      if (0b10000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(file, 10)
-      }
+      BOTH_SIDES_STEM_GEN(file, 9);
+      BOTH_SIDES_STEM_GEN(file, 10);
     }; break;
     default: {
-      if (pos & (row - 1)) {
-        BOTH_SIDES_STEM_GEN(file, 0)
-      }
-      if (pos & (row - 2)) {
-        BOTH_SIDES_STEM_GEN(file, 1)
-      }
-      if (0b01000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(file, 9)
-      }
-      if (0b10000000000 & ~row & (row - pos)) {
-        BOTH_SIDES_STEM_GEN(file, 10)
-      }
+      BOTH_SIDES_STEM_GEN(file, 0);
+      BOTH_SIDES_STEM_GEN(file, 1);
+      BOTH_SIDES_STEM_GEN(file, 9);
+      BOTH_SIDES_STEM_GEN(file, 10);
     }; break;
     }
   }
 }
 
+
+/* _axis is a token named either rank or file, which determines the
+axis _i should be interpreted as. _i is an int constant. */
+#define GET_POS(_axis, _i)                                                     \
+  (GET_AXIS_VAL(_axis, _axis) + GET_AXIS_VAL(NOT_AXIS(_axis), ADJUST_AXIS_VAL_I(NOT_AXIS(_axis), _i)))
+#define GET_AXIS_VAL_rank(_i) (_i * 11)
+#define GET_AXIS_VAL_file(_i) _i
+#define GET_AXIS_VAL(_axis, _i) JOIN(GET_AXIS_VAL, _axis)(_i)
+
+#define ADD_MOVE(_pos)                                                         \
+  op_layer_bit(paths[(*total)], _pos, |=);                                     \
+  op_layer_bit(paths_r[(*total)], rotate_right[_pos], |=);                     \
+  (*total)++;
+
+// this is used directly from the king, so there's no intermediate
+// move; we therefore return true as the king has excaped.
+#define BOTH_SIDES_MOVE(_i, _variable, _occ)                                   \
+  {                                                                            \
+    u16 row = DIRTY_GET_ROW(_i, _occ);                                         \
+    {                                                                          \
+      const u16 left_mask =                                                    \
+          CHOOSE_MASKER(_i, left)(ADJUST_AXIS_VAL(_variable));                 \
+      const u16 right_mask =                                                   \
+          CHOOSE_MASKER(_i, right)(ADJUST_AXIS_VAL(_variable));                \
+      if (!(row & left_mask) || !(row & right_mask)) {                         \
+        return true; \
+      }                                                                        \
+    }                                                                          \
+  }
+
+// TODO: is the vert indexing I'm doing here actually necessary, here or anywhere?
+#define BOTH_SIDES_MOVE_INC(_target, _axis, _occ)                              \
+  {                                                                            \
+    u16 row = DIRTY_GET_ROW(_target, AXIS_OCC(NOT_AXIS(_axis)));               \
+    {                                                                          \
+      const u16 left_mask = MASK_LEFTWARD_INC(ADJUST_AXIS_VAL(_axis));         \
+      const u16 right_mask = MASK_RIGHTWARD_INC(ADJUST_AXIS_VAL(_axis));       \
+      if (!(row & left_mask) || !(row & right_mask)) {                         \
+        ADD_MOVE(GET_POS(_axis, VERT_INDEX(_axis, _target)))                                      \
+      }                                                                        \
+    }                                                                          \
+  }
+
+#define BOTH_SIDES_MOVE_STEM_GEN(_axis, _target)                               \
+  if (CAN_REACH_POS(_target)) {                                                \
+    u16 row =                                                                  \
+        DIRTY_GET_ROW(VERT_INDEX(_axis, _target), AXIS_OCC(NOT_AXIS(_axis)));  \
+    {                                                                          \
+      const u16 left_mask = MASK_LEFTWARD(ADJUST_AXIS_VAL(_axis));             \
+      const u16 right_mask = MASK_RIGHTWARD(ADJUST_AXIS_VAL(_axis));           \
+      if (!(row & left_mask) || !(row & right_mask)) {                         \
+        ADD_MOVE(GET_POS(_axis, _target))                                      \
+      }                                                                        \
+    }                                                                          \
+  }
+
+bool corner_moves_2(
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file,
+    layer *paths,
+    layer *paths_r,
+    int *total) {
+
+  // on file 0 or 10 we should only do the file methods
+  if (file == 0) {
+    u16 row = dirty_get_row(occ, rank);
+    u16 pos = 1 << file;
+    BOTH_SIDES_MOVE(0, rank, occ_r);
+    BOTH_SIDES_MOVE_INC(1, rank, occ_r);
+    BOTH_SIDES_MOVE_STEM_GEN(rank, 10);
+    BOTH_SIDES_MOVE_STEM_GEN(rank, 9);
+    return false;
+  }
+  if (file == 10) {
+    u16 row = dirty_get_row(occ, rank);
+    u16 pos = 1 << file;
+    BOTH_SIDES_MOVE_STEM_GEN(rank, 0);
+    BOTH_SIDES_MOVE_STEM_GEN(rank, 1);
+    BOTH_SIDES_MOVE_INC(9, rank, occ_r);
+    BOTH_SIDES_MOVE(10, rank, occ_r);
+    return false;
+  }
+
+  // on rank 0 or 10 we should only do the rank methods
+  if (rank == 0) {
+    u16 row = dirty_get_row(occ_r, file);
+    u16 pos = 1 << (10 - rank);
+    BOTH_SIDES_MOVE(0, file, occ);
+    BOTH_SIDES_MOVE_INC(1, file, occ);
+    BOTH_SIDES_MOVE_STEM_GEN(file, 0);
+    BOTH_SIDES_MOVE_STEM_GEN(file, 1);
+    return false;
+  }
+
+  if (rank == 10) {
+    u16 row = dirty_get_row(occ_r, file);
+    u16 pos = 1 << (10 - rank);
+    BOTH_SIDES_MOVE_INC(9, file, occ);
+    BOTH_SIDES_MOVE(10, file, occ);
+    BOTH_SIDES_MOVE_STEM_GEN(file, 9);
+    BOTH_SIDES_MOVE_STEM_GEN(file, 10);
+    return false;
+  }
+
+  // NOTE: on adjacent rank/file the BOTH_SIDES_MOVE_STEM_GEN to the edge is
+  // redunant (for example, file 9 going all the way up to rank 10 and then
+  // across to file 1). It's enough to reach rank 10 from file 9, it's already a
+  // corner adjacent square with a guaranteed exit. Might be worth bench an
+  // implementation that just does BOTH_SIDES_MOVE to the edge.
+
+  {
+    u16 row = dirty_get_row(occ, rank);
+    u16 pos = 1 << file;
+
+    switch (file) {
+    case 1: {
+      BOTH_SIDES_MOVE_INC(0, rank, occ_r);
+      BOTH_SIDES_MOVE(1, rank, occ_r);
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 9);
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 10);
+    }; break;
+    case 9: {
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 0);
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 1);
+      BOTH_SIDES_MOVE(9, rank, occ_r);
+      BOTH_SIDES_MOVE_INC(10, rank, occ_r);
+    }; break;
+    default: {
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 0);
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 1);
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 9);
+      BOTH_SIDES_MOVE_STEM_GEN(rank, 10);
+    }; break;
+    }
+  }
+
+  {
+    u16 row = dirty_get_row(occ_r, file);
+    u16 pos = 1 << (10 - rank);
+    switch (rank) {
+    case 1: {
+      BOTH_SIDES_MOVE_INC(0, file, occ);
+      BOTH_SIDES_MOVE(1, file, occ);
+      BOTH_SIDES_MOVE_STEM_GEN(file, 0);
+      BOTH_SIDES_MOVE_STEM_GEN(file, 1);
+    }; break;
+    case 9: {
+      BOTH_SIDES_MOVE_INC(10, file, occ);
+      BOTH_SIDES_MOVE(9, file, occ);
+      BOTH_SIDES_MOVE_STEM_GEN(file, 9);
+      BOTH_SIDES_MOVE_STEM_GEN(file, 10);
+    }; break;
+    default: {
+      BOTH_SIDES_MOVE_STEM_GEN(file, 0);
+      BOTH_SIDES_MOVE_STEM_GEN(file, 1);
+      BOTH_SIDES_MOVE_STEM_GEN(file, 9);
+      BOTH_SIDES_MOVE_STEM_GEN(file, 10);
+    }; break;
+    }
+  }
+  return false;
+}
+
 /**
- * Check if the king can reach the se corner in 1 move.
+ * Check if the king can reach a corner in 1 move
  *
  * because this is used on white's turn we can skip actually
  * generating moves--it's enough to know that the king can
