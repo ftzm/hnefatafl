@@ -2,6 +2,7 @@
 #include "board.h"
 #include "x86intrin.h"
 #include "capture.h"
+#include "constants.h"
 
 uint16_t row_moves_table[2048][11];
 uint16_t center_row_moves_table[2048][11];
@@ -1285,9 +1286,6 @@ the position to each of those in parallel. uint8_t to_blocker = _tzcnt_u64(occ);
   }
 }
 */
-
-const layer drop_2_east = {18338604880312133628ULL, 143903978713751539ULL};
-const layer drop_2_west = {18419709275360197119ULL, 35975994678437884ULL};
 
 layer find_capture_destinations(
     const layer allies, const layer foes, const layer occ) {

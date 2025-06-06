@@ -81,9 +81,9 @@ bench_%: $(BENCH_BIN)/%
 # Bins
 
 .PHONY: gen_constants
-gen_constants: bin/gen_constants.c $(OBJDIR)/lib.so
-	$(CC) $(CFLAGS) -o gen_constants -L$(OBJDIR) -l:lib.so -I src -lm bin/gen_constants.c
-	LD_LIBRARY_PATH=.obj:$LD_LIBRARY_PATH ./gen_constants
+gen_constants: bin/gen_constants.c 
+	$(CC) $(CFLAGS) -o gen_constants -I src -lm bin/gen_constants.c
+	./gen_constants > src/constants.h
 
 # ------------------------------------------------------------------------------
 # Clean

@@ -1,6 +1,7 @@
 #include "layer.h"
 #include "limits.h"
 #include "stdbool.h"
+#include "constants.h"
 
 // -----------------------------------------------------------------------------
 // Generic macros
@@ -181,6 +182,7 @@ inline void into_row(layer *l, u16 row, int n) {
 #define APPLY_LEGAL_EDGE_MASK_9(_row) (_row)
 #define APPLY_LEGAL_EDGE_MASK_10(_row) (_row & LEGAL_EDGE_MASK)
 
+/*
 const layer above_0 = {18446744073709549568ULL, 18446744073709551615ULL};
 const layer above_1 = {18446744073705357312ULL, 18446744073709551615ULL};
 const layer above_2 = {18446744065119617024ULL, 18446744073709551615ULL};
@@ -192,6 +194,7 @@ const layer above_7 = {0ULL, 18446744073692774400ULL};
 const layer above_8 = {0ULL, 18446744039349813248ULL};
 const layer above_9 = {0ULL, 18446673704965373952ULL};
 const layer above_10 = {0ULL, 18302628885633695744ULL};
+*/
 
 // excludes index
 layer above_n[11] = {
@@ -223,6 +226,7 @@ layer above_n_inc[11] = {
     above_9,
 };
 
+/*
 const layer below_0 = {0ULL, 0ULL};
 const layer below_1 = {2047ULL, 0ULL};
 const layer below_2 = {4194303ULL, 0ULL};
@@ -234,6 +238,7 @@ const layer below_7 = {18446744073709551615ULL, 8191ULL};
 const layer below_8 = {18446744073709551615ULL, 16777215ULL};
 const layer below_9 = {18446744073709551615ULL, 34359738367ULL};
 const layer below_10 = {18446744073709551615ULL, 70368744177663ULL};
+*/
 
 // excludes index
 layer below_n[11] = {

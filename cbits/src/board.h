@@ -23,3 +23,7 @@ layer board_occ_r(board b);
 layer king_board_occ(board b);
 
 layer king_board_occ_r(board b);
+
+int black_pawn_count(const board b);
+
+int white_pawn_count(const board b);

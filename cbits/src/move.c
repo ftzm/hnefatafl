@@ -722,7 +722,7 @@ inline int leftward_moves_count_king(layer movers, layer occ) {
   return output;
 }
 
-int black_moves_count(board *b) {
+int black_moves_count(const board *b) {
   int total = 0;
   layer occ = board_occ(*b);
   layer occ_r = board_occ_r(*b);
@@ -733,7 +733,7 @@ int black_moves_count(board *b) {
   return total;
 }
 
-int white_moves_count(board *b) {
+int white_moves_count(const board *b) {
   int total = 0;
   layer occ = board_occ(*b);
   layer occ_r = board_occ_r(*b);
@@ -749,7 +749,7 @@ int white_moves_count(board *b) {
   return total;
 }
 
-int king_moves_count(board *b) {
+int king_moves_count(const board *b) {
   int total = 0;
   layer occ = king_board_occ(*b);
   layer occ_r = king_board_occ_r(*b);

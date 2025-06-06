@@ -244,8 +244,6 @@ layer rotate_layer_left(const layer input) {
   return output;
 }
 
-layer corners = {1025, 72127962782105600};
-
 
 const uint8_t rank_table[121] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -1,4 +1,4 @@
- #pragma once
+#pragma once
 
 #include "board.h"
 #include "stdbool.h"
@@ -132,6 +132,6 @@ moves_to_king(board b, layer targets, layer targets_r) {
 
 // layer rightward_moves_layer(layer movers, layer occ);
 
-int black_moves_count(board *b);
-int white_moves_count(board *b);
-int king_moves_count(board *b);
+int black_moves_count(const board *b);
+int white_moves_count(const board *b);
+int king_moves_count(const board *b);

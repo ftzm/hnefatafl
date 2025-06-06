@@ -1,13 +1,35 @@
-#include "io.h"
-#include "layer.h"
+//  TODO: switch to defines everywhere
+
+#include "layer.c"
 #include "stdio.h"
+#include "string.h"
 
 // -----------------------------------------------------------------------------
 // Setup
 
+layer read_layer(const char *string, uint8_t symbol) {
+  layer output = EMPTY_LAYER;
+  int len = strlen(string);
+  int index = 120;
+  for (int i = 0; i < len; i++) {
+    char c = string[i];
+    if (c == symbol) {
+      output._[sub_layer(index)] |=
+          ((uint64_t)1 << sub_layer_offset_direct[index]);
+      index--;
+    } else if (c == ' ') {
+      // skip space
+    } else {
+      index--; // skip other chars but increment
+    }
+  }
+
+  return output;
+}
+
 void print_layer_info(char *layer_str, char *name_str) {
   layer l = read_layer(layer_str, 'X');
-  printf("const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
+  printf("static const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
 };
 
 void print_layer_defines(char *layer_str, char *name_str) {
@@ -18,7 +40,7 @@ void print_layer_defines(char *layer_str, char *name_str) {
 };
 
 void print_layer_direct(layer l, char *name_str) {
-  printf("const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
+  printf("static const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
 };
 
 #define PRINT_LAYER_DIRECT(name) print_layer_direct(name, #name);
@@ -26,6 +48,8 @@ void print_layer_direct(layer l, char *name_str) {
 // -----------------------------------------------------------------------------
 
 int main() {
+  printf("#pragma once\n\n");
+  printf("#include \"layer.h\"\n");
   printf("\n");
   print_layer_info(
       "X  X  X  X  X  X  X  X  X  X  X"
@@ -779,4 +803,60 @@ int main() {
   PRINT_LAYER_DIRECT(above_8);
   PRINT_LAYER_DIRECT(above_9);
   PRINT_LAYER_DIRECT(above_10);
+
+  print_layer_info(
+    ".  .  X  .  .  .  .  .  .  .  ."
+    ".  X  .  .  .  .  .  .  .  .  ."
+    "X  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  .",
+      "corner_guard_nw");
+
+  print_layer_info(
+    ".  .  .  .  .  .  .  .  X  .  ."
+    ".  .  .  .  .  .  .  .  .  X  ."
+    ".  .  .  .  .  .  .  .  .  .  X"
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  .",
+      "corner_guard_ne");
+
+  print_layer_info(
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    "X  .  .  .  .  .  .  .  .  .  ."
+    ".  X  .  .  .  .  .  .  .  .  ."
+    ".  .  X  .  .  .  .  .  .  .  .",
+      "corner_guard_sw");
+
+  print_layer_info(
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  X"
+    ".  .  .  .  .  .  .  .  .  X  ."
+    ".  .  .  .  .  .  .  .  X  .  .",
+      "corner_guard_se");
 }

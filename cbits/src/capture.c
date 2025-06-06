@@ -6,6 +6,7 @@
 #include "x86intrin.h"
 #include "stdbool.h"
 #include "zobrist.h"
+#include "constants.h"
 
 layer foe_masks[120];
 layer foe_masks_r[120];

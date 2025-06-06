@@ -1,3 +1,4 @@
+#include "constants.h"
 #include "board.h"
 
 const char *start_board_string = " .  .  .  X  X  X  X  X  .  .  . "

@@ -92,8 +92,6 @@ extern const uint8_t rotate_left[121];
 #define toggle_index(layer, i) \
   layer._[sub_layer[i]] |= ((uint64_t)1 << sub_layer_offset_direct[i])
 
-extern layer corners;
-
 #define get_center_row(layer) (((uint64_t)layer._[0] >> 55) | ((((uint64_t)layer._[1] & 0x3) << 9) & 0b11111111111))
 #define SET_CENTER_ROW(_layer, _row) (_layer._[0] |= ((uint64_t)_row << 55), _layer._[1] |= (_row >> 9))
 
