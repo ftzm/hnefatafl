@@ -1,5 +1,0 @@
-test:
-    make test && ./test --skip-benchmarks -v high $@ # "test corner_paths_1"
-
-bench:
-    echo "running benchmarks"

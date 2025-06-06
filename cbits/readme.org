@@ -1,0 +1,4 @@
+* Why not Rust
+- My goal is to make the fastest engine possible, so I'll take the extra fraction of performance C provides over all of Rust's niceties
+- I want easy access to exotic compiler intrinsics
+- It's a fun excuse to become more familiar with a language that is so foundational to modern computing. For any more serious high-performance application I'd choose Rust.
