@@ -19,6 +19,7 @@ occupy--we will never do that.
 #include "stdint.h"
 #include "stddef.h"
 #include "stdlib.h"
+#include <string.h>
 
 /**
 from https://github.com/lemire/fastrange/blob/master/fastrange.h
@@ -37,7 +38,7 @@ position_set_t *create_position_set(size_t max_elems) {
   position_set_t *set = malloc(sizeof(position_set_t));
   *set = (position_set_t) {
     .size = size,
-    .elements = malloc(sizeof(uint64_t) * size)
+    .elements = calloc(size, sizeof(uint64_t))
   };
   return set;
 }

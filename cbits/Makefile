@@ -54,6 +54,7 @@ test_%: $(TEST_BIN)/%
 
 test: $(TEST_BINS)
 	@for bin in $(TEST_BINS); do \
+	  echo -e "running $$bin\n"; \
 	  LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./$$bin; \
 	done
 

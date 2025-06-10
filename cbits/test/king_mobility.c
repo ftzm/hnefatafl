@@ -1761,14 +1761,14 @@ SUITE(corner_paths_2_suite) {
       ".  .  .  .  .  .  .  .  .  .  .",
 
       ".  .  .  .  .  X  X  X  X  X  ."
-      "X  X  X  X  X  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
+      "X  X  X  X  X  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
       ".  .  .  .  .  .  X  X  X  X  X"
       ".  X  X  X  X  X  X  X  X  X  .");
 
@@ -1814,15 +1814,67 @@ SUITE(corner_paths_2_suite) {
 
       ".  X  X  X  X  X  X  X  X  X  ."
       ".  .  .  .  .  .  X  X  X  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      ".  .  .  .  .  X  .  .  .  X  X"
-      "X  X  X  X  X  X  .  .  .  X  X"
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      ".  .  .  .  .  X  .  .  .  X  ."
+      "X  X  X  X  X  X  .  .  .  X  ."
       ".  .  .  .  .  X  X  X  X  X  .");
+
+  RUN_TESTp(
+      test_corner_paths_2,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  X  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  #  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  X"
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      "X  X  X  X  X  X  X  X  X  .  X"
+      ".  X  .  .  .  .  .  .  .  X  .");
+
+  RUN_TESTp(
+      test_corner_paths_2,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  X  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  X  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  #  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      "X  X  X  X  X  X  X  .  X  X  X"
+      ".  X  X  X  X  X  X  X  X  X  .");
 }
 
 SUITE(corner_moves_2_suite) {
@@ -2414,7 +2466,9 @@ void paths_to(
     draw_vertical(rank, file, dest_rank, &candidate);
     if ((rank != 0 && rank != 10 && file != 0 && file != 10) ||
         IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
-      draw_horizontal(dest_rank, file, dest_file, &candidate);
+      if ((dest_rank != 0 && dest_rank != 10) || (file != 1 && file != 9)) {
+	draw_horizontal(dest_rank, file, dest_file, &candidate);
+      }
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
         LAYER_OR_ASSG_PTR(l, candidate);
         LAYER_OR_ASSG_PTR(l, candidate);
@@ -2428,7 +2482,9 @@ void paths_to(
     draw_horizontal(rank, file, dest_file, &candidate);
     if ((rank != 0 && rank != 10 && file != 0 && file != 10) ||
         IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
-      draw_vertical(rank, dest_file, dest_rank, &candidate);
+      if ((dest_file != 0 && dest_file != 10) || (rank != 1 && rank != 9)) {
+	draw_vertical(rank, dest_file, dest_rank, &candidate);
+      }
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
         LAYER_OR_ASSG_PTR(l, candidate);
       }
@@ -2480,6 +2536,12 @@ struct layer_comparison {
 static enum theft_alloc_res
 corner_paths_2_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
+
+  // implementations intentionally ignore this case; the king has
+  // effectively already escaped.
+  if (NOT_EMPTY(LAYER_AND(ADJACENTS, b.king))) {
+    return THEFT_ALLOC_SKIP;
+  }
 
   layer x = EMPTY_LAYER;
   layer x_r = EMPTY_LAYER;
@@ -2555,7 +2617,7 @@ TEST prop_test_corner_paths_2(void) {
       .name = __func__,
       .prop1 = prop_layers_equal,
       .type_info = {&info},
-      .trials = 100,
+      .trials = 5000,
       .seed = seed,
   };
 

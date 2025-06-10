@@ -6,6 +6,7 @@
 #include "theft.h"
 #include "theft_types.h"
 #include "x86intrin.h"
+#include "constants.h"
 
 
 uint64_t my_random_choice(struct theft *t, int limit) {

@@ -520,19 +520,39 @@ void corner_paths_2(
   if (file == 0) {
     u16 row = dirty_get_row(occ, rank);
     u16 pos = 1 << file;
+
     BOTH_SIDES(0, rank, occ_r, paths_r, paths);
     BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths);
-    BOTH_SIDES_STEM_GEN(rank, 10);
     BOTH_SIDES_STEM_GEN(rank, 9);
+
+    // TODO: I think I can actually get rid of these fallback checks; 
+    if (rank == 9 ) {
+      BOTH_SIDES(9, file, occ, paths, paths_r);
+    } else if (rank == 1) {
+      BOTH_SIDES(1, file, occ, paths, paths_r);
+    } else {
+      BOTH_SIDES_STEM_GEN(rank, 10);
+    }
+
     return;
   }
+
   if (file == 10) {
     u16 row = dirty_get_row(occ, rank);
     u16 pos = 1 << file;
-    BOTH_SIDES_STEM_GEN(rank, 0);
+
+    if (rank == 9 ) {
+      BOTH_SIDES(9, file, occ, paths, paths_r);
+    } else if (rank == 1) {
+      BOTH_SIDES(1, file, occ, paths, paths_r);
+    } else {
+      BOTH_SIDES_STEM_GEN(rank, 0);
+    }
+
     BOTH_SIDES_STEM_GEN(rank, 1);
     BOTH_SIDES_INC(9, rank, occ_r, paths_r, paths);
     BOTH_SIDES(10, rank, occ_r, paths_r, paths);
+
     return;
   }
 
@@ -542,8 +562,14 @@ void corner_paths_2(
     u16 pos = 1 << (10 - rank);
     BOTH_SIDES(0, file, occ, paths, paths_r);
     BOTH_SIDES_INC(1, file, occ, paths, paths_r);
-    BOTH_SIDES_STEM_GEN(file, 0);
     BOTH_SIDES_STEM_GEN(file, 1);
+    if (file == 9 ) {
+      BOTH_SIDES(9, rank, occ_r, paths_r, paths);
+    } else if (file == 1) {
+      BOTH_SIDES(1, rank, occ_r, paths_r, paths);
+    } else {
+      BOTH_SIDES_STEM_GEN(file, 0);
+    }
     return;
   }
 
@@ -553,7 +579,13 @@ void corner_paths_2(
     BOTH_SIDES_INC(9, file, occ, paths, paths_r);
     BOTH_SIDES(10, file, occ, paths, paths_r);
     BOTH_SIDES_STEM_GEN(file, 9);
-    BOTH_SIDES_STEM_GEN(file, 10);
+    if (file == 9 ) {
+      BOTH_SIDES(9, rank, occ_r, paths_r, paths);
+    } else if (file == 1) {
+      BOTH_SIDES(1, rank, occ_r, paths_r, paths);
+    } else {
+      BOTH_SIDES_STEM_GEN(file, 10);
+    }
     return;
   }
 
@@ -569,22 +601,38 @@ void corner_paths_2(
 
     switch (file) {
     case 1: {
-      BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths);
-      // file 1 covered by other axis
+      // inner
+      BOTH_SIDES(1, rank, occ_r, paths_r, paths);
       BOTH_SIDES_STEM_GEN(rank, 9);
-      BOTH_SIDES_STEM_GEN(rank, 10);
+
+      // outer
+      // An idea to avoid this check: add artifical blockers so that the stem check itself just fails
+      if (rank != 1 && rank != 9) {
+	BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths);
+	BOTH_SIDES_STEM_GEN(rank, 10);
+      }
     }; break;
     case 9: {
-      BOTH_SIDES_STEM_GEN(rank, 0);
+      // inner
       BOTH_SIDES_STEM_GEN(rank, 1);
-      // file 9 covered by other axis
-      BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths);
+      BOTH_SIDES(9, rank, occ_r, paths_r, paths);
+
+      // outer
+      if (rank != 1 && rank != 9) {
+	BOTH_SIDES_STEM_GEN(rank, 0);
+	BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths);
+      }
     }; break;
     default: {
-      BOTH_SIDES_STEM_GEN(rank, 0);
+      // inner
       BOTH_SIDES_STEM_GEN(rank, 1);
       BOTH_SIDES_STEM_GEN(rank, 9);
-      BOTH_SIDES_STEM_GEN(rank, 10);
+
+      // outer
+      if (rank != 1 && rank != 9) {
+	BOTH_SIDES_STEM_GEN(rank, 0);
+	BOTH_SIDES_STEM_GEN(rank, 10);
+      }
     }; break;
     }
   }
@@ -594,22 +642,37 @@ void corner_paths_2(
     u16 pos = 1 << (10 - rank);
     switch (rank) {
     case 1: {
+      // inner
+	BOTH_SIDES(1, file, occ, paths, paths_r);
+	BOTH_SIDES_STEM_GEN(file, 1);
+
+      // outer
+      if (file != 1 && file != 9) {
       BOTH_SIDES_INC(0, file, occ, paths, paths_r);
-      // rank 9 covered by other axis
       BOTH_SIDES_STEM_GEN(file, 0);
-      BOTH_SIDES_STEM_GEN(file, 1);
+      }
     }; break;
     case 9: {
-      BOTH_SIDES_INC(10, file, occ, paths, paths_r);
-      // rank 9 covered by other axis
+      // inner
+      BOTH_SIDES(9, file, occ, paths, paths_r);
       BOTH_SIDES_STEM_GEN(file, 9);
-      BOTH_SIDES_STEM_GEN(file, 10);
+
+      // outer
+      if (file != 1 && file != 9) {
+	BOTH_SIDES_INC(10, file, occ, paths, paths_r);
+	BOTH_SIDES_STEM_GEN(file, 10);
+      }
     }; break;
     default: {
-      BOTH_SIDES_STEM_GEN(file, 0);
+      // inner
       BOTH_SIDES_STEM_GEN(file, 1);
       BOTH_SIDES_STEM_GEN(file, 9);
-      BOTH_SIDES_STEM_GEN(file, 10);
+
+      // outer
+      if (file != 1 && file != 9) {
+	BOTH_SIDES_STEM_GEN(file, 0);
+	BOTH_SIDES_STEM_GEN(file, 10);
+      }
     }; break;
     }
   }

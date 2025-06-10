@@ -64,7 +64,23 @@ const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
 leftward
 */
 
-// TODO: explain how extraction works
+/*
+ * - isolate the lowest set bit
+ * - get the index of the lowest set bit
+ * - potentially offset the index if processing upper half
+ * - get the index of the origin by:
+ *   - masking below the dest bit
+ *   - doing bitwise and with the occ layer
+ *   - doing leading zero count of the result
+ *   - subtracting the leading zero count from 64
+ * 
+ * TODO: We end up recalculating the origin for each destination,
+ *     which seems like it should be inefficient. one idea would be to
+ *     iterate over each mover, isolate its destinations, and then
+ *     iterate over those. I think I've tried this with little speed
+ *     difference, but it would be nice to try again in macro
+ *     benchmark
+ */
 #define EXTRACT_LEFTWARD(_i, _r)                                               \
   u64 dest_bit = _blsi_u64(dests);                                             \
   uint8_t dest = _tzcnt_u64(dest_bit);                                         \
@@ -88,9 +104,32 @@ leftward
 // in move counts but in move counts I am doing & LOWER_HALF_MASK. I
 // should unify them so the logic is the same.
 //
-// In move count I'm doing & ~occ to remove everything that isn't a
+// UPDATE: In move count I'm doing & ~occ to remove everything that isn't a
 // ray; because targets here are a subset of ~occ then it performs the
 // same function.
+//
+
+/* HOW THIS WORKS:
+ *   Generation of move destinations:
+ *   - the general technique is subtraction difference: subtracting
+ *     one u64 from another in order to create a set of leftward rays.
+ *   - prepare the occ u64:
+ *   - subtraction difference: given a half-layer of movers, shift it
+ *     to the left, and then subtract it from a half-layer of occupied
+ *     this position. We shift it to the left first because otherwise
+ *     we'd simply remove the movers from the occupied u64.
+ *   - the result is a u64 in which contiguous 0s left of each 1 in
+ *     the occ u64 is changed to 1, and the closest leftward "blocker"
+ *     or set bit to the left of each mover bit is changed to 0.
+ *   - isolate move bits: we do bitwise and on the mask that excludes
+ *     the 0 file, to remove that file of blockers which prevented
+ *     rank-wrap.
+ *   - extract legal target moves: our resulting u64 contains both
+ *     leftward move rays and remaining un-zeroed occupied
+ *     positions. By doing bitwise and with the u64 of target
+ *     destinations (which are assumed to be legal, unoccupied
+ *     positions) we limit results to legal destinations.
+ */
 #define LEFTWARD(_i, _r)                                                       \
   {                                                                            \
     u64 dests = targets##_r._[_i] &                                            \
@@ -165,13 +204,25 @@ leftward
 #define HALF_MASK_0 LOWER_HALF_MASK
 #define HALF_MASK_1 UPPER_HALF_MASK
 
+/* Generating move mask:
+ * - prepare the blockers u64 by doing bitwise or with file mask 10.
+ *   Filling file 10 ensures rightward rays don't wrap around ranks.
+ * - produce a mask wherein movers are shifted into the positions of
+ *     the closest blocker to the right.
+ *   - PEXT mover bits based on the pattern of blockers, then shift
+ *     them to the right.
+ *   - PDEP extracted bits back into the blockers pattern, shifted 1
+ *     bit left so that subtraction will produce leftward rays.
+ * Generating origs:
+ * Extraction:
+ */
 #define RIGHTWARD1(_i, _r)                                                     \
   {                                                                            \
     u64 blockers = occ##_r._[_i] | file_mask_10._[_i];                         \
     u64 movers_ext = _pext_u64(movers##_r._[_i], blockers) >> 1;               \
     u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));                   \
     u64 move_mask =                                                            \
-        (movers##_r._[_i] - movers_dep) & HALF_MASK_##_i & targets##_r._[_i];  \
+        (movers##_r._[_i] - movers_dep) & targets##_r._[_i];  \
     u64 origs = movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);    \
     while (origs) {                                                            \
                                                                                \
