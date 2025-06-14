@@ -34,6 +34,7 @@ static inline uint64_t fastrange64(uint64_t word, uint64_t p) {
 }
 
 position_set_t *create_position_set(size_t max_elems) {
+  // TODO: document why 1.3 times expected size is a good capacity
   size_t size = max_elems * 1.3;
   position_set_t *set = malloc(sizeof(position_set_t));
   *set = (position_set_t) {

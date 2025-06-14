@@ -8,6 +8,8 @@
 #include "layer.h"
 #include "string.h"
 #include "ubench.h"
+#include "victory.h"
+#include "score.h"
 #include "x86intrin.h"
 
 const char *sanity_capture_king_string = " .  .  X  .  X  .  .  O  .  .  . "
@@ -567,6 +569,61 @@ UBENCH_EX(king_mobility, corner_paths_2) {
   }
 }
 
+int bench_king_capture_check(bool (*check)(const board *b)) {
+  // this total is just to ensure that the code is not optimized away.
+  int total = 0;
+  for (int i = 0; i < 121; i++) {
+    for (uint8_t attackers = 0; attackers < 16; attackers++) {
+      board b = {.king = EMPTY_LAYER, .black = EMPTY_LAYER};
+      SET_INDEX(b.king, i);
+      // north
+      if (attackers & 1 && rank(i) != 10) {
+        int index = i + 11;
+        SET_INDEX(b.black, index);
+      }
+      // south
+      if (attackers & 0b10 && rank(i) != 0) {
+        int index = i - 11;
+        SET_INDEX(b.black, index);
+      }
+      // east
+      if (attackers & 0b100 && file(i) != 0) {
+        int index = i - 1;
+        SET_INDEX(b.black, index);
+      }
+      // west
+      if (attackers & 0b1000 && file(i) != 10) {
+        int index = i + 1;
+        SET_INDEX(b.black, index);
+      }
+      total += check(&b);
+    }
+  }
+  return total;
+}
+
+UBENCH_EX(king_capture, bit_checks) {
+  UBENCH_DO_BENCHMARK() {
+    int res = bench_king_capture_check(king_capture_check_ref);
+    UBENCH_DO_NOTHING(&res);
+  }
+}
+
+UBENCH_EX(king_capture, surround_mask) {
+  gen_surround_masks();
+  UBENCH_DO_BENCHMARK() {
+    int res = bench_king_capture_check(king_captured);
+    UBENCH_DO_NOTHING(&res);
+  }
+}
+
+UBENCH_EX(king_capture, surround_mask2) {
+  gen_surround_masks();
+  UBENCH_DO_BENCHMARK() {
+    int res = bench_king_capture_check(king_capture_check);
+    UBENCH_DO_NOTHING(&res);
+  }
+}
 
 // needs to be at top level
 UBENCH_STATE();

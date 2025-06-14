@@ -1289,12 +1289,12 @@ the position to each of those in parallel. uint8_t to_blocker = _tzcnt_u64(occ);
 
 layer find_capture_destinations(
     const layer allies, const layer foes, const layer occ) {
-  layer north = layer_shiftl(layer_and(layer_shiftl(allies, 11), foes), 11);
+  layer north = LAYER_SHIFTL_SHORT(layer_and(LAYER_SHIFTL_SHORT(allies, 11), foes), 11);
   layer south = layer_shiftr(layer_and(layer_shiftr(allies, 11), foes), 11);
   layer east = layer_shiftr(
       layer_and(layer_shiftr(layer_and(allies, drop_2_east), 1), foes), 1);
-  layer west = layer_shiftl(
-      layer_and(layer_shiftl(layer_and(allies, drop_2_west), 1), foes), 1);
+  layer west = LAYER_SHIFTL_SHORT(
+      layer_and(LAYER_SHIFTL_SHORT(layer_and(allies, drop_2_west), 1), foes), 1);
   return (layer){
       (north._[0] | south._[0] | east._[0] | west._[0]) & (~occ._[0]),
       (north._[1] | south._[1] | east._[1] | west._[1]) & (~occ._[1])};
@@ -1779,15 +1779,15 @@ layer gen_shield_wall_triggers(
   // east
   {
     layer edges = layer_and(foes, layer_shiftr(allies, 1));
-    layer up = layer_and(occ, layer_shiftl(edges, 11));
+    layer up = layer_and(occ, LAYER_SHIFTL_SHORT(edges, 11));
     layer down = layer_and(occ, layer_shiftr(edges, 11));
     triggers = layer_or(triggers, layer_or(up, down));
   }
 
   // west
   {
-    layer edges = layer_and(foes, layer_shiftl(allies, 1));
-    layer up = layer_and(occ, layer_shiftl(edges, 11));
+    layer edges = layer_and(foes, LAYER_SHIFTL_SHORT(allies, 1));
+    layer up = layer_and(occ, LAYER_SHIFTL_SHORT(edges, 11));
     layer down = layer_and(occ, layer_shiftr(edges, 11));
     triggers = layer_or(triggers, layer_or(up, down));
   }

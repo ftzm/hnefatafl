@@ -607,17 +607,17 @@ int main() {
       ".  X  X  X  X  X  X  X  X  X  .",
       "not_corners");
 
-  layer above_0 = layer_shiftl(layer_neg(EMPTY_LAYER), 11);
-  layer above_1 = layer_shiftl(above_0, 11);
-  layer above_2 = layer_shiftl(above_1, 11);
-  layer above_3 = layer_shiftl(above_2, 11);
-  layer above_4 = layer_shiftl(above_3, 11);
-  layer above_5 = layer_shiftl(above_4, 11);
-  layer above_6 = layer_shiftl(above_5, 11);
-  layer above_7 = layer_shiftl(above_6, 11);
-  layer above_8 = layer_shiftl(above_7, 11);
-  layer above_9 = layer_shiftl(above_8, 11);
-  layer above_10 = layer_shiftl(above_9, 11);
+  layer above_0 = LAYER_SHIFTL_SHORT(layer_neg(EMPTY_LAYER), 11);
+  layer above_1 = LAYER_SHIFTL_SHORT(above_0, 11);
+  layer above_2 = LAYER_SHIFTL_SHORT(above_1, 11);
+  layer above_3 = LAYER_SHIFTL_SHORT(above_2, 11);
+  layer above_4 = LAYER_SHIFTL_SHORT(above_3, 11);
+  layer above_5 = LAYER_SHIFTL_SHORT(above_4, 11);
+  layer above_6 = LAYER_SHIFTL_SHORT(above_5, 11);
+  layer above_7 = LAYER_SHIFTL_SHORT(above_6, 11);
+  layer above_8 = LAYER_SHIFTL_SHORT(above_7, 11);
+  layer above_9 = LAYER_SHIFTL_SHORT(above_8, 11);
+  layer above_10 = LAYER_SHIFTL_SHORT(above_9, 11);
 
   print_layer_defines(
       ".  .  .  .  .  .  .  .  .  .  ."
@@ -859,4 +859,32 @@ int main() {
     ".  .  .  .  .  .  .  .  .  X  ."
     ".  .  .  .  .  .  .  .  X  .  .",
       "corner_guard_se");
+
+  print_layer_info(
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  X  X  X  X  X  X  X  X  X  ."
+    ".  .  .  .  .  .  .  .  .  .  .",
+      "INTERIOR");
+
+  print_layer_info(
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  .  ."
+    ".  .  .  .  .  .  .  .  .  X  ."
+    ".  .  .  .  .  .  .  .  X  .  X"
+    ".  .  .  .  .  .  .  .  .  X  .",
+      "SURROUND_MASK");
 }

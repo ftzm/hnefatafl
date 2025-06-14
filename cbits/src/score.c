@@ -14,6 +14,7 @@ typedef enum piece_type : uint8_t {
   king_type = 3,
 } piece_type;
 
+
 typedef struct score_state {
   uint8_t nw_guard_count;
   uint8_t ne_guard_count;
@@ -335,13 +336,20 @@ bool king_escaped(const board b) {
   return b.king._[0] & corners._[0] || b.king._[1] & corners._[1];
 }
 
-bool king_captured(const board b) {
+#define THRONE_MASK_0 1152921504606846976ULL
+
+bool king_captured(const board *b) {
+  if (IS_EMPTY(LAYER_AND(b->king, INTERIOR))) {
+    return false;
+  }
   uint8_t king_index =
-      b.king._[0] ? _tzcnt_u64(b.king._[0]) : _tzcnt_u64(b.king._[1]) + 64;
-  layer attackers = LAYER_OR(surround_masks[king_index], b.black);
+      b->king._[0] ? _tzcnt_u64(b->king._[0]) : _tzcnt_u64(b->king._[1]) + 64;
+  layer foes = b->black;
+  foes._[0] |= THRONE_MASK_0;
+  layer attackers = LAYER_OR(surround_masks[king_index], foes);
   uint8_t attacker_count =
       __builtin_popcountll(attackers._[0]) + __builtin_popcountll(attackers._[1]);
-  return attacker_count > 3;
+  return attacker_count == 4;
 }
 
 uint32_t CORNER_PROTECTION_BONUS = 250;

@@ -126,3 +126,5 @@ static const layer corner_guard_nw = {0ULL, 18032007875395584ULL};
 static const layer corner_guard_ne = {0ULL, 281543712964608ULL};
 static const layer corner_guard_sw = {4296016128ULL, 0ULL};
 static const layer corner_guard_se = {4198404ULL, 0ULL};
+static const layer INTERIOR = {18392674477010841600ULL, 35132807303161ULL};
+static const layer SURROUND_MASK = {8398850ULL, 0ULL};
