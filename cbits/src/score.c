@@ -1,35 +1,172 @@
-#include "layer.h"
 #include "board.h"
+#include "capture.h"
 #include "constants.h"
-#include "stdbool.h"
-#include "stdint.h"
+#include "layer.h"
 #include "limits.h"
 #include "move.h"
-#include "capture.h"
+#include "stdbool.h"
+#include "stdint.h"
 #include "x86intrin.h"
 
+/*
 typedef enum piece_type : uint8_t {
   black_type = 1,
   white_type = 2,
   king_type = 3,
 } piece_type;
+*/
 
+// -----------------------------------------------------------------------------
+// corner guard
 
-typedef struct score_state {
+typedef struct corner_guard_state {
   uint8_t nw_guard_count;
   uint8_t ne_guard_count;
   uint8_t sw_guard_count;
   uint8_t se_guard_count;
-  int32_t guard_score;
-  uint8_t black_pawn_count;
-  uint8_t white_pawn_count;
-  int32_t pst_black_score;
-  int32_t pst_white_score;
-  int32_t pst_king_score;
-} score_state;
+  int32_t score;
+} corner_guard_state;
+
+inline u32 score_for_count(u8 count) {
+  switch (count) {
+  // case 0: return 0;
+  case 1:
+    return 100;
+  case 2:
+    return 200;
+  case 3:
+    return 400;
+  default:
+    return 0;
+  }
+}
+
+inline u32 score_adjustment_for_count(u8 count) {
+  switch (count) {
+  // case 0: return 0;
+  case 1:
+    return 100;
+  case 2:
+    return 100;
+  case 3:
+    return 200;
+  default:
+    return 0;
+  }
+}
+
+
+corner_guard_state setup_corner_guard_state(const board *b) {
+  u8 nw = __builtin_popcountll(corner_guard_nw._[1] & b->black._[1]);
+  u8 ne = __builtin_popcountll(corner_guard_ne._[1] & b->black._[1]);
+  u8 sw = __builtin_popcountll(corner_guard_sw._[0] & b->black._[0]);
+  u8 se = __builtin_popcountll(corner_guard_se._[0] & b->black._[0]);
+  u32 score = score_for_count(nw) + score_for_count(ne) + score_for_count(sw) +
+              score_for_count(se);
+  return (corner_guard_state){nw, ne, sw, se, score};
+}
+
+u32 corner_guard_stateless(const board *b) {
+  return (
+      score_for_count(
+          __builtin_popcountll(corner_guard_nw._[1] & b->black._[1])) +
+      score_for_count(
+          __builtin_popcountll(corner_guard_ne._[1] & b->black._[1])) +
+      score_for_count(
+          __builtin_popcountll(corner_guard_sw._[0] & b->black._[0])) +
+      score_for_count(
+          __builtin_popcountll(corner_guard_se._[0] & b->black._[0])));
+}
+
+inline void handle_arrival(corner_guard_state *state, int dest) {
+  switch (dest) {
+  case 118:
+  case 108:
+  case 98:
+    state->score += score_adjustment_for_count(++state->nw_guard_count);
+    break;
+  case 112:
+  case 110:
+  case 88:
+    state->score += score_adjustment_for_count(++state->ne_guard_count);
+    break;
+  case 32:
+  case 20:
+  case 8:
+    state->score += score_adjustment_for_count(++state->sw_guard_count);
+    break;
+  case 22:
+  case 12:
+  case 2:
+    state->score += score_adjustment_for_count(++state->se_guard_count);
+    break;
+  }
+}
+
+inline corner_guard_state handle_departure(corner_guard_state *state, int orig) {
+  switch (orig) {
+  case 118:
+  case 108:
+  case 98:
+    state->score -= score_adjustment_for_count(state->nw_guard_count--);
+    break;
+  case 112:
+  case 110:
+  case 88:
+    state->score -= score_adjustment_for_count(state->ne_guard_count--);
+    break;
+  case 32:
+  case 20:
+  case 8:
+    state->score -= score_adjustment_for_count(state->sw_guard_count--);
+    break;
+  case 22:
+  case 12:
+  case 2:
+    state->score -= score_adjustment_for_count(state->se_guard_count--);
+    break;
+  }
+}
+
+inline void corner_guard_capture_adjust(layer captures, corner_guard_state *state) {
+  while (captures._[0]) {
+    handle_departure(state, _tzcnt_u64(captures._[0]));
+    captures._[0] = _blsr_u64(captures._[0]);
+  }
+  while (captures._[1]) {
+    handle_departure(state, 64 + _tzcnt_u64(captures._[1]));
+    captures._[1] = _blsr_u64(captures._[1]);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// pawn count
 
 int32_t BLACK_PAWN_VALUE = 10000;
 int32_t WHITE_PAWN_VALUE = 10000;
+
+typedef struct pawn_count_state {
+  uint8_t black_pawn_count;
+  uint8_t white_pawn_count;
+  int32_t score;
+} pawn_count_state;
+
+// -----------------------------------------------------------------------------
+// piece square table
+
+typedef struct pst_state {
+  int32_t pst_black_score;
+  int32_t pst_white_score;
+  int32_t pst_king_score;
+} pst_state;
+
+// -----------------------------------------------------------------------------
+// score state
+
+typedef struct score_state {
+} score_state;
+
+// -----------------------------------------------------------------------------
 
 int32_t get_score(score_state *state, bool is_black_turn) {
   int32_t score_as_black =
@@ -37,22 +174,6 @@ int32_t get_score(score_state *state, bool is_black_turn) {
       (WHITE_PAWN_VALUE * state->white_pawn_count) - state->pst_white_score;
   return is_black_turn ? score_as_black : -score_as_black;
 };
-
-uint8_t nw_corner_protection(const board b) {
-  return __builtin_popcountll(corner_guard_nw._[1] & b.black._[1]);
-}
-
-uint8_t ne_corner_protection(const board b) {
-  return __builtin_popcountll(corner_guard_ne._[1] & b.black._[1]);
-}
-
-uint8_t sw_corner_protection(const board b) {
-  return __builtin_popcountll(corner_guard_sw._[0] & b.black._[0]);
-}
-
-uint8_t se_corner_protection(const board b) {
-  return __builtin_popcountll(corner_guard_se._[0] & b.black._[0]);
-}
 
 typedef struct piece_square_table {
   u32 _[121];
@@ -174,7 +295,6 @@ u32 king_niave_pst_quarter[29] = {
     -10, // 48
     -15  // 49
 };
-
 
 typedef struct ai_settings {
   piece_square_table black_pst;
@@ -324,6 +444,7 @@ void update_guard_score_state_capture(score_state *s, int i) {
   }
 };
 
+/*
 score_state update_score_state(score_state old_s, move m, piece_type t) {
   score_state s = old_s;
   if (t == black_type) {
@@ -331,10 +452,7 @@ score_state update_score_state(score_state old_s, move m, piece_type t) {
   }
   return s;
 }
-
-bool king_escaped(const board b) {
-  return b.king._[0] & corners._[0] || b.king._[1] & corners._[1];
-}
+*/
 
 #define THRONE_MASK_0 1152921504606846976ULL
 
@@ -347,8 +465,8 @@ bool king_captured(const board *b) {
   layer foes = b->black;
   foes._[0] |= THRONE_MASK_0;
   layer attackers = LAYER_OR(surround_masks[king_index], foes);
-  uint8_t attacker_count =
-      __builtin_popcountll(attackers._[0]) + __builtin_popcountll(attackers._[1]);
+  uint8_t attacker_count = __builtin_popcountll(attackers._[0]) +
+                           __builtin_popcountll(attackers._[1]);
   return attacker_count == 4;
 }
 
@@ -365,15 +483,15 @@ int corner_protection(const board b) {
 static const int32_t MIN_SCORE = -INT_MAX;
 static const int32_t MAX_SCORE = INT_MAX;
 
-
 bool king_escape_ensured(const board b) {
   return b.king._[0] & ADJACENTS._[0] || b.king._[1] & ADJACENTS._[1];
 }
 
 int32_t score_board(const board board, const bool is_black_turn) {
-  // TODO: div and mod are expensive; store king pos in board or the other way around
+  // TODO: div and mod are expensive; store king pos in board or the other way
+  // around
   uint king_pos = board.king._[0] ? _tzcnt_u64(board.king._[0])
-                                : _tzcnt_u64(board.king._[1]) + 64;
+                                  : _tzcnt_u64(board.king._[1]) + 64;
   uint king_rank = king_pos / 11;
   uint king_file = king_pos % 11;
 
@@ -381,9 +499,9 @@ int32_t score_board(const board board, const bool is_black_turn) {
       white_moves_count(&board) + (king_moves_count(&board) * 100) +
       (king_escape_ensured(board) * 9000000);
 
-  int32_t black_score =             //(black_pawn_count(*board) * 10000) +
+  int32_t black_score =          //(black_pawn_count(*board) * 10000) +
       black_moves_count(&board); // +
-                                    // corner_protection(*board);
+                                 // corner_protection(*board);
 
   return is_black_turn ? black_score - white_score : white_score - black_score;
 }
