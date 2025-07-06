@@ -8,6 +8,18 @@
 #include "stdint.h"
 #include "x86intrin.h"
 
+#define MAP_INDICES(_l, _f)                                                    \
+  while (_l._[0]) {                                                            \
+    int i = _tzcnt_u64(_l._[0]);                                               \
+    _f;                                                                        \
+    _l._[0] = _blsr_u64(_l._[0]);                                              \
+  }                                                                            \
+  while (_l._[1]) {                                                            \
+    int i = 64 + _tzcnt_u64(_l._[1]);                                          \
+    _f;                                                                        \
+    _l._[1] = _blsr_u64(_l._[1]);                                              \
+  }
+
 /*
 typedef enum piece_type : uint8_t {
   black_type = 1,
@@ -17,6 +29,8 @@ typedef enum piece_type : uint8_t {
 */
 
 // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
 // corner guard
 
 typedef struct corner_guard_state {
@@ -24,18 +38,17 @@ typedef struct corner_guard_state {
   uint8_t ne_guard_count;
   uint8_t sw_guard_count;
   uint8_t se_guard_count;
-  int32_t score;
 } corner_guard_state;
 
 inline u32 score_for_count(u8 count) {
   switch (count) {
   // case 0: return 0;
   case 1:
-    return 100;
+    return 1;
   case 2:
-    return 200;
+    return 2;
   case 3:
-    return 400;
+    return 4;
   default:
     return 0;
   }
@@ -55,126 +68,112 @@ inline u32 score_adjustment_for_count(u8 count) {
   }
 }
 
-
-corner_guard_state setup_corner_guard_state(const board *b) {
+corner_guard_state
+init_state_corner_guard(const board *b, const i32 weight, i32 *score) {
   u8 nw = __builtin_popcountll(corner_guard_nw._[1] & b->black._[1]);
   u8 ne = __builtin_popcountll(corner_guard_ne._[1] & b->black._[1]);
   u8 sw = __builtin_popcountll(corner_guard_sw._[0] & b->black._[0]);
   u8 se = __builtin_popcountll(corner_guard_se._[0] & b->black._[0]);
-  u32 score = score_for_count(nw) + score_for_count(ne) + score_for_count(sw) +
-              score_for_count(se);
-  return (corner_guard_state){nw, ne, sw, se, score};
+  *score = (score_for_count(nw) + score_for_count(ne) + score_for_count(sw) +
+            score_for_count(se)) *
+           weight;
+  return (corner_guard_state){nw, ne, sw, se};
 }
 
-u32 corner_guard_stateless(const board *b) {
-  return (
-      score_for_count(
-          __builtin_popcountll(corner_guard_nw._[1] & b->black._[1])) +
-      score_for_count(
-          __builtin_popcountll(corner_guard_ne._[1] & b->black._[1])) +
-      score_for_count(
-          __builtin_popcountll(corner_guard_sw._[0] & b->black._[0])) +
-      score_for_count(
-          __builtin_popcountll(corner_guard_se._[0] & b->black._[0])));
+i32 corner_guard_stateless(const board *b, const i32 weight) {
+  return ((score_for_count(
+               __builtin_popcountll(corner_guard_nw._[1] & b->black._[1])) +
+           score_for_count(
+               __builtin_popcountll(corner_guard_ne._[1] & b->black._[1])) +
+           score_for_count(
+               __builtin_popcountll(corner_guard_sw._[0] & b->black._[0])) +
+           score_for_count(
+               __builtin_popcountll(corner_guard_se._[0] & b->black._[0])))) *
+         weight;
 }
 
-inline void handle_arrival(corner_guard_state *state, int dest) {
+i32 handle_arrival(corner_guard_state *state, int dest) {
   switch (dest) {
   case 118:
   case 108:
   case 98:
-    state->score += score_adjustment_for_count(++state->nw_guard_count);
-    break;
+    return score_adjustment_for_count(++state->nw_guard_count);
   case 112:
   case 110:
   case 88:
-    state->score += score_adjustment_for_count(++state->ne_guard_count);
-    break;
+    return score_adjustment_for_count(++state->ne_guard_count);
   case 32:
   case 20:
   case 8:
-    state->score += score_adjustment_for_count(++state->sw_guard_count);
-    break;
+    return score_adjustment_for_count(++state->sw_guard_count);
   case 22:
   case 12:
   case 2:
-    state->score += score_adjustment_for_count(++state->se_guard_count);
-    break;
+    return score_adjustment_for_count(++state->se_guard_count);
   }
+  return 0;
 }
 
-inline corner_guard_state handle_departure(corner_guard_state *state, int orig) {
+i32 handle_departure(corner_guard_state *state, int orig) {
   switch (orig) {
   case 118:
   case 108:
   case 98:
-    state->score -= score_adjustment_for_count(state->nw_guard_count--);
-    break;
+    return score_adjustment_for_count(state->nw_guard_count--);
   case 112:
   case 110:
   case 88:
-    state->score -= score_adjustment_for_count(state->ne_guard_count--);
-    break;
+    return score_adjustment_for_count(state->ne_guard_count--);
   case 32:
   case 20:
   case 8:
-    state->score -= score_adjustment_for_count(state->sw_guard_count--);
-    break;
+    return score_adjustment_for_count(state->sw_guard_count--);
   case 22:
   case 12:
   case 2:
-    state->score -= score_adjustment_for_count(state->se_guard_count--);
-    break;
+    return score_adjustment_for_count(state->se_guard_count--);
   }
+  return 0;
 }
 
-inline void corner_guard_capture_adjust(layer captures, corner_guard_state *state) {
-  while (captures._[0]) {
-    handle_departure(state, _tzcnt_u64(captures._[0]));
-    captures._[0] = _blsr_u64(captures._[0]);
-  }
-  while (captures._[1]) {
-    handle_departure(state, 64 + _tzcnt_u64(captures._[1]));
-    captures._[1] = _blsr_u64(captures._[1]);
-  }
+inline void corner_guard_handle_black_move(
+    const i32 weight,
+    corner_guard_state *state,
+    i32 *score,
+    int orig,
+    int dest) {
+  *score -= handle_departure(state, orig) * weight;
+  *score += handle_arrival(state, dest) * weight;
+}
+
+inline void corner_guard_capture_adjust(
+    const i32 weight, layer captures, corner_guard_state *state, i32 *score) {
+  MAP_INDICES(captures, *score -= handle_departure(state, i) * weight);
 }
 
 // -----------------------------------------------------------------------------
 // pawn count
 
-int32_t BLACK_PAWN_VALUE = 10000;
-int32_t WHITE_PAWN_VALUE = 10000;
+i32 init_pawn_count_score(
+    const board *b, const i32 black_weight, const i32 white_weight) {
+  return (
+      black_pawn_count(b) * black_weight - white_pawn_count(b) * white_weight);
+}
 
-typedef struct pawn_count_state {
-  uint8_t black_pawn_count;
-  uint8_t white_pawn_count;
-  int32_t score;
-} pawn_count_state;
+i32 pawn_count_capture_adjust(const i32 weight, layer captures) {
+  i32 count = 0;
+  MAP_INDICES(captures, count -= 1);
+  return count * weight;
+}
 
 // -----------------------------------------------------------------------------
 // piece square table
-
-typedef struct pst_state {
-  int32_t pst_black_score;
-  int32_t pst_white_score;
-  int32_t pst_king_score;
-} pst_state;
-
-// -----------------------------------------------------------------------------
-// score state
-
-typedef struct score_state {
-} score_state;
-
-// -----------------------------------------------------------------------------
-
-int32_t get_score(score_state *state, bool is_black_turn) {
-  int32_t score_as_black =
-      state->guard_score + (BLACK_PAWN_VALUE * state->black_pawn_count) -
-      (WHITE_PAWN_VALUE * state->white_pawn_count) - state->pst_white_score;
-  return is_black_turn ? score_as_black : -score_as_black;
-};
-
+//
+// Note: pst doesn't have any weights associated with it. If I want to
+// weight it against other score factors I can do so at construction
+// time so that the values of the table itself are adjusted with the
+// weight; I don't need to apply the weight at every incremental score
+// update.
 typedef struct piece_square_table {
   u32 _[121];
 } piece_square_table;
@@ -296,221 +295,129 @@ u32 king_niave_pst_quarter[29] = {
     -15  // 49
 };
 
-typedef struct ai_settings {
+typedef struct psts {
   piece_square_table black_pst;
   piece_square_table white_pst;
   piece_square_table king_pst;
-  int32_t king_throne_position_score;
-} ai_settings;
+  // int32_t king_throne_position_score; // this needs to go in the king pst
+} psts;
 
-ai_settings init_ai_settings() {
-  return (ai_settings){
+psts init_psts() {
+  return (psts){
       quarter_to_pst(black_niave_pst_quarter),
       quarter_to_pst(white_niave_pst_quarter),
       quarter_to_pst(king_niave_pst_quarter),
-      -100};
+  };
 }
 
-score_state init_score_state(const board b) {
-  return (score_state){
-      nw_corner_protection(b),
-      ne_corner_protection(b),
-      sw_corner_protection(b),
-      se_corner_protection(b),
-      0,
-      black_pawn_count(b),
-      white_pawn_count(b),
-      0,
-      0,
-      0};
+int pst_handle_move(const piece_square_table *pst, int orig, int dest) {
+  return pst->_[dest] - pst->_[orig];
 }
 
-int32_t guard_count_bonuses[] = {0, 300, 600, 1000};
-
-void update_guard_score_state_move(score_state *s, move m) {
-
-  switch (m.orig) {
-  // nw
-  case 118:
-  case 108:
-  case 98:
-    s->guard_score -= guard_count_bonuses[s->nw_guard_count];
-    s->nw_guard_count--;
-    break;
-  // ne
-  case 112:
-  case 100:
-  case 88:
-    s->guard_score -= guard_count_bonuses[s->ne_guard_count];
-    s->ne_guard_count--;
-    break;
-  // sw
-  case 32:
-  case 20:
-  case 8:
-    s->guard_score -= guard_count_bonuses[s->sw_guard_count];
-    s->sw_guard_count--;
-    break;
-  // se
-  case 22:
-  case 12:
-  case 2:
-    s->guard_score -= guard_count_bonuses[s->se_guard_count];
-    s->se_guard_count -= 1;
-    break;
-  }
-  switch (m.dest) {
-  // nw
-  case 118:
-  case 108:
-  case 98:
-    s->nw_guard_count++;
-    /*
-    if (s.nw_guard_count > 3) {
-      printf("guard count nw: %d\n", s.nw_guard_count);
-      std::cout << "that's illegal: " << m << "\n";
-    }
-    */
-    s->guard_score += guard_count_bonuses[s->nw_guard_count];
-    break;
-  // ne
-  case 112:
-  case 100:
-  case 88:
-    s->ne_guard_count++;
-    if (s->ne_guard_count > 3) {
-      printf("guard coun ne: %d", s->ne_guard_count);
-      // std::cout << "that's illegal: " << m << "\n";
-    }
-    s->guard_score += guard_count_bonuses[s->ne_guard_count];
-    break;
-  // sw
-  case 32:
-  case 20:
-  case 8:
-    s->sw_guard_count++;
-    // if (s.sw_guard_count > 3) {
-    //   printf("guard count sw: %d", s.sw_guard_count);
-    //   std::cout << "that's illegal: " << m << "\n";
-    // }
-    s->guard_score += guard_count_bonuses[s->sw_guard_count];
-    break;
-  // se
-  case 22:
-  case 12:
-  case 2:
-    s->se_guard_count++;
-    // if (s.se_guard_count > 3) {
-    //   printf("guard count se: %d", s.se_guard_count);
-    //   std::cout << "that's illegal: " << m << "\n";
-    // }
-    s->guard_score += guard_count_bonuses[s->se_guard_count];
-    break;
-  }
-};
-
-void update_guard_score_state_capture(score_state *s, int i) {
-  //  printf("fire cap up\n");
-
-  switch (i) {
-  // nw
-  case 118:
-  case 108:
-  case 98:
-    s->guard_score -= guard_count_bonuses[s->nw_guard_count];
-    s->nw_guard_count--;
-    break;
-  // ne
-  case 112:
-  case 100:
-  case 88:
-    s->guard_score -= guard_count_bonuses[s->ne_guard_count];
-    s->ne_guard_count--;
-    break;
-  // sw
-  case 32:
-  case 20:
-  case 8:
-    s->guard_score -= guard_count_bonuses[s->sw_guard_count];
-    s->sw_guard_count--;
-    break;
-  // se
-  case 22:
-  case 12:
-  case 2:
-    s->guard_score -= guard_count_bonuses[s->se_guard_count];
-    s->se_guard_count -= 1;
-    break;
-  }
-};
-
-/*
-score_state update_score_state(score_state old_s, move m, piece_type t) {
-  score_state s = old_s;
-  if (t == black_type) {
-    update_guard_score_state_move(&s, m);
-  }
-  return s;
-}
-*/
-
-#define THRONE_MASK_0 1152921504606846976ULL
-
-bool king_captured(const board *b) {
-  if (IS_EMPTY(LAYER_AND(b->king, INTERIOR))) {
-    return false;
-  }
-  uint8_t king_index =
-      b->king._[0] ? _tzcnt_u64(b->king._[0]) : _tzcnt_u64(b->king._[1]) + 64;
-  layer foes = b->black;
-  foes._[0] |= THRONE_MASK_0;
-  layer attackers = LAYER_OR(surround_masks[king_index], foes);
-  uint8_t attacker_count = __builtin_popcountll(attackers._[0]) +
-                           __builtin_popcountll(attackers._[1]);
-  return attacker_count == 4;
+i32 init_pst_score(const psts *psts, const board *input) {
+  board b = *input;
+  i32 score = 0;
+  MAP_INDICES(b.black, score += psts->black_pst._[i]);
+  MAP_INDICES(b.white, score -= psts->white_pst._[i]);
+  MAP_INDICES(b.king, score -= psts->white_pst._[i]);
+  return score;
 }
 
-uint32_t CORNER_PROTECTION_BONUS = 250;
-
-int corner_protection(const board b) {
-  return (nw_corner_protection(b) * CORNER_PROTECTION_BONUS) +
-         (ne_corner_protection(b) * CORNER_PROTECTION_BONUS) +
-         (sw_corner_protection(b) * CORNER_PROTECTION_BONUS) +
-         (se_corner_protection(b) * CORNER_PROTECTION_BONUS);
+i32 pst_capture_handler(const piece_square_table *pst, layer captures) {
+  i32 adjust = 0;
+  MAP_INDICES(captures, adjust += pst->_[i]);
+  return adjust;
 }
 
-// typedef int32_t score;
-static const int32_t MIN_SCORE = -INT_MAX;
-static const int32_t MAX_SCORE = INT_MAX;
+// -----------------------------------------------------------------------------
+// Full setup
 
-bool king_escape_ensured(const board b) {
-  return b.king._[0] & ADJACENTS._[0] || b.king._[1] & ADJACENTS._[1];
+typedef struct score_weights {
+  i32 black_pawn;
+  i32 white_pawn;
+  i32 corner_guard;
+  i32 black_moves;
+  i32 white_moves;
+  i32 king_moves;
+  psts psts;
+} score_weights;
+
+typedef struct score_state {
+  corner_guard_state corner_guard;
+  i32 score;
+} score_state;
+
+score_state init_score_state(score_weights *weights, const board *b) {
+  i32 score =
+      init_pawn_count_score(b, weights->black_pawn, weights->white_pawn) +
+      init_pst_score(&weights->psts, b);
+  corner_guard_state cgs =
+      init_state_corner_guard(b, weights->corner_guard, &score);
+  return (score_state){cgs, score};
 }
 
-int32_t score_board(const board board, const bool is_black_turn) {
-  // TODO: div and mod are expensive; store king pos in board or the other way
-  // around
-  uint king_pos = board.king._[0] ? _tzcnt_u64(board.king._[0])
-                                  : _tzcnt_u64(board.king._[1]) + 64;
-  uint king_rank = king_pos / 11;
-  uint king_file = king_pos % 11;
+// -----------------------------------------------------------------------------
+// Top-level usage
+// NOTE: TODO: remember that I specifically generate capture moves first, which
+// means that I know which moves lead to captures and which don't ahead of time.
+// I can skip computing:
+// - corner guard capture adjust
+// - pawn count
+// for non-capture moves.
+// Might make sense to have one non-capture state update functon for each color,
+// and one additional function for each colow that only does the
+// capture-specific updates. getting a score out of the state can be shared.
 
-  int32_t white_score = //(white_pawn_count(*board) * 10000) +
-      white_moves_count(&board) + (king_moves_count(&board) * 100) +
-      (king_escape_ensured(board) * 9000000);
-
-  int32_t black_score =          //(black_pawn_count(*board) * 10000) +
-      black_moves_count(&board); // +
-                                 // corner_protection(*board);
-
-  return is_black_turn ? black_score - white_score : white_score - black_score;
+void update_score_state_black_no_capture(
+    const score_weights *weights, score_state *s, int orig, int dest) {
+  s->score += pst_handle_move(&weights->psts.black_pst, orig, dest);
+  corner_guard_handle_black_move(
+      weights->corner_guard, &s->corner_guard, &s->score, orig, dest);
 }
 
-int32_t score_board_for_order(const board *board, const bool is_black_turn) {
-  int32_t white_score = white_pawn_count(*board) * 1000;
+void update_score_state_black_capture(
+    const score_weights *weights, score_state *s, const layer captures) {
+  s->score += pst_capture_handler(&weights->psts.white_pst, captures);
+  s->score += pawn_count_capture_adjust(weights->white_pawn, captures);
+}
 
-  int32_t black_score =
-      (black_pawn_count(*board) * 1000) + corner_protection(*board) * 100;
+void update_score_state_white_no_capture(
+    const score_weights *weights, score_state *s, int orig, int dest) {
+  s->score -= pst_handle_move(&weights->psts.white_pst, orig, dest);
+}
 
-  return is_black_turn ? black_score - white_score : white_score - black_score;
+void update_score_state_white_capture(
+    const score_weights *weights, score_state *s, const layer captures) {
+  s->score -= pst_capture_handler(&weights->psts.black_pst, captures);
+  s->score -= pawn_count_capture_adjust(weights->black_pawn, captures);
+  corner_guard_capture_adjust(
+      weights->corner_guard, captures, &s->corner_guard, &s->score);
+}
+
+void update_score_state_king_no_capture(
+    const score_weights *weights, score_state *s, int orig, int dest) {
+  s->score -= pst_handle_move(&weights->psts.king_pst, orig, dest);
+}
+
+void update_score_state_king_capture(
+    const score_weights *weights, score_state *s, const layer captures) {
+  s->score -= pst_capture_handler(&weights->psts.black_pst, captures);
+  s->score -= pawn_count_capture_adjust(weights->black_pawn, captures);
+  corner_guard_capture_adjust(
+      weights->corner_guard, captures, &s->corner_guard, &s->score);
+}
+
+i32 black_score(score_weights *w, score_state *s, board *b) {
+  i32 black_moves = black_moves_count(b) * w->black_moves;
+  i32 white_moves = white_moves_count(b) * w->white_moves;
+  i32 king_moves = king_moves_count(b) * w->king_moves;
+  return s->score * king_moves;
+}
+
+i32 white_score(score_weights *w, score_state *s, board *b) {
+  return -black_score(w, s, b);
+}
+
+i32 king_score(score_weights *w, score_state *s, board *b) {
+  return -black_score(w, s, b);
 }

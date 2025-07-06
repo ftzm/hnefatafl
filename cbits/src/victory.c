@@ -55,6 +55,7 @@ bool king_capture_check(const board *b) {
   return LAYERS_EQUAL(surround_mask, present);
 }
 
+// TODO: adjacents as well, keep it simple
 bool king_escaped(const board *b) {
   return b->king._[0] & corners._[0] || b->king._[1] & corners._[1];
 }

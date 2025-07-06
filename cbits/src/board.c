@@ -13,14 +13,14 @@ const char *start_board_string = " .  .  .  X  X  X  X  X  .  .  . "
                                  " .  .  .  .  .  X  .  .  .  .  . "
                                  " .  .  .  X  X  X  X  X  .  .  . ";
 
-int white_pawn_count(const board b) {
-  return __builtin_popcountll(b.white._[0]) +
-         __builtin_popcountll(b.white._[1]);
+int white_pawn_count(const board *b) {
+  return __builtin_popcountll(b->white._[0]) +
+         __builtin_popcountll(b->white._[1]);
 }
 
-int black_pawn_count(const board b) {
-  return __builtin_popcountll(b.black._[0]) +
-         __builtin_popcountll(b.black._[1]);
+int black_pawn_count(const board *b) {
+  return __builtin_popcountll(b->black._[0]) +
+         __builtin_popcountll(b->black._[1]);
 }
 
 int boards_equal(board a, board b) {
