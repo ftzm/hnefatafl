@@ -1,12 +1,10 @@
 #include "board.h"
-#include "capture.h"
 #include "constants.h"
 #include "layer.h"
 #include "limits.h"
 #include "move.h"
-#include "stdbool.h"
 #include "stdint.h"
-#include "x86intrin.h"
+#include "x86intrin.h" // IWYU pragma: export
 
 #define MAP_INDICES(_l, _f)                                                    \
   while (_l._[0]) {                                                            \
@@ -46,9 +44,9 @@ inline u32 score_for_count(u8 count) {
   case 1:
     return 1;
   case 2:
-    return 2;
+    return 20;
   case 3:
-    return 4;
+    return 400;
   default:
     return 0;
   }
@@ -58,11 +56,11 @@ inline u32 score_adjustment_for_count(u8 count) {
   switch (count) {
   // case 0: return 0;
   case 1:
-    return 100;
+    return 1;
   case 2:
-    return 100;
+    return 19;
   case 3:
-    return 200;
+    return 380;
   default:
     return 0;
   }
@@ -74,7 +72,7 @@ init_state_corner_guard(const board *b, const i32 weight, i32 *score) {
   u8 ne = __builtin_popcountll(corner_guard_ne._[1] & b->black._[1]);
   u8 sw = __builtin_popcountll(corner_guard_sw._[0] & b->black._[0]);
   u8 se = __builtin_popcountll(corner_guard_se._[0] & b->black._[0]);
-  *score = (score_for_count(nw) + score_for_count(ne) + score_for_count(sw) +
+  *score += (score_for_count(nw) + score_for_count(ne) + score_for_count(sw) +
             score_for_count(se)) *
            weight;
   return (corner_guard_state){nw, ne, sw, se};
@@ -99,7 +97,7 @@ i32 handle_arrival(corner_guard_state *state, int dest) {
   case 98:
     return score_adjustment_for_count(++state->nw_guard_count);
   case 112:
-  case 110:
+  case 100:
   case 88:
     return score_adjustment_for_count(++state->ne_guard_count);
   case 32:
@@ -121,7 +119,7 @@ i32 handle_departure(corner_guard_state *state, int orig) {
   case 98:
     return score_adjustment_for_count(state->nw_guard_count--);
   case 112:
-  case 110:
+  case 100:
   case 88:
     return score_adjustment_for_count(state->ne_guard_count--);
   case 32:
@@ -157,12 +155,12 @@ inline void corner_guard_capture_adjust(
 i32 init_pawn_count_score(
     const board *b, const i32 black_weight, const i32 white_weight) {
   return (
-      black_pawn_count(b) * black_weight - white_pawn_count(b) * white_weight);
+      (black_pawn_count(b) * black_weight) - (white_pawn_count(b) * white_weight));
 }
 
 i32 pawn_count_capture_adjust(const i32 weight, layer captures) {
   i32 count = 0;
-  MAP_INDICES(captures, count -= 1);
+  MAP_INDICES(captures, count += 1);
   return count * weight;
 }
 
@@ -319,7 +317,7 @@ i32 init_pst_score(const psts *psts, const board *input) {
   i32 score = 0;
   MAP_INDICES(b.black, score += psts->black_pst._[i]);
   MAP_INDICES(b.white, score -= psts->white_pst._[i]);
-  MAP_INDICES(b.king, score -= psts->white_pst._[i]);
+  MAP_INDICES(b.king, score -= psts->king_pst._[i]);
   return score;
 }
 
@@ -354,6 +352,12 @@ score_state init_score_state(score_weights *weights, const board *b) {
   corner_guard_state cgs =
       init_state_corner_guard(b, weights->corner_guard, &score);
   return (score_state){cgs, score};
+  /*
+  i32 score = 0;
+  corner_guard_state cgs =
+      init_state_corner_guard(b, weights->corner_guard, &score);
+  return (score_state){cgs, score};
+  */
 }
 
 // -----------------------------------------------------------------------------
@@ -411,7 +415,7 @@ i32 black_score(score_weights *w, score_state *s, board *b) {
   i32 black_moves = black_moves_count(b) * w->black_moves;
   i32 white_moves = white_moves_count(b) * w->white_moves;
   i32 king_moves = king_moves_count(b) * w->king_moves;
-  return s->score * king_moves;
+  return s->score;
 }
 
 i32 white_score(score_weights *w, score_state *s, board *b) {

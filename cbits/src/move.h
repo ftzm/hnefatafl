@@ -78,7 +78,7 @@ typedef struct moves_to {
 
 static inline moves_to_t
 moves_to_black(board b, layer targets, layer targets_r) {
-  moves_to_t results;
+  moves_to_t results = {{0}};
   results.total = 0;
   moves_to(
       targets,
@@ -96,7 +96,7 @@ moves_to_black(board b, layer targets, layer targets_r) {
 
 static inline moves_to_t
 moves_to_white(board b, layer targets, layer targets_r) {
-  moves_to_t results;
+  moves_to_t results = {{0}};
   results.total = 0;
   moves_to(
       targets,
@@ -114,7 +114,7 @@ moves_to_white(board b, layer targets, layer targets_r) {
 
 static inline moves_to_t
 moves_to_king(board b, layer targets, layer targets_r) {
-  moves_to_t results;
+  moves_to_t results = {{0}};
   results.total = 0;
   moves_to_king_impl(
       targets,

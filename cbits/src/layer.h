@@ -67,6 +67,7 @@ extern const uint8_t rotate_left[121];
 
 // #define layer_or(a, b) ((layer) {._ = {a._[0] | b._[0], a._[1] | b._[1]}})
 #define layer_or(a, b) layer_bin_op(a, b, |)
+#define LAYER_XOR layer_xor
 
 // #define layer_and(a, b) ((layer) {._ = {a._[0] & b._[0], a._[1] & b._[1]}})
 #define layer_and(a, b) layer_bin_op(a, b, &)
@@ -144,6 +145,13 @@ static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
 #define LAYER_AND_ASSG_PTR(_x, _y)                                             \
   _x->_[0] &= _y._[0];                                                         \
   _x->_[1] &= _y._[1]
+
+#define LAYER_XOR_ASSG(_x, _y)                                                 \
+  _x._[0] ^= _y._[0];                                                          \
+  _x._[1] ^= _y._[1]
+#define LAYER_XOR_ASSG_PTR(_x, _y)                                             \
+  _x->_[0] ^= _y._[0];                                                         \
+  _x->_[1] ^= _y._[1]
 
 #define lowest_index(layer)                                                    \
   (layer._[0] ? _tzcnt_u64(layer._[0]) : _tzcnt_u64(layer._[1]) + 64)
