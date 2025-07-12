@@ -13,12 +13,36 @@
 #include <stdlib.h>
 #include <string.h>
 
+bool corner_guard_states_equal(corner_guard_state *a, corner_guard_state *b) {
+  return a->ne_guard_count == b->ne_guard_count &&
+         a->nw_guard_count == b->nw_guard_count &&
+         a->se_guard_count == b->se_guard_count &&
+         a->sw_guard_count == b->sw_guard_count;
+}
+
+bool score_states_equal(score_state *a, score_state *b) {
+  return a->score == b->score &&
+         corner_guard_states_equal(&a->corner_guard, &b->corner_guard);
+}
+
+void print_corner_guard_state(FILE *f, corner_guard_state *cgs) {
+  fprintf(f, "ne_guard_count: %d\n", cgs->ne_guard_count);
+  fprintf(f, "nw_guard_count: %d\n", cgs->nw_guard_count);
+  fprintf(f, "se_guard_count: %d\n", cgs->se_guard_count);
+  fprintf(f, "sw_guard_count: %d\n", cgs->sw_guard_count);
+}
+
+void print_score_state(FILE *f, score_state *ss) {
+  print_corner_guard_state(f, &ss->corner_guard);
+  fprintf(f, "score: %d\n", ss->score);
+}
+
 typedef struct score_evaluations {
   board b;
   move moves[400];
   board results_boards[400];
-  i32 full_evaluations[400];
-  i32 incremental_evaluations[400];
+  score_state full_score_states[400];
+  score_state incremental_score_states[400];
   int total;
 } score_evaluations;
 
@@ -27,7 +51,9 @@ score_evaluations_equal(struct theft *t, void *arg1) {
   struct score_evaluations *input = (struct score_evaluations *)arg1;
 
   for (int i; i < input->total; i++) {
-    if (input->full_evaluations[i] != input->incremental_evaluations[i]) {
+    if (!score_states_equal(
+            &input->full_score_states[i],
+            &input->incremental_score_states[i])) {
       return THEFT_TRIAL_FAIL;
     }
   }
@@ -44,16 +70,59 @@ void score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
   fprintf(f, "%s", output);
 
   for (int i; i < input->total; i++) {
-    if (input->full_evaluations[i] != input->incremental_evaluations[i]) {
+    if (!score_states_equal(
+            &input->full_score_states[i],
+            &input->incremental_score_states[i])) {
       print_board_move(
-          input->results_boards[i], input->moves[i].orig, input->moves[i].dest, EMPTY_LAYER);
-      fprintf(f, "full: %d\n", input->full_evaluations[i]);
-      fprintf(f, "inc: %d\n", input->incremental_evaluations[i]);
+          input->results_boards[i],
+          input->moves[i].orig,
+          input->moves[i].dest,
+          EMPTY_LAYER);
+      fprintf(f, "full:\n");
+      print_score_state(f, &input->full_score_states[i]);
+      fprintf(f, "\ninc:\n");
+      print_score_state(f, &input->incremental_score_states[i]);
     }
   }
 }
 
 // -----------------------------------------------------------------------------
+
+inline layer unoccupied(const board *b) {
+  layer res = layer_neg(board_occ(*b));
+  res._[1] &= UPPER_HALF_MASK;
+  return res;
+}
+
+inline layer unoccupied_r(const board *b) {
+  layer res = layer_neg(board_occ_r(*b));
+  res._[1] &= UPPER_HALF_MASK;
+  return res;
+}
+
+inline layer unoccupied_king(const board *b) {
+  layer res = layer_neg(king_board_occ(*b));
+  res._[1] &= UPPER_HALF_MASK;
+  return res;
+}
+
+inline layer unoccupied_king_r(const board *b) {
+  layer res = layer_neg(king_board_occ(*b));
+  res._[1] &= UPPER_HALF_MASK;
+  return res;
+}
+
+inline layer non_capture(board *b, const layer *captures) {
+  return LAYER_XOR(unoccupied(b), (*captures));
+}
+
+inline layer non_capture_r(board *b, const layer *captures) {
+  return LAYER_XOR(unoccupied_r(b), (*captures));
+}
+
+inline layer non_capture_king_r(board *b, const layer *captures) {
+  return LAYER_XOR(unoccupied_king_r(b), (*captures));
+}
 
 static enum theft_alloc_res
 white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
@@ -62,12 +131,16 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
   score_weights w = {3, 3, 3, 3, 3, 3, init_psts()};
   score_state ss = init_score_state(&w, &b);
 
-  const layer non_capture_dests = LAYER_XOR(
-      board_occ(b), find_capture_destinations(b.white, b.black, board_occ(b)));
+  const layer capture_dests =
+      find_capture_destinations(b.white, b.black, board_occ(b));
+  const layer non_capture_dests =  non_capture(&b, &capture_dests);
 
-  const layer non_capture_dests_r = LAYER_XOR(
-      board_occ_r(b),
-      find_capture_destinations(b.white_r, b.black_r, board_occ_r(b)));
+    
+
+  const layer capture_dests_r =
+      find_capture_destinations(b.white_r, b.black_r, board_occ_r(b));
+
+  const layer non_capture_dests_r = non_capture_r(&b, &capture_dests_r);
 
   moves_to_t moves = moves_to_white(b, non_capture_dests, non_capture_dests_r);
 
@@ -76,18 +149,20 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
     move m = moves.ms[i];
 
     results.moves[i] = m;
+    // print_move(m.orig, m.dest);
+    // printf("\n");
     board result_board = b;
     LAYER_XOR_ASSG(result_board.white, moves.ls[i]);
     LAYER_XOR_ASSG(result_board.white_r, moves.ls_r[i]);
     results.results_boards[i] = result_board;
 
     score_state updated_score_state = ss;
-    update_score_state_white_no_capture(&w, &updated_score_state, m.orig, m.dest);
-    results.incremental_evaluations[i] =
-        white_score(&w, &updated_score_state, &result_board);
+    update_score_state_white_no_capture(
+        &w, &updated_score_state, m.orig, m.dest);
+    results.incremental_score_states[i] = updated_score_state;
 
     score_state recalculated_score_state = init_score_state(&w, &result_board);
-    results.full_evaluations[i] = white_score(&w, &recalculated_score_state, &result_board);
+    results.full_score_states[i] = recalculated_score_state;
   }
 
   struct score_evaluations *output = malloc(sizeof(results));
@@ -154,15 +229,14 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
     // print_layer(result_board.black);
     // print_layer(captures);
 
-
     score_state updated_score_state = ss;
-    update_score_state_white_no_capture(&w, &updated_score_state, m.orig, m.dest);
+    update_score_state_white_no_capture(
+        &w, &updated_score_state, m.orig, m.dest);
     update_score_state_white_capture(&w, &updated_score_state, captures);
-    results.incremental_evaluations[i] =
-        white_score(&w, &updated_score_state, &result_board);
+    results.incremental_score_states[i] = updated_score_state;
 
     score_state recalculated_score_state = init_score_state(&w, &result_board);
-    results.full_evaluations[i] = white_score(&w, &recalculated_score_state, &result_board);
+    results.full_score_states[i] = recalculated_score_state;
   }
 
   struct score_evaluations *output = malloc(sizeof(results));
@@ -199,9 +273,9 @@ TEST prop_white_scores_capture_inc_correct(void) {
 // -----------------------------------------------------------------------------
 
 SUITE(score_tests) {
-  // RUN_TEST(prop_white_scores_no_capture_inc_correct);
+  RUN_TEST(prop_white_scores_no_capture_inc_correct);
   RUN_TEST(prop_white_scores_capture_inc_correct);
-  }
+}
 
 GREATEST_MAIN_DEFS();
 
