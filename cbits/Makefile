@@ -6,6 +6,7 @@ CC = gcc
 
 CFLAGS=-mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -fsanitize=address -Wformat
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
+COMPILE_TEST.c = $(CC) $(DEPFLAGS) $(CFLAGS) -I src -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h -c
 
 # ------------------------------------------------------------------------------
 # Automatic recipes for object files
@@ -13,12 +14,17 @@ COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-$(OBJDIR)/%.o : %.c $(DEPDIR)/%.d
-	mkdir -p $(basename $(@D))
-	mkdir -p .deps/$(patsubst $(OBJDIR)/%,%,$(basename $(@D)))
+$(OBJDIR)/%.o : %.c
+	mkdir -p $(@D)
+	mkdir -p .deps/$(patsubst $(OBJDIR)/%,%,$(@D))
 	$(COMPILE.c) $(OUTPUT_OPTION) $<
 
-DEPFILES := $(SRCS:%.c=$(DEPDIR)/%.d)
+$(OBJDIR)/test/%.o : test/%.c
+	mkdir -p $(@D)
+	mkdir -p .deps/$(dir $<)
+	$(COMPILE_TEST.c) -MF .deps/$<.d $(OUTPUT_OPTION) $<
+
+DEPFILES := $(SRCS:%.c=$(DEPDIR)/%.d) $(TEST_SRCS:%.c=$(DEPDIR)/%.d) $(TEST_UTIL_SRCS:%.c=$(DEPDIR)/%.d)
 $(DEPFILES):
 
 include $(wildcard $(DEPFILES))
@@ -43,17 +49,23 @@ TEST_SRC = test
 TEST_BIN = .test_bin
 TEST_SRCS := $(wildcard $(TEST_SRC)/*.c)
 TEST_SRCS := $(filter-out $(TEST_SRC)/test.c, $(TEST_SRCS))
+TEST_OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(TEST_SRCS))
+TEST_UTIL_SRCS := $(wildcard $(TEST_SRC)/util/*.c)
+TEST_UTIL_OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(TEST_UTIL_SRCS))
+TEST_ALL_OBJS := $(TEST_OBJS) $(TEST_UTIL_OBJS)
 
 .PRECIOUS: $(TEST_BIN)/%
-$(TEST_BIN)/%: $(TEST_SRC)/%.c $(OBJDIR)/lib.so
+$(TEST_BIN)/%: $(OBJDIR)/$(TEST_SRC)/%.o $(OBJDIR)/lib.so
 	mkdir -p $(TEST_BIN)
-	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h -lm $(TEST_SRC)/$*.c vendor/theft/build/libtheft.a 
+	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h -lm $< vendor/theft/build/libtheft.a
 
-test: $(TEST_BINS)
-	@for bin in $(TEST_BINS); do \
-	  echo -e "running $$bin\n"; \
-	  LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./$$bin; \
-	done
+# Special rule for test.c binary that links all test object files
+$(TEST_BIN)/test: $(TEST_SRC)/test.c $(TEST_ALL_OBJS) $(OBJDIR)/lib.so
+	mkdir -p $(TEST_BIN)
+	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/greatest -lm $(TEST_SRC)/test.c $(TEST_ALL_OBJS) vendor/theft/build/libtheft.a 
+
+test: $(TEST_BIN)/test
+	@LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./$(TEST_BIN)/test
 
 # ------------------------------------------------------------------------------
 # Automatic bench dispatch
@@ -97,7 +109,7 @@ clean:
 # ------------------------------------------------------------------------------
 # All
 
-all: $(OBJDIR)/lib.so $(TEST_BINS) $(BENCH_BINS)
+all: $(OBJDIR)/lib.so $(TEST_BIN)/test $(BENCH_BINS)
 
 # ------------------------------------------------------------------------------
 # Bear

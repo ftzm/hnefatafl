@@ -1,17 +1,19 @@
+#pragma once
+
 #include "theft.h"
 #include "constants.h"
 #include "board.h"
 
 uint64_t
-theft_random_choice_between(struct theft *t, uint64_t floor, uint64_t ceil) {
+inline theft_random_choice_between(struct theft *t, uint64_t floor, uint64_t ceil) {
   return random() % ceil + floor;
 }
 
-uint64_t my_random_choice(struct theft *t, int limit) {
+inline uint64_t my_random_choice(struct theft *t, int limit) {
   return random() % limit;
 }
 
-board theft_create_board(struct theft *t) {
+inline board theft_create_board(struct theft *t) {
   layer occ = corners;
   // set throne in occ
   op_layer_bit(occ, 60, |=);
