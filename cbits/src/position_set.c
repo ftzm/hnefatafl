@@ -29,8 +29,8 @@ The function is as fair as possible in the sense that if you iterate
 through all possible values of "word", then you will generate all
 possible outputs as uniformly as possible.
 */
-static inline uint64_t fastrange64(uint64_t word, uint64_t p) {
-  return (uint64_t)(((__uint128_t)word * (__uint128_t)p) >> 64);
+static inline u64 fastrange64(u64 word, u64 p) {
+  return (u64)(((__uint128_t)word * (__uint128_t)p) >> 64);
 }
 
 position_set_t *create_position_set(size_t max_elems) {
@@ -39,7 +39,7 @@ position_set_t *create_position_set(size_t max_elems) {
   position_set_t *set = malloc(sizeof(position_set_t));
   *set = (position_set_t) {
     .size = size,
-    .elements = calloc(size, sizeof(uint64_t))
+    .elements = calloc(size, sizeof(u64))
   };
   return set;
 }
@@ -49,8 +49,8 @@ void destroy_position_set(position_set_t *set) {
   free(set);
 }
 
-int insert_position(position_set_t *set, uint64_t position, int *deletion_index) {
-  uint64_t index = fastrange64(position, set->size);
+int insert_position(position_set_t *set, u64 position, int *deletion_index) {
+  u64 index = fastrange64(position, set->size);
 
   // iterate until we find an empty cell
   while (set->elements[index]) {
@@ -74,6 +74,6 @@ int insert_position(position_set_t *set, uint64_t position, int *deletion_index)
   return 0;
 }
 
-void delete_position(position_set_t *set, uint64_t index) {
+void delete_position(position_set_t *set, u64 index) {
   set->elements[index] = 0;
 }

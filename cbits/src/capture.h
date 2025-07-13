@@ -6,10 +6,10 @@
 extern layer surround_masks[120];
 extern layer surround_masks_r[120];
 
-uint8_t apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest);
+u8 apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest);
 
-void apply_captures_z_black(board *b, uint64_t *z, uint8_t dest);
-void apply_captures_z_white(board *b, uint64_t *z, uint8_t dest);
+void apply_captures_z_black(board *b, u64 *z, u8 dest);
+void apply_captures_z_white(board *b, u64 *z, u8 dest);
 
 void shield_wall_black(board *b, uint pos);
 void shield_wall_white(board *b, uint pos);

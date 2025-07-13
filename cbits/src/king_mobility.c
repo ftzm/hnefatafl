@@ -159,19 +159,19 @@ inline void into_row(layer *l, u16 row, int n) {
 #define ADJUST_AXIS_VAL_I(_axis, _i) JOIN(ADJUST_AXIS_VAL, _axis)(_i)
 
 // excludes origin, includes edges (corners)
-#define MASK_RIGHTWARD(x) (((uint16_t)1 << x) - 1)
+#define MASK_RIGHTWARD(x) (((u16)1 << x) - 1)
 #define MASK_LEFTWARD(x) ((0x7fe << x) & 0x7fe)
 
 // excludes origin, excludes edges (corners)
-#define MASK_RIGHTWARD_EDGE(x) (((uint16_t)1 << x) - 2)
+#define MASK_RIGHTWARD_EDGE(x) (((u16)1 << x) - 2)
 #define MASK_LEFTWARD_EDGE(x) ((0x3fe << x) & 0x3fe)
 
 // includes x
-#define MASK_RIGHTWARD_INC(x) (((uint16_t)2 << x) - 1)
+#define MASK_RIGHTWARD_INC(x) (((u16)2 << x) - 1)
 #define MASK_LEFTWARD_INC(x) ((0x7ff << x) & 0x7ff)
 
 // includes x; only applicable at the edge; excludes corners
-#define MASK_RIGHTWARD_INC_EDGE(x) (((uint16_t)2 << x) - 2)
+#define MASK_RIGHTWARD_INC_EDGE(x) (((u16)2 << x) - 2)
 #define MASK_LEFTWARD_INC_EDGE(x) ((0x3ff << x) & 0x3ff)
 
 #define LEGAL_EDGE_MASK 0b01111111110
@@ -853,7 +853,7 @@ bool corner_moves_2(
 bool corner_moves_1(
     const layer occ, const layer occ_r, const int rank, const int file) {
 
-  uint16_t row;
+  u16 row;
 
   if (rank == 0) {
     row = DIRTY_GET_ROW_0(occ);

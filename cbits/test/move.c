@@ -19,8 +19,8 @@
 #include "stdint.h"
 #include "fixtures.h"
 
-uint64_t rightward_moves_lower(uint64_t gen, uint64_t pro) {
-  uint64_t orig = gen;
+u64 rightward_moves_lower(u64 gen, u64 pro) {
+  u64 orig = gen;
   pro &= 18428720874809981951ULL;
   gen |= pro & (gen >> 1);
   pro &= (pro >> 1);
@@ -297,7 +297,7 @@ void gen_reference_moves_black2(board b, int *total, move *ms, board *bs) {
   int dest;
 
   int orig = 0;
-  uint64_t pieces = b.black._[0];
+  u64 pieces = b.black._[0];
   bool lower = true;
 
 process:

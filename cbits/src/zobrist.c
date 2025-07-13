@@ -11,7 +11,7 @@ https://jonkagstrom.com/mx3/mx3_rev2.html
 These have really nice distribution over the whole integer, making it
 appropriate for use with e.g. fastrange
 */
-uint64_t mix(uint64_t x) {
+u64 mix(u64 x) {
 	x ^= x >> 32;
 	x *= 0xbea225f9eb34556d;
 	x ^= x >> 29;
@@ -22,10 +22,10 @@ uint64_t mix(uint64_t x) {
 	return x;
 }
 
-uint64_t black_hashes[121];
-uint64_t white_hashes[121];
-uint64_t king_hashes[121];
-uint64_t is_black_hash;
+u64 black_hashes[121];
+u64 white_hashes[121];
+u64 king_hashes[121];
+u64 is_black_hash;
 
 void init_hashes() {
   int seed = 0;
@@ -41,8 +41,8 @@ void init_hashes() {
   is_black_hash = mix(seed);
 }
 
-uint64_t hash_for_board(board b, bool is_black_turn) {
-  uint64_t hash = 0;
+u64 hash_for_board(board b, bool is_black_turn) {
+  u64 hash = 0;
   for (int i = 0; i < 121; i++) {
     if (CHECK_INDEX(b.black, i)) {
       hash ^= black_hashes[i];
@@ -58,21 +58,21 @@ uint64_t hash_for_board(board b, bool is_black_turn) {
   return hash;
 }
 
-uint64_t next_hash_black(const uint64_t z, uint8_t orig, uint8_t dest) {
+u64 next_hash_black(const u64 z, u8 orig, u8 dest) {
   return z ^ black_hashes[orig] ^ black_hashes[dest] ^ is_black_hash;
 }
 
-uint64_t next_hash_white(const uint64_t z, uint8_t orig, uint8_t dest) {
+u64 next_hash_white(const u64 z, u8 orig, u8 dest) {
   return z ^ white_hashes[orig] ^ white_hashes[dest] ^ is_black_hash;
 }
 
-uint64_t next_hash_king(const uint64_t z, uint8_t orig, uint8_t dest) {
+u64 next_hash_king(const u64 z, u8 orig, u8 dest) {
   return z ^ king_hashes[orig] ^ king_hashes[dest] ^ is_black_hash;
 }
 
 // TODO: maybe integrate this into capture handling
-uint64_t next_black_captures(const uint64_t input_z, layer captures) {
-  uint64_t z = input_z;
+u64 next_black_captures(const u64 input_z, layer captures) {
+  u64 z = input_z;
   while (captures._[0]) {
     z ^= black_hashes[_tzcnt_u64(captures._[0])];
     captures._[0] = _blsr_u64(captures._[0]);
@@ -85,8 +85,8 @@ uint64_t next_black_captures(const uint64_t input_z, layer captures) {
 }
 
 // TODO: maybe integrate this into capture handling
-uint64_t next_white_captures(const uint64_t input_z, layer captures) {
-  uint64_t z = input_z;
+u64 next_white_captures(const u64 input_z, layer captures) {
+  u64 z = input_z;
   while (captures._[0]) {
     z ^= white_hashes[_tzcnt_u64(captures._[0])];
     captures._[0] = _blsr_u64(captures._[0]);

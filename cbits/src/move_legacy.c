@@ -4,17 +4,17 @@
 #include "capture.h"
 #include "constants.h"
 
-uint16_t row_moves_table[2048][11];
-uint16_t center_row_moves_table[2048][11];
+u16 row_moves_table[2048][11];
+u16 center_row_moves_table[2048][11];
 
 /**
  * find positions that can be moved to from a position given the
  * occupancy of a row.
  * @param occ occupancy of the row, including the bit at `pos`.
  * @param pos the index of the starting position of the moves.
- * @return a uint16_t wo.
+ * @return a u16 wo.
  */
-uint16_t get_row_moves(const uint16_t occ, const uint16_t pos) {
+u16 get_row_moves(const u16 occ, const u16 pos) {
   static const unsigned short lowers[12] = {
       0b00000000000,
       0b00000000001,
@@ -31,17 +31,17 @@ uint16_t get_row_moves(const uint16_t occ, const uint16_t pos) {
       0b11111111111};
 
   // set bits to the right of the position
-  uint16_t lower = occ & lowers[pos];
+  u16 lower = occ & lowers[pos];
   // set bits to the left of the position
-  uint16_t upper = occ & (0b11111111110 << pos);
+  u16 upper = occ & (0b11111111110 << pos);
   // a mask which begins to the right of the lowest set bit in `upper`
   // (or at the very leftmost position of the row if there are no bits
   // set in `upper`) and extends to the right of the row
-  uint16_t rightward = lowers[__tzcnt_u16(upper | 0x800)];
+  u16 rightward = lowers[__tzcnt_u16(upper | 0x800)];
   // a mask which begins at the highest set bit of `lower` and extends
   // to the right of the row. "blocked" because it represents the
   // positions that can't be reached when moving rightwards
-  uint16_t blocked = 0xFFFF >> __lzcnt16(lower);
+  u16 blocked = 0xFFFF >> __lzcnt16(lower);
   // subtract the blocked positions from the rightward set of
   // positions, leaving only those that can be reached. Also remove
   // the current position.
@@ -52,7 +52,7 @@ uint16_t get_row_moves(const uint16_t occ, const uint16_t pos) {
  * Populate the global lookup table of row moves
  */
 void gen_row_moves() {
-  uint16_t row;
+  u16 row;
   unsigned char pos;
   for (row = 0; row < 2048; row++) {
     for (pos = 0; pos < 11; pos++) {
@@ -66,7 +66,7 @@ void gen_row_moves() {
  * center row (excludes the center square)
  */
 void gen_center_row_moves() {
-  uint16_t row;
+  u16 row;
   unsigned char pos;
   for (row = 0; row < 2048; row++) {
     for (pos = 0; pos < 11; pos++) {
@@ -76,11 +76,11 @@ void gen_center_row_moves() {
   }
 }
 
-uint8_t row_move_count_table[2048][11];
-uint8_t center_row_move_count_table[2048][11];
+u8 row_move_count_table[2048][11];
+u8 center_row_move_count_table[2048][11];
 
 void gen_row_move_counts() {
-  uint16_t row;
+  u16 row;
   unsigned char pos;
   for (row = 0; row < 2048; row++) {
     for (pos = 0; pos < 11; pos++) {
@@ -91,7 +91,7 @@ void gen_row_move_counts() {
 }
 
 void gen_center_row_move_counts() {
-  uint16_t row;
+  u16 row;
   unsigned char pos;
   for (row = 0; row < 2048; row++) {
     for (pos = 0; pos < 11; pos++) {
@@ -110,22 +110,22 @@ combos = [
 ]
 
 cog.outl("""
-inline uint8_t get_team_move_count(
+inline u8 get_team_move_count(
   const layer occ,
   const layer team,
   const layer occ_r,
   const layer team_r) {
 
-  uint8_t total = 0;
-  uint16_t movers;
-  uint16_t blockers;""")
+  u8 total = 0;
+  u16 movers;
+  u16 blockers;""")
 
 for rot in ("", "_r"):
     for index, offse         cog.outl(o)
 
 cog.outl("""
-  uint16_t row;
-  uint16_t prog;
+  u16 row;
+  u16 prog;
 
   // center horizontal
   row = ((occ._[0] >> 55) | ((occ._[1] & 0x3) << 9));
@@ -146,12 +146,12 @@ cog.outl("""
 }""")
 ]]]*/
 
-uint16_t get_team_move_count(
+u16 get_team_move_count(
     const layer occ, const layer team, const layer occ_r, const layer team_r) {
 
-  uint16_t total = 0;
-  uint16_t movers;
-  uint16_t blockers;
+  u16 total = 0;
+  u16 movers;
+  u16 blockers;
 
   movers = ((u64)team._[0] >> 0) & 0b11111111111;
   blockers = ((u64)occ._[0] >> 0) & 0b11111111111;
@@ -293,8 +293,8 @@ uint16_t get_team_move_count(
     movers &= movers - 1;
   }
 
-  uint16_t row;
-  uint16_t prog;
+  u16 row;
+  u16 prog;
 
   // center horizontal
   row = ((occ._[0] >> 55) | ((occ._[1] & 0x3) << 9));
@@ -378,16 +378,16 @@ void process_move_{color}{rotation}_{level}(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests
 ) {{
   board b = base_board;
   bool is_capture;
   {middle_handler if level == "middle" else main_half_handler}
   {upper_index_adjustment if level == "upper" else ""}
-  uint8_t orig_r = {rotation_table}[orig];
-  uint8_t dest_r = {rotation_table}[dest];
+  u8 orig_r = {rotation_table}[orig];
+  u8 dest_r = {rotation_table}[dest];
 
   OP_LAYER_BIT(b.{color}{op_rotation}, orig_r, -=);
   OP_LAYER_BIT(b.{color}{op_rotation}, dest_r, |=);
@@ -422,8 +422,8 @@ void process_move_black_lower(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -434,8 +434,8 @@ void process_move_black_lower(
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((u64)1 << dest);
 
-  uint8_t orig_r = rotate_right[orig];
-  uint8_t dest_r = rotate_right[dest];
+  u8 orig_r = rotate_right[orig];
+  u8 dest_r = rotate_right[dest];
 
   OP_LAYER_BIT(b.black_r, orig_r, -=);
   OP_LAYER_BIT(b.black_r, dest_r, |=);
@@ -459,8 +459,8 @@ void process_move_black_middle(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -473,8 +473,8 @@ void process_move_black_middle(
 
   is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
-  uint8_t orig_r = rotate_right[orig];
-  uint8_t dest_r = rotate_right[dest];
+  u8 orig_r = rotate_right[orig];
+  u8 dest_r = rotate_right[dest];
 
   OP_LAYER_BIT(b.black_r, orig_r, -=);
   OP_LAYER_BIT(b.black_r, dest_r, |=);
@@ -498,8 +498,8 @@ void process_move_black_upper(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -515,8 +515,8 @@ void process_move_black_upper(
   // offset_coords(is_upper, 64);
   orig += 64;
   dest += 64;
-  uint8_t orig_r = rotate_right[orig];
-  uint8_t dest_r = rotate_right[dest];
+  u8 orig_r = rotate_right[orig];
+  u8 dest_r = rotate_right[dest];
 
   OP_LAYER_BIT(b.black_r, orig_r, -=);
   OP_LAYER_BIT(b.black_r, dest_r, |=);
@@ -540,8 +540,8 @@ void process_move_black_r_lower(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -552,8 +552,8 @@ void process_move_black_r_lower(
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((u64)1 << dest);
 
-  uint8_t orig_r = rotate_left[orig];
-  uint8_t dest_r = rotate_left[dest];
+  u8 orig_r = rotate_left[orig];
+  u8 dest_r = rotate_left[dest];
 
   OP_LAYER_BIT(b.black, orig_r, -=);
   OP_LAYER_BIT(b.black, dest_r, |=);
@@ -577,8 +577,8 @@ void process_move_black_r_middle(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -591,8 +591,8 @@ void process_move_black_r_middle(
 
   is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
-  uint8_t orig_r = rotate_left[orig];
-  uint8_t dest_r = rotate_left[dest];
+  u8 orig_r = rotate_left[orig];
+  u8 dest_r = rotate_left[dest];
 
   OP_LAYER_BIT(b.black, orig_r, -=);
   OP_LAYER_BIT(b.black, dest_r, |=);
@@ -616,8 +616,8 @@ void process_move_black_r_upper(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -633,8 +633,8 @@ void process_move_black_r_upper(
   // offset_coords(is_upper, 64);
   orig += 64;
   dest += 64;
-  uint8_t orig_r = rotate_left[orig];
-  uint8_t dest_r = rotate_left[dest];
+  u8 orig_r = rotate_left[orig];
+  u8 dest_r = rotate_left[dest];
 
   OP_LAYER_BIT(b.black, orig_r, -=);
   OP_LAYER_BIT(b.black, dest_r, |=);
@@ -658,8 +658,8 @@ void process_move_white_lower(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -670,8 +670,8 @@ void process_move_white_lower(
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((u64)1 << dest);
 
-  uint8_t orig_r = rotate_right[orig];
-  uint8_t dest_r = rotate_right[dest];
+  u8 orig_r = rotate_right[orig];
+  u8 dest_r = rotate_right[dest];
 
   OP_LAYER_BIT(b.white_r, orig_r, -=);
   OP_LAYER_BIT(b.white_r, dest_r, |=);
@@ -695,8 +695,8 @@ void process_move_white_middle(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -709,8 +709,8 @@ void process_move_white_middle(
 
   is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
-  uint8_t orig_r = rotate_right[orig];
-  uint8_t dest_r = rotate_right[dest];
+  u8 orig_r = rotate_right[orig];
+  u8 dest_r = rotate_right[dest];
 
   OP_LAYER_BIT(b.white_r, orig_r, -=);
   OP_LAYER_BIT(b.white_r, dest_r, |=);
@@ -734,8 +734,8 @@ void process_move_white_upper(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -751,8 +751,8 @@ void process_move_white_upper(
   // offset_coords(is_upper, 64);
   orig += 64;
   dest += 64;
-  uint8_t orig_r = rotate_right[orig];
-  uint8_t dest_r = rotate_right[dest];
+  u8 orig_r = rotate_right[orig];
+  u8 dest_r = rotate_right[dest];
 
   OP_LAYER_BIT(b.white_r, orig_r, -=);
   OP_LAYER_BIT(b.white_r, dest_r, |=);
@@ -776,8 +776,8 @@ void process_move_white_r_lower(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -788,8 +788,8 @@ void process_move_white_r_lower(
   // use the pre-offset value to check the capture destinations
   is_capture = cap_dests._[0] & ((u64)1 << dest);
 
-  uint8_t orig_r = rotate_left[orig];
-  uint8_t dest_r = rotate_left[dest];
+  u8 orig_r = rotate_left[orig];
+  u8 dest_r = rotate_left[dest];
 
   OP_LAYER_BIT(b.white, orig_r, -=);
   OP_LAYER_BIT(b.white, dest_r, |=);
@@ -813,8 +813,8 @@ void process_move_white_r_middle(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -827,8 +827,8 @@ void process_move_white_r_middle(
 
   is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
-  uint8_t orig_r = rotate_left[orig];
-  uint8_t dest_r = rotate_left[dest];
+  u8 orig_r = rotate_left[orig];
+  u8 dest_r = rotate_left[dest];
 
   OP_LAYER_BIT(b.white, orig_r, -=);
   OP_LAYER_BIT(b.white, dest_r, |=);
@@ -852,8 +852,8 @@ void process_move_white_r_upper(
     board *boards,
     move *moves,
     int *total,
-    uint8_t orig,
-    uint8_t dest,
+    u8 orig,
+    u8 dest,
     const layer cap_dests) {
   board b = base_board;
   bool is_capture;
@@ -869,8 +869,8 @@ void process_move_white_r_upper(
   // offset_coords(is_upper, 64);
   orig += 64;
   dest += 64;
-  uint8_t orig_r = rotate_left[orig];
-  uint8_t dest_r = rotate_left[dest];
+  u8 orig_r = rotate_left[orig];
+  u8 dest_r = rotate_left[dest];
 
   OP_LAYER_BIT(b.white, orig_r, -=);
   OP_LAYER_BIT(b.white, dest_r, |=);
@@ -903,14 +903,14 @@ static inline __attribute__((always_inline)) void
 get_next_row_boards_{color}{rotation}_{index}( board *boards, const u64
 occ, const board *board, int *total, move *moves, const layer cap_dests, int
 row_offset ) {{ unsigned short movers = (board->{color}{rotation}._[{index}] >>
-row_offset) & 0b11111111111; while (movers) {{ uint8_t orig =
+row_offset) & 0b11111111111; while (movers) {{ u8 orig =
 _tzcnt_u16(movers); const unsigned short blockers =
       ((u64)occ >> row_offset) & 0b11111111111;
       u64 row_moves =
         (u64)row_moves_table[blockers][orig] << row_offset;
         orig += row_offset;
         while (row_moves) {{
-          uint8_t dest = _tzcnt_u64(row_moves);
+          u8 dest = _tzcnt_u64(row_moves);
           {process_move_name}(
             *board, boards, moves, total, orig, dest, cap_dests);
           row_moves = _blsr_u64(row_moves);
@@ -935,11 +935,11 @@ void get_next_row_boards_center_{color}{rotation}(
 ) {{
   unsigned short movers = GET_CENTER_ROW(board->{color}{rotation});
   while (movers) {{
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = GET_CENTER_ROW(occ);
-    uint16_t row_moves = row_moves_table[blockers][orig];
+    u16 row_moves = row_moves_table[blockers][orig];
     while (row_moves) {{
-      uint8_t dest = _tzcnt_u16(row_moves);
+      u8 dest = _tzcnt_u16(row_moves);
       if (dest == 5) {{
         row_moves &= row_moves - 1;
         continue;
@@ -968,12 +968,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_0(
     int row_offset) {
   unsigned short movers = (board->black._[0] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_black_lower(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -992,12 +992,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_1(
     int row_offset) {
   unsigned short movers = (board->black._[1] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_black_upper(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -1016,12 +1016,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_r_0(
     int row_offset) {
   unsigned short movers = (board->black_r._[0] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_black_r_lower(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -1040,12 +1040,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_black_r_1(
     int row_offset) {
   unsigned short movers = (board->black_r._[1] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_black_r_upper(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -1064,12 +1064,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_0(
     int row_offset) {
   unsigned short movers = (board->white._[0] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_white_lower(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -1088,12 +1088,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_1(
     int row_offset) {
   unsigned short movers = (board->white._[1] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_white_upper(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -1112,12 +1112,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_r_0(
     int row_offset) {
   unsigned short movers = (board->white_r._[0] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_white_r_lower(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -1136,12 +1136,12 @@ static inline __attribute__((always_inline)) void get_next_row_boards_white_r_1(
     int row_offset) {
   unsigned short movers = (board->white_r._[1] >> row_offset) & 0b11111111111;
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = ((u64)occ >> row_offset) & 0b11111111111;
     u64 row_moves = (u64)row_moves_table[blockers][orig] << row_offset;
     orig += row_offset;
     while (row_moves) {
-      uint8_t dest = _tzcnt_u64(row_moves);
+      u8 dest = _tzcnt_u64(row_moves);
       process_move_white_r_upper(
           *board, boards, moves, total, orig, dest, cap_dests);
       row_moves = _blsr_u64(row_moves);
@@ -1159,11 +1159,11 @@ void get_next_row_boards_center_black(
     const layer cap_dests) {
   unsigned short movers = GET_CENTER_ROW(board->black);
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = GET_CENTER_ROW(occ);
-    uint16_t row_moves = row_moves_table[blockers][orig];
+    u16 row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
-      uint8_t dest = _tzcnt_u16(row_moves);
+      u8 dest = _tzcnt_u16(row_moves);
       if (dest == 5) {
         row_moves &= row_moves - 1;
         continue;
@@ -1185,11 +1185,11 @@ void get_next_row_boards_center_black_r(
     const layer cap_dests) {
   unsigned short movers = GET_CENTER_ROW(board->black_r);
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = GET_CENTER_ROW(occ);
-    uint16_t row_moves = row_moves_table[blockers][orig];
+    u16 row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
-      uint8_t dest = _tzcnt_u16(row_moves);
+      u8 dest = _tzcnt_u16(row_moves);
       if (dest == 5) {
         row_moves &= row_moves - 1;
         continue;
@@ -1211,11 +1211,11 @@ void get_next_row_boards_center_white(
     const layer cap_dests) {
   unsigned short movers = GET_CENTER_ROW(board->white);
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = GET_CENTER_ROW(occ);
-    uint16_t row_moves = row_moves_table[blockers][orig];
+    u16 row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
-      uint8_t dest = _tzcnt_u16(row_moves);
+      u8 dest = _tzcnt_u16(row_moves);
       if (dest == 5) {
         row_moves &= row_moves - 1;
         continue;
@@ -1237,11 +1237,11 @@ void get_next_row_boards_center_white_r(
     const layer cap_dests) {
   unsigned short movers = GET_CENTER_ROW(board->white_r);
   while (movers) {
-    uint8_t orig = _tzcnt_u16(movers);
+    u8 orig = _tzcnt_u16(movers);
     const unsigned short blockers = GET_CENTER_ROW(occ);
-    uint16_t row_moves = row_moves_table[blockers][orig];
+    u16 row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
-      uint8_t dest = _tzcnt_u16(row_moves);
+      u8 dest = _tzcnt_u16(row_moves);
       if (dest == 5) {
         row_moves &= row_moves - 1;
         continue;
@@ -1266,11 +1266,11 @@ void attempt_black(board) {
   occ |= right_barriers;
 
   u64 leftward_movers;
-  uint8_t pos = 0;
+  u8 pos = 0;
 
   while (leftward_movers) {
     // get to next position
-    uint8_t to_next = _tzcnt_u64(leftward_movers) + 1;
+    u8 to_next = _tzcnt_u64(leftward_movers) + 1;
     leftward_movers >>= to_next;
     occ >>= to_next;
     pos += to_next;
@@ -1278,7 +1278,7 @@ void attempt_black(board) {
     // TODO 1: unroll the loops by writing 10 moves forward and then only moving
 the total forward by the correct amount
     // TODO 2: have a simd vector of 8 integers of increasing values, and append
-the position to each of those in parallel. uint8_t to_blocker = _tzcnt_u64(occ);
+the position to each of those in parallel. u8 to_blocker = _tzcnt_u64(occ);
     while (to_blocker) {
       moves[total] = (move){pos, pos + to_blocker};
       to_blocker--;
@@ -1543,17 +1543,17 @@ void get_king_moves(
   // const layer capture_dests = find_capture_destinations_op(current.white,
   // current.black);
 
-  uint8_t orig = current.king._[0] ? _tzcnt_u64(current.king._[0])
+  u8 orig = current.king._[0] ? _tzcnt_u64(current.king._[0])
                                    : _tzcnt_u64(current.king._[1]) + 64;
 
   if (orig < 55) {
     const uint row_offset = sub_layer_row_offset[orig];
-    const uint8_t row_orig = orig - row_offset;
-    const uint16_t blockers = ((u64)occ._[0] >> row_offset) & 0x7FF;
+    const u8 row_orig = orig - row_offset;
+    const u16 blockers = ((u64)occ._[0] >> row_offset) & 0x7FF;
     u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
-      const uint8_t dest = _tzcnt_u64(row_moves);
-      const uint8_t dest_r = rotate_right[dest];
+      const u8 dest = _tzcnt_u64(row_moves);
+      const u8 dest_r = rotate_right[dest];
       // register move
       moves[*total] = (struct move){orig, dest};
       // generate board
@@ -1578,15 +1578,15 @@ void get_king_moves(
       row_moves = _blsr_u64(row_moves);
     }
   } else if (orig > 65) {
-    const uint8_t sub_orig = orig - 64;
+    const u8 sub_orig = orig - 64;
     const uint row_offset = sub_layer_row_offset_upper[sub_orig];
-    const uint8_t row_orig = sub_orig - row_offset;
-    const uint16_t blockers = ((u64)occ._[1] >> row_offset) & 0x7FF;
+    const u8 row_orig = sub_orig - row_offset;
+    const u16 blockers = ((u64)occ._[1] >> row_offset) & 0x7FF;
     u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
-      const uint8_t sub_dest = _tzcnt_u64(row_moves);
-      const uint8_t dest = sub_dest + 64;
-      const uint8_t dest_r = rotate_right[dest];
+      const u8 sub_dest = _tzcnt_u64(row_moves);
+      const u8 dest = sub_dest + 64;
+      const u8 dest_r = rotate_right[dest];
       // register move
       moves[*total] = (struct move){orig, dest};
       // generate board
@@ -1610,13 +1610,13 @@ void get_king_moves(
   } else {
     // center
 
-    uint8_t local_orig = orig - 55;
-    uint16_t blockers = GET_CENTER_ROW(occ);
+    u8 local_orig = orig - 55;
+    u16 blockers = GET_CENTER_ROW(occ);
     // we can use the normal one because we're the king
-    uint16_t row_moves = row_moves_table[blockers][local_orig];
+    u16 row_moves = row_moves_table[blockers][local_orig];
     while (row_moves) {
-      const uint8_t dest = _tzcnt_u16(row_moves) + 55;
-      const uint8_t dest_r = rotate_right[dest];
+      const u8 dest = _tzcnt_u16(row_moves) + 55;
+      const u8 dest_r = rotate_right[dest];
       // register move
       moves[*total] = (struct move){orig, dest};
       // generate board
@@ -1647,16 +1647,16 @@ void get_king_moves(
       current.white_r._[0] | current.black_r._[0] | current.king_r._[0],
       current.white_r._[1] | current.black_r._[1] | current.king_r._[1]};
 
-  uint8_t orig_r = rotate_right[orig];
+  u8 orig_r = rotate_right[orig];
 
   if (orig_r < 55) {
     const uint row_offset = sub_layer_row_offset[orig_r];
-    const uint8_t row_orig = orig_r - row_offset;
-    const uint16_t blockers = ((u64)occ_r._[0] >> row_offset) & 0x7FF;
+    const u8 row_orig = orig_r - row_offset;
+    const u16 blockers = ((u64)occ_r._[0] >> row_offset) & 0x7FF;
     u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
-      const uint8_t dest_r = _tzcnt_u64(row_moves);
-      const uint8_t dest = rotate_left[dest_r];
+      const u8 dest_r = _tzcnt_u64(row_moves);
+      const u8 dest = rotate_left[dest_r];
       // register move
       moves[*total] = (struct move){orig, dest};
       // generate board
@@ -1682,15 +1682,15 @@ void get_king_moves(
       row_moves = _blsr_u64(row_moves);
     }
   } else if (orig_r > 65) {
-    const uint8_t sub_orig = orig_r - 64;
+    const u8 sub_orig = orig_r - 64;
     const uint row_offset = sub_layer_row_offset_upper[sub_orig];
-    const uint8_t row_orig = sub_orig - row_offset;
-    const uint16_t blockers = ((u64)occ_r._[1] >> row_offset) & 0x7FF;
+    const u8 row_orig = sub_orig - row_offset;
+    const u16 blockers = ((u64)occ_r._[1] >> row_offset) & 0x7FF;
     u64 row_moves = (u64)row_moves_table[blockers][row_orig] << row_offset;
     while (row_moves) {
-      const uint8_t sub_dest = _tzcnt_u64(row_moves);
-      const uint8_t dest_r = sub_dest + 64;
-      const uint8_t dest = rotate_left[dest_r];
+      const u8 sub_dest = _tzcnt_u64(row_moves);
+      const u8 dest_r = sub_dest + 64;
+      const u8 dest = rotate_left[dest_r];
       // register move
       moves[*total] = (struct move){orig, dest};
       // generate board
@@ -1714,13 +1714,13 @@ void get_king_moves(
   } else {
     // center
 
-    uint8_t local_orig = orig_r - 55;
-    uint16_t blockers = GET_CENTER_ROW(occ_r);
+    u8 local_orig = orig_r - 55;
+    u16 blockers = GET_CENTER_ROW(occ_r);
     // we can use the normal one because we're the king
-    uint16_t row_moves = row_moves_table[blockers][local_orig];
+    u16 row_moves = row_moves_table[blockers][local_orig];
     while (row_moves) {
-      const uint8_t dest_r = _tzcnt_u16(row_moves) + 55;
-      const uint8_t dest = rotate_left[dest_r];
+      const u8 dest_r = _tzcnt_u16(row_moves) + 55;
+      const u8 dest = rotate_left[dest_r];
       // register move
       moves[*total] = (struct move){orig, dest};
       // generate board
@@ -2090,45 +2090,45 @@ int get_king_move_count(const board b) {
   if (b.king._[0] & LOWER_HALF_MASK) {
     int orig = _tzcnt_u64(b.king._[0]);
     const uint row_offset = sub_layer_row_offset[orig];
-    const uint8_t row_orig = orig - row_offset;
-    const uint16_t blockers = ((u64)occ._[0] >> row_offset) & 0x7FF;
+    const u8 row_orig = orig - row_offset;
+    const u16 blockers = ((u64)occ._[0] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else if (b.king._[1] & UPPER_HALF_MASK) {
     int orig = _tzcnt_u64(b.king._[1]);
     const uint row_offset = sub_layer_row_offset_upper[orig];
-    const uint8_t row_orig = orig - row_offset;
-    const uint16_t blockers = ((u64)occ._[1] >> row_offset) & 0x7FF;
+    const u8 row_orig = orig - row_offset;
+    const u16 blockers = ((u64)occ._[1] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else {
-    uint8_t orig = _tzcnt_u16(GET_CENTER_ROW(b.king));
-    uint16_t blockers = GET_CENTER_ROW(occ);
+    u8 orig = _tzcnt_u16(GET_CENTER_ROW(b.king));
+    u16 blockers = GET_CENTER_ROW(occ);
     // total += row_move_count_table[blockers][local_orig];
     total += __builtin_popcount(get_row_moves(blockers, orig));
   }
 
   const layer occ_r = king_board_occ_r(b);
 
-  uint8_t orig_r = 67;
+  u8 orig_r = 67;
 
   if (orig_r < 55) {
     const uint row_offset = sub_layer_row_offset[orig_r];
-    const uint8_t row_orig = orig_r - row_offset;
-    const uint16_t blockers = ((u64)occ_r._[0] >> row_offset) & 0x7FF;
+    const u8 row_orig = orig_r - row_offset;
+    const u16 blockers = ((u64)occ_r._[0] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else if (orig_r > 65) {
-    const uint8_t sub_orig = orig_r - 64;
+    const u8 sub_orig = orig_r - 64;
     const uint row_offset = sub_layer_row_offset_upper[sub_orig];
-    const uint8_t row_orig = sub_orig - row_offset;
-    const uint16_t blockers = ((u64)occ_r._[1] >> row_offset) & 0x7FF;
+    const u8 row_orig = sub_orig - row_offset;
+    const u16 blockers = ((u64)occ_r._[1] >> row_offset) & 0x7FF;
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else {
     // center
-    const uint8_t local_orig = orig_r - 55;
-    const uint16_t blockers = GET_CENTER_ROW(occ_r);
+    const u8 local_orig = orig_r - 55;
+    const u16 blockers = GET_CENTER_ROW(occ_r);
     // total += row_move_count_table[blockers][local_orig];
     total += __builtin_popcount(get_row_moves(blockers, local_orig));
   }

@@ -36,8 +36,8 @@ static enum dir other_dir(enum dir d) {
 // -----------------------------------------------------------------------------
 
 typedef struct move {
-  uint8_t orig;
-  uint8_t dest;
+  u8 orig;
+  u8 dest;
 } move;
 
 int cmp_moves(const move *a, const move *b);

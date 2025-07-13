@@ -4,12 +4,12 @@
 #include "constants.h"
 #include "board.h"
 
-uint64_t
-inline theft_random_choice_between(struct theft *t, uint64_t floor, uint64_t ceil) {
+u64
+inline theft_random_choice_between(struct theft *t, u64 floor, u64 ceil) {
   return random() % ceil + floor;
 }
 
-inline uint64_t my_random_choice(struct theft *t, int limit) {
+inline u64 my_random_choice(struct theft *t, int limit) {
   return random() % limit;
 }
 
@@ -19,10 +19,10 @@ inline board theft_create_board(struct theft *t) {
   OP_LAYER_BIT(occ, 60, |=);
 
   layer black = EMPTY_LAYER;
-  uint64_t black_count = theft_random_choice_between(t, 1, 25);
-  // uint64_t black_count = 1;
+  u64 black_count = theft_random_choice_between(t, 1, 25);
+  // u64 black_count = 1;
   while (black_count) {
-    uint64_t index = my_random_choice(t, 120);
+    u64 index = my_random_choice(t, 120);
     // printf("black index: %ld\n", index);
     if (CHECK_INDEX(occ, index)) {
       continue;
@@ -34,10 +34,10 @@ inline board theft_create_board(struct theft *t) {
   layer black_r = rotate_layer_right(black);
 
   layer white = EMPTY_LAYER;
-  uint64_t white_count = theft_random_choice_between(t, 1, 12);
-  // uint64_t white_count = 1;
+  u64 white_count = theft_random_choice_between(t, 1, 12);
+  // u64 white_count = 1;
   while (white_count) {
-    uint64_t index = my_random_choice(t, 120);
+    u64 index = my_random_choice(t, 120);
     // printf("white index: %ld\n", index);
     if (CHECK_INDEX(occ, index)) {
       continue;
@@ -54,7 +54,7 @@ inline board theft_create_board(struct theft *t) {
   int attempts = 100;
   while (attempts) {
     // printf("king attempts: %d\n", attempts);
-    uint64_t index = my_random_choice(t, 120);
+    u64 index = my_random_choice(t, 120);
     // printf("king index: %ld\n", index);
     if (CHECK_INDEX(occ, index)) {
       attempts--;

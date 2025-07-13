@@ -18,7 +18,7 @@
 10  9   8   7   6   5   4   3   2   1   0
 */
 
-const uint8_t sub_layer_table[121] = {
+const u8 sub_layer_table[121] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -32,7 +32,7 @@ const uint8_t sub_layer_table[121] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-// const uint8_t sub_layer[121] = {
+// const u8 sub_layer[121] = {
 //   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 //   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 //   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -48,17 +48,17 @@ const uint8_t sub_layer_table[121] = {
 #define GET_LOWER_ROW(layer, index) (0x7ff & ((layer._[0] >> sub_layer_row_offset[index])))
 #define GET_UPPER_ROW(layer, index) (0x7ff & ((layer._[1] >> sub_layer_row_offset_upper[index])))
 
-#define DIRTY_GET_ROW_0(l) (uint64_t)l._[0]
-#define DIRTY_GET_ROW_1(l) ((uint64_t)l._[0] >> 11)
-#define DIRTY_GET_ROW_2(l) ((uint64_t)l._[0] >> 22)
-#define DIRTY_GET_ROW_3(l) ((uint64_t)l._[0] >> 33)
-#define DIRTY_GET_ROW_4(l) ((uint64_t)l._[0] >> 44)
-#define DIRTY_GET_ROW_5(l) ((uint64_t)l._[0] >> 55) | ((((uint64_t)l._[1] & 0x3) << 9))
-#define DIRTY_GET_ROW_6(l) ((uint64_t)l._[1] >> 2)
-#define DIRTY_GET_ROW_7(l) ((uint64_t)l._[1] >> 13)
-#define DIRTY_GET_ROW_8(l) ((uint64_t)l._[1] >> 24)
-#define DIRTY_GET_ROW_9(l) ((uint64_t)l._[1] >> 35)
-#define DIRTY_GET_ROW_10(l) ((uint64_t)l._[1] >> 46)
+#define DIRTY_GET_ROW_0(l) (u64)l._[0]
+#define DIRTY_GET_ROW_1(l) ((u64)l._[0] >> 11)
+#define DIRTY_GET_ROW_2(l) ((u64)l._[0] >> 22)
+#define DIRTY_GET_ROW_3(l) ((u64)l._[0] >> 33)
+#define DIRTY_GET_ROW_4(l) ((u64)l._[0] >> 44)
+#define DIRTY_GET_ROW_5(l) ((u64)l._[0] >> 55) | ((((u64)l._[1] & 0x3) << 9))
+#define DIRTY_GET_ROW_6(l) ((u64)l._[1] >> 2)
+#define DIRTY_GET_ROW_7(l) ((u64)l._[1] >> 13)
+#define DIRTY_GET_ROW_8(l) ((u64)l._[1] >> 24)
+#define DIRTY_GET_ROW_9(l) ((u64)l._[1] >> 35)
+#define DIRTY_GET_ROW_10(l) ((u64)l._[1] >> 46)
 
 u16 dirty_get_row(layer l, int n) {
   switch (n) {
@@ -108,7 +108,7 @@ u16 dirty_get_row(layer l, int n) {
 /**
  * 
  */
-uint16_t get_row(layer l, int n) {
+u16 get_row(layer l, int n) {
   switch (n) {
   case 0:
     return dirty_get_row(l, 0);
@@ -139,7 +139,7 @@ uint16_t get_row(layer l, int n) {
   }
 }
 
-uint16_t get_index_row(layer l, int i) {
+u16 get_index_row(layer l, int i) {
   if (i < 55) {
     return GET_LOWER_ROW(l, i);
   } else if (i > 65) {
@@ -154,17 +154,17 @@ uint16_t get_index_row(layer l, int i) {
  * mask which retains only the complete rows of the lower layer,
  * e.g. the first 55 bits.
  */
-const uint64_t lower_rows_mask = 0x7FFFFFFFFFFFFF;
-#define LOWER_ROWS_MASK = (uint64_t) 0x7FFFFFFFFFFFFF;
+const u64 lower_rows_mask = 0x7FFFFFFFFFFFFF;
+#define LOWER_ROWS_MASK = (u64) 0x7FFFFFFFFFFFFF;
 
 /**
  * mask which retains only the complete rows of the upper layer,
  * e.g. 55 bits after skipping the first two.
  */
-const uint64_t upper_rows_mask = 0x1FFFFFFFFFFFFFC;
-#define UPPER_ROWS_MASK = (uint64_t) 0x1FFFFFFFFFFFFFC;
+const u64 upper_rows_mask = 0x1FFFFFFFFFFFFFC;
+#define UPPER_ROWS_MASK = (u64) 0x1FFFFFFFFFFFFFC;
 
-const uint8_t sub_layer_offset_direct[121] = {
+const u8 sub_layer_offset_direct[121] = {
   0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
   11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
   22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
@@ -178,7 +178,7 @@ const uint8_t sub_layer_offset_direct[121] = {
   46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
 };
 
-const uint8_t rotate_right[121] = {
+const u8 rotate_right[121] = {
   10, 21, 32, 43, 54, 65, 76, 87, 98, 109, 120,
   9,  20, 31, 42, 53, 64, 75, 86, 97, 108, 119,
   8,  19, 30, 41, 52, 63, 74, 85, 96, 107, 118,
@@ -192,7 +192,7 @@ const uint8_t rotate_right[121] = {
   0,  11, 22, 33, 44, 55, 66, 77, 88, 99,  110
 };
 
-const uint8_t rotate_left[121] = {
+const u8 rotate_left[121] = {
   110, 99,  88, 77, 66, 55, 44, 33, 22, 11, 0,
   111, 100, 89, 78, 67, 56, 45, 34, 23, 12, 1,
   112, 101, 90, 79, 68, 57, 46, 35, 24, 13, 2,
@@ -209,16 +209,16 @@ const uint8_t rotate_left[121] = {
 layer rotate_layer_right(const layer input) {
   layer output = {0};
 
-  uint64_t lower = input._[0];
+  u64 lower = input._[0];
   while (lower) {
     int r = rotate_right[_tzcnt_u64(lower)];
-    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
     lower &= (lower - 1);
   }
-  uint64_t upper = input._[1];
+  u64 upper = input._[1];
   while (upper) {
     int r = rotate_right[64 + _tzcnt_u64(upper)];
-    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
     upper &= (upper - 1);
   }
 
@@ -228,16 +228,16 @@ layer rotate_layer_right(const layer input) {
 layer rotate_layer_left(const layer input) {
   layer output = {0};
 
-  uint64_t lower = input._[0];
+  u64 lower = input._[0];
   while (lower) {
     int r = rotate_left[_tzcnt_u64(lower)];
-    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
     lower &= (lower - 1);
   }
-  uint64_t upper = input._[1];
+  u64 upper = input._[1];
   while (upper) {
     int r = rotate_left[64 + _tzcnt_u64(upper)];
-    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
     upper &= (upper - 1);
   }
 
@@ -245,7 +245,7 @@ layer rotate_layer_left(const layer input) {
 }
 
 
-const uint8_t rank_table[121] = {
+const u8 rank_table[121] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
@@ -259,7 +259,7 @@ const uint8_t rank_table[121] = {
   10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
 };
 
-const uint8_t file_table[121] = {
+const u8 file_table[121] = {
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,

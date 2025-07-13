@@ -470,7 +470,7 @@ UBENCH_EX(triple_nested, mm_black) {
 UBENCH_EX(move_count, white_orig) {
   const board b = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    uint16_t c =
+    u16 c =
         get_team_move_count(board_occ(b), b.white, board_occ_r(b), b.white_r);
     UBENCH_DO_NOTHING(&c);
   }
@@ -573,7 +573,7 @@ int bench_king_capture_check(bool (*check)(const board *b)) {
   // this total is just to ensure that the code is not optimized away.
   int total = 0;
   for (int i = 0; i < 121; i++) {
-    for (uint8_t attackers = 0; attackers < 16; attackers++) {
+    for (u8 attackers = 0; attackers < 16; attackers++) {
       board b = {.king = EMPTY_LAYER, .black = EMPTY_LAYER};
       SET_INDEX(b.king, i);
       // north

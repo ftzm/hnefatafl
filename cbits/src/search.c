@@ -7,7 +7,7 @@
 // typedef struct negamax_ab_result {
 //   move _move;
 //   board _board;
-//   int32_t _score;
+//   i32 _score;
 //   score_state ss;
 // } negamax_ab_result;
 // 
@@ -22,15 +22,15 @@
 // int PREV_PV_LENGTH;
 // move KILLER_MOVES[MAX_DEPTH][2];
 // 
-// int32_t negamax_ab_sorted_pv(
+// i32 negamax_ab_sorted_pv(
 //     const move m,
 //     const board b,
 //     const team_repetitions r,
 //     const bool is_black_turn,
 //     const int depth,
 //     const int ply,
-//     int32_t alpha,
-//     const int32_t beta,
+//     i32 alpha,
+//     const i32 beta,
 //     int *tally,
 //     const bool is_pv,
 //     const score_state ss,
@@ -45,7 +45,7 @@
 //   }
 //   */
 // 
-//   int32_t game_over_score = 0;
+//   i32 game_over_score = 0;
 //   bool game_over = game_over_check(b, is_black_turn, game_over_score);
 //   if (game_over) {
 //     return game_over_score;
@@ -54,7 +54,7 @@
 //   int total = 0;
 //   move moves_table[324];
 //   board boards_table[324];
-//   uint8_t cap_counts[324] = {0};
+//   u8 cap_counts[324] = {0};
 // 
 //   if (depth > 3 && ply > 0 && allow_null_move && !is_pv) {
 //     // Null move heuristic
@@ -64,7 +64,7 @@
 //     // TODO: ensure king is not in check/on verge of escape, otherwise this
 //     // will be unsound.
 //     int null_shortening = 2;
-//     int32_t null_result = -negamax_ab_sorted_pv(
+//     i32 null_result = -negamax_ab_sorted_pv(
 //         m,
 //         b,
 //         r,
@@ -164,7 +164,7 @@
 //       }
 //     }
 // 
-//     uint8_t king_pos =
+//     u8 king_pos =
 //         b.king[0] ? _tzcnt_u64(b.king[0]) : _tzcnt_u64(b.king[1]) + 64;
 // 
 //     // update pst score
@@ -200,7 +200,7 @@
 //   */
 // 
 //   // start with a bogus best
-//   int32_t best = MIN_SCORE;
+//   i32 best = MIN_SCORE;
 //   negamax_ab_result tmp;
 //   for (int i = 0; i < total; i++) {
 //     if (depth > 1) {
@@ -234,7 +234,7 @@
 //     // indicates that this move, at least superficially, conforms to
 //     // our expectation in being poor)
 //     if (depth > 2 && i > 25) {
-//       int32_t lmr_eval = -negamax_ab_sorted_pv(
+//       i32 lmr_eval = -negamax_ab_sorted_pv(
 //           combi[i]._move,
 //           combi[i]._board,
 //           new_r,
@@ -258,7 +258,7 @@
 //     // the next PV node due to the bonus applied above, unless the.
 //     // next PV move wasn't found, which would be a real bug.
 // 
-//     int32_t eval = -negamax_ab_sorted_pv(
+//     i32 eval = -negamax_ab_sorted_pv(
 //         combi[i]._move,
 //         combi[i]._board,
 //         new_r,
@@ -274,21 +274,21 @@
 //         ai_settings);
 // 
 //     /*
-//     int32_t eval;
+//     i32 eval;
 //     if (i == 0) {
-//       int32_t eval = -negamax_ab_sorted_pv(
+//       i32 eval = -negamax_ab_sorted_pv(
 //           combi[i]._move, combi[i]._board, !is_black_turn,
 //           depth == 0 ? 0 : depth - 1, ply + 1, -beta, -alpha, tally,
 //           (is_pv && !i), combi[i].ss, true);
 //     } else {
 //       // search with null window
-//       int32_t eval = -negamax_ab_sorted_pv(
+//       i32 eval = -negamax_ab_sorted_pv(
 //           combi[i]._move, combi[i]._board, !is_black_turn,
 //           depth == 0 ? 0 : depth - 1, ply + 1, -alpha-1, -alpha, tally,
 //           (is_pv && !i), combi[i].ss, true);
 //       if (alpha < eval && eval < beta) {
 //         // if failed high, research with full window
-//         int32_t eval = -negamax_ab_sorted_pv(
+//         i32 eval = -negamax_ab_sorted_pv(
 //             combi[i]._move, combi[i]._board, !is_black_turn,
 //             depth == 0 ? 0 : depth - 1, ply + 1, -beta, -alpha, tally,
 //             (is_pv && !i), combi[i].ss, true);
@@ -349,7 +349,7 @@
 //   return best;
 // }
 // 
-// enum Flag : uint8_t {
+// enum Flag : u8 {
 //   lower_bound = 1,
 //   exact = 2,
 //   upper_bound = 3,
@@ -357,19 +357,19 @@
 // struct search_result {
 //   move m;
 //   board b;
-//   int32_t s;
+//   i32 s;
 //   team_repetitions r;
 // };
 // 
-// int32_t quiesce(
+// i32 quiesce(
 //     const move m,
 //     const board b,
 //     const team_repetitions r,
 //     const bool is_black_turn,
 //     // const int depth,
 //     const int ply,
-//     int32_t alpha,
-//     const int32_t beta,
+//     i32 alpha,
+//     const i32 beta,
 //     int *tally,
 //     // const bool is_pv,
 //     const score_state ss,

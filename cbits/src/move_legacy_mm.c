@@ -1,6 +1,6 @@
 #include "move_legacy_mm.h"
 
-const uint8_t rank_mod[121] = {
+const u8 rank_mod[121] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,  0,  0,  11, 11, 11, 11,  11,
     11,  11,  11,  11,  11,  11,  22,  22,  22, 22, 22, 22, 22, 22, 22,  22,
     22,  33,  33,  33,  33,  33,  33,  33,  33, 33, 33, 33, 44, 44, 44,  44,
@@ -96,7 +96,7 @@ direction.
 #define WESTMOST(_pos) DIRMOST(_pos, west)
 
 inline void departure_rank_correction(
-    const uint8_t pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos, move_map allies, move_map them1, move_map them2) {
   // correct the rank to the east
   for (int i = EASTMOST(pos); i < pos; i++) {
     allies[i].west = allies[pos].west;
@@ -113,7 +113,7 @@ inline void departure_rank_correction(
 }
 
 inline void arrival_rank_correction(
-    const uint8_t pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos, move_map allies, move_map them1, move_map them2) {
   // correct the rank to the east
   for (int i = EASTMOST(pos); i < pos; i++) {
     allies[i].west = pos;
@@ -130,7 +130,7 @@ inline void arrival_rank_correction(
 }
 
 inline void departure_file_correction(
-    const uint8_t pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos, move_map allies, move_map them1, move_map them2) {
   // correct the rank to the south
   for (int i = SOUTHMOST(pos); i < pos; i += 11) {
     allies[i].north = allies[pos].north;
@@ -147,7 +147,7 @@ inline void departure_file_correction(
 }
 
 inline void arrival_file_correction(
-    const uint8_t pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos, move_map allies, move_map them1, move_map them2) {
   // correct the rank to the south
   for (int i = SOUTHMOST(pos); i < pos; i += 11) {
     allies[i].north = pos;
@@ -164,25 +164,25 @@ inline void arrival_file_correction(
 }
 
 inline void capture_correction(
-    const uint8_t pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos, move_map allies, move_map them1, move_map them2) {
   departure_file_correction(pos, allies, them1, them2);
   departure_rank_correction(pos, allies, them1, them2);
 }
 
 void apply_southward_move(
-    const uint8_t orig,
-    const uint8_t dest,
+    const u8 orig,
+    const u8 dest,
     move_map allies,
     move_map them1,
     move_map them2) {
   // correct file positions north of the src
-  const uint8_t north_stop = FALLBACK(ALL_DIR(orig, north), 120);
+  const u8 north_stop = FALLBACK(ALL_DIR(orig, north), 120);
   for (int i = orig + 11; i <= north_stop; i += 11) {
     allies[i].south = dest;
   }
 
   // correct file positions south of the destination
-  const uint8_t south_occ =
+  const u8 south_occ =
       allies[orig].south | them1[orig].south | them2[orig].south;
   for (int i = dest - 11; i >= (south_occ ? south_occ : 0); i -= 11) {
     allies[i].north = dest;
@@ -213,20 +213,20 @@ void apply_southward_move(
 }
 
 void apply_northward_move(
-    const uint8_t src,
-    const uint8_t dest,
+    const u8 src,
+    const u8 dest,
     move_map allies,
     move_map them1,
     move_map them2) {
   // correct file positions north of the dest
-  const uint8_t north_occ =
+  const u8 north_occ =
       allies[src].north | them1[src].north | them2[src].north;
   for (int i = dest + 11; i <= (north_occ ? north_occ : 120); i += 11) {
     allies[i].south = dest;
   }
 
   // correct file positions south of the src
-  const uint8_t south_occ =
+  const u8 south_occ =
       allies[src].south | them1[src].south | them2[src].south;
   for (int i = src - 11; i >= (south_occ ? south_occ : 0); i -= 11) {
     allies[i].north = dest;
@@ -257,8 +257,8 @@ void apply_northward_move(
 }
 
 void apply_eastward_move(
-    const uint8_t orig,
-    const uint8_t dest,
+    const u8 orig,
+    const u8 dest,
     move_map allies,
     move_map them1,
     move_map them2) {
@@ -297,8 +297,8 @@ void apply_eastward_move(
 }
 
 void apply_westward_move(
-    const uint8_t orig,
-    const uint8_t dest,
+    const u8 orig,
+    const u8 dest,
     move_map allies,
     move_map them1,
     move_map them2) {
@@ -438,7 +438,7 @@ process:
     int to_next = _tzcnt_u64(remaining);
     dest += to_next;
 
-    // type pun the source to a uint32_t and check it, breaking if false
+    // type pun the source to a u32 and check it, breaking if false
 
     board departed = b;
     OP_LAYER_BIT(departed.white, dest, |=);
@@ -515,7 +515,7 @@ process:
     int to_next = _tzcnt_u64(remaining);
     dest += to_next;
 
-    // type pun the source to a uint32_t and check it, breaking if false
+    // type pun the source to a u32 and check it, breaking if false
 
     board departed = b;
     OP_LAYER_BIT(departed.white, dest, |=);
@@ -596,7 +596,7 @@ process:
     int to_next = _tzcnt_u64(remaining);
     dest += to_next;
 
-    // type pun the source to a uint32_t and check it, breaking if false
+    // type pun the source to a u32 and check it, breaking if false
 
     board departed = b;
     OP_LAYER_BIT(departed.black, dest, |=);
@@ -673,7 +673,7 @@ process:
     int to_next = _tzcnt_u64(remaining);
     dest += to_next;
 
-    // type pun the source to a uint32_t and check it, breaking if false
+    // type pun the source to a u32 and check it, breaking if false
 
     board departed = b;
     OP_LAYER_BIT(departed.black, dest, |=);

@@ -8,7 +8,7 @@
 /** This implementation reads layer strings from top left to bottom right, but
  * starts at index 120 and works down,
  */
-layer read_layer(const char *string, uint8_t symbol) {
+layer read_layer(const char *string, u8 symbol) {
   layer output = EMPTY_LAYER;
   int len = strlen(string);
   int index = 120;
@@ -16,7 +16,7 @@ layer read_layer(const char *string, uint8_t symbol) {
     char c = string[i];
     if (c == symbol) {
       output._[SUB_LAYER(index)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[index]);
+          ((u64)1 << sub_layer_offset_direct[index]);
       index--;
     } else if (c == ' ') {
       // skip space
@@ -42,7 +42,7 @@ layer_string stringify(layer layer) {
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
     int index = 375 - (((i * 3) + 3) + newline_offset);
-    if (layer._[SUB_LAYER(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])) {
+    if (layer._[SUB_LAYER(i)] & ((u64)1 << sub_layer_offset_direct[i])) {
       string._[index] = 'X';
     } else {
       string._[index] = '.';
@@ -70,7 +70,7 @@ void print_layer(layer layer) {
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
     int index = 373 - (((i * 3) + 1) + newline_offset);
-    if (layer._[SUB_LAYER(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])) {
+    if (layer._[SUB_LAYER(i)] & ((u64)1 << sub_layer_offset_direct[i])) {
       string[index] = 'X';
     } else {
       string[index] = '.';
@@ -85,7 +85,7 @@ void print_layer(layer layer) {
 Convert a position to positional notation. The output buffer needs to be 4 bytes
 in length.
 */
-void as_notation(uint8_t position, char *output) {
+void as_notation(u8 position, char *output) {
   const char rank2[11] = {
       '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1'};
   const char fileChar[11] = {
@@ -137,15 +137,15 @@ void fmt_board(board board, char *input) {
   for (int board_index = 120; board_index > -1; board_index--) {
     int string_index = fmt_index(board_index);
     if (board.black._[SUB_LAYER(board_index)] &
-        ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
+        ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'X';
     } else if (
         board.white._[SUB_LAYER(board_index)] &
-        ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
+        ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'O';
     } else if (
         board.king._[SUB_LAYER(board_index)] &
-        ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
+        ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = '#';
     }
   }
@@ -162,7 +162,7 @@ void print_board(board b) {
 // either sscanf or strtok+strtol
 // 18446744073709551615:18446744073709551615:18446744073709551615:18446744073709551615:121
 
-void print_row(uint16_t row) {
+void print_row(u16 row) {
   char output[18];
   memset(output, '0', 17);
   output[17] = '\0';

@@ -7,7 +7,7 @@ TEST test_add_and_remove_nullifies() {
   int indexes[70] = {0};
 
   for (int i = 0; i < 70; i++) {
-    uint64_t hash = mix(i);
+    u64 hash = mix(i);
     insert_position(ps, hash, &indexes[i]);
   }
 

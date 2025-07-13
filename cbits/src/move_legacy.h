@@ -23,5 +23,5 @@ void gen_reference_moves_black3(const board b, int *total, move *ms, board *bs);
 
 void gen_reference_moves_white3(const board b, int *total, move *ms, board *bs);
 
-uint16_t get_team_move_count(
+u16 get_team_move_count(
     const layer occ, const layer team, const layer occ_r, const layer team_r);

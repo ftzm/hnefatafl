@@ -1,18 +1,10 @@
 #pragma once
 
 #include "stdint.h"
-
-#define u8 uint8_t
-#define u16 uint16_t
-#define u32 uint32_t
-#define u64 uint64_t
-#define i8 int8_t
-#define i16 int16_t
-#define i32 int32_t
-#define i64 int64_t
+#include "util.h"
 
 typedef struct layer {
-  uint64_t _[2];
+  u64 _[2];
 } layer;
 
 #define EMPTY_LAYER                                                            \
@@ -20,15 +12,15 @@ typedef struct layer {
     ._ = { 0, 0 }                                                              \
   }
 
-// extern const uint8_t sub_layer[121];
+// extern const u8 sub_layer[121];
 
-extern const uint8_t sub_layer_offset_direct[121];
+extern const u8 sub_layer_offset_direct[121];
 
 /**
  * This lookup table only contains 55 elements as positions above 55
  * should be handled separately, being split between two layers.
  */
-static const uint8_t sub_layer_row_offset[55] = {
+static const u8 sub_layer_row_offset[55] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  11, 11, 11, 11, 11, 11, 11, 11,
     11, 11, 11, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 33, 33, 33, 33, 33,
     33, 33, 33, 33, 33, 33, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44};
@@ -39,7 +31,7 @@ static const uint8_t sub_layer_row_offset[55] = {
  * separately. they're only here so that the upper element index
  * numbers are correct.
  */
-static const uint8_t sub_layer_row_offset_upper[57] = {
+static const u8 sub_layer_row_offset_upper[57] = {
     0,  0,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  13, 13, 13, 13, 13, 13,
     13, 13, 13, 13, 13, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 35, 35, 35,
     35, 35, 35, 35, 35, 35, 35, 35, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46};
@@ -47,20 +39,20 @@ static const uint8_t sub_layer_row_offset_upper[57] = {
 layer rotate_layer_right(const layer input);
 layer rotate_layer_left(const layer input);
 
-extern const uint8_t sub_layer_table[121];
+extern const u8 sub_layer_table[121];
 
-extern const uint8_t rotate_right[121];
+extern const u8 rotate_right[121];
 
-extern const uint8_t rotate_left[121];
+extern const u8 rotate_left[121];
 
 // #define sub_layer(i) (i > 63)
 // benchmarks suggest the lookup table is actually faster
 #define SUB_LAYER(i) (sub_layer_table[i])
 
 #define OP_LAYER_BIT(l, b, op)                                                 \
-  (l._[SUB_LAYER(b)] op((uint64_t)1 << sub_layer_offset_direct[b]))
+  (l._[SUB_LAYER(b)] op((u64)1 << sub_layer_offset_direct[b]))
 #define OP_LAYER_BIT_PTR(l, b, op)                                             \
-  (l->_[SUB_LAYER(b)] op((uint64_t)1 << sub_layer_offset_direct[b]))
+  (l->_[SUB_LAYER(b)] op((u64)1 << sub_layer_offset_direct[b]))
 
 #define LAYER_BIN_OP(a, b, op)                                                 \
   ((layer){._ = {a._[0] op b._[0], a._[1] op b._[1]}})
@@ -100,29 +92,29 @@ inline layer layer_shift(layer l, int n) {
 }
 
 #define CHECK_INDEX(layer, i)                                                  \
-  (layer._[SUB_LAYER(i)] & ((uint64_t)1 << sub_layer_offset_direct[i]))
+  (layer._[SUB_LAYER(i)] & ((u64)1 << sub_layer_offset_direct[i]))
 
 #define SET_INDEX(layer, i)                                                    \
-  layer._[SUB_LAYER(i)] |= ((uint64_t)1 << sub_layer_offset_direct[i])
+  layer._[SUB_LAYER(i)] |= ((u64)1 << sub_layer_offset_direct[i])
 
 #define GET_CENTER_ROW(layer)                                                  \
-  (((uint64_t)layer._[0] >> 55) |                                              \
-   ((((uint64_t)layer._[1] & 0x3) << 9) & 0b11111111111))
+  (((u64)layer._[0] >> 55) |                                              \
+   ((((u64)layer._[1] & 0x3) << 9) & 0b11111111111))
 #define SET_CENTER_ROW(_layer, _row)                                           \
-  (_layer._[0] |= ((uint64_t)_row << 55), _layer._[1] |= (_row >> 9))
+  (_layer._[0] |= ((u64)_row << 55), _layer._[1] |= (_row >> 9))
 
-#define INVERTED_THRONE_MASK ((uint16_t)0b11111011111)
+#define INVERTED_THRONE_MASK ((u16)0b11111011111)
 
 #define LAYERS_EQUAL(a, b) (a._[0] == b._[0] && a._[1] == b._[1])
 
 #define NOT_EMPTY(l) (l._[0] | l._[1])
 #define IS_EMPTY(l) (!(NOT_EMPTY(l)))
 
-extern const uint8_t rank_table[121];
+extern const u8 rank_table[121];
 
 #define RANK(_a) (rank_table[_a])
 
-extern const uint8_t file_table[121];
+extern const u8 file_table[121];
 
 #define FILE(_a) (file_table[_a])
 
@@ -152,7 +144,7 @@ static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
 #define LOWEST_INDEX(layer)                                                    \
   (layer._[0] ? _tzcnt_u64(layer._[0]) : _tzcnt_u64(layer._[1]) + 64)
 
-#define LOWER_HALF_MASK ((uint64_t)36028797018963967ULL)
-#define UPPER_HALF_MASK ((uint64_t)144115188075855868ULL)
+#define LOWER_HALF_MASK ((u64)36028797018963967ULL)
+#define UPPER_HALF_MASK ((u64)144115188075855868ULL)
 
 u16 dirty_get_row(layer l, int n);

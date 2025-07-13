@@ -19,7 +19,7 @@
   }
 
 /*
-typedef enum piece_type : uint8_t {
+typedef enum piece_type : u8 {
   black_type = 1,
   white_type = 2,
   king_type = 3,
@@ -32,10 +32,10 @@ typedef enum piece_type : uint8_t {
 // corner guard
 
 typedef struct corner_guard_state {
-  uint8_t nw_guard_count;
-  uint8_t ne_guard_count;
-  uint8_t sw_guard_count;
-  uint8_t se_guard_count;
+  u8 nw_guard_count;
+  u8 ne_guard_count;
+  u8 sw_guard_count;
+  u8 se_guard_count;
 } corner_guard_state;
 
 inline u32 score_for_count(u8 count) {
@@ -184,7 +184,7 @@ piece_square_table quarter_to_pst(u32 quarter[29]) {
   piece_square_table pst = {0};
 
   for (int i = 0; i < 29; i++) {
-    int32_t val = quarter[i];
+    i32 val = quarter[i];
     int index = indices[i];
     pst._[index] = val;
     index = rotate_right[index];
@@ -297,7 +297,7 @@ typedef struct psts {
   piece_square_table black_pst;
   piece_square_table white_pst;
   piece_square_table king_pst;
-  // int32_t king_throne_position_score; // this needs to go in the king pst
+  // i32 king_throne_position_score; // this needs to go in the king pst
 } psts;
 
 psts init_psts() {

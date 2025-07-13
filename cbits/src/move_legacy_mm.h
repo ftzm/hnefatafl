@@ -8,10 +8,10 @@
 
 
 struct sources {
-  uint8_t north;
-  uint8_t south;
-  uint8_t east;
-  uint8_t west;
+  u8 north;
+  u8 south;
+  u8 east;
+  u8 west;
 };
 
 typedef struct sources move_map[121];
@@ -25,16 +25,16 @@ struct move_maps {
 void build_mm(layer movers, const layer occ, move_map mm);
 
 void apply_southward_move(
-    uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
+    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
 
 void apply_northward_move(
-    uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
+    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
 
 void apply_eastward_move(
-    uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
+    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
 
 void apply_westward_move(
-    uint8_t src, uint8_t dest, move_map allies, move_map foes, move_map king);
+    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
 
 void gen_king_mm(board b, layer occ, int orig, move_map mm);
 

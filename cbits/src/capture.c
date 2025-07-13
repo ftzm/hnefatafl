@@ -24,10 +24,10 @@ void gen_foe_masks() {
     if (i < 99) {
       target = i + 11;
       // foe_masks[i]._[SUB_LAYER(target)] |=
-      //     ((uint64_t)1 << sub_layer_offset_direct[target]);
+      //     ((u64)1 << sub_layer_offset_direct[target]);
       // target_r = rotate_right[target];
       // foe_masks_r[i]._[SUB_LAYER(target_r)] |=
-      //     ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+      //     ((u64)1 << sub_layer_offset_direct[target_r]);
       OP_LAYER_BIT(foe_masks[i], target, |=);
       target_r = rotate_right[target];
       OP_LAYER_BIT(foe_masks_r[i], target_r, |=);
@@ -35,26 +35,26 @@ void gen_foe_masks() {
     if (i > 21) {
       target = i - 11;
       foe_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       foe_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest < 9) {
       target = i + 1;
       foe_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       foe_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest > 1) {
       target = i - 1;
       foe_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       foe_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
   }
 }
@@ -67,34 +67,34 @@ void gen_surround_masks() {
     if (i < 110) {
       target = i + 11;
       surround_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       surround_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (i > 10) {
       target = i - 11;
       surround_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       surround_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest < 10) {
       target = i + 1;
       surround_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       surround_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest > 0) {
       target = i - 1;
       surround_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       surround_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
   }
 }
@@ -107,44 +107,44 @@ void gen_ally_masks() {
     if (i < 99) {
       target = i + 22;
       ally_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       ally_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (i > 21) {
       target = i - 22;
       ally_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       ally_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest < 9) {
       target = i + 2;
       ally_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       ally_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
     if (modDest > 1) {
       target = i - 2;
       ally_masks[i]._[SUB_LAYER(target)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target]);
+          ((u64)1 << sub_layer_offset_direct[target]);
       target_r = rotate_right[target];
       ally_masks_r[i]._[SUB_LAYER(target_r)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[target_r]);
+          ((u64)1 << sub_layer_offset_direct[target_r]);
     }
   }
 }
 
 //******************************************************************************
 
-// inline __attribute__((always_inline)) uint8_t
-uint8_t
+// inline __attribute__((always_inline)) u8
+u8
 apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) {
-  uint8_t count = 0;
+  u8 count = 0;
 
   int modDest = dest % 11;
   int target;
@@ -154,12 +154,12 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest + 11;
   behind = dest + 22;
   if (dest < 99 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       count++;
   }
 
@@ -167,12 +167,12 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest - 11;
   behind = dest - 22;
   if (dest > 21 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       count++;
   }
 
@@ -180,12 +180,12 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest + 1;
   behind = dest + 2;
   if (modDest < 9 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       count++;
   }
    
@@ -193,21 +193,21 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest - 1;
   behind = dest - 2;
   if (modDest > 1 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       count++;
   }
 
   return count;
 }
 
-uint8_t
-apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, uint64_t *z, uint64_t hash_table[121], int dest) {
-  uint8_t count = 0;
+u8
+apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, u64 hash_table[121], int dest) {
+  u8 count = 0;
 
   int modDest = dest % 11;
   int target;
@@ -217,12 +217,12 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, uint64_t
   target = dest + 11;
   behind = dest + 22;
   if (dest < 99 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
       count++;
   }
@@ -231,12 +231,12 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, uint64_t
   target = dest - 11;
   behind = dest - 22;
   if (dest > 21 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
       count++;
   }
@@ -245,12 +245,12 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, uint64_t
   target = dest + 1;
   behind = dest + 2;
   if (modDest < 9 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
       count++;
   }
@@ -259,12 +259,12 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, uint64_t
   target = dest - 1;
   behind = dest - 2;
   if (modDest > 1 &&
-      foes->_[SUB_LAYER(target)] & ((uint64_t) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((uint64_t) 1 << sub_layer_offset_direct[behind]))
+      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
+      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
     {
-      foes->_[SUB_LAYER(target)] -= ((uint64_t) 1 << sub_layer_offset_direct[target]);
+      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((uint64_t) 1 << sub_layer_offset_direct[target_r]);
+      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
       count++;
   }
@@ -272,11 +272,11 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, uint64_t
   return count;
 }
 
-void apply_captures_z_black(board *b, uint64_t *z, uint8_t dest) {
+void apply_captures_z_black(board *b, u64 *z, u8 dest) {
   apply_captures_niave_z(b->black, &b->white, &b->white_r, z, white_hashes, dest);
 }  
 
-void apply_captures_z_white(board *b, uint64_t *z, uint8_t dest) {
+void apply_captures_z_white(board *b, u64 *z, u8 dest) {
   apply_captures_niave_z(b->white, &b->black, &b->black_r, z, black_hashes, dest);
 }  
 
@@ -290,7 +290,7 @@ void apply_captures_z_white(board *b, uint64_t *z, uint8_t dest) {
 //******************************************************************************
 // Components
 
-inline uint16_t right_shield_captures(const unsigned short flank,
+inline u16 right_shield_captures(const unsigned short flank,
                                       const unsigned short wall,
                                       const unsigned short foes,
                                       const unsigned char pos
@@ -308,7 +308,7 @@ inline uint16_t right_shield_captures(const unsigned short flank,
   return mask == candidates ? mask : 0;
 }
 
-inline uint16_t left_shield_captures(const unsigned short flank,
+inline u16 left_shield_captures(const unsigned short flank,
                                      const unsigned short wall,
                                      const unsigned short foes,
                                      const unsigned char pos
@@ -328,69 +328,69 @@ inline uint16_t left_shield_captures(const unsigned short flank,
 }
 
 inline void upper_left_shield_captures(
-    const uint64_t allies,
-    const uint64_t foes,
+    const u64 allies,
+    const u64 foes,
     const unsigned char pos,
-    uint64_t *captures) {
-  uint16_t row_captures =
+    u64 *captures) {
+  u16 row_captures =
       left_shield_captures((allies >> 46), (allies >> 35), (foes >> 46), pos);
-  (*captures) |= ((uint64_t)row_captures << 46);
+  (*captures) |= ((u64)row_captures << 46);
 }
 
 inline void upper_right_shield_captures(
-    const uint64_t allies,
-    const uint64_t foes,
+    const u64 allies,
+    const u64 foes,
     const unsigned char pos,
-    uint64_t *captures) {
-  uint16_t row_captures =
+    u64 *captures) {
+  u16 row_captures =
       right_shield_captures((allies >> 46), (allies >> 35), (foes >> 46), pos);
-  (*captures) |= ((uint64_t)row_captures << 46);
+  (*captures) |= ((u64)row_captures << 46);
 }
 
 inline void upper_middle_shield_captures(
-    const uint64_t allies,
-    const uint64_t foes,
+    const u64 allies,
+    const u64 foes,
     const unsigned char pos,
-    uint64_t *captures) {
-  uint16_t flank = allies >> 46;
-  uint16_t wall = allies >> 35;
-  uint16_t foes_row = foes >> 46;
-  uint16_t row_captures =
+    u64 *captures) {
+  u16 flank = allies >> 46;
+  u16 wall = allies >> 35;
+  u16 foes_row = foes >> 46;
+  u16 row_captures =
       left_shield_captures(flank, wall, foes_row, pos) |
       right_shield_captures(flank, wall, foes_row, pos);
-  (*captures) |= ((uint64_t)row_captures << 46);
+  (*captures) |= ((u64)row_captures << 46);
 }
 
 inline void lower_left_shield_captures(
-    const uint64_t allies,
-    const uint64_t foes,
+    const u64 allies,
+    const u64 foes,
     const unsigned char pos,
-    uint64_t *captures) {
-  uint16_t row_captures =
+    u64 *captures) {
+  u16 row_captures =
       left_shield_captures(allies, (allies >> 11), foes, pos);
-  (*captures) |= ((uint64_t)row_captures);
+  (*captures) |= ((u64)row_captures);
 }
 
 inline void lower_right_shield_captures(
-    const uint64_t allies,
-    const uint64_t foes,
+    const u64 allies,
+    const u64 foes,
     const unsigned char pos,
-    uint64_t *captures) {
-  uint16_t row_captures =
+    u64 *captures) {
+  u16 row_captures =
       right_shield_captures(allies, (allies >> 11), foes, pos);
-  (*captures) |= ((uint64_t)row_captures);
+  (*captures) |= ((u64)row_captures);
 }
 
 inline void lower_middle_shield_captures(
-    const uint64_t allies,
-    const uint64_t foes,
+    const u64 allies,
+    const u64 foes,
     const unsigned char pos,
-    uint64_t *captures) {
-  uint16_t wall = allies >> 11;
-  uint16_t row_captures =
+    u64 *captures) {
+  u16 wall = allies >> 11;
+  u16 row_captures =
       left_shield_captures(allies, wall, foes, pos) |
       right_shield_captures(allies, wall, foes, pos);
-  (*captures) |= ((uint64_t)row_captures );
+  (*captures) |= ((u64)row_captures );
 }
 
 /*[[[cog
@@ -422,18 +422,18 @@ def build_f(color, direction, portion):
 
     return f"""
 void shield_wall_{color}_{direction}_{portion}(board *b, int pos) {{
-     uint64_t sub_allies = b->{allies}{sub};
-     uint64_t *sub_foes = &b->{foes}{sub};
+     u64 sub_allies = b->{allies}{sub};
+     u64 *sub_foes = &b->{foes}{sub};
      layer *foes_r = &b->{foes_r};
      {when(is_rotated, "pos = rotate_right[pos];")}
      {when(is_upper, "pos -= 110;")}
      {when(is_black, "(*sub_foes) |= b->king" + aligned + sub + ";")}
-     uint64_t captures = 0;
+     u64 captures = 0;
      {half}_{portion}_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      {when(is_black, "(*sub_foes) &= ~(b->" + "king" +  sub + ");")}
      while (captures) {{
-       uint8_t r = rotate_{rotate_dir}[{offset}_tzcnt_u64(captures)];
+       u8 r = rotate_{rotate_dir}[{offset}_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }}
@@ -451,432 +451,432 @@ for (c, d, p) in product(colors, dirs, portion):
 ]]]*/
 
 void shield_wall_black_north_left(board *b, int pos) {
-     uint64_t sub_allies = b->black._[1];
-     uint64_t *sub_foes = &b->white._[1];
+     u64 sub_allies = b->black._[1];
+     u64 *sub_foes = &b->white._[1];
      layer *foes_r = &b->white_r;
      
      pos -= 110;
      (*sub_foes) |= b->king._[1];
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[1]);
      while (captures) {
-       uint8_t r = rotate_right[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_north_middle(board *b, int pos) {
-     uint64_t sub_allies = b->black._[1];
-     uint64_t *sub_foes = &b->white._[1];
+     u64 sub_allies = b->black._[1];
+     u64 *sub_foes = &b->white._[1];
      layer *foes_r = &b->white_r;
      
      pos -= 110;
      (*sub_foes) |= b->king._[1];
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[1]);
      while (captures) {
-       uint8_t r = rotate_right[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_north_right(board *b, int pos) {
-     uint64_t sub_allies = b->black._[1];
-     uint64_t *sub_foes = &b->white._[1];
+     u64 sub_allies = b->black._[1];
+     u64 *sub_foes = &b->white._[1];
      layer *foes_r = &b->white_r;
      
      pos -= 110;
      (*sub_foes) |= b->king._[1];
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[1]);
      while (captures) {
-       uint8_t r = rotate_right[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_east_left(board *b, int pos) {
-     uint64_t sub_allies = b->black_r._[0];
-     uint64_t *sub_foes = &b->white_r._[0];
+     u64 sub_allies = b->black_r._[0];
+     u64 *sub_foes = &b->white_r._[0];
      layer *foes_r = &b->white;
      pos = rotate_right[pos];
      
      (*sub_foes) |= b->king_r._[0];
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[0]);
      while (captures) {
-       uint8_t r = rotate_left[_tzcnt_u64(captures)];
+       u8 r = rotate_left[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_east_middle(board *b, int pos) {
-     uint64_t sub_allies = b->black_r._[0];
-     uint64_t *sub_foes = &b->white_r._[0];
+     u64 sub_allies = b->black_r._[0];
+     u64 *sub_foes = &b->white_r._[0];
      layer *foes_r = &b->white;
      pos = rotate_right[pos];
      
      (*sub_foes) |= b->king_r._[0];
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[0]);
      while (captures) {
-       uint8_t r = rotate_left[_tzcnt_u64(captures)];
+       u8 r = rotate_left[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_east_right(board *b, int pos) {
-     uint64_t sub_allies = b->black_r._[0];
-     uint64_t *sub_foes = &b->white_r._[0];
+     u64 sub_allies = b->black_r._[0];
+     u64 *sub_foes = &b->white_r._[0];
      layer *foes_r = &b->white;
      pos = rotate_right[pos];
      
      (*sub_foes) |= b->king_r._[0];
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[0]);
      while (captures) {
-       uint8_t r = rotate_left[_tzcnt_u64(captures)];
+       u8 r = rotate_left[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_south_left(board *b, int pos) {
-     uint64_t sub_allies = b->black._[0];
-     uint64_t *sub_foes = &b->white._[0];
+     u64 sub_allies = b->black._[0];
+     u64 *sub_foes = &b->white._[0];
      layer *foes_r = &b->white_r;
      
      
      (*sub_foes) |= b->king._[0];
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[0]);
      while (captures) {
-       uint8_t r = rotate_right[_tzcnt_u64(captures)];
+       u8 r = rotate_right[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_south_middle(board *b, int pos) {
-     uint64_t sub_allies = b->black._[0];
-     uint64_t *sub_foes = &b->white._[0];
+     u64 sub_allies = b->black._[0];
+     u64 *sub_foes = &b->white._[0];
      layer *foes_r = &b->white_r;
      
      
      (*sub_foes) |= b->king._[0];
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[0]);
      while (captures) {
-       uint8_t r = rotate_right[_tzcnt_u64(captures)];
+       u8 r = rotate_right[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_south_right(board *b, int pos) {
-     uint64_t sub_allies = b->black._[0];
-     uint64_t *sub_foes = &b->white._[0];
+     u64 sub_allies = b->black._[0];
+     u64 *sub_foes = &b->white._[0];
      layer *foes_r = &b->white_r;
      
      
      (*sub_foes) |= b->king._[0];
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[0]);
      while (captures) {
-       uint8_t r = rotate_right[_tzcnt_u64(captures)];
+       u8 r = rotate_right[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_west_left(board *b, int pos) {
-     uint64_t sub_allies = b->black_r._[1];
-     uint64_t *sub_foes = &b->white_r._[1];
+     u64 sub_allies = b->black_r._[1];
+     u64 *sub_foes = &b->white_r._[1];
      layer *foes_r = &b->white;
      pos = rotate_right[pos];
      pos -= 110;
      (*sub_foes) |= b->king_r._[1];
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[1]);
      while (captures) {
-       uint8_t r = rotate_left[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_west_middle(board *b, int pos) {
-     uint64_t sub_allies = b->black_r._[1];
-     uint64_t *sub_foes = &b->white_r._[1];
+     u64 sub_allies = b->black_r._[1];
+     u64 *sub_foes = &b->white_r._[1];
      layer *foes_r = &b->white;
      pos = rotate_right[pos];
      pos -= 110;
      (*sub_foes) |= b->king_r._[1];
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[1]);
      while (captures) {
-       uint8_t r = rotate_left[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_black_west_right(board *b, int pos) {
-     uint64_t sub_allies = b->black_r._[1];
-     uint64_t *sub_foes = &b->white_r._[1];
+     u64 sub_allies = b->black_r._[1];
+     u64 *sub_foes = &b->white_r._[1];
      layer *foes_r = &b->white;
      pos = rotate_right[pos];
      pos -= 110;
      (*sub_foes) |= b->king_r._[1];
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      (*sub_foes) &= ~(b->king._[1]);
      while (captures) {
-       uint8_t r = rotate_left[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_north_left(board *b, int pos) {
-     uint64_t sub_allies = b->white._[1];
-     uint64_t *sub_foes = &b->black._[1];
+     u64 sub_allies = b->white._[1];
+     u64 *sub_foes = &b->black._[1];
      layer *foes_r = &b->black_r;
      
      pos -= 110;
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_right[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_north_middle(board *b, int pos) {
-     uint64_t sub_allies = b->white._[1];
-     uint64_t *sub_foes = &b->black._[1];
+     u64 sub_allies = b->white._[1];
+     u64 *sub_foes = &b->black._[1];
      layer *foes_r = &b->black_r;
      
      pos -= 110;
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_right[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_north_right(board *b, int pos) {
-     uint64_t sub_allies = b->white._[1];
-     uint64_t *sub_foes = &b->black._[1];
+     u64 sub_allies = b->white._[1];
+     u64 *sub_foes = &b->black._[1];
      layer *foes_r = &b->black_r;
      
      pos -= 110;
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_right[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_east_left(board *b, int pos) {
-     uint64_t sub_allies = b->white_r._[0];
-     uint64_t *sub_foes = &b->black_r._[0];
+     u64 sub_allies = b->white_r._[0];
+     u64 *sub_foes = &b->black_r._[0];
      layer *foes_r = &b->black;
      pos = rotate_right[pos];
      
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_left[_tzcnt_u64(captures)];
+       u8 r = rotate_left[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_east_middle(board *b, int pos) {
-     uint64_t sub_allies = b->white_r._[0];
-     uint64_t *sub_foes = &b->black_r._[0];
+     u64 sub_allies = b->white_r._[0];
+     u64 *sub_foes = &b->black_r._[0];
      layer *foes_r = &b->black;
      pos = rotate_right[pos];
      
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_left[_tzcnt_u64(captures)];
+       u8 r = rotate_left[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_east_right(board *b, int pos) {
-     uint64_t sub_allies = b->white_r._[0];
-     uint64_t *sub_foes = &b->black_r._[0];
+     u64 sub_allies = b->white_r._[0];
+     u64 *sub_foes = &b->black_r._[0];
      layer *foes_r = &b->black;
      pos = rotate_right[pos];
      
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_left[_tzcnt_u64(captures)];
+       u8 r = rotate_left[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_south_left(board *b, int pos) {
-     uint64_t sub_allies = b->white._[0];
-     uint64_t *sub_foes = &b->black._[0];
+     u64 sub_allies = b->white._[0];
+     u64 *sub_foes = &b->black._[0];
      layer *foes_r = &b->black_r;
      
      
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_right[_tzcnt_u64(captures)];
+       u8 r = rotate_right[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_south_middle(board *b, int pos) {
-     uint64_t sub_allies = b->white._[0];
-     uint64_t *sub_foes = &b->black._[0];
+     u64 sub_allies = b->white._[0];
+     u64 *sub_foes = &b->black._[0];
      layer *foes_r = &b->black_r;
      
      
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_right[_tzcnt_u64(captures)];
+       u8 r = rotate_right[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_south_right(board *b, int pos) {
-     uint64_t sub_allies = b->white._[0];
-     uint64_t *sub_foes = &b->black._[0];
+     u64 sub_allies = b->white._[0];
+     u64 *sub_foes = &b->black._[0];
      layer *foes_r = &b->black_r;
      
      
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_right[_tzcnt_u64(captures)];
+       u8 r = rotate_right[_tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_west_left(board *b, int pos) {
-     uint64_t sub_allies = b->white_r._[1];
-     uint64_t *sub_foes = &b->black_r._[1];
+     u64 sub_allies = b->white_r._[1];
+     u64 *sub_foes = &b->black_r._[1];
      layer *foes_r = &b->black;
      pos = rotate_right[pos];
      pos -= 110;
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_left[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_west_middle(board *b, int pos) {
-     uint64_t sub_allies = b->white_r._[1];
-     uint64_t *sub_foes = &b->black_r._[1];
+     u64 sub_allies = b->white_r._[1];
+     u64 *sub_foes = &b->black_r._[1];
      layer *foes_r = &b->black;
      pos = rotate_right[pos];
      pos -= 110;
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_left[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
 }
     
 void shield_wall_white_west_right(board *b, int pos) {
-     uint64_t sub_allies = b->white_r._[1];
-     uint64_t *sub_foes = &b->black_r._[1];
+     u64 sub_allies = b->white_r._[1];
+     u64 *sub_foes = &b->black_r._[1];
      layer *foes_r = &b->black;
      pos = rotate_right[pos];
      pos -= 110;
      
-     uint64_t captures = 0;
+     u64 captures = 0;
      upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
      (*sub_foes) -= captures;
      
      while (captures) {
-       uint8_t r = rotate_left[64 + _tzcnt_u64(captures)];
+       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
        OP_LAYER_BIT_PTR(foes_r, r, ^=);
        captures = _blsr_u64(captures);
      }
@@ -1025,15 +1025,15 @@ void shield_wall_gen(bool is_black, bool is_rotated, int sub_index, Portion port
     pos -= 110;
   }
 
-  const uint64_t sub_allies = (is_rotated ? allies_r : allies)->_[sub_index] | corners._[sub_index];
-  uint64_t sub_foes = (is_rotated ? foes_r : foes)->_[sub_index];
+  const u64 sub_allies = (is_rotated ? allies_r : allies)->_[sub_index] | corners._[sub_index];
+  u64 sub_foes = (is_rotated ? foes_r : foes)->_[sub_index];
 
   // add king to foes if foes are white
   if (is_black) {
     sub_foes |= (is_rotated ? b->king_r : b->king)._[sub_index];
   }
 
-  uint64_t captures = 0;
+  u64 captures = 0;
 
   if (sub_index) {
     switch (portion) {
@@ -1057,7 +1057,7 @@ void shield_wall_gen(bool is_black, bool is_rotated, int sub_index, Portion port
   (is_rotated ? foes_r : foes)->_[sub_index] -= captures;
   
   while (captures) {
-    uint8_t r = (is_rotated ? rotate_left : rotate_right)[(sub_index ? 64 : 0) + _tzcnt_u64(captures)];
+    u8 r = (is_rotated ? rotate_left : rotate_right)[(sub_index ? 64 : 0) + _tzcnt_u64(captures)];
     OP_LAYER_BIT_PTR((is_rotated ? foes : foes_r), r, ^=);
     captures = _blsr_u64(captures);
   }

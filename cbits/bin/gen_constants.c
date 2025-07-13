@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------------
 // Setup
 
-layer read_layer(const char *string, uint8_t symbol) {
+layer read_layer(const char *string, u8 symbol) {
   layer output = EMPTY_LAYER;
   int len = strlen(string);
   int index = 120;
@@ -15,7 +15,7 @@ layer read_layer(const char *string, uint8_t symbol) {
     char c = string[i];
     if (c == symbol) {
       output._[SUB_LAYER(index)] |=
-          ((uint64_t)1 << sub_layer_offset_direct[index]);
+          ((u64)1 << sub_layer_offset_direct[index]);
       index--;
     } else if (c == ' ') {
       // skip space

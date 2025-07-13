@@ -1,9 +1,9 @@
 #pragma once
 
-#include "layer.h"
+#include "util.h"
 #include "board.h"
 
-layer read_layer(const char *string, uint8_t symbol);
+layer read_layer(const char *string, u8 symbol);
 
 void print_layer(layer layer);
 
@@ -13,7 +13,7 @@ typedef struct layer_string {
 
 layer_string stringify(layer layer);
 
-void as_notation(uint8_t position, char *output);
+void as_notation(u8 position, char *output);
 
 board read_board(const char *string);
 
@@ -23,7 +23,7 @@ void fmt_board(board board, char *input);
 
 void print_board(board b);
 
-void print_row(uint16_t row);
+void print_row(u16 row);
 
 void overlay_move(char *board, int orig, int dest, layer captures);
 

@@ -19,7 +19,7 @@ const char *sanity_capture_king_string = " .  .  X  .  X  .  O  .  .  .  . "
 
 TEST test_black_zobrist() {
   board b = read_board(sanity_capture_king_string);
-  uint64_t start_zobrist = hash_for_board(b, true);
+  u64 start_zobrist = hash_for_board(b, true);
 
   moves_to_t r =
       moves_to_black(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
@@ -30,10 +30,10 @@ TEST test_black_zobrist() {
     OP_LAYER_BIT(b2.black, m.orig, ^=);
     OP_LAYER_BIT(b2.black, m.dest, ^=);
 
-    uint64_t incremental_hash = next_hash_black(start_zobrist, m.orig, m.dest);
+    u64 incremental_hash = next_hash_black(start_zobrist, m.orig, m.dest);
     apply_captures_z_black(&b2, &incremental_hash, m.dest);
 
-    uint64_t re_hash = hash_for_board(b2, false);
+    u64 re_hash = hash_for_board(b2, false);
 
     board_string_t b2_str =
         to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.white, b2.white));
@@ -45,7 +45,7 @@ TEST test_black_zobrist() {
 
 TEST test_white_zobrist() {
   board b = read_board(sanity_capture_king_string);
-  uint64_t start_zobrist = hash_for_board(b, false);
+  u64 start_zobrist = hash_for_board(b, false);
 
   moves_to_t r =
       moves_to_white(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
@@ -56,10 +56,10 @@ TEST test_white_zobrist() {
     OP_LAYER_BIT(b2.white, m.orig, ^=);
     OP_LAYER_BIT(b2.white, m.dest, ^=);
 
-    uint64_t incremental_hash = next_hash_white(start_zobrist, m.orig, m.dest);
+    u64 incremental_hash = next_hash_white(start_zobrist, m.orig, m.dest);
     apply_captures_z_white(&b2, &incremental_hash, m.dest);
 
-    uint64_t re_hash = hash_for_board(b2, true);
+    u64 re_hash = hash_for_board(b2, true);
 
     board_string_t b2_str =
         to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.black, b2.black));
@@ -71,7 +71,7 @@ TEST test_white_zobrist() {
 
 TEST test_king_zobrist() {
   board b = read_board(sanity_capture_king_string);
-  uint64_t start_zobrist = hash_for_board(b, false);
+  u64 start_zobrist = hash_for_board(b, false);
 
   moves_to_t r =
       moves_to_white(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
@@ -82,10 +82,10 @@ TEST test_king_zobrist() {
     OP_LAYER_BIT(b2.white, m.orig, ^=);
     OP_LAYER_BIT(b2.white, m.dest, ^=);
 
-    uint64_t incremental_hash = next_hash_white(start_zobrist, m.orig, m.dest);
+    u64 incremental_hash = next_hash_white(start_zobrist, m.orig, m.dest);
     apply_captures_z_white(&b2, &incremental_hash, m.dest);
 
-    uint64_t re_hash = hash_for_board(b2, true);
+    u64 re_hash = hash_for_board(b2, true);
 
     board_string_t b2_str =
         to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.black, b2.black));

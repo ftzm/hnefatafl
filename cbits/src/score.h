@@ -1,17 +1,16 @@
 #pragma once
 
 #include "board.h"
-#include "layer.h"
 #include "stdbool.h"
 
 bool king_captured(const board *b);
 
 // Forward declarations
 typedef struct corner_guard_state {
-  uint8_t nw_guard_count;
-  uint8_t ne_guard_count;
-  uint8_t sw_guard_count;
-  uint8_t se_guard_count;
+  u8 nw_guard_count;
+  u8 ne_guard_count;
+  u8 sw_guard_count;
+  u8 se_guard_count;
 } corner_guard_state;
 
 typedef struct piece_square_table {
