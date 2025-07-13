@@ -352,12 +352,6 @@ score_state init_score_state(score_weights *weights, const board *b) {
   corner_guard_state cgs =
       init_state_corner_guard(b, weights->corner_guard, &score);
   return (score_state){cgs, score};
-  /*
-  i32 score = 0;
-  corner_guard_state cgs =
-      init_state_corner_guard(b, weights->corner_guard, &score);
-  return (score_state){cgs, score};
-  */
 }
 
 // -----------------------------------------------------------------------------
