@@ -272,15 +272,7 @@ TEST prop_white_scores_capture_inc_correct(void) {
 
 // -----------------------------------------------------------------------------
 
-SUITE(score_tests) {
+SUITE(score_suite) {
   RUN_TEST(prop_white_scores_no_capture_inc_correct);
   RUN_TEST(prop_white_scores_capture_inc_correct);
-}
-
-GREATEST_MAIN_DEFS();
-
-int main(int argc, char **argv) {
-  GREATEST_MAIN_BEGIN();
-  RUN_SUITE(score_tests);
-  GREATEST_MAIN_END();
 }

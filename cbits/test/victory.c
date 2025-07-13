@@ -45,14 +45,7 @@ TEST test_king_capture_check(bool (*check1)(const board *b), bool (*check2)(cons
   PASS();
 }
 
-GREATEST_MAIN_DEFS();
-
-int main(int argc, char **argv) {
-  // Setup
-
-  GREATEST_MAIN_BEGIN();
-
+SUITE(victory_suite) {
   RUN_TESTp(test_king_capture_check, king_capture_check_ref, king_capture_check);
-
-  GREATEST_MAIN_END();
 }
+

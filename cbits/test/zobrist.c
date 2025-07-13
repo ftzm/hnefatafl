@@ -95,16 +95,8 @@ TEST test_king_zobrist() {
   return GREATEST_TEST_RES_PASS;
 }
 
-GREATEST_MAIN_DEFS();
-
-int main(int argc, char **argv) {
-  init_hashes();
-
-  GREATEST_MAIN_BEGIN();
-
+SUITE(zobrist_suite) {
   RUN_TEST(test_black_zobrist);
   RUN_TEST(test_white_zobrist);
   RUN_TEST(test_king_zobrist);
-
-  GREATEST_MAIN_END();
 }

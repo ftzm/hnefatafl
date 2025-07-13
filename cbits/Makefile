@@ -41,16 +41,13 @@ $(OBJDIR)/lib.so: $(OBJS)
 
 TEST_SRC = test
 TEST_BIN = .test_bin
-TEST_SRCS = $(wildcard $(TEST_SRC)/*.c)
-TEST_BINS = $(patsubst $(TEST_SRC)/%.c,$(TEST_BIN)/%,$(TEST_SRCS))
+TEST_SRCS := $(wildcard $(TEST_SRC)/*.c)
+TEST_SRCS := $(filter-out $(TEST_SRC)/test.c, $(TEST_SRCS))
 
 .PRECIOUS: $(TEST_BIN)/%
 $(TEST_BIN)/%: $(TEST_SRC)/%.c $(OBJDIR)/lib.so
 	mkdir -p $(TEST_BIN)
 	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h -lm $(TEST_SRC)/$*.c vendor/theft/build/libtheft.a 
-
-test_%: $(TEST_BIN)/%
-	@LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./.test_bin/$*
 
 test: $(TEST_BINS)
 	@for bin in $(TEST_BINS); do \

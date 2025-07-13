@@ -1,10 +1,12 @@
-#include "board.h"
-#include "io.h"
-#include "stdio.h"
+#include "greatest.h"
 
-int main() {
-  board start_board = read_board(start_board_string);
-  print_board(start_board);
-  printf("%lx:%lx:%lx:%lx", start_board.black._[0], start_board.black._[1], start_board.white._[0], start_board.white._[1]);
-  printf("\n");
+SUITE_EXTERN(capture_suite);
+
+GREATEST_MAIN_DEFS();
+
+int main(int argc, char **argv) {
+
+  GREATEST_MAIN_BEGIN();
+  RUN_SUITE(capture_suite);
+  GREATEST_MAIN_END();
 }

@@ -2044,17 +2044,7 @@ TEST test_king_moves_count(void) {
   PASS();
 }
 
-// -----------------------------------------------------------------------------
-// Run
-
-GREATEST_MAIN_DEFS();
-
-int main(int argc, char **argv) {
-  // Setup
-  init_move_globals();
-
-  GREATEST_MAIN_BEGIN();
-
+SUITE(move_suite) {
   RUN_TEST(test_moves_to_white);
   RUN_TEST(test_moves_to_black);
   RUN_TEST(test_moves_to_king);
@@ -2062,26 +2052,6 @@ int main(int argc, char **argv) {
   RUN_TEST(test_black_moves_count);
   RUN_TEST(test_white_moves_count);
   RUN_TEST(test_king_moves_count);
-
-  /*
-  test_start_board_moves();
-  // test_board_printable();
-  test_get_team_moves_black();
-  test_get_team_moves_white();
-  test_get_team_moves_king();
-  test_reference_moves_black();
-
-  test_start_board_moves_gen();
-
-  test_mm_moves_white();
-  test_mm_moves_black();
-  test_mm_moves_king();
-
-  test_moves_to_black();
-  test_moves_to_layers_correct();
-  */
-
-  GREATEST_MAIN_END();
 }
 
 // MAYBE TODO:

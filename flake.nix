@@ -58,6 +58,7 @@
           pkgs.cmake
           pkgs.clangStdenv
           pkgs.just
+          pkgs.ripgrep
 
           pkgs.python312Packages.cogapp
         ];

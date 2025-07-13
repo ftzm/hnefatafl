@@ -73,16 +73,8 @@ TEST test_duplicate_insertion_errors() {
   return GREATEST_TEST_RES_PASS;
 }
 
-GREATEST_MAIN_DEFS();
-
-int main(int argc, char **argv) {
-
-
-  GREATEST_MAIN_BEGIN();
-
+SUITE(position_set_suite) {
   RUN_TEST(test_add_and_remove_nullifies);
   RUN_TEST(test_single_insertion_succeeds);
   RUN_TEST(test_duplicate_insertion_errors);
-
-  GREATEST_MAIN_END();
 }

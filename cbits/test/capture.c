@@ -1,5 +1,6 @@
 #include "assert.h"
 #include "capture.h"
+#include "greatest.h"
 #include "io.h"
 #include "stdio.h"
 #include "string.h"
@@ -32,7 +33,7 @@ board reverse_teams(board b) {
       .king_r = b.king_r};
 }
 
-void test(const char *input, const char *expected, unsigned char pos, int line, const char *func) {
+TEST test(const char *input, const char *expected, unsigned char pos, int line, const char *func) {
   const board exp = read_board(expected);
 
   board white = read_board(input);
@@ -43,11 +44,13 @@ void test(const char *input, const char *expected, unsigned char pos, int line, 
 
   shield_wall_black_gen(&black, pos);
   assert_boards_equal(reverse_teams(exp), black, line, func);
+  
+  PASS();
 }
 
-#define TEST(a, b, p) test(a, b, p, __LINE__, __FUNCTION__)
+#define TEST_SHIELD_WALL(a, b, p) test(a, b, p, __LINE__, __FUNCTION__)
 
-void test_team(bool is_black, const char *input, const char *expected, unsigned char pos, int line, const char *func) {
+TEST test_team(bool is_black, const char *input, const char *expected, unsigned char pos, int line, const char *func) {
   const board exp = read_board(expected);
 
   board got = read_board(input);
@@ -60,11 +63,12 @@ void test_team(bool is_black, const char *input, const char *expected, unsigned 
     assert_boards_equal(exp, got, line, func);
   }
 
+  PASS();
 }
 
-#define TEST_TEAM(is_black, a, b, p) test_team(is_black, a, b, p, __LINE__, __FUNCTION__)
+#define TEST_SHIELD_WALL_TEAM(is_black, a, b, p) test_team(is_black, a, b, p, __LINE__, __FUNCTION__)
 
-void test_capture_s_m() {
+TEST test_capture_s_m(void) {
   const char *s_input = ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
@@ -89,11 +93,11 @@ void test_capture_s_m() {
                            ".  .  O  O  O  .  O  O  O  .  ."
                            ".  O  .  .  .  .  .  .  .  O  .";
 
-  TEST(s_input, s_expected, 5);
+  return TEST_SHIELD_WALL(s_input, s_expected, 5);
 }
 
 
-void test_capture_s_left() {
+TEST test_capture_s_left(void) {
   const char *se_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -118,10 +122,10 @@ void test_capture_s_left() {
                             ".  .  .  .  .  .  .  O  O  .  ."
                             ".  .  .  .  .  .  O  .  .  .  .";
 
-  TEST(se_input, se_expected, 1);
+  return TEST_SHIELD_WALL(se_input, se_expected, 1);
 }
 
-void test_capture_s_right() {
+TEST test_capture_s_right(void) {
   const char *sw_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -146,11 +150,11 @@ void test_capture_s_right() {
                             ".  .  O  O  O  O  .  .  .  .  ."
                             ".  .  .  .  .  .  O  .  .  .  .";
 
-  TEST(sw_input, sw_expected, 9);
+  return TEST_SHIELD_WALL(sw_input, sw_expected, 9);
 }
 
 
-void test_capture_e_m() {
+TEST test_capture_e_m(void) {
 
   const char *e_input = ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  O"
@@ -175,10 +179,10 @@ void test_capture_e_m() {
                            ".  .  .  .  .  .  .  .  .  O  ."
                            ".  .  .  .  .  .  .  .  .  .  O"
                            ".  .  .  .  .  .  .  .  .  .  .";
-  TEST(e_input, e_expected, 55);
+  return TEST_SHIELD_WALL(e_input, e_expected, 55);
 }
 
-void test_capture_e_r() {
+TEST test_capture_e_r(void) {
   const char *en_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  O"
                          ".  .  .  .  .  .  .  .  .  O  X"
@@ -202,10 +206,10 @@ void test_capture_e_r() {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  TEST(en_input, en_expected, 55);
+  return TEST_SHIELD_WALL(en_input, en_expected, 55);
 }
 
-void test_capture_e_l() {
+TEST test_capture_e_l(void) {
   const char *es_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -230,10 +234,10 @@ void test_capture_e_l() {
                             ".  .  .  .  .  .  .  .  .  .  O"
                             ".  .  .  .  .  .  .  .  .  .  .";
 
-  TEST(es_input, es_expected, 55);
+  return TEST_SHIELD_WALL(es_input, es_expected, 55);
 }
 
-void test_capture_w_m() {
+TEST test_capture_w_m(void) {
   const char *w_input = ".  .  .  .  .  .  .  .  .  .  ."
                         "O  .  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
@@ -258,10 +262,10 @@ void test_capture_w_m() {
                            "O  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  .";
 
-  TEST(w_input, w_expected, 65);
+  return TEST_SHIELD_WALL(w_input, w_expected, 65);
 }
 
-void test_capture_w_r() {
+TEST test_capture_w_r(void) {
   const char *wn_input = ".  .  .  .  .  .  .  .  .  .  ."
                          "O  .  .  .  .  .  .  .  .  .  ."
                          "X  O  .  .  .  .  .  .  .  .  ."
@@ -286,10 +290,10 @@ void test_capture_w_r() {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
 
-  TEST(wn_input, wn_expected, 65);
+  return TEST_SHIELD_WALL(wn_input, wn_expected, 65);
 }
 
-void test_capture_w_l() {
+TEST test_capture_w_l(void) {
   const char *ws_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -313,10 +317,10 @@ void test_capture_w_l() {
                             ".  O  .  .  .  .  .  .  .  .  ."
                             "O  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  TEST(ws_input, ws_expected, 65);
+  return TEST_SHIELD_WALL(ws_input, ws_expected, 65);
 }
 
-void test_capture_n_m() {
+TEST test_capture_n_m(void) {
   const char *n_input = ".  O  X  X  X  .  X  X  X  O  ."
                         ".  .  O  O  O  .  O  O  O  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
@@ -341,10 +345,10 @@ void test_capture_n_m() {
                            ".  .  .  .  .  .  .  .  .  .  ."
                            ".  .  .  .  .  .  .  .  .  .  .";
 
-  TEST(n_input, n_expected, 115);
+  return TEST_SHIELD_WALL(n_input, n_expected, 115);
 }
 
-void test_capture_n_m_2() {
+TEST test_capture_n_m_2(void) {
   const char *n_input_2 = ".  .  X  X  X  .  X  X  X  O  ."
                           ".  .  O  O  O  .  O  O  O  .  ."
                           ".  .  .  .  .  .  .  .  .  .  ."
@@ -368,10 +372,10 @@ void test_capture_n_m_2() {
                              ".  .  .  .  .  .  .  .  .  .  ."
                              ".  .  .  .  .  .  .  .  .  .  ."
                              ".  .  .  .  .  .  .  .  .  .  .";
-  TEST(n_input_2, n_expected_2, 115);
+  return TEST_SHIELD_WALL(n_input_2, n_expected_2, 115);
 }
 
-void test_capture_n_e() {
+TEST test_capture_n_e(void) {
   const char *ne_input = ".  .  .  X  X  X  X  O  .  .  ."
                          ".  .  .  O  O  O  O  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -395,10 +399,10 @@ void test_capture_n_e() {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  TEST(ne_input, ne_expected, 118);
+  return TEST_SHIELD_WALL(ne_input, ne_expected, 118);
 }
 
-void test_capture_n_l() {
+TEST test_capture_n_l(void) {
   const char *nw_input = ".  .  O  X  X  X  X  .  .  .  ."
                          ".  .  .  O  O  O  O  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -422,10 +426,10 @@ void test_capture_n_l() {
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  ."
                             ".  .  .  .  .  .  .  .  .  .  .";
-  TEST(nw_input, nw_expected, 113);
+  return TEST_SHIELD_WALL(nw_input, nw_expected, 113);
 }
 
-void test_capture_n_l_king() {
+TEST test_capture_n_l_king(void) {
   const char *inp = ".  .  X  #  O  O  O  .  .  .  ."
                     ".  .  .  X  X  X  X  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
@@ -449,24 +453,22 @@ void test_capture_n_l_king() {
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  .";
-  TEST_TEAM(true, inp, exp, 113);
+  return TEST_SHIELD_WALL_TEAM(true, inp, exp, 113);
 }
 
-
-int main() {
-  test_capture_s_m();
-  test_capture_s_left();
-  test_capture_s_right();
-  test_capture_e_m();
-  test_capture_e_r();
-  test_capture_e_l();
-  test_capture_w_m();
-  test_capture_w_r();
-  test_capture_w_l();
-  test_capture_n_m();
-  test_capture_n_m_2();
-  test_capture_n_e();
-  test_capture_n_l();
-  test_capture_n_l_king ();
-  printf("all tests passed\n"); 
-  }
+SUITE(capture_suite) {
+  RUN_TEST(test_capture_s_m);
+  RUN_TEST(test_capture_s_left);
+  RUN_TEST(test_capture_s_right);
+  RUN_TEST(test_capture_e_m);
+  RUN_TEST(test_capture_e_r);
+  RUN_TEST(test_capture_e_l);
+  RUN_TEST(test_capture_w_m);
+  RUN_TEST(test_capture_w_r);
+  RUN_TEST(test_capture_w_l);
+  RUN_TEST(test_capture_n_m);
+  RUN_TEST(test_capture_n_m_2);
+  RUN_TEST(test_capture_n_e);
+  RUN_TEST(test_capture_n_l);
+  RUN_TEST(test_capture_n_l_king);
+}
