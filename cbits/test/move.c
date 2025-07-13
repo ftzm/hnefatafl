@@ -2045,6 +2045,9 @@ TEST test_king_moves_count(void) {
 }
 
 SUITE(move_suite) {
+
+  init_move_globals();
+
   RUN_TEST(test_moves_to_white);
   RUN_TEST(test_moves_to_black);
   RUN_TEST(test_moves_to_king);
