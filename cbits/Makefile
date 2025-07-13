@@ -50,22 +50,24 @@ TEST_BIN = .test_bin
 TEST_SRCS := $(wildcard $(TEST_SRC)/*.c)
 TEST_SRCS := $(filter-out $(TEST_SRC)/test.c, $(TEST_SRCS))
 TEST_OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(TEST_SRCS))
-TEST_UTIL_SRCS := $(wildcard $(TEST_SRC)/util/*.c)
-TEST_UTIL_OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(TEST_UTIL_SRCS))
-TEST_ALL_OBJS := $(TEST_OBJS) $(TEST_UTIL_OBJS)
+TEST_INCLUDES = -I src -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h
+TEST_LIBS = -L$(OBJDIR) -l:lib.so -lm vendor/theft/build/libtheft.a
+TEST_COMPILE = $(CC) $(CFLAGS) $(TEST_INCLUDES)
+RUN_WITH_LIB = LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH)
 
 .PRECIOUS: $(TEST_BIN)/%
-$(TEST_BIN)/%: $(OBJDIR)/$(TEST_SRC)/%.o $(OBJDIR)/lib.so
-	mkdir -p $(TEST_BIN)
-	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h -lm $< vendor/theft/build/libtheft.a
+$(TEST_BIN)/%: $(OBJDIR)/$(TEST_SRC)/%.o $(OBJDIR)/lib.so | $(TEST_BIN)
+	$(TEST_COMPILE) -o $@ $(TEST_LIBS) $<
 
 # Special rule for test.c binary that links all test object files
-$(TEST_BIN)/test: $(TEST_SRC)/test.c $(TEST_ALL_OBJS) $(OBJDIR)/lib.so
-	mkdir -p $(TEST_BIN)
-	$(CC) $(CFLAGS) -o $@ -L$(OBJDIR) -l:lib.so -I src -I vendor/greatest -lm $(TEST_SRC)/test.c $(TEST_ALL_OBJS) vendor/theft/build/libtheft.a 
+$(TEST_BIN)/test: $(TEST_SRC)/test.c $(TEST_OBJS) $(OBJDIR)/lib.so | $(TEST_BIN)
+	$(TEST_COMPILE) -o $@ $(TEST_SRC)/test.c $(TEST_OBJS) $(TEST_LIBS) 
+
+$(TEST_BIN):
+	mkdir -p $@
 
 test: $(TEST_BIN)/test
-	@LD_LIBRARY_PATH=.obj:$(LD_LIBRARY_PATH) ./$(TEST_BIN)/test
+	@$(RUN_WITH_LIB) ./$(TEST_BIN)/test
 
 # ------------------------------------------------------------------------------
 # Automatic bench dispatch
