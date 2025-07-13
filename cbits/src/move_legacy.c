@@ -349,10 +349,10 @@ def build_func(color, rotation, level):
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
-  op_layer_bit(b.{color}{rotation}, orig, -=);
-  op_layer_bit(b.{color}{rotation}, dest, |=);
+  OP_LAYER_BIT(b.{color}{rotation}, orig, -=);
+  OP_LAYER_BIT(b.{color}{rotation}, dest, |=);
 
-  is_capture = op_layer_bit(cap_dests, dest, &);"""
+  is_capture = OP_LAYER_BIT(cap_dests, dest, &);"""
 
     main_half_handler = f"""
   b.{color}{rotation}._[{index}] -= (u64)1 << orig;
@@ -389,12 +389,12 @@ void process_move_{color}{rotation}_{level}(
   uint8_t orig_r = {rotation_table}[orig];
   uint8_t dest_r = {rotation_table}[dest];
 
-  op_layer_bit(b.{color}{op_rotation}, orig_r, -=);
-  op_layer_bit(b.{color}{op_rotation}, dest_r, |=);
+  OP_LAYER_BIT(b.{color}{op_rotation}, orig_r, -=);
+  OP_LAYER_BIT(b.{color}{op_rotation}, dest_r, |=);
 
   if (is_capture) {{
-    layer friends = layer_or(b.{color}{rotation}, corners);
-    {"friends = layer_or(friends, b.king);" if is_black else ""}
+    layer friends = LAYER_OR(b.{color}{rotation}, corners);
+    {"friends = LAYER_OR(friends, b.king);" if is_black else ""}
 
     apply_captures_niave(
         friends,
@@ -437,12 +437,12 @@ void process_move_black_lower(
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
-  op_layer_bit(b.black_r, orig_r, -=);
-  op_layer_bit(b.black_r, dest_r, |=);
+  OP_LAYER_BIT(b.black_r, orig_r, -=);
+  OP_LAYER_BIT(b.black_r, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.black, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.black, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
@@ -468,20 +468,20 @@ void process_move_black_middle(
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
-  op_layer_bit(b.black, orig, -=);
-  op_layer_bit(b.black, dest, |=);
+  OP_LAYER_BIT(b.black, orig, -=);
+  OP_LAYER_BIT(b.black, dest, |=);
 
-  is_capture = op_layer_bit(cap_dests, dest, &);
+  is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
-  op_layer_bit(b.black_r, orig_r, -=);
-  op_layer_bit(b.black_r, dest_r, |=);
+  OP_LAYER_BIT(b.black_r, orig_r, -=);
+  OP_LAYER_BIT(b.black_r, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.black, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.black, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
@@ -518,12 +518,12 @@ void process_move_black_upper(
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
-  op_layer_bit(b.black_r, orig_r, -=);
-  op_layer_bit(b.black_r, dest_r, |=);
+  OP_LAYER_BIT(b.black_r, orig_r, -=);
+  OP_LAYER_BIT(b.black_r, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.black, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.black, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
@@ -555,12 +555,12 @@ void process_move_black_r_lower(
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
-  op_layer_bit(b.black, orig_r, -=);
-  op_layer_bit(b.black, dest_r, |=);
+  OP_LAYER_BIT(b.black, orig_r, -=);
+  OP_LAYER_BIT(b.black, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.black_r, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.black_r, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
@@ -586,20 +586,20 @@ void process_move_black_r_middle(
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
-  op_layer_bit(b.black_r, orig, -=);
-  op_layer_bit(b.black_r, dest, |=);
+  OP_LAYER_BIT(b.black_r, orig, -=);
+  OP_LAYER_BIT(b.black_r, dest, |=);
 
-  is_capture = op_layer_bit(cap_dests, dest, &);
+  is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
-  op_layer_bit(b.black, orig_r, -=);
-  op_layer_bit(b.black, dest_r, |=);
+  OP_LAYER_BIT(b.black, orig_r, -=);
+  OP_LAYER_BIT(b.black, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.black_r, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.black_r, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
@@ -636,12 +636,12 @@ void process_move_black_r_upper(
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
-  op_layer_bit(b.black, orig_r, -=);
-  op_layer_bit(b.black, dest_r, |=);
+  OP_LAYER_BIT(b.black, orig_r, -=);
+  OP_LAYER_BIT(b.black, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.black_r, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.black_r, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
@@ -673,12 +673,12 @@ void process_move_white_lower(
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
-  op_layer_bit(b.white_r, orig_r, -=);
-  op_layer_bit(b.white_r, dest_r, |=);
+  OP_LAYER_BIT(b.white_r, orig_r, -=);
+  OP_LAYER_BIT(b.white_r, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.white, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.white, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
@@ -704,20 +704,20 @@ void process_move_white_middle(
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
-  op_layer_bit(b.white, orig, -=);
-  op_layer_bit(b.white, dest, |=);
+  OP_LAYER_BIT(b.white, orig, -=);
+  OP_LAYER_BIT(b.white, dest, |=);
 
-  is_capture = op_layer_bit(cap_dests, dest, &);
+  is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
-  op_layer_bit(b.white_r, orig_r, -=);
-  op_layer_bit(b.white_r, dest_r, |=);
+  OP_LAYER_BIT(b.white_r, orig_r, -=);
+  OP_LAYER_BIT(b.white_r, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.white, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.white, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
@@ -754,12 +754,12 @@ void process_move_white_upper(
   uint8_t orig_r = rotate_right[orig];
   uint8_t dest_r = rotate_right[dest];
 
-  op_layer_bit(b.white_r, orig_r, -=);
-  op_layer_bit(b.white_r, dest_r, |=);
+  OP_LAYER_BIT(b.white_r, orig_r, -=);
+  OP_LAYER_BIT(b.white_r, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.white, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.white, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
@@ -791,12 +791,12 @@ void process_move_white_r_lower(
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
-  op_layer_bit(b.white, orig_r, -=);
-  op_layer_bit(b.white, dest_r, |=);
+  OP_LAYER_BIT(b.white, orig_r, -=);
+  OP_LAYER_BIT(b.white, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.white_r, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.white_r, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
@@ -822,20 +822,20 @@ void process_move_white_r_middle(
   // for a center row we should offset by 55 from the start
   orig += 55;
   dest += 55;
-  op_layer_bit(b.white_r, orig, -=);
-  op_layer_bit(b.white_r, dest, |=);
+  OP_LAYER_BIT(b.white_r, orig, -=);
+  OP_LAYER_BIT(b.white_r, dest, |=);
 
-  is_capture = op_layer_bit(cap_dests, dest, &);
+  is_capture = OP_LAYER_BIT(cap_dests, dest, &);
 
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
-  op_layer_bit(b.white, orig_r, -=);
-  op_layer_bit(b.white, dest_r, |=);
+  OP_LAYER_BIT(b.white, orig_r, -=);
+  OP_LAYER_BIT(b.white, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.white_r, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.white_r, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
@@ -872,12 +872,12 @@ void process_move_white_r_upper(
   uint8_t orig_r = rotate_left[orig];
   uint8_t dest_r = rotate_left[dest];
 
-  op_layer_bit(b.white, orig_r, -=);
-  op_layer_bit(b.white, dest_r, |=);
+  OP_LAYER_BIT(b.white, orig_r, -=);
+  OP_LAYER_BIT(b.white, dest_r, |=);
 
   if (is_capture) {
-    layer friends = layer_or(b.white_r, corners);
-    friends = layer_or(friends, b.king);
+    layer friends = LAYER_OR(b.white_r, corners);
+    friends = LAYER_OR(friends, b.king);
 
     apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
@@ -933,10 +933,10 @@ void get_next_row_boards_center_{color}{rotation}(
     move *moves,
     const layer cap_dests
 ) {{
-  unsigned short movers = get_center_row(board->{color}{rotation});
+  unsigned short movers = GET_CENTER_ROW(board->{color}{rotation});
   while (movers) {{
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers = get_center_row(occ);
+    const unsigned short blockers = GET_CENTER_ROW(occ);
     uint16_t row_moves = row_moves_table[blockers][orig];
     while (row_moves) {{
       uint8_t dest = _tzcnt_u16(row_moves);
@@ -1157,10 +1157,10 @@ void get_next_row_boards_center_black(
     int *total,
     move *moves,
     const layer cap_dests) {
-  unsigned short movers = get_center_row(board->black);
+  unsigned short movers = GET_CENTER_ROW(board->black);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers = get_center_row(occ);
+    const unsigned short blockers = GET_CENTER_ROW(occ);
     uint16_t row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
       uint8_t dest = _tzcnt_u16(row_moves);
@@ -1183,10 +1183,10 @@ void get_next_row_boards_center_black_r(
     int *total,
     move *moves,
     const layer cap_dests) {
-  unsigned short movers = get_center_row(board->black_r);
+  unsigned short movers = GET_CENTER_ROW(board->black_r);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers = get_center_row(occ);
+    const unsigned short blockers = GET_CENTER_ROW(occ);
     uint16_t row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
       uint8_t dest = _tzcnt_u16(row_moves);
@@ -1209,10 +1209,10 @@ void get_next_row_boards_center_white(
     int *total,
     move *moves,
     const layer cap_dests) {
-  unsigned short movers = get_center_row(board->white);
+  unsigned short movers = GET_CENTER_ROW(board->white);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers = get_center_row(occ);
+    const unsigned short blockers = GET_CENTER_ROW(occ);
     uint16_t row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
       uint8_t dest = _tzcnt_u16(row_moves);
@@ -1235,10 +1235,10 @@ void get_next_row_boards_center_white_r(
     int *total,
     move *moves,
     const layer cap_dests) {
-  unsigned short movers = get_center_row(board->white_r);
+  unsigned short movers = GET_CENTER_ROW(board->white_r);
   while (movers) {
     uint8_t orig = _tzcnt_u16(movers);
-    const unsigned short blockers = get_center_row(occ);
+    const unsigned short blockers = GET_CENTER_ROW(occ);
     uint16_t row_moves = row_moves_table[blockers][orig];
     while (row_moves) {
       uint8_t dest = _tzcnt_u16(row_moves);
@@ -1289,12 +1289,12 @@ the position to each of those in parallel. uint8_t to_blocker = _tzcnt_u64(occ);
 
 layer find_capture_destinations(
     const layer allies, const layer foes, const layer occ) {
-  layer north = LAYER_SHIFTL_SHORT(layer_and(LAYER_SHIFTL_SHORT(allies, 11), foes), 11);
-  layer south = layer_shiftr(layer_and(layer_shiftr(allies, 11), foes), 11);
-  layer east = layer_shiftr(
-      layer_and(layer_shiftr(layer_and(allies, drop_2_east), 1), foes), 1);
+  layer north = LAYER_SHIFTL_SHORT(LAYER_AND(LAYER_SHIFTL_SHORT(allies, 11), foes), 11);
+  layer south = LAYER_SHIFTR(LAYER_AND(LAYER_SHIFTR(allies, 11), foes), 11);
+  layer east = LAYER_SHIFTR(
+      LAYER_AND(LAYER_SHIFTR(LAYER_AND(allies, drop_2_east), 1), foes), 1);
   layer west = LAYER_SHIFTL_SHORT(
-      layer_and(LAYER_SHIFTL_SHORT(layer_and(allies, drop_2_west), 1), foes), 1);
+      LAYER_AND(LAYER_SHIFTL_SHORT(LAYER_AND(allies, drop_2_west), 1), foes), 1);
   return (layer){
       (north._[0] | south._[0] | east._[0] | west._[0]) & (~occ._[0]),
       (north._[1] | south._[1] | east._[1] | west._[1]) & (~occ._[1])};
@@ -1314,9 +1314,9 @@ void get_team_moves_{color}(
 ) {{
   const layer occ = board_occ(current);
   const layer occ_r = board_occ_r(current);
-  layer allies = layer_or(current.{color}, corners);
-  {"allies = layer_or(allies, current.king);" if color == "white" else ""}
-  layer allies_r = layer_or(current.{color}_r, corners);
+  layer allies = LAYER_OR(current.{color}, corners);
+  {"allies = LAYER_OR(allies, current.king);" if color == "white" else ""}
+  layer allies_r = LAYER_OR(current.{color}_r, corners);
   layer foes = current.{"white" if color == "black" else "black"};
   layer foes_r = current.{"white" if color == "black" else "black"}_r;
 
@@ -1373,9 +1373,9 @@ void get_team_moves_white(
     const board current, int *total, move *moves, board *boards) {
   const layer occ = board_occ(current);
   const layer occ_r = board_occ_r(current);
-  layer allies = layer_or(current.white, corners);
-  allies = layer_or(allies, current.king);
-  layer allies_r = layer_or(current.white_r, corners);
+  layer allies = LAYER_OR(current.white, corners);
+  allies = LAYER_OR(allies, current.king);
+  layer allies_r = LAYER_OR(current.white_r, corners);
   layer foes = current.black;
   layer foes_r = current.black_r;
 
@@ -1455,9 +1455,9 @@ void get_team_moves_black(
     const board current, int *total, move *moves, board *boards) {
   const layer occ = board_occ(current);
   const layer occ_r = board_occ_r(current);
-  layer allies = layer_or(current.black, corners);
+  layer allies = LAYER_OR(current.black, corners);
 
-  layer allies_r = layer_or(current.black_r, corners);
+  layer allies_r = LAYER_OR(current.black_r, corners);
   layer foes = current.white;
   layer foes_r = current.white_r;
 
@@ -1560,13 +1560,13 @@ void get_king_moves(
       board new_board = current;
       new_board.king._[0] = (u64)1 << dest;
       new_board.king._[1] = 0;
-      new_board.king_r._[!sub_layer(dest_r)] = 0;
-      new_board.king_r._[sub_layer(dest_r)] =
+      new_board.king_r._[!SUB_LAYER(dest_r)] = 0;
+      new_board.king_r._[SUB_LAYER(dest_r)] =
           (u64)1 << (sub_layer_offset_direct[dest_r]);
       // handle captures
       // if (capture_dests[0] & (1 << dest)) {
       apply_captures_niave(
-          layer_or(new_board.white, corners),
+          LAYER_OR(new_board.white, corners),
           &new_board.black,
           &new_board.black_r,
           dest);
@@ -1593,11 +1593,11 @@ void get_king_moves(
       board new_board = current;
       new_board.king._[0] = 0;
       new_board.king._[1] = (u64)1 << sub_dest;
-      new_board.king_r._[!sub_layer(dest_r)] = 0;
-      new_board.king_r._[sub_layer(dest_r)] =
+      new_board.king_r._[!SUB_LAYER(dest_r)] = 0;
+      new_board.king_r._[SUB_LAYER(dest_r)] =
           (u64)1 << (sub_layer_offset_direct[dest_r]);
       apply_captures_niave(
-          layer_or(new_board.white, corners),
+          LAYER_OR(new_board.white, corners),
           &new_board.black,
           &new_board.black_r,
           dest);
@@ -1611,7 +1611,7 @@ void get_king_moves(
     // center
 
     uint8_t local_orig = orig - 55;
-    uint16_t blockers = get_center_row(occ);
+    uint16_t blockers = GET_CENTER_ROW(occ);
     // we can use the normal one because we're the king
     uint16_t row_moves = row_moves_table[blockers][local_orig];
     while (row_moves) {
@@ -1621,16 +1621,16 @@ void get_king_moves(
       moves[*total] = (struct move){orig, dest};
       // generate board
       board new_board = current;
-      new_board.king._[!sub_layer(dest)] = 0;
-      new_board.king._[sub_layer(dest)] = (u64)1
+      new_board.king._[!SUB_LAYER(dest)] = 0;
+      new_board.king._[SUB_LAYER(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
-      new_board.king_r._[!sub_layer(dest_r)] = 0;
-      new_board.king_r._[sub_layer(dest_r)] =
+      new_board.king_r._[!SUB_LAYER(dest_r)] = 0;
+      new_board.king_r._[SUB_LAYER(dest_r)] =
           (u64)1 << (sub_layer_offset_direct[dest_r]);
       // handle captures
       // if (capture_dests[1] & (1 << sub_dest)) {
       apply_captures_niave(
-          layer_or(new_board.white, corners),
+          LAYER_OR(new_board.white, corners),
           &new_board.black,
           &new_board.black_r,
           dest);
@@ -1661,15 +1661,15 @@ void get_king_moves(
       moves[*total] = (struct move){orig, dest};
       // generate board
       board new_board = current;
-      new_board.king._[sub_layer(dest)] = (u64)1
+      new_board.king._[SUB_LAYER(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
-      new_board.king._[!sub_layer(dest)] = 0;
+      new_board.king._[!SUB_LAYER(dest)] = 0;
       new_board.king_r._[0] = (u64)1 << dest_r;
       new_board.king_r._[1] = 0;
       // handle captures
       // if (capture_dests[0] & (1 << dest)) {
       apply_captures_niave(
-          layer_or(new_board.white, corners),
+          LAYER_OR(new_board.white, corners),
           &new_board.black,
           &new_board.black_r,
           dest);
@@ -1695,13 +1695,13 @@ void get_king_moves(
       moves[*total] = (struct move){orig, dest};
       // generate board
       board new_board = current;
-      new_board.king._[!sub_layer(dest)] = 0;
-      new_board.king._[sub_layer(dest)] = (u64)1
+      new_board.king._[!SUB_LAYER(dest)] = 0;
+      new_board.king._[SUB_LAYER(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
       new_board.king_r._[0] = 0;
       new_board.king_r._[1] = (u64)1 << sub_dest;
       apply_captures_niave(
-          layer_or(new_board.white, corners),
+          LAYER_OR(new_board.white, corners),
           &new_board.black,
           &new_board.black_r,
           dest);
@@ -1715,7 +1715,7 @@ void get_king_moves(
     // center
 
     uint8_t local_orig = orig_r - 55;
-    uint16_t blockers = get_center_row(occ_r);
+    uint16_t blockers = GET_CENTER_ROW(occ_r);
     // we can use the normal one because we're the king
     uint16_t row_moves = row_moves_table[blockers][local_orig];
     while (row_moves) {
@@ -1725,15 +1725,15 @@ void get_king_moves(
       moves[*total] = (struct move){orig, dest};
       // generate board
       board new_board = current;
-      new_board.king._[!sub_layer(dest)] = 0;
-      new_board.king._[sub_layer(dest)] = (u64)1
+      new_board.king._[!SUB_LAYER(dest)] = 0;
+      new_board.king._[SUB_LAYER(dest)] = (u64)1
                                           << (sub_layer_offset_direct[dest]);
-      new_board.king_r._[!sub_layer(dest_r)] = 0;
-      new_board.king_r._[sub_layer(dest_r)] =
+      new_board.king_r._[!SUB_LAYER(dest_r)] = 0;
+      new_board.king_r._[SUB_LAYER(dest_r)] =
           (u64)1 << (sub_layer_offset_direct[dest_r]);
 
       apply_captures_niave(
-          layer_or(new_board.white, corners),
+          LAYER_OR(new_board.white, corners),
           &new_board.black,
           &new_board.black_r,
           dest);
@@ -1778,22 +1778,22 @@ layer gen_shield_wall_triggers(
 
   // east
   {
-    layer edges = layer_and(foes, layer_shiftr(allies, 1));
-    layer up = layer_and(occ, LAYER_SHIFTL_SHORT(edges, 11));
-    layer down = layer_and(occ, layer_shiftr(edges, 11));
-    triggers = layer_or(triggers, layer_or(up, down));
+    layer edges = LAYER_AND(foes, LAYER_SHIFTR(allies, 1));
+    layer up = LAYER_AND(occ, LAYER_SHIFTL_SHORT(edges, 11));
+    layer down = LAYER_AND(occ, LAYER_SHIFTR(edges, 11));
+    triggers = LAYER_OR(triggers, LAYER_OR(up, down));
   }
 
   // west
   {
-    layer edges = layer_and(foes, LAYER_SHIFTL_SHORT(allies, 1));
-    layer up = layer_and(occ, LAYER_SHIFTL_SHORT(edges, 11));
-    layer down = layer_and(occ, layer_shiftr(edges, 11));
-    triggers = layer_or(triggers, layer_or(up, down));
+    layer edges = LAYER_AND(foes, LAYER_SHIFTL_SHORT(allies, 1));
+    layer up = LAYER_AND(occ, LAYER_SHIFTL_SHORT(edges, 11));
+    layer down = LAYER_AND(occ, LAYER_SHIFTR(edges, 11));
+    triggers = LAYER_OR(triggers, LAYER_OR(up, down));
   }
 
   // only at the end do we apply the edge mask.
-  triggers = layer_and(triggers, EDGES);
+  triggers = LAYER_AND(triggers, EDGES);
 
   return triggers;
 }
@@ -1819,25 +1819,25 @@ process:
 
     // north
     dest = orig;
-    int rank = rank(orig);
+    int rank = RANK(orig);
     int remaining_north = 10 - rank;
     while (remaining_north--) {
       dest += 11;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_black(&b2, dest);
 
       bs[(*total)] = b2;
@@ -1847,24 +1847,24 @@ process:
 
     // south
     dest = orig;
-    // rank = rank(orig);
+    // rank = RANK(orig);
     while (rank--) {
       dest -= 11;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_black(&b2, dest);
 
       bs[(*total)] = b2;
@@ -1874,25 +1874,25 @@ process:
 
     // west
     dest = orig;
-    int file = file(orig);
+    int file = FILE(orig);
     int remaining_south = 10 - file;
     while (remaining_south--) {
       dest += 1;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_black(&b2, dest);
 
       bs[(*total)] = b2;
@@ -1902,24 +1902,24 @@ process:
 
     // east
     dest = orig;
-    // file = file(orig);
+    // file = FILE(orig);
     while (file--) {
       dest -= 1;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_black(&b2, dest);
 
       bs[(*total)] = b2;
@@ -1959,25 +1959,25 @@ process:
 
     // north
     dest = orig;
-    int rank = rank(orig);
+    int rank = RANK(orig);
     int remaining_north = 10 - rank;
     while (remaining_north--) {
       dest += 11;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.white, orig, |=);
-      op_layer_bit(b2.white_r, rotate_right[orig], |=);
-      op_layer_bit(b2.white, dest, |=);
-      op_layer_bit(b2.white_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.white, orig, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.white, dest, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_white(&b2, dest);
 
       bs[(*total)] = b2;
@@ -1987,24 +1987,24 @@ process:
 
     // south
     dest = orig;
-    // rank = rank(orig);
+    // rank = RANK(orig);
     while (rank--) {
       dest -= 11;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.white, orig, |=);
-      op_layer_bit(b2.white_r, rotate_right[orig], |=);
-      op_layer_bit(b2.white, dest, |=);
-      op_layer_bit(b2.white_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.white, orig, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.white, dest, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_white(&b2, dest);
 
       bs[(*total)] = b2;
@@ -2014,25 +2014,25 @@ process:
 
     // west
     dest = orig;
-    int file = file(orig);
+    int file = FILE(orig);
     int remaining_south = 10 - file;
     while (remaining_south--) {
       dest += 1;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.white, orig, |=);
-      op_layer_bit(b2.white_r, rotate_right[orig], |=);
-      op_layer_bit(b2.white, dest, |=);
-      op_layer_bit(b2.white_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.white, orig, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.white, dest, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_white(&b2, dest);
 
       bs[(*total)] = b2;
@@ -2042,24 +2042,24 @@ process:
 
     // east
     dest = orig;
-    // file = file(orig);
+    // file = FILE(orig);
     while (file--) {
       dest -= 1;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
       if (dest == 60)
         continue;
 
       board b2 = b;
-      op_layer_bit(b2.white, orig, |=);
-      op_layer_bit(b2.white_r, rotate_right[orig], |=);
-      op_layer_bit(b2.white, dest, |=);
-      op_layer_bit(b2.white_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.white, orig, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.white, dest, |=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (check_index(shield_dests, dest))
+      if (CHECK_INDEX(shield_dests, dest))
         shield_wall_white(&b2, dest);
 
       bs[(*total)] = b2;
@@ -2102,8 +2102,8 @@ int get_king_move_count(const board b) {
     // total += row_move_count_table[blockers][row_orig];
     total += __builtin_popcount(get_row_moves(blockers, row_orig));
   } else {
-    uint8_t orig = _tzcnt_u16(get_center_row(b.king));
-    uint16_t blockers = get_center_row(occ);
+    uint8_t orig = _tzcnt_u16(GET_CENTER_ROW(b.king));
+    uint16_t blockers = GET_CENTER_ROW(occ);
     // total += row_move_count_table[blockers][local_orig];
     total += __builtin_popcount(get_row_moves(blockers, orig));
   }
@@ -2128,7 +2128,7 @@ int get_king_move_count(const board b) {
   } else {
     // center
     const uint8_t local_orig = orig_r - 55;
-    const uint16_t blockers = get_center_row(occ_r);
+    const uint16_t blockers = GET_CENTER_ROW(occ_r);
     // total += row_move_count_table[blockers][local_orig];
     total += __builtin_popcount(get_row_moves(blockers, local_orig));
   }

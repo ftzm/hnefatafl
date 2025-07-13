@@ -688,8 +688,8 @@ axis _i should be interpreted as. _i is an int constant. */
 #define GET_AXIS_VAL(_axis, _i) JOIN(GET_AXIS_VAL, _axis)(_i)
 
 #define ADD_MOVE(_pos)                                                         \
-  op_layer_bit(paths[(*total)], _pos, |=);                                     \
-  op_layer_bit(paths_r[(*total)], rotate_right[_pos], |=);                     \
+  OP_LAYER_BIT(paths[(*total)], _pos, |=);                                     \
+  OP_LAYER_BIT(paths_r[(*total)], rotate_right[_pos], |=);                     \
   (*total)++;
 
 // this is used directly from the king, so there's no intermediate

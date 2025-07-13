@@ -42,7 +42,7 @@ typedef struct move {
 
 int cmp_moves(const move *a, const move *b);
 
-#define moves_equal(a, b) (a.orig == b.orig && a.dest == b.dest)
+#define MOVES_EQUAL(a, b) (a.orig == b.orig && a.dest == b.dest)
 
 void moves_to(
     layer targets,

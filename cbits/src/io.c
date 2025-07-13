@@ -15,7 +15,7 @@ layer read_layer(const char *string, uint8_t symbol) {
   for (int i = 0; i < len; i++) {
     char c = string[i];
     if (c == symbol) {
-      output._[sub_layer(index)] |=
+      output._[SUB_LAYER(index)] |=
           ((uint64_t)1 << sub_layer_offset_direct[index]);
       index--;
     } else if (c == ' ') {
@@ -42,7 +42,7 @@ layer_string stringify(layer layer) {
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
     int index = 375 - (((i * 3) + 3) + newline_offset);
-    if (layer._[sub_layer(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])) {
+    if (layer._[SUB_LAYER(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])) {
       string._[index] = 'X';
     } else {
       string._[index] = '.';
@@ -70,7 +70,7 @@ void print_layer(layer layer) {
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
     int index = 373 - (((i * 3) + 1) + newline_offset);
-    if (layer._[sub_layer(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])) {
+    if (layer._[SUB_LAYER(i)] & ((uint64_t)1 << sub_layer_offset_direct[i])) {
       string[index] = 'X';
     } else {
       string[index] = '.';
@@ -136,15 +136,15 @@ inline uint fmt_index(uint index) {
 void fmt_board(board board, char *input) {
   for (int board_index = 120; board_index > -1; board_index--) {
     int string_index = fmt_index(board_index);
-    if (board.black._[sub_layer(board_index)] &
+    if (board.black._[SUB_LAYER(board_index)] &
         ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'X';
     } else if (
-        board.white._[sub_layer(board_index)] &
+        board.white._[SUB_LAYER(board_index)] &
         ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'O';
     } else if (
-        board.king._[sub_layer(board_index)] &
+        board.king._[SUB_LAYER(board_index)] &
         ((uint64_t)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = '#';
     }

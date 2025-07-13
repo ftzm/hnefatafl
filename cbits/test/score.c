@@ -89,25 +89,25 @@ void score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
 // -----------------------------------------------------------------------------
 
 inline layer unoccupied(const board *b) {
-  layer res = layer_neg(board_occ(*b));
+  layer res = LAYER_NEG(board_occ(*b));
   res._[1] &= UPPER_HALF_MASK;
   return res;
 }
 
 inline layer unoccupied_r(const board *b) {
-  layer res = layer_neg(board_occ_r(*b));
+  layer res = LAYER_NEG(board_occ_r(*b));
   res._[1] &= UPPER_HALF_MASK;
   return res;
 }
 
 inline layer unoccupied_king(const board *b) {
-  layer res = layer_neg(king_board_occ(*b));
+  layer res = LAYER_NEG(king_board_occ(*b));
   res._[1] &= UPPER_HALF_MASK;
   return res;
 }
 
 inline layer unoccupied_king_r(const board *b) {
-  layer res = layer_neg(king_board_occ(*b));
+  layer res = LAYER_NEG(king_board_occ(*b));
   res._[1] &= UPPER_HALF_MASK;
   return res;
 }

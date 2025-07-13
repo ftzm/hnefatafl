@@ -16,7 +16,7 @@ inline uint64_t my_random_choice(struct theft *t, int limit) {
 inline board theft_create_board(struct theft *t) {
   layer occ = corners;
   // set throne in occ
-  op_layer_bit(occ, 60, |=);
+  OP_LAYER_BIT(occ, 60, |=);
 
   layer black = EMPTY_LAYER;
   uint64_t black_count = theft_random_choice_between(t, 1, 25);
@@ -24,11 +24,11 @@ inline board theft_create_board(struct theft *t) {
   while (black_count) {
     uint64_t index = my_random_choice(t, 120);
     // printf("black index: %ld\n", index);
-    if (check_index(occ, index)) {
+    if (CHECK_INDEX(occ, index)) {
       continue;
     }
-    op_layer_bit(black, index, |=);
-    op_layer_bit(occ, index, |=);
+    OP_LAYER_BIT(black, index, |=);
+    OP_LAYER_BIT(occ, index, |=);
     black_count--;
   }
   layer black_r = rotate_layer_right(black);
@@ -39,28 +39,28 @@ inline board theft_create_board(struct theft *t) {
   while (white_count) {
     uint64_t index = my_random_choice(t, 120);
     // printf("white index: %ld\n", index);
-    if (check_index(occ, index)) {
+    if (CHECK_INDEX(occ, index)) {
       continue;
     }
-    op_layer_bit(white, index, |=);
-    op_layer_bit(occ, index, |=);
+    OP_LAYER_BIT(white, index, |=);
+    OP_LAYER_BIT(occ, index, |=);
     white_count--;
   }
   layer white_r = rotate_layer_right(white);
 
   // unset throne in occ
-  op_layer_bit(occ, 60, |=);
+  OP_LAYER_BIT(occ, 60, |=);
   layer king = EMPTY_LAYER;
   int attempts = 100;
   while (attempts) {
     // printf("king attempts: %d\n", attempts);
     uint64_t index = my_random_choice(t, 120);
     // printf("king index: %ld\n", index);
-    if (check_index(occ, index)) {
+    if (CHECK_INDEX(occ, index)) {
       attempts--;
       continue;
     }
-    op_layer_bit(king, index, |=);
+    OP_LAYER_BIT(king, index, |=);
     // printf("prebreak\n");
     break;
   }

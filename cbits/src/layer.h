@@ -55,36 +55,33 @@ extern const uint8_t rotate_left[121];
 
 // #define sub_layer(i) (i > 63)
 // benchmarks suggest the lookup table is actually faster
-#define sub_layer(i) (sub_layer_table[i])
+#define SUB_LAYER(i) (sub_layer_table[i])
 
-#define op_layer_bit(l, b, op)                                                 \
-  (l._[sub_layer(b)] op((uint64_t)1 << sub_layer_offset_direct[b]))
-#define op_layer_bit_ptr(l, b, op)                                             \
-  (l->_[sub_layer(b)] op((uint64_t)1 << sub_layer_offset_direct[b]))
+#define OP_LAYER_BIT(l, b, op)                                                 \
+  (l._[SUB_LAYER(b)] op((uint64_t)1 << sub_layer_offset_direct[b]))
+#define OP_LAYER_BIT_PTR(l, b, op)                                             \
+  (l->_[SUB_LAYER(b)] op((uint64_t)1 << sub_layer_offset_direct[b]))
 
-#define layer_bin_op(a, b, op)                                                 \
+#define LAYER_BIN_OP(a, b, op)                                                 \
   ((layer){._ = {a._[0] op b._[0], a._[1] op b._[1]}})
 
 // #define layer_or(a, b) ((layer) {._ = {a._[0] | b._[0], a._[1] | b._[1]}})
-#define layer_or(a, b) layer_bin_op(a, b, |)
-#define LAYER_XOR layer_xor
+#define LAYER_OR(a, b) LAYER_BIN_OP(a, b, |)
 
 // #define layer_and(a, b) ((layer) {._ = {a._[0] & b._[0], a._[1] & b._[1]}})
-#define layer_and(a, b) layer_bin_op(a, b, &)
-#define LAYER_AND layer_and
+#define LAYER_AND(a, b) LAYER_BIN_OP(a, b, &)
 
 // #define layer_xor(a, b) ((layer) {._ = {a._[0] ^ b._[0], a._[1] ^ b._[1]}})
-#define layer_xor(a, b) layer_bin_op(a, b, ^)
-#define LAYER_OR layer_or
+#define LAYER_XOR(a, b) LAYER_BIN_OP(a, b, ^)
 
-#define layer_neg(a) ((layer){._ = {~a._[0], ~a._[1]}})
+#define LAYER_NEG(a) ((layer){._ = {~a._[0], ~a._[1]}})
 
 // can only be called with n > 0 && n < 65
 #define LAYER_SHIFTL_SHORT(l, n)                                               \
   ((layer){l._[0] << n, (l._[1] << n) | (l._[0] >> (64 - n))})
 
 // can only be called with n > 0 && n < 65
-#define layer_shiftr(l, n)                                                     \
+#define LAYER_SHIFTR(l, n)                                                     \
   ((layer){(l._[0] >> n) | (l._[1] << (64 - n)), l._[1] >> n})
 
 // can be called with any value, though we assume it doesn't exceed (-)128
@@ -96,20 +93,19 @@ inline layer layer_shift(layer l, int n) {
   } else if (n < -64) {
     return (layer) {l._[1] >> -(n + 64), 0};
   } else if (n < 0) {
-    return layer_shiftr(l, n);
+    return LAYER_SHIFTR(l, n);
   } else {
     return l;
   }
 }
 
-#define check_index(layer, i)                                                  \
-  (layer._[sub_layer(i)] & ((uint64_t)1 << sub_layer_offset_direct[i]))
-#define CHECK_INDEX check_index
+#define CHECK_INDEX(layer, i)                                                  \
+  (layer._[SUB_LAYER(i)] & ((uint64_t)1 << sub_layer_offset_direct[i]))
 
 #define SET_INDEX(layer, i)                                                    \
-  layer._[sub_layer(i)] |= ((uint64_t)1 << sub_layer_offset_direct[i])
+  layer._[SUB_LAYER(i)] |= ((uint64_t)1 << sub_layer_offset_direct[i])
 
-#define get_center_row(layer)                                                  \
+#define GET_CENTER_ROW(layer)                                                  \
   (((uint64_t)layer._[0] >> 55) |                                              \
    ((((uint64_t)layer._[1] & 0x3) << 9) & 0b11111111111))
 #define SET_CENTER_ROW(_layer, _row)                                           \
@@ -124,11 +120,11 @@ inline layer layer_shift(layer l, int n) {
 
 extern const uint8_t rank_table[121];
 
-#define rank(_a) (rank_table[_a])
+#define RANK(_a) (rank_table[_a])
 
 extern const uint8_t file_table[121];
 
-#define file(_a) (file_table[_a])
+#define FILE(_a) (file_table[_a])
 
 static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
 
@@ -153,9 +149,8 @@ static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
   _x->_[0] ^= _y._[0];                                                         \
   _x->_[1] ^= _y._[1]
 
-#define lowest_index(layer)                                                    \
+#define LOWEST_INDEX(layer)                                                    \
   (layer._[0] ? _tzcnt_u64(layer._[0]) : _tzcnt_u64(layer._[1]) + 64)
-#define LOWEST_INDEX lowest_index
 
 #define LOWER_HALF_MASK ((uint64_t)36028797018963967ULL)
 #define UPPER_HALF_MASK ((uint64_t)144115188075855868ULL)

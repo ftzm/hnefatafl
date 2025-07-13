@@ -19,12 +19,12 @@ void draw_horizontal(int rank, int file, int dest_file, layer *l) {
   if (dest_file > file) {
     for (int f = file + 1; f <= dest_file; f++) {
       int pos = (rank * 11) + f;
-      op_layer_bit_ptr(l, pos, |=);
+      OP_LAYER_BIT_PTR(l, pos, |=);
     }
   } else if (dest_file < file) {
     for (int f = file - 1; f >= dest_file; f--) {
       int pos = (rank * 11) + f;
-      op_layer_bit_ptr(l, pos, |=);
+      OP_LAYER_BIT_PTR(l, pos, |=);
     }
   }
 }
@@ -33,12 +33,12 @@ void draw_vertical(int rank, int file, int dest_rank, layer *l) {
   if (dest_rank > rank) {
     for (int r = rank + 1; r <= dest_rank; r++) {
       int pos = (r * 11) + file;
-      op_layer_bit_ptr(l, pos, |=);
+      OP_LAYER_BIT_PTR(l, pos, |=);
     }
   } else if (dest_rank < rank) {
     for (int r = rank - 1; r >= dest_rank; r--) {
       int pos = (r * 11) + file;
-      op_layer_bit_ptr(l, pos, |=);
+      OP_LAYER_BIT_PTR(l, pos, |=);
     }
   }
 }
@@ -133,12 +133,12 @@ corner_paths_2_cb(struct theft *t, void *env, void **instance) {
   layer y = EMPTY_LAYER;
   layer y_r = EMPTY_LAYER;
 
-  int king_pos = lowest_index(b.king);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
 
-  layer occ = layer_or(b.white, b.black);
-  layer occ_r = layer_or(b.white_r, b.black_r);
+  layer occ = LAYER_OR(b.white, b.black);
+  layer occ_r = LAYER_OR(b.white_r, b.black_r);
 
   corner_paths_2(occ, occ_r, king_rank, king_file, &x, &x_r);
   corner_paths_2_ref(
@@ -235,7 +235,7 @@ bool moves_to_ref(
       draw_horizontal(dest_rank, file, dest_file, &candidate);
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
 	int i = (dest_rank * 11) + file;
-	op_layer_bit_ptr(l, i, |=);
+	OP_LAYER_BIT_PTR(l, i, |=);
       }
     }
   }
@@ -259,7 +259,7 @@ bool moves_to_ref(
       draw_vertical(rank, dest_file, dest_rank, &candidate);
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
 	int i = (rank * 11) + dest_file;
-	op_layer_bit_ptr(l, i, |=);
+	OP_LAYER_BIT_PTR(l, i, |=);
       }
     }
   }
@@ -307,12 +307,12 @@ corner_moves_2_cb(struct theft *t, void *env, void **instance) {
   layer y = EMPTY_LAYER;
   layer y_r = EMPTY_LAYER;
 
-  int king_pos = lowest_index(b.king);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
 
-  layer occ = layer_or(b.white, b.black);
-  layer occ_r = layer_or(b.white_r, b.black_r);
+  layer occ = LAYER_OR(b.white, b.black);
+  layer occ_r = LAYER_OR(b.white_r, b.black_r);
 
   layer paths[8] = {{0}};
   layer paths_r[8] = {{0}};
@@ -417,9 +417,9 @@ TEST test_corner_moves_1(const char *b, bool should_escape) {
   layer occ = read_layer(b, 'X');
   layer occ_r = rotate_layer_right(occ);
   layer l = read_layer(b, '#');
-  int king_pos = lowest_index(l);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(l);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
   bool escape = corner_moves_1(occ, occ_r, king_rank, king_file);
   ASSERT(escape == should_escape);
   PASS();
@@ -842,9 +842,9 @@ TEST test_corner_paths_1(const char *b, const char *e) {
   layer occ_r = rotate_layer_right(occ);
 
   layer l = read_layer(b, '#');
-  int king_pos = lowest_index(l);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(l);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
 
   int count = 0;
   layer paths = EMPTY_LAYER;
@@ -1616,9 +1616,9 @@ TEST test_corner_paths_2(const char *b, const char *e) {
   layer occ_r = rotate_layer_right(occ);
 
   layer l = read_layer(b, '#');
-  int king_pos = lowest_index(l);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(l);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
 
   int count = 0;
   layer paths = EMPTY_LAYER;
@@ -1653,9 +1653,9 @@ TEST test_corner_moves_2(const char *b, const char *e, bool should_escape) {
   layer occ_r = rotate_layer_right(occ);
 
   layer l = read_layer(b, '#');
-  int king_pos = lowest_index(l);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(l);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
 
   int count = 0;
   layer paths[8] = {{0}};

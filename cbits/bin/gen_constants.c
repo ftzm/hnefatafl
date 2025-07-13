@@ -14,7 +14,7 @@ layer read_layer(const char *string, uint8_t symbol) {
   for (int i = 0; i < len; i++) {
     char c = string[i];
     if (c == symbol) {
-      output._[sub_layer(index)] |=
+      output._[SUB_LAYER(index)] |=
           ((uint64_t)1 << sub_layer_offset_direct[index]);
       index--;
     } else if (c == ' ') {
@@ -607,7 +607,7 @@ int main() {
       ".  X  X  X  X  X  X  X  X  X  .",
       "not_corners");
 
-  layer above_0 = LAYER_SHIFTL_SHORT(layer_neg(EMPTY_LAYER), 11);
+  layer above_0 = LAYER_SHIFTL_SHORT(LAYER_NEG(EMPTY_LAYER), 11);
   layer above_1 = LAYER_SHIFTL_SHORT(above_0, 11);
   layer above_2 = LAYER_SHIFTL_SHORT(above_1, 11);
   layer above_3 = LAYER_SHIFTL_SHORT(above_2, 11);

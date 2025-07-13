@@ -9,7 +9,7 @@
 #define THRONE_MASK_0 1152921504606846976ULL
 
 bool king_capture_check_ref(const board *b) {
-  int king_index = lowest_index(b->king);
+  int king_index = LOWEST_INDEX(b->king);
   layer attackers = b->black;
   attackers._[0] |= THRONE_MASK_0;
   return NOT_EMPTY(LAYER_AND(b->king, INTERIOR)) &&

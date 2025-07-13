@@ -40,19 +40,19 @@ TEST board_rotation_correct(board b) {
   layer king_unrotated = rotate_layer_left(b.king_r);
 
   if (!(LAYERS_EQUAL(b.black, black_unrotated))) {
-    layer diff = layer_xor(b.black, black_unrotated);
+    layer diff = LAYER_XOR(b.black, black_unrotated);
     print_layer(diff);
     res = false;
   }
 
   if (!(LAYERS_EQUAL(b.white, white_unrotated))) {
-    layer diff = layer_xor(b.white, white_unrotated);
+    layer diff = LAYER_XOR(b.white, white_unrotated);
     print_layer(diff);
     res = false;
   }
 
   if (!(LAYERS_EQUAL(b.king, king_unrotated))) {
-    layer diff = layer_xor(b.king, king_unrotated);
+    layer diff = LAYER_XOR(b.king, king_unrotated);
     print_layer(diff);
     res = false;
   }
@@ -74,7 +74,7 @@ void test_start_board_moves() {
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
-    layer captures = layer_xor(start_board.white, bs[i].white);
+    layer captures = LAYER_XOR(start_board.white, bs[i].white);
     overlay_move(output, ms[i].orig, ms[i].dest, captures);
     puts(output);
     */
@@ -92,7 +92,7 @@ void test_start_board_moves() {
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
-    layer captures = layer_xor(start_board.black, bs[i].black);
+    layer captures = LAYER_XOR(start_board.black, bs[i].black);
     overlay_move(output, ms[i].orig, ms[i].dest, captures);
     puts(output);
      */
@@ -198,23 +198,23 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
   for (int rank = 0; rank < 11; rank++) {
     for (int file = 0; file < 11; file++) {
       orig++;
-      if (!check_index(b.black, orig))
+      if (!CHECK_INDEX(b.black, orig))
         continue;
 
       // north
       dest = orig;
       for (int north = rank + 1; north < 11; north++) {
         dest += 11;
-        if (check_index(occ, dest))
+        if (CHECK_INDEX(occ, dest))
           break;
 
         board b2 = b;
-        op_layer_bit(b2.black, orig, |=);
-        op_layer_bit(b2.black_r, rotate_right[orig], |=);
-        op_layer_bit(b2.black, dest, |=);
-        op_layer_bit(b2.black_r, rotate_right[dest], |=);
+        OP_LAYER_BIT(b2.black, orig, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+        OP_LAYER_BIT(b2.black, dest, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-        if (check_index(capture_dests, dest))
+        if (CHECK_INDEX(capture_dests, dest))
           apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
         bs[(*total)] = b2;
@@ -226,16 +226,16 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
       dest = orig;
       for (int south = rank - 1; south >= 0; south--) {
         dest -= 11;
-        if (check_index(occ, dest))
+        if (CHECK_INDEX(occ, dest))
           break;
 
         board b2 = b;
-        op_layer_bit(b2.black, orig, |=);
-        op_layer_bit(b2.black_r, rotate_right[orig], |=);
-        op_layer_bit(b2.black, dest, |=);
-        op_layer_bit(b2.black_r, rotate_right[dest], |=);
+        OP_LAYER_BIT(b2.black, orig, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+        OP_LAYER_BIT(b2.black, dest, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-        if (check_index(capture_dests, dest))
+        if (CHECK_INDEX(capture_dests, dest))
           apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
         bs[(*total)] = b2;
@@ -247,16 +247,16 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
       dest = orig;
       for (int east = file - 1; east >= 0; east--) {
         dest -= 1;
-        if (check_index(occ, dest))
+        if (CHECK_INDEX(occ, dest))
           break;
 
         board b2 = b;
-        op_layer_bit(b2.black, orig, |=);
-        op_layer_bit(b2.black_r, rotate_right[orig], |=);
-        op_layer_bit(b2.black, dest, |=);
-        op_layer_bit(b2.black_r, rotate_right[dest], |=);
+        OP_LAYER_BIT(b2.black, orig, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+        OP_LAYER_BIT(b2.black, dest, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-        if (check_index(capture_dests, dest))
+        if (CHECK_INDEX(capture_dests, dest))
           apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
         bs[(*total)] = b2;
@@ -268,14 +268,14 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
       dest = orig;
       for (int west = file + 1; west < 11; west++) {
         dest += 1;
-        if (check_index(occ, dest))
+        if (CHECK_INDEX(occ, dest))
           break;
 
         board b2 = b;
-        op_layer_bit(b2.black, orig, |=);
-        op_layer_bit(b2.black_r, rotate_right[orig], |=);
-        op_layer_bit(b2.black, dest, |=);
-        op_layer_bit(b2.black_r, rotate_right[dest], |=);
+        OP_LAYER_BIT(b2.black, orig, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+        OP_LAYER_BIT(b2.black, dest, |=);
+        OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
@@ -307,19 +307,19 @@ process:
 
     // north
     dest = orig;
-    int rank = rank(orig);
+    int rank = RANK(orig);
     for (int north = rank + 1; north < 11; north++) {
       dest += 11;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
       bs[(*total)] = b2;
@@ -329,19 +329,19 @@ process:
 
     // south
     dest = orig;
-    rank = rank(orig);
+    rank = RANK(orig);
     for (int south = rank - 1; south >= 0; south--) {
       dest -= 11;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
       bs[(*total)] = b2;
@@ -351,19 +351,19 @@ process:
 
     // east
     dest = orig;
-    int file = file(orig);
+    int file = FILE(orig);
     for (int east = file - 1; east >= 0; east--) {
       dest -= 1;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (check_index(capture_dests, dest))
+      if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
       bs[(*total)] = b2;
@@ -373,17 +373,17 @@ process:
 
     // west
     dest = orig;
-    file = file(orig);
+    file = FILE(orig);
     for (int west = file + 1; west < 11; west++) {
       dest += 1;
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
 
       board b2 = b;
-      op_layer_bit(b2.black, orig, |=);
-      op_layer_bit(b2.black_r, rotate_right[orig], |=);
-      op_layer_bit(b2.black, dest, |=);
-      op_layer_bit(b2.black_r, rotate_right[dest], |=);
+      OP_LAYER_BIT(b2.black, orig, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[orig], |=);
+      OP_LAYER_BIT(b2.black, dest, |=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
       apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
@@ -417,7 +417,7 @@ void test_start_board_moves_gen() {
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
-    layer captures = layer_xor(start_board.white, bs[i].white);
+    layer captures = LAYER_XOR(start_board.white, bs[i].white);
     overlay_move(output, ms[i].orig, ms[i].dest, captures);
     puts(output);
     */
@@ -435,7 +435,7 @@ void test_start_board_moves_gen() {
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
-    layer captures = layer_xor(start_board.black, bs[i].black);
+    layer captures = LAYER_XOR(start_board.black, bs[i].black);
     overlay_move(output, ms[i].orig, ms[i].dest, captures);
     puts(output);
     bool rot_rus = board_rotation_correct(bs[i]);
@@ -470,7 +470,7 @@ void reference_dir_moves_black(
       break;
     if ((file == 10) && (dir == -1))
       break;
-    if (check_index(occ, pos))
+    if (CHECK_INDEX(occ, pos))
       break;
     // printf("rank: %d\n", rank);
     // printf("pos: %d\n", pos);
@@ -487,10 +487,10 @@ void reference_dir_moves_black(
     // printf("%s -> %s\n", orig_notation, dest_notation);
 
     board b2 = b;
-    op_layer_bit(b2.black, i, |=);
-    op_layer_bit(b2.black_r, rotate_right[i], |=);
-    op_layer_bit(b2.black, pos, |=);
-    op_layer_bit(b2.black_r, rotate_right[pos], |=);
+    OP_LAYER_BIT(b2.black, i, |=);
+    OP_LAYER_BIT(b2.black_r, rotate_right[i], |=);
+    OP_LAYER_BIT(b2.black, pos, |=);
+    OP_LAYER_BIT(b2.black_r, rotate_right[pos], |=);
     apply_captures_niave(b2.black, &b2.white, &b2.white_r, pos);
     // printf("pre b\n");
     ms[(*cnt)].b = b2;
@@ -505,7 +505,7 @@ void gen_reference_move_breakdown_black(board b, move_breakdown r) {
   int pos;
   for (int i = 0; i < 121; i++) {
 
-    if (!check_index(b.black, i)) {
+    if (!CHECK_INDEX(b.black, i)) {
       continue;
     }
 
@@ -549,7 +549,7 @@ void get_move_set_diff(
       move actual_move = actual[j].m;
       // printf("actual move: \n");
       // print_move(actual_move);
-      if (moves_equal(expected_move, actual_move)) {
+      if (MOVES_EQUAL(expected_move, actual_move)) {
         // printf("moves equal\n");
         isPresent = true;
         break;
@@ -569,7 +569,7 @@ void get_move_set_diff(
     (*extra_count) = 0;
     bool isExtra = true;
     for (int j = 0; j < expected_count; j++) {
-      if (moves_equal(actual[i].m, expected[j].m)) {
+      if (MOVES_EQUAL(actual[i].m, expected[j].m)) {
         isExtra = false;
         break;
       }
@@ -607,7 +607,7 @@ struct move_breakdown_diff get_move_breakdown_diff(
         &diff.extra[i].east_count,
         diff.extra[i].east);
 
-    if (check_index(b.black, i)) {
+    if (CHECK_INDEX(b.black, i)) {
       for (int j = 0; j < actual[i].south_count; j++) {
         move m = actual[i].south[j].m;
         char orig_notation[] = "   ";
@@ -853,7 +853,7 @@ void reference_dir_moves_white(
       break;
     if ((file == 10) && (dir == -1))
       break;
-    if (check_index(occ, pos))
+    if (CHECK_INDEX(occ, pos))
       break;
     // printf("rank: %d\n", rank);
     // printf("pos: %d\n", pos);
@@ -870,10 +870,10 @@ void reference_dir_moves_white(
     // printf("%s -> %s\n", orig_notation, dest_notation);
 
     board b2 = b;
-    op_layer_bit(b2.white, i, |=);
-    op_layer_bit(b2.white_r, rotate_right[i], |=);
-    op_layer_bit(b2.white, pos, |=);
-    op_layer_bit(b2.white_r, rotate_right[pos], |=);
+    OP_LAYER_BIT(b2.white, i, |=);
+    OP_LAYER_BIT(b2.white_r, rotate_right[i], |=);
+    OP_LAYER_BIT(b2.white, pos, |=);
+    OP_LAYER_BIT(b2.white_r, rotate_right[pos], |=);
     apply_captures_niave(b2.white, &b2.black, &b2.black_r, pos);
     // printf("pre b\n");
     ms[(*cnt)].b = b2;
@@ -888,7 +888,7 @@ void gen_reference_move_breakdown_white(board b, move_breakdown r) {
   int pos;
   for (int i = 0; i < 121; i++) {
 
-    if (!check_index(b.white, i)) {
+    if (!CHECK_INDEX(b.white, i)) {
       continue;
     }
 
@@ -1011,7 +1011,7 @@ void reference_dir_moves_king(
       break;
     if ((file == 10) && (dir == -1))
       break;
-    if (check_index(occ, pos))
+    if (CHECK_INDEX(occ, pos))
       break;
     // printf("rank: %d\n", rank);
     // printf("pos: %d\n", pos);
@@ -1028,10 +1028,10 @@ void reference_dir_moves_king(
     // printf("%s -> %s\n", orig_notation, dest_notation);
 
     board b2 = b;
-    op_layer_bit(b2.king, i, |=);
-    op_layer_bit(b2.king_r, rotate_right[i], |=);
-    op_layer_bit(b2.king, pos, |=);
-    op_layer_bit(b2.king_r, rotate_right[pos], |=);
+    OP_LAYER_BIT(b2.king, i, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[i], |=);
+    OP_LAYER_BIT(b2.king, pos, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[pos], |=);
     apply_captures_niave(b2.king, &b2.black, &b2.black_r, pos);
     // printf("pre b\n");
     ms[(*cnt)].b = b2;
@@ -1041,12 +1041,12 @@ void reference_dir_moves_king(
 }
 
 void gen_reference_move_breakdown_king(board b, move_breakdown r) {
-  layer occ = layer_xor(board_occ(b), corners);
+  layer occ = LAYER_XOR(board_occ(b), corners);
 
   int pos;
   for (int i = 0; i < 121; i++) {
 
-    if (!check_index(b.king, i)) {
+    if (!CHECK_INDEX(b.king, i)) {
       continue;
     }
 
@@ -1384,8 +1384,8 @@ create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
   memset(mm, 0, sizeof(mm));
   build_mm(b.white, board_occ(b), mm);
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
-  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  OP_LAYER_BIT(throne_mask, 60, |=);
+  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
   gen_moves_from_mm_white(b, free, mm, ms2, ds2, bs2, &total2);
 
@@ -1450,8 +1450,8 @@ create_mm_moves_black_cb(struct theft *t, void *env, void **instance) {
   memset(mm, 0, sizeof(mm));
   build_mm(b.black, board_occ(b), mm);
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
-  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  OP_LAYER_BIT(throne_mask, 60, |=);
+  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
   gen_moves_from_mm_black(b, free, mm, ms2, ds2, bs2, &total2);
 
@@ -1514,8 +1514,8 @@ create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
 
   struct move_maps mms = build_mms(b);
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
-  layer free = layer_neg(layer_or(king_board_occ(b), throne_mask));
+  OP_LAYER_BIT(throne_mask, 60, |=);
+  layer free = LAYER_NEG(LAYER_OR(king_board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
   uint king_pos =
       b.king._[0] ? _tzcnt_u64(b.king._[0]) : _tzcnt_u64(b.king._[1]) + 64;
@@ -1569,7 +1569,7 @@ moves_to_black_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
+  OP_LAYER_BIT(throne_mask, 60, |=);
 
   // orig
   board bs[335];
@@ -1584,8 +1584,8 @@ moves_to_black_cb(struct theft *t, void *env, void **instance) {
   move ms2[335];
   int total2 = 0;
   moves_to(
-      layer_and(layer_neg(board_occ(b)), layer_neg(throne_mask)),
-      layer_and(layer_neg(board_occ_r(b)), layer_neg(throne_mask)),
+      LAYER_AND(LAYER_NEG(board_occ(b)), LAYER_NEG(throne_mask)),
+      LAYER_AND(LAYER_NEG(board_occ_r(b)), LAYER_NEG(throne_mask)),
       b.black,
       b.black_r,
       board_occ(b),
@@ -1640,7 +1640,7 @@ moves_to_white_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
+  OP_LAYER_BIT(throne_mask, 60, |=);
 
   // orig
   board bs[335];
@@ -1655,8 +1655,8 @@ moves_to_white_cb(struct theft *t, void *env, void **instance) {
   move ms2[335];
   int total2 = 0;
   moves_to(
-      layer_and(layer_neg(board_occ(b)), layer_neg(throne_mask)),
-      layer_and(layer_neg(board_occ_r(b)), layer_neg(throne_mask)),
+      LAYER_AND(LAYER_NEG(board_occ(b)), LAYER_NEG(throne_mask)),
+      LAYER_AND(LAYER_NEG(board_occ_r(b)), LAYER_NEG(throne_mask)),
       b.white,
       b.white_r,
       board_occ(b),
@@ -1718,7 +1718,7 @@ moves_to_king_cb(struct theft *t, void *env, void **instance) {
 
   // to test
   moves_to_t r = moves_to_king(
-      b, layer_neg(king_board_occ(b)), layer_neg(king_board_occ_r(b)));
+      b, LAYER_NEG(king_board_occ(b)), LAYER_NEG(king_board_occ_r(b)));
 
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
   qsort(r.ms, r.total, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -1776,8 +1776,8 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
-  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  OP_LAYER_BIT(throne_mask, 60, |=);
+  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
   layer free_r = rotate_layer_right(free);
 
@@ -1803,8 +1803,8 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
   for (int i = 0; i < total; i++) {
     move m = ms[i];
     layer correct_layer = EMPTY_LAYER;
-    op_layer_bit(correct_layer, m.orig, |=);
-    op_layer_bit(correct_layer, m.dest, |=);
+    OP_LAYER_BIT(correct_layer, m.orig, |=);
+    OP_LAYER_BIT(correct_layer, m.dest, |=);
     layer correct_layer_r = rotate_layer_right(correct_layer);
     if (!LAYERS_EQUAL(correct_layer, ls[i]) ||
         !LAYERS_EQUAL(correct_layer_r, ls_r[i])) {
@@ -1883,12 +1883,12 @@ white_moves_count_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
+  OP_LAYER_BIT(throne_mask, 60, |=);
 
   moves_to_t r = moves_to_white(
       b,
-      layer_neg(layer_or(throne_mask, board_occ(b))),
-      layer_neg(layer_or(throne_mask, board_occ_r(b))));
+      LAYER_NEG(LAYER_OR(throne_mask, board_occ(b))),
+      LAYER_NEG(LAYER_OR(throne_mask, board_occ_r(b))));
 
   int move_count = white_moves_count(&b);
 
@@ -1957,12 +1957,12 @@ black_moves_count_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
+  OP_LAYER_BIT(throne_mask, 60, |=);
 
   moves_to_t r = moves_to_black(
       b,
-      layer_neg(layer_or(throne_mask, board_occ(b))),
-      layer_neg(layer_or(throne_mask, board_occ_r(b))));
+      LAYER_NEG(LAYER_OR(throne_mask, board_occ(b))),
+      LAYER_NEG(LAYER_OR(throne_mask, board_occ_r(b))));
 
   int move_count = black_moves_count(&b);
 
@@ -2007,7 +2007,7 @@ king_moves_count_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   moves_to_t r = moves_to_king(
-      b, layer_neg(king_board_occ(b)), layer_neg(king_board_occ_r(b)));
+      b, LAYER_NEG(king_board_occ(b)), LAYER_NEG(king_board_occ_r(b)));
 
   int move_count = king_moves_count(&b);
 

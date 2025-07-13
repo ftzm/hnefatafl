@@ -146,7 +146,7 @@ leftward
 
 #define LEFTWARD_CENTER(_r)                                                    \
   {                                                                            \
-    uint16_t dests = get_center_row(targets##_r) &                             \
+    uint16_t dests = GET_CENTER_ROW(targets##_r) &                             \
                      (center_occ##_r - (center_movers##_r << 1));              \
     while (dests) {                                                            \
       EXTRACT_CENTER_LEFTWARD(center_occ##_r);                                 \
@@ -172,7 +172,7 @@ leftward
       (center_occ##_r & below)                                                 \
           ? ((uint16_t)-1 << (16 - __lzcnt16(center_occ##_r & below)))         \
           : (uint16_t)-1;                                                      \
-  uint16_t dests = get_center_row(targets##_r) & below & above_highest_occ_mask;
+  uint16_t dests = GET_CENTER_ROW(targets##_r) & below & above_highest_occ_mask;
 
 #define RIGHTWARD(_i, _r)                                                      \
   {                                                                            \
@@ -286,7 +286,7 @@ leftward
 #define RIGHTWARD_CENTER(_r)                                                   \
   {                                                                            \
     uint16_t origs =                                                           \
-        center_movers##_r & ~(center_occ##_r - (get_center_row(targets##_r))); \
+        center_movers##_r & ~(center_occ##_r - (GET_CENTER_ROW(targets##_r))); \
     while (origs) {                                                            \
                                                                                \
       uint16_t orig_bit = origs & -origs;                                      \
@@ -322,26 +322,26 @@ layers, only in the move.
   ms[(*total)] = (move){orig, dest};                                           \
   ls[(*total)]._[_i] |= orig_bit;                                              \
   ls[(*total)]._[_i] |= dest_bit;                                              \
-  op_layer_bit(ls_r[(*total)], orig_r, |=);                                    \
-  op_layer_bit(ls_r[(*total)], dest_r, |=);                                    \
+  OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                    \
+  OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                    \
   (*total)++;
 
 #define BOOKKEEP_R(_i)                                                         \
   ms[(*total)] = (move){orig_r, dest_r};                                       \
-  op_layer_bit(ls_r[(*total)], orig, |=);                                      \
-  op_layer_bit(ls_r[(*total)], dest, |=);                                      \
-  op_layer_bit(ls[(*total)], orig_r, |=);                                      \
-  op_layer_bit(ls[(*total)], dest_r, |=);                                      \
+  OP_LAYER_BIT(ls_r[(*total)], orig, |=);                                      \
+  OP_LAYER_BIT(ls_r[(*total)], dest, |=);                                      \
+  OP_LAYER_BIT(ls[(*total)], orig_r, |=);                                      \
+  OP_LAYER_BIT(ls[(*total)], dest_r, |=);                                      \
   (*total)++;
 #define BOOKKEEP_r BOOKKEEP_R
 #define BOOKKEEP_CENTER_r BOOKKEEP_R
 
 #define BOOKKEEP_CENTER()                                                      \
   ms[(*total)] = (move){orig, dest};                                           \
-  op_layer_bit(ls[(*total)], orig, |=);                                        \
-  op_layer_bit(ls[(*total)], dest, |=);                                        \
-  op_layer_bit(ls_r[(*total)], orig_r, |=);                                    \
-  op_layer_bit(ls_r[(*total)], dest_r, |=);                                    \
+  OP_LAYER_BIT(ls[(*total)], orig, |=);                                        \
+  OP_LAYER_BIT(ls[(*total)], dest, |=);                                        \
+  OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                    \
+  OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                    \
   (*total)++;
 
 #define BIT_AT(_i) ((u64)1 << _i)
@@ -358,14 +358,14 @@ void moves_to(
     layer *ls_r,
     int *total) {
 
-  uint16_t center_occ = get_center_row(occ);
-  uint16_t center_occ_r = get_center_row(occ_r);
-  uint16_t center_movers = get_center_row(movers);
-  uint16_t center_movers_r = get_center_row(movers_r);
-  layer leftward_occ = layer_or(occ, file_mask_0);
-  layer leftward_occ_r = layer_or(occ_r, file_mask_0);
-  layer rightward_occ = layer_or(occ, file_mask_10);
-  layer rightward_occ_r = layer_or(occ_r, file_mask_10);
+  uint16_t center_occ = GET_CENTER_ROW(occ);
+  uint16_t center_occ_r = GET_CENTER_ROW(occ_r);
+  uint16_t center_movers = GET_CENTER_ROW(movers);
+  uint16_t center_movers_r = GET_CENTER_ROW(movers_r);
+  layer leftward_occ = LAYER_OR(occ, file_mask_0);
+  layer leftward_occ_r = LAYER_OR(occ_r, file_mask_0);
+  layer rightward_occ = LAYER_OR(occ, file_mask_10);
+  layer rightward_occ_r = LAYER_OR(occ_r, file_mask_10);
   // I thought these might be necessary but maybe not...
   // rightward_occ._[1] |= 2;
   // rightward_occ_r._[1] |= 2;
@@ -416,14 +416,14 @@ void moves_to_king_impl(
     layer *ls_r,
     int *total) {
 
-  uint16_t center_occ = get_center_row(occ);
-  uint16_t center_occ_r = get_center_row(occ_r);
-  uint16_t center_movers = get_center_row(movers);
-  uint16_t center_movers_r = get_center_row(movers_r);
-  layer leftward_occ = layer_or(occ, file_mask_0);
-  layer leftward_occ_r = layer_or(occ_r, file_mask_0);
-  layer rightward_occ = layer_or(occ, file_mask_10);
-  layer rightward_occ_r = layer_or(occ_r, file_mask_10);
+  uint16_t center_occ = GET_CENTER_ROW(occ);
+  uint16_t center_occ_r = GET_CENTER_ROW(occ_r);
+  uint16_t center_movers = GET_CENTER_ROW(movers);
+  uint16_t center_movers_r = GET_CENTER_ROW(movers_r);
+  layer leftward_occ = LAYER_OR(occ, file_mask_0);
+  layer leftward_occ_r = LAYER_OR(occ_r, file_mask_0);
+  layer rightward_occ = LAYER_OR(occ, file_mask_10);
+  layer rightward_occ_r = LAYER_OR(occ_r, file_mask_10);
   // I thought these might be necessary but maybe not...
   // rightward_occ._[1] |= 2;
   // rightward_occ_r._[1] |= 2;
@@ -539,9 +539,9 @@ layer rightward_moves_layer2(layer movers, layer occ) {
 
   // center
   {
-    u16 center_movers = get_center_row(movers);
+    u16 center_movers = GET_CENTER_ROW(movers);
     u16 gen = center_movers;
-    u16 pro = ~get_center_row(occ);
+    u16 pro = ~GET_CENTER_ROW(occ);
     RIGHTWARD_MOVES(~0);
     SET_CENTER_ROW(output, (gen ^ center_movers));
   }
@@ -574,8 +574,8 @@ layer rightward_moves_layer(layer movers, layer occ) {
 
   // center
   {
-    u16 blockers = get_center_row(occ);
-    u16 movers_row = get_center_row(movers);
+    u16 blockers = GET_CENTER_ROW(occ);
+    u16 movers_row = GET_CENTER_ROW(movers);
     u16 movers_ext = _pext_u32(movers_row, 1 | blockers) >> 1;
     u16 movers_dep = _pdep_u32(movers_ext, 1 | (blockers << 1));
     u16 move_mask = movers_row - movers_dep;
@@ -619,12 +619,12 @@ inline int rightward_moves_count(layer movers, layer occ) {
 
   // center
   {
-    u16 blockers = get_center_row(occ);
+    u16 blockers = GET_CENTER_ROW(occ);
     // print_row(blockers);
 
     // I can just remove the lowest bit because it by definition can't move
     // anywhere
-    u16 movers_row = get_center_row(movers) & 0b11111111110;
+    u16 movers_row = GET_CENTER_ROW(movers) & 0b11111111110;
     // print_row(movers_row);
 
     u16 tail = (blockers & 1) ^ 1;
@@ -675,13 +675,13 @@ inline int rightward_moves_count_king(layer movers, layer occ) {
   }
 
   // center
-  if (get_center_row(movers)) {
-    u16 blockers = get_center_row(occ);
+  if (GET_CENTER_ROW(movers)) {
+    u16 blockers = GET_CENTER_ROW(occ);
     // print_row(blockers);
 
     // I can just remove the lowest bit because it by definition can't move
     // anywhere
-    u16 movers_row = get_center_row(movers) & 0b11111111110;
+    u16 movers_row = GET_CENTER_ROW(movers) & 0b11111111110;
     // print_row(movers_row);
 
     u16 tail = (blockers & 1) ^ 1;
@@ -726,8 +726,8 @@ inline int leftward_moves_count(layer movers, layer occ) {
 
   // center
   {
-    u16 blockers = get_center_row(occ);
-    u64 dests = blockers - (get_center_row(movers) << 1) & ~blockers &
+    u16 blockers = GET_CENTER_ROW(occ);
+    u64 dests = blockers - (GET_CENTER_ROW(movers) << 1) & ~blockers &
                 INVERTED_THRONE_MASK;
     // print_row((u16)dests);
     output += __builtin_popcount(dests);
@@ -761,10 +761,10 @@ inline int leftward_moves_count_king(layer movers, layer occ) {
   }
 
   // center
-  if (get_center_row(movers)) {
-    u16 blockers = get_center_row(occ);
+  if (GET_CENTER_ROW(movers)) {
+    u16 blockers = GET_CENTER_ROW(occ);
     u64 dests =
-        blockers - (get_center_row(movers) << 1) & ~blockers & 0b11111111111;
+        blockers - (GET_CENTER_ROW(movers) << 1) & ~blockers & 0b11111111111;
     // print_row((u16)dests);
     return __builtin_popcount(dests);
     // printf("output: %d\n", output);

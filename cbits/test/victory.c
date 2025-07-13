@@ -12,22 +12,22 @@ TEST test_king_capture_check(bool (*check1)(const board *b), bool (*check2)(cons
       board b = {.king = EMPTY_LAYER, .black = EMPTY_LAYER};
       SET_INDEX(b.king, i);
       // north
-      if (attackers & 1 && rank(i) != 10) {
+      if (attackers & 1 && RANK(i) != 10) {
         int index = i + 11;
         SET_INDEX(b.black, index);
       }
       // south
-      if (attackers & 0b10 && rank(i) != 0) {
+      if (attackers & 0b10 && RANK(i) != 0) {
         int index = i - 11;
         SET_INDEX(b.black, index);
       }
       // east
-      if (attackers & 0b100 && file(i) != 0) {
+      if (attackers & 0b100 && FILE(i) != 0) {
         int index = i - 1;
         SET_INDEX(b.black, index);
       }
       // west
-      if (attackers & 0b1000 && file(i) != 10) {
+      if (attackers & 0b1000 && FILE(i) != 10) {
         int index = i + 1;
         SET_INDEX(b.black, index);
       }

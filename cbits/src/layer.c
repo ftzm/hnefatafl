@@ -45,45 +45,45 @@ const uint8_t sub_layer_table[121] = {
 //   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 //   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 // };
-#define get_lower_row(layer, index) (0x7ff & ((layer._[0] >> sub_layer_row_offset[index])))
-#define get_upper_row(layer, index) (0x7ff & ((layer._[1] >> sub_layer_row_offset_upper[index])))
+#define GET_LOWER_ROW(layer, index) (0x7ff & ((layer._[0] >> sub_layer_row_offset[index])))
+#define GET_UPPER_ROW(layer, index) (0x7ff & ((layer._[1] >> sub_layer_row_offset_upper[index])))
 
-#define dirty_get_row_0(l) (uint64_t)l._[0]
-#define dirty_get_row_1(l) ((uint64_t)l._[0] >> 11)
-#define dirty_get_row_2(l) ((uint64_t)l._[0] >> 22)
-#define dirty_get_row_3(l) ((uint64_t)l._[0] >> 33)
-#define dirty_get_row_4(l) ((uint64_t)l._[0] >> 44)
-#define dirty_get_row_5(l) ((uint64_t)l._[0] >> 55) | ((((uint64_t)l._[1] & 0x3) << 9))
-#define dirty_get_row_6(l) ((uint64_t)l._[1] >> 2)
-#define dirty_get_row_7(l) ((uint64_t)l._[1] >> 13)
-#define dirty_get_row_8(l) ((uint64_t)l._[1] >> 24)
-#define dirty_get_row_9(l) ((uint64_t)l._[1] >> 35)
-#define dirty_get_row_10(l) ((uint64_t)l._[1] >> 46)
+#define DIRTY_GET_ROW_0(l) (uint64_t)l._[0]
+#define DIRTY_GET_ROW_1(l) ((uint64_t)l._[0] >> 11)
+#define DIRTY_GET_ROW_2(l) ((uint64_t)l._[0] >> 22)
+#define DIRTY_GET_ROW_3(l) ((uint64_t)l._[0] >> 33)
+#define DIRTY_GET_ROW_4(l) ((uint64_t)l._[0] >> 44)
+#define DIRTY_GET_ROW_5(l) ((uint64_t)l._[0] >> 55) | ((((uint64_t)l._[1] & 0x3) << 9))
+#define DIRTY_GET_ROW_6(l) ((uint64_t)l._[1] >> 2)
+#define DIRTY_GET_ROW_7(l) ((uint64_t)l._[1] >> 13)
+#define DIRTY_GET_ROW_8(l) ((uint64_t)l._[1] >> 24)
+#define DIRTY_GET_ROW_9(l) ((uint64_t)l._[1] >> 35)
+#define DIRTY_GET_ROW_10(l) ((uint64_t)l._[1] >> 46)
 
 u16 dirty_get_row(layer l, int n) {
   switch (n) {
   case 0:
-    return dirty_get_row_0(l);
+    return DIRTY_GET_ROW_0(l);
   case 1:
-    return dirty_get_row_1(l);
+    return DIRTY_GET_ROW_1(l);
   case 2:
-    return dirty_get_row_2(l);
+    return DIRTY_GET_ROW_2(l);
   case 3:
-    return dirty_get_row_3(l);
+    return DIRTY_GET_ROW_3(l);
   case 4:
-    return dirty_get_row_4(l);
+    return DIRTY_GET_ROW_4(l);
   case 5:
-    return dirty_get_row_5(l);
+    return DIRTY_GET_ROW_5(l);
   case 6:
-    return dirty_get_row_6(l);
+    return DIRTY_GET_ROW_6(l);
   case 7:
-    return dirty_get_row_7(l);
+    return DIRTY_GET_ROW_7(l);
   case 8:
-    return dirty_get_row_8(l);
+    return DIRTY_GET_ROW_8(l);
   case 9:
-    return dirty_get_row_9(l);
+    return DIRTY_GET_ROW_9(l);
   case 10:
-    return dirty_get_row_10(l);
+    return DIRTY_GET_ROW_10(l);
   // default:
   //   // return 0;;
   //   fprintf(stderr, "invalid row accessed");
@@ -91,19 +91,19 @@ u16 dirty_get_row(layer l, int n) {
   }
 }
 
-#define mask_row(r) (r & 0x7ff)
+#define MASK_ROW(r) (r & 0x7ff)
 
-#define get_row_0(l) mask_row(dirty_get_row_0(l))
-#define get_row_1(l) mask_row(dirty_get_row_1(l))
-#define get_row_2(l) mask_row(dirty_get_row_2(l))
-#define get_row_3(l) mask_row(dirty_get_row_3(l))
-#define get_row_4(l) mask_row(dirty_get_row_4(l))
-#define get_row_5(l) mask_row(dirty_get_row_5(l))
-#define get_row_6(l) mask_row(dirty_get_row_6(l))
-#define get_row_7(l) mask_row(dirty_get_row_7(l))
-#define get_row_8(l) mask_row(dirty_get_row_8(l))
-#define get_row_9(l) mask_row(dirty_get_row_9(l))
-#define get_row_10(l) mask_row(dirty_get_row_10(l))
+#define GET_ROW_0(l) MASK_ROW(DIRTY_GET_ROW_0(l))
+#define GET_ROW_1(l) MASK_ROW(DIRTY_GET_ROW_1(l))
+#define GET_ROW_2(l) MASK_ROW(DIRTY_GET_ROW_2(l))
+#define GET_ROW_3(l) MASK_ROW(DIRTY_GET_ROW_3(l))
+#define GET_ROW_4(l) MASK_ROW(DIRTY_GET_ROW_4(l))
+#define GET_ROW_5(l) MASK_ROW(DIRTY_GET_ROW_5(l))
+#define GET_ROW_6(l) MASK_ROW(DIRTY_GET_ROW_6(l))
+#define GET_ROW_7(l) MASK_ROW(DIRTY_GET_ROW_7(l))
+#define GET_ROW_8(l) MASK_ROW(DIRTY_GET_ROW_8(l))
+#define GET_ROW_9(l) MASK_ROW(DIRTY_GET_ROW_9(l))
+#define GET_ROW_10(l) MASK_ROW(DIRTY_GET_ROW_10(l))
 
 /**
  * 
@@ -111,27 +111,27 @@ u16 dirty_get_row(layer l, int n) {
 uint16_t get_row(layer l, int n) {
   switch (n) {
   case 0:
-    return get_row_0(l);
+    return dirty_get_row(l, 0);
   case 1:
-    return get_row_1(l);
+    return dirty_get_row(l, 1);
   case 2:
-    return get_row_2(l);
+    return dirty_get_row(l, 2);
   case 3:
-    return get_row_3(l);
+    return dirty_get_row(l, 3);
   case 4:
-    return get_row_4(l);
+    return dirty_get_row(l, 4);
   case 5:
-    return get_row_5(l);
+    return dirty_get_row(l, 5);
   case 6:
-    return get_row_6(l);
+    return dirty_get_row(l, 6);
   case 7:
-    return get_row_7(l);
+    return dirty_get_row(l, 7);
   case 8:
-    return get_row_8(l);
+    return dirty_get_row(l, 8);
   case 9:
-    return get_row_9(l);
+    return dirty_get_row(l, 9);
   case 10:
-    return get_row_10(l);
+    return dirty_get_row(l, 10);
   // default:
   //   // return 0;;
   //   fprintf(stderr, "invalid row accessed");
@@ -141,11 +141,11 @@ uint16_t get_row(layer l, int n) {
 
 uint16_t get_index_row(layer l, int i) {
   if (i < 55) {
-    return get_lower_row(l, i);
+    return GET_LOWER_ROW(l, i);
   } else if (i > 65) {
-    return get_upper_row(l, i - 64);
+    return GET_UPPER_ROW(l, i - 64);
   } else {
-    return get_center_row(l);
+    return GET_CENTER_ROW(l);
   }
 }
 
@@ -212,13 +212,13 @@ layer rotate_layer_right(const layer input) {
   uint64_t lower = input._[0];
   while (lower) {
     int r = rotate_right[_tzcnt_u64(lower)];
-    output._[sub_layer(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
     lower &= (lower - 1);
   }
   uint64_t upper = input._[1];
   while (upper) {
     int r = rotate_right[64 + _tzcnt_u64(upper)];
-    output._[sub_layer(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
     upper &= (upper - 1);
   }
 
@@ -231,13 +231,13 @@ layer rotate_layer_left(const layer input) {
   uint64_t lower = input._[0];
   while (lower) {
     int r = rotate_left[_tzcnt_u64(lower)];
-    output._[sub_layer(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
     lower &= (lower - 1);
   }
   uint64_t upper = input._[1];
   while (upper) {
     int r = rotate_left[64 + _tzcnt_u64(upper)];
-    output._[sub_layer(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
+    output._[SUB_LAYER(r)] |= ((uint64_t)1 << sub_layer_offset_direct[r]);
     upper &= (upper - 1);
   }
 

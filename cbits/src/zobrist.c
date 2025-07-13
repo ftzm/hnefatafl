@@ -44,11 +44,11 @@ void init_hashes() {
 uint64_t hash_for_board(board b, bool is_black_turn) {
   uint64_t hash = 0;
   for (int i = 0; i < 121; i++) {
-    if (check_index(b.black, i)) {
+    if (CHECK_INDEX(b.black, i)) {
       hash ^= black_hashes[i];
-    } else if (check_index(b.white, i)) {
+    } else if (CHECK_INDEX(b.white, i)) {
       hash ^= white_hashes[i];
-    } else if (check_index(b.king, i)) {
+    } else if (CHECK_INDEX(b.king, i)) {
       hash ^= king_hashes[i];
     }
   }

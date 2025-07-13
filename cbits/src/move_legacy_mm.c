@@ -16,7 +16,7 @@ void gen_king_mm(board b, layer occ, int orig, move_map mm) {
 
   // north
   dest = orig;
-  int rank = rank(orig);
+  int rank = RANK(orig);
   int remaining_north = 10 - rank;
   while (remaining_north--) {
     dest += 11;
@@ -24,7 +24,7 @@ void gen_king_mm(board b, layer occ, int orig, move_map mm) {
     mm[dest].south = orig;
 
     // if this position is occupied we stop here
-    if (check_index(occ, dest))
+    if (CHECK_INDEX(occ, dest))
       break;
   }
 
@@ -36,13 +36,13 @@ void gen_king_mm(board b, layer occ, int orig, move_map mm) {
     mm[dest].north = orig;
 
     // if this position is occupied we stop here
-    if (check_index(occ, dest))
+    if (CHECK_INDEX(occ, dest))
       break;
   }
 
   // west
   dest = orig;
-  int file = file(orig);
+  int file = FILE(orig);
   int remaining_south = 10 - file;
   while (remaining_south--) {
     dest += 1;
@@ -50,20 +50,20 @@ void gen_king_mm(board b, layer occ, int orig, move_map mm) {
     mm[dest].east = orig;
 
     // if this position is occupied we stop here
-    if (check_index(occ, dest))
+    if (CHECK_INDEX(occ, dest))
       break;
   }
 
   // east
   dest = orig;
-  // file = file(orig);
+  // file = FILE(orig);
   while (file--) {
     dest -= 1;
 
     mm[dest].west = orig;
 
     // if this position is occupied we stop here
-    if (check_index(occ, dest))
+    if (CHECK_INDEX(occ, dest))
       break;
   }
 }
@@ -75,8 +75,8 @@ Macros to get the position closest to the edge in a given direction
 relative to the position provided.
 */
 
-#define DIR_EDGE_north(_pos) (file(_pos) + 110)
-#define DIR_EDGE_south(_pos) (file(_pos))
+#define DIR_EDGE_north(_pos) (FILE(_pos) + 110)
+#define DIR_EDGE_south(_pos) (FILE(_pos))
 #define DIR_EDGE_east(_pos) (rank_mod[_pos])
 #define DIR_EDGE_west(_pos) (rank_mod[_pos] + 10)
 #define DIR_EDGE(_pos, _dir) DIR_EDGE_##_dir(_pos)
@@ -352,13 +352,13 @@ process:
 
     // north
     dest = orig;
-    int rank = rank(orig);
+    int rank = RANK(orig);
     int remaining_north = 10 - rank;
     while (remaining_north--) {
       dest += 11;
       mm[dest].south = orig;
       // if this position is occupied we stop here
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
     }
 
@@ -368,30 +368,30 @@ process:
       dest -= 11;
       mm[dest].north = orig;
       // if this position is occupied we stop here
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
     }
 
     // west
     dest = orig;
-    int file = file(orig);
+    int file = FILE(orig);
     int remaining_south = 10 - file;
     while (remaining_south--) {
       dest += 1;
       mm[dest].east = orig;
       // if this position is occupied we stop here
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
     }
 
     // east
     dest = orig;
-    // file = file(orig);
+    // file = FILE(orig);
     while (file--) {
       dest -= 1;
       mm[dest].west = orig;
       // if this position is occupied we stop here
-      if (check_index(occ, dest))
+      if (CHECK_INDEX(occ, dest))
         break;
     }
 
@@ -441,15 +441,15 @@ process:
     // type pun the source to a uint32_t and check it, breaking if false
 
     board departed = b;
-    op_layer_bit(departed.white, dest, |=);
-    op_layer_bit(departed.white_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(departed.white, dest, |=);
+    OP_LAYER_BIT(departed.white_r, rotate_right[dest], |=);
 
     if (mm[dest].north) {
       ms[(*total)] = (move){mm[dest].north, dest};
       ds[(*total)] = south;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].north, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].north], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].north, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].north], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -458,8 +458,8 @@ process:
       ms[(*total)] = (move){mm[dest].south, dest};
       ds[(*total)] = north;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].south, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].south], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].south, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].south], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -468,8 +468,8 @@ process:
       ms[(*total)] = (move){mm[dest].east, dest};
       ds[(*total)] = west;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].east, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].east], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].east, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].east], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -478,8 +478,8 @@ process:
       ms[(*total)] = (move){mm[dest].west, dest};
       ds[(*total)] = east;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].west, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].west], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].west, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].west], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -518,15 +518,15 @@ process:
     // type pun the source to a uint32_t and check it, breaking if false
 
     board departed = b;
-    op_layer_bit(departed.white, dest, |=);
-    op_layer_bit(departed.white_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(departed.white, dest, |=);
+    OP_LAYER_BIT(departed.white_r, rotate_right[dest], |=);
 
     if (mm[dest].north) {
       ms[(*total)] = (move){mm[dest].north, dest};
       ds[(*total)] = south;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].north, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].north], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].north, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].north], -=);
       apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -536,8 +536,8 @@ process:
       ms[(*total)] = (move){mm[dest].south, dest};
       ds[(*total)] = north;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].south, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].south], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].south, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].south], -=);
       apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -547,8 +547,8 @@ process:
       ms[(*total)] = (move){mm[dest].east, dest};
       ds[(*total)] = west;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].east, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].east], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].east, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].east], -=);
       apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -558,8 +558,8 @@ process:
       ms[(*total)] = (move){mm[dest].west, dest};
       ds[(*total)] = east;
       board b2 = departed;
-      op_layer_bit(b2.white, mm[dest].west, -=);
-      op_layer_bit(b2.white_r, rotate_right[mm[dest].west], -=);
+      OP_LAYER_BIT(b2.white, mm[dest].west, -=);
+      OP_LAYER_BIT(b2.white_r, rotate_right[mm[dest].west], -=);
       apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -599,15 +599,15 @@ process:
     // type pun the source to a uint32_t and check it, breaking if false
 
     board departed = b;
-    op_layer_bit(departed.black, dest, |=);
-    op_layer_bit(departed.black_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(departed.black, dest, |=);
+    OP_LAYER_BIT(departed.black_r, rotate_right[dest], |=);
 
     if (mm[dest].north) {
       ms[(*total)] = (move){mm[dest].north, dest};
       ds[(*total)] = south;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].north, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].north], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].north, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].north], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -616,8 +616,8 @@ process:
       ms[(*total)] = (move){mm[dest].south, dest};
       ds[(*total)] = north;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].south, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].south], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].south, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].south], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -626,8 +626,8 @@ process:
       ms[(*total)] = (move){mm[dest].east, dest};
       ds[(*total)] = west;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].east, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].east], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].east, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].east], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -636,8 +636,8 @@ process:
       ms[(*total)] = (move){mm[dest].west, dest};
       ds[(*total)] = east;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].west, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].west], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].west, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].west], -=);
       bs[(*total)] = b2;
       (*total)++;
     }
@@ -676,15 +676,15 @@ process:
     // type pun the source to a uint32_t and check it, breaking if false
 
     board departed = b;
-    op_layer_bit(departed.black, dest, |=);
-    op_layer_bit(departed.black_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(departed.black, dest, |=);
+    OP_LAYER_BIT(departed.black_r, rotate_right[dest], |=);
 
     if (mm[dest].north) {
       ms[(*total)] = (move){mm[dest].north, dest};
       ds[(*total)] = south;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].north, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].north], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].north, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].north], -=);
       apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -694,8 +694,8 @@ process:
       ms[(*total)] = (move){mm[dest].south, dest};
       ds[(*total)] = north;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].south, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].south], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].south, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].south], -=);
       apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -705,8 +705,8 @@ process:
       ms[(*total)] = (move){mm[dest].east, dest};
       ds[(*total)] = west;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].east, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].east], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].east, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].east], -=);
       apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -716,8 +716,8 @@ process:
       ms[(*total)] = (move){mm[dest].west, dest};
       ds[(*total)] = east;
       board b2 = departed;
-      op_layer_bit(b2.black, mm[dest].west, -=);
-      op_layer_bit(b2.black_r, rotate_right[mm[dest].west], -=);
+      OP_LAYER_BIT(b2.black, mm[dest].west, -=);
+      OP_LAYER_BIT(b2.black_r, rotate_right[mm[dest].west], -=);
       apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
       bs[(*total)] = b2;
       (*total)++;
@@ -752,8 +752,8 @@ void gen_moves_from_mm_king(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};
     ds[(*total)] = north;
@@ -766,8 +766,8 @@ void gen_moves_from_mm_king(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};
     ds[(*total)] = south;
@@ -781,8 +781,8 @@ void gen_moves_from_mm_king(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};
     ds[(*total)] = east;
@@ -796,8 +796,8 @@ void gen_moves_from_mm_king(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};
     ds[(*total)] = west;
@@ -823,8 +823,8 @@ void gen_moves_from_mm_king_capture(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};
@@ -838,8 +838,8 @@ void gen_moves_from_mm_king_capture(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};
@@ -854,8 +854,8 @@ void gen_moves_from_mm_king_capture(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};
@@ -870,8 +870,8 @@ void gen_moves_from_mm_king_capture(
     board b2 = b;
     b2.king = EMPTY_LAYER;
     b2.king_r = EMPTY_LAYER;
-    op_layer_bit(b2.king, dest, |=);
-    op_layer_bit(b2.king_r, rotate_right[dest], |=);
+    OP_LAYER_BIT(b2.king, dest, |=);
+    OP_LAYER_BIT(b2.king_r, rotate_right[dest], |=);
     apply_captures_niave(b2.king, &b2.black, &b2.black_r, dest);
     bs[(*total)] = b2;
     ms[*total] = (struct move){orig, dest};

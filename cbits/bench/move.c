@@ -123,8 +123,8 @@ UBENCH_EX(move, mm_black) {
   build_mm(b.black, board_occ(b), mm2);
   build_mm(b.king, board_occ(b), mm3);
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
-  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  OP_LAYER_BIT(throne_mask, 60, |=);
+  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
   UBENCH_DO_BENCHMARK() {
     apply_southward_move(66, 11, mm2, mm2, mm3);
@@ -152,8 +152,8 @@ UBENCH_EX(move, mm_white) {
   build_mm(b.black, board_occ(b), mm2);
   build_mm(b.king, board_occ(b), mm3);
   layer throne_mask = EMPTY_LAYER;
-  op_layer_bit(throne_mask, 60, |=);
-  layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+  OP_LAYER_BIT(throne_mask, 60, |=);
+  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
   free._[1] &= 144115188075855871;
   UBENCH_DO_BENCHMARK() {
     apply_southward_move(66, 11, mm2, mm2, mm3);
@@ -173,8 +173,8 @@ UBENCH_EX(foo3, moves_to_black) {
     layer ls_r[235];
     int total = 0;
     moves_to(
-        layer_neg(board_occ(start_board)),
-        layer_neg(board_occ_r(start_board)),
+        LAYER_NEG(board_occ(start_board)),
+        LAYER_NEG(board_occ_r(start_board)),
         start_board.black,
         start_board.black_r,
         board_occ(start_board),
@@ -195,8 +195,8 @@ UBENCH_EX(foo3, moves_to_white) {
     layer ls_r[235];
     int total = 0;
     moves_to(
-        layer_neg(board_occ(start_board)),
-        layer_neg(board_occ_r(start_board)),
+        LAYER_NEG(board_occ(start_board)),
+        LAYER_NEG(board_occ_r(start_board)),
         start_board.white,
         start_board.white_r,
         board_occ(start_board),
@@ -258,8 +258,8 @@ UBENCH_EX(triple_nested, mm_white) {
     build_mm(b.king, board_occ(b), mm_king);
 
     layer throne_mask = EMPTY_LAYER;
-    op_layer_bit(throne_mask, 60, |=);
-    layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+    OP_LAYER_BIT(throne_mask, 60, |=);
+    layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
     free._[1] &= 144115188075855871;
 
     gen_moves_from_mm_white(b, free, mm_white, ms, ds, bs, &total);
@@ -290,8 +290,8 @@ UBENCH_EX(triple_nested, mm_white) {
       int total2 = 0;
 
       layer throne_mask = EMPTY_LAYER;
-      op_layer_bit(throne_mask, 60, |=);
-      layer free = layer_neg(layer_or(board_occ(bs[i]), throne_mask));
+      OP_LAYER_BIT(throne_mask, 60, |=);
+      layer free = LAYER_NEG(LAYER_OR(board_occ(bs[i]), throne_mask));
       free._[1] &= 144115188075855871;
 
       gen_moves_from_mm_white(bs[i], free, mm_white2, ms2, ds2, bs2, &total2);
@@ -323,8 +323,8 @@ UBENCH_EX(triple_nested, mm_white) {
         int total3 = 0;
 
         layer throne_mask = EMPTY_LAYER;
-        op_layer_bit(throne_mask, 60, |=);
-        layer free = layer_neg(layer_or(board_occ(bs2[j]), throne_mask));
+        OP_LAYER_BIT(throne_mask, 60, |=);
+        layer free = LAYER_NEG(LAYER_OR(board_occ(bs2[j]), throne_mask));
         free._[1] &= 144115188075855871;
 
         gen_moves_from_mm_white(
@@ -386,8 +386,8 @@ UBENCH_EX(triple_nested, mm_black) {
     build_mm(b.king, board_occ(b), mm_king);
 
     layer throne_mask = EMPTY_LAYER;
-    op_layer_bit(throne_mask, 60, |=);
-    layer free = layer_neg(layer_or(board_occ(b), throne_mask));
+    OP_LAYER_BIT(throne_mask, 60, |=);
+    layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
     free._[1] &= 144115188075855871;
 
     gen_moves_from_mm_black(b, free, mm_black, ms, ds, bs, &total);
@@ -418,8 +418,8 @@ UBENCH_EX(triple_nested, mm_black) {
       int total2 = 0;
 
       layer throne_mask = EMPTY_LAYER;
-      op_layer_bit(throne_mask, 60, |=);
-      layer free = layer_neg(layer_or(board_occ(bs[i]), throne_mask));
+      OP_LAYER_BIT(throne_mask, 60, |=);
+      layer free = LAYER_NEG(LAYER_OR(board_occ(bs[i]), throne_mask));
       free._[1] &= 144115188075855871;
 
       gen_moves_from_mm_black(bs[i], free, mm_black2, ms2, ds2, bs2, &total2);
@@ -451,8 +451,8 @@ UBENCH_EX(triple_nested, mm_black) {
         int total3 = 0;
 
         layer throne_mask = EMPTY_LAYER;
-        op_layer_bit(throne_mask, 60, |=);
-        layer free = layer_neg(layer_or(board_occ(bs2[j]), throne_mask));
+        OP_LAYER_BIT(throne_mask, 60, |=);
+        layer free = LAYER_NEG(LAYER_OR(board_occ(bs2[j]), throne_mask));
         free._[1] &= 144115188075855871;
 
         gen_moves_from_mm_black(
@@ -519,9 +519,9 @@ UBENCH_EX(king_mobility, corner_paths_1) {
   layer occ = board_occ(b);
   layer occ_r = board_occ_r(b);
 
-  int king_pos = lowest_index(b.king);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
 
   UBENCH_DO_BENCHMARK() {
 
@@ -551,12 +551,12 @@ UBENCH_EX(king_mobility, corner_paths_2) {
   board b = read_board(corner_access_double2);
 
   // setup to generate layers
-  layer occ = layer_or(b.black, b.white);
-  layer occ_r = layer_or(b.black_r, b.white_r);
+  layer occ = LAYER_OR(b.black, b.white);
+  layer occ_r = LAYER_OR(b.black_r, b.white_r);
 
-  int king_pos = lowest_index(b.king);
-  int king_rank = rank(king_pos);
-  int king_file = file(king_pos);
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
 
   UBENCH_DO_BENCHMARK() {
 
@@ -577,22 +577,22 @@ int bench_king_capture_check(bool (*check)(const board *b)) {
       board b = {.king = EMPTY_LAYER, .black = EMPTY_LAYER};
       SET_INDEX(b.king, i);
       // north
-      if (attackers & 1 && rank(i) != 10) {
+      if (attackers & 1 && RANK(i) != 10) {
         int index = i + 11;
         SET_INDEX(b.black, index);
       }
       // south
-      if (attackers & 0b10 && rank(i) != 0) {
+      if (attackers & 0b10 && RANK(i) != 0) {
         int index = i - 11;
         SET_INDEX(b.black, index);
       }
       // east
-      if (attackers & 0b100 && file(i) != 0) {
+      if (attackers & 0b100 && FILE(i) != 0) {
         int index = i - 1;
         SET_INDEX(b.black, index);
       }
       // west
-      if (attackers & 0b1000 && file(i) != 10) {
+      if (attackers & 0b1000 && FILE(i) != 10) {
         int index = i + 1;
         SET_INDEX(b.black, index);
       }
