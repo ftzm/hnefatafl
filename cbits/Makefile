@@ -139,10 +139,22 @@ clean:
 	@rm -f gen_constants
 
 # ------------------------------------------------------------------------------
+# Dependencies
+
+.PHONY: deps
+deps:
+	@echo "Initializing dependencies..."
+	git submodule update --init --recursive
+	@if [ ! -f "vendor/theft/build/libtheft.a" ]; then \
+		echo "Building theft..."; \
+		cd vendor/theft && sed -i '1s|#!/usr/bin/awk -f|#!$(shell which awk) -f|' scripts/mk_bits_lut && make; \
+	fi
+
+# ------------------------------------------------------------------------------
 # All
 
 .PHONY: all
-all: $(LIB_TARGET) $(TEST_BIN_DIR)/test $(BENCH_BINS)
+all: deps $(LIB_TARGET) $(TEST_BIN_DIR)/test $(BENCH_BINS)
 
 # ------------------------------------------------------------------------------
 # Bear

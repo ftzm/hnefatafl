@@ -13,7 +13,7 @@ inline u64 my_random_choice(struct theft *t, int limit) {
   return random() % limit;
 }
 
-inline board theft_create_board(struct theft *t) {
+static inline board theft_create_board(struct theft *t) {
   layer occ = corners;
   // set throne in occ
   OP_LAYER_BIT(occ, 60, |=);
