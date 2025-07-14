@@ -128,7 +128,7 @@ static enum theft_alloc_res
 white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
-  score_weights w = {3, 3, 3, 3, 3, 3, init_psts()};
+  score_weights w = {3, 3, 3, 3, 3, 3, 3, init_psts()};
   score_state ss = init_score_state(&w, &b);
 
   const layer capture_dests =
@@ -202,7 +202,7 @@ static enum theft_alloc_res
 white_scores_capture_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
-  score_weights w = {1, 1, 1, 1, 1, 1, init_psts()};
+  score_weights w = {1, 1, 1, 1, 1, 1, 1, init_psts()};
   score_state ss = init_score_state(&w, &b);
 
   const layer capture_dests =

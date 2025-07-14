@@ -1,9 +1,10 @@
+#include "score.h"
 #include "board.h"
+#include "capture.h"
 #include "constants.h"
 #include "layer.h"
 #include "limits.h"
 #include "move.h"
-#include "stdint.h"
 #include "x86intrin.h" // IWYU pragma: export
 
 #define MAP_INDICES(_l, _f)                                                    \
@@ -30,13 +31,6 @@ typedef enum piece_type : u8 {
 
 // -----------------------------------------------------------------------------
 // corner guard
-
-typedef struct corner_guard_state {
-  u8 nw_guard_count;
-  u8 ne_guard_count;
-  u8 sw_guard_count;
-  u8 se_guard_count;
-} corner_guard_state;
 
 inline u32 score_for_count(u8 count) {
   switch (count) {
@@ -172,10 +166,6 @@ i32 pawn_count_capture_adjust(const i32 weight, layer captures) {
 // time so that the values of the table itself are adjusted with the
 // weight; I don't need to apply the weight at every incremental score
 // update.
-typedef struct piece_square_table {
-  u32 _[121];
-} piece_square_table;
-
 piece_square_table quarter_to_pst(u32 quarter[29]) {
   static int indices[29] = {1,  2,  3,  4,  5,  11, 12, 13, 14, 15,
                             16, 22, 23, 24, 25, 26, 27, 33, 34, 35,
@@ -293,13 +283,6 @@ u32 king_niave_pst_quarter[29] = {
     -15  // 49
 };
 
-typedef struct psts {
-  piece_square_table black_pst;
-  piece_square_table white_pst;
-  piece_square_table king_pst;
-  // i32 king_throne_position_score; // this needs to go in the king pst
-} psts;
-
 psts init_psts() {
   return (psts){
       quarter_to_pst(black_niave_pst_quarter),
@@ -330,21 +313,6 @@ i32 pst_capture_handler(const piece_square_table *pst, layer captures) {
 // -----------------------------------------------------------------------------
 // Full setup
 
-typedef struct score_weights {
-  i32 black_pawn;
-  i32 white_pawn;
-  i32 corner_guard;
-  i32 black_moves;
-  i32 white_moves;
-  i32 king_moves;
-  psts psts;
-} score_weights;
-
-typedef struct score_state {
-  corner_guard_state corner_guard;
-  i32 score;
-} score_state;
-
 score_state init_score_state(score_weights *weights, const board *b) {
   i32 score =
       init_pawn_count_score(b, weights->black_pawn, weights->white_pawn) +
@@ -352,6 +320,17 @@ score_state init_score_state(score_weights *weights, const board *b) {
   corner_guard_state cgs =
       init_state_corner_guard(b, weights->corner_guard, &score);
   return (score_state){cgs, score};
+}
+
+// -----------------------------------------------------------------------------
+// King surrounders
+
+i32 king_surrounder_score(const board *b, const i32 weight) {
+  int king_pos = LOWEST_INDEX(b->king);
+  layer surround_mask = surround_masks[king_pos];
+  layer black_surrounders = LAYER_AND(surround_mask, b->black);
+  u8 black_count = __builtin_popcountll(black_surrounders._[0] | black_surrounders._[1]);
+  return black_count * weight;
 }
 
 // -----------------------------------------------------------------------------
@@ -409,7 +388,8 @@ i32 black_score(score_weights *w, score_state *s, board *b) {
   i32 black_moves = black_moves_count(b) * w->black_moves;
   i32 white_moves = white_moves_count(b) * w->white_moves;
   i32 king_moves = king_moves_count(b) * w->king_moves;
-  return s->score;
+  i32 king_surrounders = king_surrounder_score(b, w->king_surrounders);
+  return s->score + black_moves - white_moves - king_moves + king_surrounders;
 }
 
 i32 white_score(score_weights *w, score_state *s, board *b) {

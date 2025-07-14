@@ -30,6 +30,7 @@ typedef struct score_weights {
   i32 black_moves;
   i32 white_moves;
   i32 king_moves;
+  i32 king_surrounders;
   psts psts;
 } score_weights;
 
