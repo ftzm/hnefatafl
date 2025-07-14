@@ -1,4 +1,5 @@
 #include "board.h"
+#include "capture.h"
 #include "constants.h"
 #include "io.h"
 #include "layer.h"
@@ -62,4 +63,18 @@ bool king_escaped(const board *b) {
 
 bool king_effectively_escaped(const board *b) {
   return b->king._[0] & CORNERS_AND_ADJACENTS_0 || b->king._[1] & CORNERS_AND_ADJACENTS_1;
+}
+
+bool king_captured(const board *b) {
+  if (IS_EMPTY(LAYER_AND(b->king, INTERIOR))) {
+    return false;
+  }
+
+  int king_pos = LOWEST_INDEX(b->king);
+  layer surround_mask = surround_masks[king_pos];
+  layer attackers = b->black;
+  attackers._[0] |= THRONE_MASK_0;
+  layer present = LAYER_AND(attackers, surround_mask);
+
+  return LAYERS_EQUAL(surround_mask, present);
 }
