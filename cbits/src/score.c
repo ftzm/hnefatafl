@@ -395,7 +395,3 @@ i32 black_score(score_weights *w, score_state *s, board *b) {
 i32 white_score(score_weights *w, score_state *s, board *b) {
   return -black_score(w, s, b);
 }
-
-i32 king_score(score_weights *w, score_state *s, board *b) {
-  return -black_score(w, s, b);
-}

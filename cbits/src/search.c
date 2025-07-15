@@ -1,3 +1,4 @@
+#include "position_set.h"
 #include "board.h"
 #include "layer.h"
 #include "move.h"
@@ -470,3 +471,14 @@
 //   // printf("tally: %d\n", tally);
 //   return {result_move, result_board, res, new_r};
 // }
+
+i32 quiesce_white(position_set *positions, score_weights *w, score_state *s, board *b) {
+  // check for repetition
+
+// white to move, so we score for white
+// This is sort of like a null move score
+  i32 stand_pat = white_score(w, s, b);
+  
+}
+
+
