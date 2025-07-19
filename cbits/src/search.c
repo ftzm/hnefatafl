@@ -557,7 +557,7 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
     update_score_state_king_no_capture(w, &new_score_state, ms[i].orig, ms[i].orig);
     update_score_state_king_capture(w, &new_score_state, captures);
 
-    i32 score = quiesce_black(positions, w, new_score_state, new_b, new_position_hash, ply + 1, -beta, -alpha);
+    // i32 score = quiesce_black(positions, w, new_score_state, new_b, new_position_hash, ply + 1, -beta, -alpha);
 
   }
 
