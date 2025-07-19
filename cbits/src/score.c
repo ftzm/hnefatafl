@@ -7,18 +7,6 @@
 #include "move.h"
 #include "x86intrin.h" // IWYU pragma: export
 
-#define MAP_INDICES(_l, _f)                                                    \
-  while (_l._[0]) {                                                            \
-    int i = _tzcnt_u64(_l._[0]);                                               \
-    _f;                                                                        \
-    _l._[0] = _blsr_u64(_l._[0]);                                              \
-  }                                                                            \
-  while (_l._[1]) {                                                            \
-    int i = 64 + _tzcnt_u64(_l._[1]);                                          \
-    _f;                                                                        \
-    _l._[1] = _blsr_u64(_l._[1]);                                              \
-  }
-
 /*
 typedef enum piece_type : u8 {
   black_type = 1,

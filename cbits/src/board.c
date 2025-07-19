@@ -14,20 +14,18 @@ const char *start_board_string = " .  .  .  X  X  X  X  X  .  .  . "
                                  " .  .  .  X  X  X  X  X  .  .  . ";
 
 int white_pawn_count(const board *b) {
-  return __builtin_popcountll(b->white._[0]) +
-         __builtin_popcountll(b->white._[1]);
+  return LAYER_POPCOUNT(b->white);
 }
 
 int black_pawn_count(const board *b) {
-  return __builtin_popcountll(b->black._[0]) +
-         __builtin_popcountll(b->black._[1]);
+  return LAYER_POPCOUNT(b->black);
 }
 
 // todo: take reference
 int boards_equal(board a, board b) {
-  return (a.black._[0] == b.black._[0]) && (a.black._[1] == b.black._[1]) &&
-         (a.white._[0] == b.white._[0]) && (a.white._[1] == b.white._[1]) &&
-         (a.king._[0] == b.king._[0]) && (a.king._[1] == b.king._[1]);
+  return LAYERS_EQUAL(a.black, b.black) &&
+         LAYERS_EQUAL(a.white, b.white) &&
+         LAYERS_EQUAL(a.king, b.king);
 }
 
 // todo: take reference

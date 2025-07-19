@@ -154,12 +154,12 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest + 11;
   behind = dest + 22;
   if (dest < 99 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       count++;
   }
 
@@ -167,12 +167,12 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest - 11;
   behind = dest - 22;
   if (dest > 21 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       count++;
   }
 
@@ -180,12 +180,12 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest + 1;
   behind = dest + 2;
   if (modDest < 9 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       count++;
   }
    
@@ -193,12 +193,12 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   target = dest - 1;
   behind = dest - 2;
   if (modDest > 1 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       count++;
   }
 
@@ -216,12 +216,12 @@ layer apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u6
   target = dest + 11;
   behind = dest + 22;
   if (dest < 99 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       *z ^= hash_table[target];
       SET_INDEX(output, target);
   }
@@ -230,12 +230,12 @@ layer apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u6
   target = dest - 11;
   behind = dest - 22;
   if (dest > 21 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       *z ^= hash_table[target];
       SET_INDEX(output, target);
   }
@@ -244,12 +244,12 @@ layer apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u6
   target = dest + 1;
   behind = dest + 2;
   if (modDest < 9 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       *z ^= hash_table[target];
       SET_INDEX(output, target);
   }
@@ -258,12 +258,12 @@ layer apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u6
   target = dest - 1;
   behind = dest - 2;
   if (modDest > 1 &&
-      foes->_[SUB_LAYER(target)] & ((u64) 1 << sub_layer_offset_direct[target]) &&
-      friends._[SUB_LAYER(behind)] & ((u64) 1 << sub_layer_offset_direct[behind]))
+      CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind))
     {
-      foes->_[SUB_LAYER(target)] -= ((u64) 1 << sub_layer_offset_direct[target]);
+      CLEAR_INDEX_PTR(foes, target);
       int target_r = rotate_right[target];
-      foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
+      CLEAR_INDEX_PTR(foes_r, target_r);
       *z ^= hash_table[target];
       SET_INDEX(output, target);
   }

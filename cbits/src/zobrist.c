@@ -73,27 +73,13 @@ u64 next_hash_king(const u64 z, u8 orig, u8 dest) {
 // TODO: maybe integrate this into capture handling
 u64 next_black_captures(const u64 input_z, layer captures) {
   u64 z = input_z;
-  while (captures._[0]) {
-    z ^= black_hashes[_tzcnt_u64(captures._[0])];
-    captures._[0] = _blsr_u64(captures._[0]);
-  }
-  while (captures._[1]) {
-    z ^= black_hashes[64 + _tzcnt_u64(captures._[1])];
-    captures._[1] = _blsr_u64(captures._[1]);
-  }
+  MAP_INDICES(captures, z ^= black_hashes[i]);
   return z;
 }
 
 // TODO: maybe integrate this into capture handling
 u64 next_white_captures(const u64 input_z, layer captures) {
   u64 z = input_z;
-  while (captures._[0]) {
-    z ^= white_hashes[_tzcnt_u64(captures._[0])];
-    captures._[0] = _blsr_u64(captures._[0]);
-  }
-  while (captures._[1]) {
-    z ^= white_hashes[64 + _tzcnt_u64(captures._[1])];
-    captures._[1] = _blsr_u64(captures._[1]);
-  }
+  MAP_INDICES(captures, z ^= white_hashes[i]);
   return z;
 }

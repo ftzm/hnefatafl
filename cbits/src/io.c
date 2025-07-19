@@ -42,7 +42,7 @@ layer_string stringify(layer layer) {
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
     int index = 375 - (((i * 3) + 3) + newline_offset);
-    if (layer._[SUB_LAYER(i)] & ((u64)1 << sub_layer_offset_direct[i])) {
+    if (CHECK_INDEX(layer, i)) {
       string._[index] = 'X';
     } else {
       string._[index] = '.';
@@ -70,7 +70,7 @@ void print_layer(layer layer) {
   for (int i = 0; i < 121; i++) {
     int newline_offset = i / 11;
     int index = 373 - (((i * 3) + 1) + newline_offset);
-    if (layer._[SUB_LAYER(i)] & ((u64)1 << sub_layer_offset_direct[i])) {
+    if (CHECK_INDEX(layer, i)) {
       string[index] = 'X';
     } else {
       string[index] = '.';
@@ -186,14 +186,7 @@ void overlay_move(char *board, int orig, int dest, layer captures) {
   board[fmt_index(dest) - 1] = '[';
   board[fmt_index(dest) + 1] = ']';
 
-  while (captures._[0]) {
-    board[fmt_index(_tzcnt_u64(captures._[0]))] = '!';
-    captures._[0] = _blsr_u64(captures._[0]);
-  }
-  while (captures._[1]) {
-    board[fmt_index(64 + _tzcnt_u64(captures._[1]))] = '!';
-    captures._[1] = _blsr_u64(captures._[1]);
-  }
+  MAP_INDICES(captures, board[fmt_index(i)] = '!');
 };
 
 void print_board_move(board b, int orig, int dest, layer captures) {

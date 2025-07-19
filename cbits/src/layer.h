@@ -70,21 +70,21 @@ extern const u8 rotate_left[121];
 #define LAYER_NOT(_a) LAYER_NEG(_a)
 
 // can only be called with n > 0 && n < 65
-#define LAYER_SHIFTL_SHORT(_l, _n)                                               \
+#define LAYER_SHIFTL_SHORT(_l, _n)                                             \
   ((layer){_l._[0] << _n, (_l._[1] << _n) | (_l._[0] >> (64 - _n))})
 
 // can only be called with n > 0 && n < 65
-#define LAYER_SHIFTR(_l, _n)                                                     \
+#define LAYER_SHIFTR(_l, _n)                                                   \
   ((layer){(_l._[0] >> _n) | (_l._[1] << (64 - _n)), _l._[1] >> _n})
 
 // can be called with any value, though we assume it doesn't exceed (-)128
 inline layer layer_shift(layer _l, int _n) {
   if (_n > 64) {
-    return (layer) { 0, _l._[0] << (_n - 64) };
+    return (layer){0, _l._[0] << (_n - 64)};
   } else if (_n > 0) {
     return LAYER_SHIFTL_SHORT(_l, _n);
   } else if (_n < -64) {
-    return (layer) {_l._[1] >> -(_n + 64), 0};
+    return (layer){_l._[1] >> -(_n + 64), 0};
   } else if (_n < 0) {
     return LAYER_SHIFTR(_l, _n);
   } else {
@@ -92,33 +92,32 @@ inline layer layer_shift(layer _l, int _n) {
   }
 }
 
-#define CHECK_INDEX(_l, _i)                                                  \
+#define CHECK_INDEX(_l, _i)                                                    \
   (_l._[SUB_LAYER(_i)] & ((u64)1 << sub_layer_offset_direct[_i]))
 
-#define SET_INDEX(_l, _i)                                                    \
+#define SET_INDEX(_l, _i)                                                      \
   _l._[SUB_LAYER(_i)] |= ((u64)1 << sub_layer_offset_direct[_i])
 
-#define CLEAR_INDEX(_l, _i)                                                  \
+#define CLEAR_INDEX(_l, _i)                                                    \
   _l._[SUB_LAYER(_i)] &= ~((u64)1 << sub_layer_offset_direct[_i])
 
-#define TOGGLE_INDEX(_l, _i)                                                 \
+#define TOGGLE_INDEX(_l, _i)                                                   \
   _l._[SUB_LAYER(_i)] ^= ((u64)1 << sub_layer_offset_direct[_i])
 
-#define CHECK_INDEX_PTR(_l, _i)                                              \
+#define CHECK_INDEX_PTR(_l, _i)                                                \
   (_l->_[SUB_LAYER(_i)] & ((u64)1 << sub_layer_offset_direct[_i]))
 
-#define SET_INDEX_PTR(_l, _i)                                                \
+#define SET_INDEX_PTR(_l, _i)                                                  \
   _l->_[SUB_LAYER(_i)] |= ((u64)1 << sub_layer_offset_direct[_i])
 
-#define CLEAR_INDEX_PTR(_l, _i)                                              \
+#define CLEAR_INDEX_PTR(_l, _i)                                                \
   _l->_[SUB_LAYER(_i)] &= ~((u64)1 << sub_layer_offset_direct[_i])
 
-#define TOGGLE_INDEX_PTR(_l, _i)                                             \
+#define TOGGLE_INDEX_PTR(_l, _i)                                               \
   _l->_[SUB_LAYER(_i)] ^= ((u64)1 << sub_layer_offset_direct[_i])
 
-#define GET_CENTER_ROW(_l)                                                  \
-  (((u64)_l._[0] >> 55) |                                              \
-   ((((u64)_l._[1] & 0x3) << 9) & 0b11111111111))
+#define GET_CENTER_ROW(_l)                                                     \
+  (((u64)_l._[0] >> 55) | ((((u64)_l._[1] & 0x3) << 9) & 0b11111111111))
 #define SET_CENTER_ROW(_layer, _row)                                           \
   (_layer._[0] |= ((u64)_row << 55), _layer._[1] |= (_row >> 9))
 
@@ -160,20 +159,33 @@ static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
   _x->_[0] ^= _y._[0];                                                         \
   _x->_[1] ^= _y._[1]
 
-#define LOWEST_INDEX(_l)                                                    \
+#define LOWEST_INDEX(_l)                                                       \
   (_l._[0] ? _tzcnt_u64(_l._[0]) : _tzcnt_u64(_l._[1]) + 64)
 
-#define LAYER_POPCOUNT(_l) (__builtin_popcountll(_l._[0]) + __builtin_popcountll(_l._[1]))
+#define LAYER_POPCOUNT(_l)                                                     \
+  (__builtin_popcountll(_l._[0]) + __builtin_popcountll(_l._[1]))
 
 #define LAYER_NAND(_a, _b) LAYER_NEG(LAYER_AND(_a, _b))
 
 #define LAYER_NOR(_a, _b) LAYER_NEG(LAYER_OR(_a, _b))
 
-#define LAYER_NEG_ASSG(_x) \
-  _x._[0] = ~_x._[0]; \
+#define LAYER_NEG_ASSG(_x)                                                     \
+  _x._[0] = ~_x._[0];                                                          \
   _x._[1] = ~_x._[1]
 
 #define LOWER_HALF_MASK ((u64)36028797018963967ULL)
 #define UPPER_HALF_MASK ((u64)144115188075855868ULL)
 
 u16 dirty_get_row(layer l, int n);
+
+#define MAP_INDICES(_l, _f)                                                    \
+  while (_l._[0]) {                                                            \
+    int i = _tzcnt_u64(_l._[0]);                                               \
+    _f;                                                                        \
+    _l._[0] = _blsr_u64(_l._[0]);                                              \
+  }                                                                            \
+  while (_l._[1]) {                                                            \
+    int i = 64 + _tzcnt_u64(_l._[1]);                                          \
+    _f;                                                                        \
+    _l._[1] = _blsr_u64(_l._[1]);                                              \
+  }

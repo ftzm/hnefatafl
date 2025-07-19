@@ -20,7 +20,7 @@ static const layer below_4 = {17592186044415ULL, 0ULL};
 static const layer below_3 = {8589934591ULL, 0ULL};
 static const layer below_2 = {4194303ULL, 0ULL};
 static const layer below_1 = {2047ULL, 0ULL};
-static const layer below_0 = {0ULL, 0ULL};
+static const layer below_0 = EMPTY_LAYER;
 
 static const layer file_mask_0 = {36046397799139329ULL, 70403120701444ULL};
 static const layer legal_file_mask_0 = {36046397799139328ULL, 34376523780ULL};

@@ -207,18 +207,18 @@ const u8 rotate_left[121] = {
 };
 
 layer rotate_layer_right(const layer input) {
-  layer output = {0};
+  layer output = EMPTY_LAYER;
 
   u64 lower = input._[0];
   while (lower) {
     int r = rotate_right[_tzcnt_u64(lower)];
-    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
+    SET_INDEX(output, r);
     lower &= (lower - 1);
   }
   u64 upper = input._[1];
   while (upper) {
     int r = rotate_right[64 + _tzcnt_u64(upper)];
-    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
+    SET_INDEX(output, r);
     upper &= (upper - 1);
   }
 
@@ -226,18 +226,18 @@ layer rotate_layer_right(const layer input) {
 }
 
 layer rotate_layer_left(const layer input) {
-  layer output = {0};
+  layer output = EMPTY_LAYER;
 
   u64 lower = input._[0];
   while (lower) {
     int r = rotate_left[_tzcnt_u64(lower)];
-    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
+    SET_INDEX(output, r);
     lower &= (lower - 1);
   }
   u64 upper = input._[1];
   while (upper) {
     int r = rotate_left[64 + _tzcnt_u64(upper)];
-    output._[SUB_LAYER(r)] |= ((u64)1 << sub_layer_offset_direct[r]);
+    SET_INDEX(output, r);
     upper &= (upper - 1);
   }
 
