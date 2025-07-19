@@ -205,9 +205,8 @@ apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) 
   return count;
 }
 
-u8
-apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, u64 hash_table[121], int dest) {
-  u8 count = 0;
+layer apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, u64 hash_table[121], int dest) {
+  layer output = EMPTY_LAYER;
 
   int modDest = dest % 11;
   int target;
@@ -224,7 +223,7 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, 
       int target_r = rotate_right[target];
       foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
-      count++;
+      SET_INDEX(output, target);
   }
 
   //southCapture
@@ -238,7 +237,7 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, 
       int target_r = rotate_right[target];
       foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
-      count++;
+      SET_INDEX(output, target);
   }
 
   //westCapture
@@ -252,7 +251,7 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, 
       int target_r = rotate_right[target];
       foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
-      count++;
+      SET_INDEX(output, target);
   }
    
   //eastCapture
@@ -266,18 +265,18 @@ apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, 
       int target_r = rotate_right[target];
       foes_r->_[SUB_LAYER(target_r)] -= ((u64) 1 << sub_layer_offset_direct[target_r]);
       *z ^= hash_table[target];
-      count++;
+      SET_INDEX(output, target);
   }
 
-  return count;
+  return output;
 }
 
-void apply_captures_z_black(board *b, u64 *z, u8 dest) {
-  apply_captures_niave_z(b->black, &b->white, &b->white_r, z, white_hashes, dest);
+layer apply_captures_z_black(board *b, u64 *z, u8 dest) {
+  return apply_captures_niave_z(b->black, &b->white, &b->white_r, z, white_hashes, dest);
 }  
 
-void apply_captures_z_white(board *b, u64 *z, u8 dest) {
-  apply_captures_niave_z(b->white, &b->black, &b->black_r, z, black_hashes, dest);
+layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
+  return apply_captures_niave_z(LAYER_OR(b->white, b->king), &b->black, &b->black_r, z, black_hashes, dest);
 }  
 
 //******************************************************************************

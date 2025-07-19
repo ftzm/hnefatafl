@@ -3,10 +3,10 @@
 #include "move.h"
 #include "position_set.h"
 #include "score.h"
-#include "stdbool.h"
 #include "assert.h"
-#include "stdint.h"
 #include "move_legacy.h"
+#include "zobrist.h"
+#include "capture.h"
 
 // typedef struct negamax_ab_result {
 //   move _move;
@@ -482,8 +482,11 @@
 //   return {result_move, result_board, res, new_r};
 // }
 
-i32 quiesce_white(position_set *positions, score_weights *w, score_state *s,
-                  board b, u64 position_hash, int ply) {
+i32 quiesce_black(position_set *positions, score_weights *w, score_state s,
+                  board b, u64 position_hash, int ply, i32 alpha, i32 beta);
+
+i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
+                  board b, u64 position_hash, int ply, i32 alpha, i32 beta) {
 
   // assert we don't exceed a generous ply limit to guard against infinite loops 
   assert(ply < 20);
@@ -498,17 +501,25 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state *s,
 
   // white to move, so we score for white
   // This is sort of like a null move score
-  i32 static_eval = white_score(w, s, &b);
+  i32 static_eval = white_score(w, &s, &b);
+  if (static_eval >= beta) {
+    return beta;
+  }
+  if (alpha < static_eval) {
+    alpha = static_eval;
+  }
 
 
   // generate capture moves 
   layer capture_dests = find_capture_destinations(LAYER_OR(b.white, b.king), b.black, king_board_occ(b));
   layer capture_dests_r = find_capture_destinations(LAYER_OR(b.white_r, b.king_r), b.black_r, king_board_occ_r(b));
 
-  // shared move memony
-  move ms[335];
-  layer ls[335];
-  layer ls_r[335];
+  // shared move memory
+  // 100 is an arbitrary number but almost certainly sufficient.
+  // TODO: find the "correct" size for this based on the maximum capture count, either theoretical or statistical
+  move ms[100];
+  layer ls[100];
+  layer ls_r[100];
   int total;
 
   // generate capture moves for king
@@ -525,8 +536,32 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state *s,
       &total);
   
   // iterate
+  for (int i; i < total; i++) {
+    move move = ms[i];
+    layer move_l = ls[i];
+    layer move_l_r = ls_r[i];
 
-  // generate capture moves for paws
+    // update board
+    board new_b = b;
+    LAYER_XOR_ASSG(b.white, ls[i]);
+    LAYER_XOR_ASSG(b.white_r, ls_r[i]);
+
+    // update zobrist
+    u64 new_position_hash = next_hash_king(position_hash, ms[i].orig, ms[i].orig) ;
+
+    // apply captures
+    layer captures = apply_captures_z_white(&new_b, &new_position_hash, ms[i].dest);
+
+    // update score state
+    score_state new_score_state = s;
+    update_score_state_king_no_capture(w, &new_score_state, ms[i].orig, ms[i].orig);
+    update_score_state_king_capture(w, &new_score_state, captures);
+
+    i32 score = quiesce_black(positions, w, new_score_state, new_b, new_position_hash, ply + 1, -beta, -alpha);
+
+  }
+
+  // generate capture moves for pawns
 
   // iterate 
 

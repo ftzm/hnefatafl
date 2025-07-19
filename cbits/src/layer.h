@@ -1,6 +1,5 @@
 #pragma once
 
-#include "stdint.h"
 #include "util.h"
 
 typedef struct layer {

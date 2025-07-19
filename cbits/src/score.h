@@ -42,6 +42,7 @@ typedef struct score_state {
 // Function declarations
 psts init_psts(void);
 score_state init_score_state(score_weights *weights, const board *b);
+// TODO: update these to take a score state as input and output the new one, not mutate the reference
 void update_score_state_white_no_capture(const score_weights *weights, score_state *s, int orig, int dest);
 void update_score_state_black_no_capture(const score_weights *weights, score_state *s, int orig, int dest);
 void update_score_state_white_capture(const score_weights *weights, score_state *s, const layer captures);
