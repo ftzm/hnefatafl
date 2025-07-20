@@ -27,3 +27,24 @@ layer king_board_occ_r(board b);
 int black_pawn_count(const board *b);
 
 int white_pawn_count(const board *b);
+
+inline board apply_black_move(board b, layer l, layer l_r) {
+  board new = b;
+  LAYER_XOR_ASSG(b.black, l);
+  LAYER_XOR_ASSG(b.black_r, l_r);
+  return new;
+}
+
+inline board apply_white_move(board b, layer l, layer l_r) {
+  board new = b;
+  LAYER_XOR_ASSG(b.white, l);
+  LAYER_XOR_ASSG(b.white_r, l_r);
+  return new;
+}
+
+inline board apply_king_move(board b, layer l, layer l_r) {
+  board new = b;
+  LAYER_XOR_ASSG(b.king, l);
+  LAYER_XOR_ASSG(b.king_r, l_r);
+  return new;
+}

@@ -333,43 +333,52 @@ i32 king_surrounder_score(const board *b, const i32 weight) {
 // and one additional function for each colow that only does the
 // capture-specific updates. getting a score out of the state can be shared.
 
-void update_score_state_black_no_capture(
-    const score_weights *weights, score_state *s, int orig, int dest) {
-  s->score += pst_handle_move(&weights->psts.black_pst, orig, dest);
+score_state update_score_state_black_move(
+    const score_weights *weights, score_state s, int orig, int dest) {
+  s.score += pst_handle_move(&weights->psts.black_pst, orig, dest);
   corner_guard_handle_black_move(
-      weights->corner_guard, &s->corner_guard, &s->score, orig, dest);
+      weights->corner_guard, &s.corner_guard, &s.score, orig, dest);
+  return s;
 }
 
-void update_score_state_black_capture(
-    const score_weights *weights, score_state *s, const layer captures) {
-  s->score += pst_capture_handler(&weights->psts.white_pst, captures);
-  s->score += pawn_count_capture_adjust(weights->white_pawn, captures);
+score_state update_score_state_black_move_and_capture(
+    const score_weights *weights, score_state s, int orig, int dest, const layer captures) {
+  s = update_score_state_black_move(weights, s, orig, dest);
+  s.score += pst_capture_handler(&weights->psts.white_pst, captures);
+  s.score += pawn_count_capture_adjust(weights->white_pawn, captures);
+  return s;
 }
 
-void update_score_state_white_no_capture(
-    const score_weights *weights, score_state *s, int orig, int dest) {
-  s->score -= pst_handle_move(&weights->psts.white_pst, orig, dest);
+score_state update_score_state_white_move(
+    const score_weights *weights, score_state s, int orig, int dest) {
+  s.score -= pst_handle_move(&weights->psts.white_pst, orig, dest);
+  return s;
 }
 
-void update_score_state_white_capture(
-    const score_weights *weights, score_state *s, const layer captures) {
-  s->score -= pst_capture_handler(&weights->psts.black_pst, captures);
-  s->score -= pawn_count_capture_adjust(weights->black_pawn, captures);
+score_state update_score_state_white_move_and_capture(
+    const score_weights *weights, score_state s, int orig, int dest, const layer captures) {
+  s = update_score_state_white_move(weights, s, orig, dest);
+  s.score -= pst_capture_handler(&weights->psts.black_pst, captures);
+  s.score -= pawn_count_capture_adjust(weights->black_pawn, captures);
   corner_guard_capture_adjust(
-      weights->corner_guard, captures, &s->corner_guard, &s->score);
+      weights->corner_guard, captures, &s.corner_guard, &s.score);
+  return s;
 }
 
-void update_score_state_king_no_capture(
-    const score_weights *weights, score_state *s, int orig, int dest) {
-  s->score -= pst_handle_move(&weights->psts.king_pst, orig, dest);
+score_state update_score_state_king_move(
+    const score_weights *weights, score_state s, int orig, int dest) {
+  s.score -= pst_handle_move(&weights->psts.king_pst, orig, dest);
+  return s;
 }
 
-void update_score_state_king_capture(
-    const score_weights *weights, score_state *s, const layer captures) {
-  s->score -= pst_capture_handler(&weights->psts.black_pst, captures);
-  s->score -= pawn_count_capture_adjust(weights->black_pawn, captures);
+score_state update_score_state_king_move_and_capture(
+    const score_weights *weights, score_state s, int orig, int dest, const layer captures) {
+  s = update_score_state_king_move(weights, s, orig, dest);
+  s.score -= pst_capture_handler(&weights->psts.black_pst, captures);
+  s.score -= pawn_count_capture_adjust(weights->black_pawn, captures);
   corner_guard_capture_adjust(
-      weights->corner_guard, captures, &s->corner_guard, &s->score);
+      weights->corner_guard, captures, &s.corner_guard, &s.score);
+  return s;
 }
 
 i32 black_score(score_weights *w, score_state *s, board *b) {

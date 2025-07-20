@@ -1,12 +1,12 @@
+#include "assert.h"
 #include "board.h"
+#include "capture.h"
 #include "layer.h"
 #include "move.h"
+#include "move_legacy.h"
 #include "position_set.h"
 #include "score.h"
-#include "assert.h"
-#include "move_legacy.h"
 #include "zobrist.h"
-#include "capture.h"
 
 // typedef struct negamax_ab_result {
 //   move _move;
@@ -14,7 +14,6 @@
 //   i32 _score;
 //   score_state ss;
 // } negamax_ab_result;
-//
 // // move moves_table[11][240];
 // // board boards_table[11][240];
 // // board scores_table[11][240];
@@ -488,7 +487,7 @@ i32 quiesce_black(position_set *positions, score_weights *w, score_state s,
 i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
                   board b, u64 position_hash, int ply, i32 alpha, i32 beta) {
 
-  // assert we don't exceed a generous ply limit to guard against infinite loops 
+  // assert we don't exceed a generous ply limit to guard against infinite loops
   assert(ply < 20);
 
   // check for repetition
@@ -509,65 +508,57 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
     alpha = static_eval;
   }
 
-
-  // generate capture moves 
-  layer capture_dests = find_capture_destinations(LAYER_OR(b.white, b.king), b.black, king_board_occ(b));
-  layer capture_dests_r = find_capture_destinations(LAYER_OR(b.white_r, b.king_r), b.black_r, king_board_occ_r(b));
+  // generate capture moves
+  layer capture_dests = find_capture_destinations(LAYER_OR(b.white, b.king),
+                                                  b.black, king_board_occ(b));
+  layer capture_dests_r = find_capture_destinations(
+      LAYER_OR(b.white_r, b.king_r), b.black_r, king_board_occ_r(b));
 
   // shared move memory
   // 100 is an arbitrary number but almost certainly sufficient.
-  // TODO: find the "correct" size for this based on the maximum capture count, either theoretical or statistical
+  // TODO: find the "correct" size for this based on the maximum capture count,
+  // either theoretical or statistical
   move ms[100];
   layer ls[100];
   layer ls_r[100];
   int total;
 
   // generate capture moves for king
-  moves_to_king_impl(
-      capture_dests,
-      capture_dests_r,
-      b.king,
-      b.king_r,
-      king_board_occ(b),
-      king_board_occ_r(b),
-      ms,
-      ls,
-      ls_r,
-      &total);
-  
+  moves_to_king_impl(capture_dests, capture_dests_r, b.king, b.king_r,
+                     king_board_occ(b), king_board_occ_r(b), ms, ls, ls_r,
+                     &total);
+
   // iterate
   for (int i; i < total; i++) {
-    move move = ms[i];
-    layer move_l = ls[i];
-    layer move_l_r = ls_r[i];
+    u8 orig = ms[i].orig;
+    u8 dest = ms[i].dest;
+    layer move = ls[i];
+    layer move_r = ls_r[i];
 
     // update board
-    board new_b = b;
-    LAYER_XOR_ASSG(b.white, ls[i]);
-    LAYER_XOR_ASSG(b.white_r, ls_r[i]);
+    board new_b = apply_king_move(b, move, move_r);
 
     // update zobrist
-    u64 new_position_hash = next_hash_king(position_hash, ms[i].orig, ms[i].orig) ;
+    u64 new_position_hash = next_hash_king(position_hash, orig, dest);
 
     // apply captures
-    layer captures = apply_captures_z_white(&new_b, &new_position_hash, ms[i].dest);
+    layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
 
     // update score state
-    score_state new_score_state = s;
-    update_score_state_king_no_capture(w, &new_score_state, ms[i].orig, ms[i].orig);
-    update_score_state_king_capture(w, &new_score_state, captures);
+    score_state new_score_state =
+        update_score_state_king_move_and_capture(w, s, orig, dest, captures);
 
-    // i32 score = quiesce_black(positions, w, new_score_state, new_b, new_position_hash, ply + 1, -beta, -alpha);
-
+    // i32 score = quiesce_black(positions, w, new_score_state, new_b,
+    // new_position_hash, ply + 1, -beta, -alpha);
   }
 
   // generate capture moves for pawns
 
-  // iterate 
+  // iterate
 
   // generate king escapes
 
-  // iterate 
+  // iterate
 
   // remove the position from the set as we exit
   delete_position(positions, position_index);
