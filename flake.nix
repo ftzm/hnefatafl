@@ -59,6 +59,7 @@
           pkgs.clangStdenv
           pkgs.just
           pkgs.ripgrep
+          pkgs.greenest
 
           pkgs.python312Packages.cogapp
         ];

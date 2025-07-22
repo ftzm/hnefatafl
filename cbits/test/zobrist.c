@@ -3,7 +3,6 @@
 #include "greatest.h"
 #include "io.h"
 #include "move.h"
-#include <stdint.h>
 
 const char *sanity_capture_king_string = " .  .  X  .  X  .  O  .  .  .  . "
                                          " .  X  .  X  .  .  .  .  O  .  . "
@@ -40,7 +39,7 @@ TEST test_black_zobrist() {
     ASSERT_EQm(b2_str._, re_hash, incremental_hash);
   }
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 TEST test_white_zobrist() {
@@ -66,7 +65,7 @@ TEST test_white_zobrist() {
     ASSERT_EQm(b2_str._, re_hash, incremental_hash);
   }
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 TEST test_king_zobrist() {
@@ -92,7 +91,7 @@ TEST test_king_zobrist() {
     ASSERT_EQm(b2_str._, re_hash, incremental_hash);
   }
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 SUITE(zobrist_suite) {

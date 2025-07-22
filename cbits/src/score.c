@@ -271,7 +271,7 @@ u32 king_niave_pst_quarter[29] = {
     -15  // 49
 };
 
-psts init_psts() {
+psts init_default_psts() {
   return (psts){
       quarter_to_pst(black_niave_pst_quarter),
       quarter_to_pst(white_niave_pst_quarter),
@@ -391,4 +391,18 @@ i32 black_score(score_weights *w, score_state *s, board *b) {
 
 i32 white_score(score_weights *w, score_state *s, board *b) {
   return -black_score(w, s, b);
+}
+
+score_weights init_default_weights() {
+  score_weights weights = {
+    .black_pawn = 100,
+    .white_pawn = 100,
+    .corner_guard = 50,
+    .black_moves = 10,
+    .white_moves = 10,
+    .king_moves = 15,
+    .king_surrounders = 25,
+    .psts = init_default_psts()
+  };
+  return weights;
 }

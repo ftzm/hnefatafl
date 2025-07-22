@@ -5,7 +5,6 @@
 
 bool king_captured(const board *b);
 
-// Forward declarations
 typedef struct corner_guard_state {
   u8 nw_guard_count;
   u8 ne_guard_count;
@@ -39,15 +38,28 @@ typedef struct score_state {
   i32 score;
 } score_state;
 
-// Function declarations
-psts init_psts(void);
 score_state init_score_state(score_weights *weights, const board *b);
-score_state update_score_state_white_move(const score_weights *weights, score_state s, int orig, int dest);
-score_state update_score_state_black_move(const score_weights *weights, score_state s, int orig, int dest);
-score_state update_score_state_white_move_and_capture(const score_weights *weights, score_state s, int orig, int dest, const layer captures);
-score_state update_score_state_black_move_and_capture(const score_weights *weights, score_state s, int orig, int dest, const layer captures);
-score_state update_score_state_king_move(const score_weights *weights, score_state s, int orig, int dest);
-score_state update_score_state_king_move_and_capture(const score_weights *weights, score_state s, int orig, int dest, const layer captures);
+score_state update_score_state_white_move(const score_weights *weights,
+                                          score_state s, int orig, int dest);
+score_state update_score_state_black_move(const score_weights *weights,
+                                          score_state s, int orig, int dest);
+score_state
+update_score_state_white_move_and_capture(const score_weights *weights,
+                                          score_state s, int orig, int dest,
+                                          const layer captures);
+score_state
+update_score_state_black_move_and_capture(const score_weights *weights,
+                                          score_state s, int orig, int dest,
+                                          const layer captures);
+score_state update_score_state_king_move(const score_weights *weights,
+                                         score_state s, int orig, int dest);
+score_state
+update_score_state_king_move_and_capture(const score_weights *weights,
+                                         score_state s, int orig, int dest,
+                                         const layer captures);
 i32 black_score(score_weights *w, score_state *s, board *b);
 i32 white_score(score_weights *w, score_state *s, board *b);
 i32 king_score(score_weights *w, score_state *s, board *b);
+
+psts init_default_psts(void);
+score_weights init_default_weights(void);

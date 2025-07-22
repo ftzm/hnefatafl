@@ -12,7 +12,7 @@ typedef struct board {
   layer king_r;
 } board;
 
-extern const char* start_board_string;
+extern const char *start_board_string;
 
 int boards_equal(board a, board b);
 
@@ -29,22 +29,19 @@ int black_pawn_count(const board *b);
 int white_pawn_count(const board *b);
 
 inline board apply_black_move(board b, layer l, layer l_r) {
-  board new = b;
   LAYER_XOR_ASSG(b.black, l);
   LAYER_XOR_ASSG(b.black_r, l_r);
-  return new;
+  return b;
 }
 
 inline board apply_white_move(board b, layer l, layer l_r) {
-  board new = b;
   LAYER_XOR_ASSG(b.white, l);
   LAYER_XOR_ASSG(b.white_r, l_r);
-  return new;
+  return b;
 }
 
 inline board apply_king_move(board b, layer l, layer l_r) {
-  board new = b;
   LAYER_XOR_ASSG(b.king, l);
   LAYER_XOR_ASSG(b.king_r, l_r);
-  return new;
+  return b;
 }

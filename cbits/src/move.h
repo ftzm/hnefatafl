@@ -44,30 +44,13 @@ int cmp_moves(const move *a, const move *b);
 
 #define MOVES_EQUAL(a, b) (a.orig == b.orig && a.dest == b.dest)
 
-void moves_to(
-    layer targets,
-    layer targets_r,
-    layer movers,
-    layer movers_r,
-    layer occ,
-    layer occ_r,
-    move *ms,
-    layer *ls,
-    layer *ls_r,
-    int *total);
+void moves_to(layer targets, layer targets_r, layer movers, layer movers_r,
+              layer occ, layer occ_r, move *ms, layer *ls, layer *ls_r,
+              int *total);
 
-void moves_to_king_impl(
-    layer targets,
-    layer targets_r,
-    layer movers,
-    layer movers_r,
-    layer occ,
-    layer occ_r,
-    move *ms,
-    layer *ls,
-    layer *ls_r,
-    int *total);
-
+void moves_to_king_impl(layer targets, layer targets_r, layer movers,
+                        layer movers_r, layer occ, layer occ_r, move *ms,
+                        layer *ls, layer *ls_r, int *total);
 
 typedef struct moves_to {
   move ms[335];
@@ -76,57 +59,31 @@ typedef struct moves_to {
   int total;
 } moves_to_t;
 
-static inline moves_to_t
-moves_to_black(board b, layer targets, layer targets_r) {
+static inline moves_to_t moves_to_black(board b, layer targets,
+                                        layer targets_r) {
   moves_to_t results = {{0}};
   results.total = 0;
-  moves_to(
-      targets,
-      targets_r,
-      b.black,
-      b.black_r,
-      board_occ(b),
-      board_occ_r(b),
-      results.ms,
-      results.ls,
-      results.ls_r,
-      &results.total);
+  moves_to(targets, targets_r, b.black, b.black_r, board_occ(b), board_occ_r(b),
+           results.ms, results.ls, results.ls_r, &results.total);
   return results;
 }
 
-static inline moves_to_t
-moves_to_white(board b, layer targets, layer targets_r) {
+static inline moves_to_t moves_to_white(board b, layer targets,
+                                        layer targets_r) {
   moves_to_t results = {{0}};
   results.total = 0;
-  moves_to(
-      targets,
-      targets_r,
-      b.white,
-      b.white_r,
-      board_occ(b),
-      board_occ_r(b),
-      results.ms,
-      results.ls,
-      results.ls_r,
-      &results.total);
+  moves_to(targets, targets_r, b.white, b.white_r, board_occ(b), board_occ_r(b),
+           results.ms, results.ls, results.ls_r, &results.total);
   return results;
 }
 
-static inline moves_to_t
-moves_to_king(board b, layer targets, layer targets_r) {
+static inline moves_to_t moves_to_king(board b, layer targets,
+                                       layer targets_r) {
   moves_to_t results = {{0}};
   results.total = 0;
-  moves_to_king_impl(
-      targets,
-      targets_r,
-      b.king,
-      b.king_r,
-      king_board_occ(b),
-      king_board_occ_r(b),
-      results.ms,
-      results.ls,
-      results.ls_r,
-      &results.total);
+  moves_to_king_impl(targets, targets_r, b.king, b.king_r, king_board_occ(b),
+                     king_board_occ_r(b), results.ms, results.ls, results.ls_r,
+                     &results.total);
   return results;
 }
 
@@ -135,3 +92,19 @@ moves_to_king(board b, layer targets, layer targets_r) {
 int black_moves_count(const board *b);
 int white_moves_count(const board *b);
 int king_moves_count(const board *b);
+
+#define MOVE_a 10
+#define MOVE_b 9
+#define MOVE_c 8
+#define MOVE_d 7
+#define MOVE_e 6
+#define MOVE_f 5
+#define MOVE_g 4
+#define MOVE_h 3
+#define MOVE_i 2
+#define MOVE_j 1
+#define MOVE_k 0
+
+#define MOVE(_orig_rank, _orig_file, _dest_rank, _dest_file)                   \
+  ((move){((_orig_rank - 1) * 11) + (MOVE_##_orig_file),                       \
+          ((_dest_rank - 1) * 11) + (MOVE_##_dest_file)})

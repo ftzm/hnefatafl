@@ -10,6 +10,7 @@ SUITE_EXTERN(position_set_suite);
 SUITE_EXTERN(score_suite);
 SUITE_EXTERN(victory_suite);
 SUITE_EXTERN(zobrist_suite);
+SUITE_EXTERN(quiesce_white_suite);
 
 GREATEST_MAIN_DEFS();
 
@@ -25,5 +26,6 @@ int main(int argc, char **argv) {
   RUN_SUITE(score_suite);
   RUN_SUITE(victory_suite);
   RUN_SUITE(zobrist_suite);
+  RUN_SUITE(quiesce_white_suite);
   GREATEST_MAIN_END();
 }

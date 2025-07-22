@@ -1,11 +1,17 @@
+#include "search.h"
 #include "assert.h"
 #include "board.h"
 #include "capture.h"
+#include "io.h"
 #include "layer.h"
+#include "limits.h"
 #include "move.h"
 #include "move_legacy.h"
 #include "position_set.h"
 #include "score.h"
+#include "stdlib.h"
+#include "string.h"
+#include "victory.h"
 #include "zobrist.h"
 
 // typedef struct negamax_ab_result {
@@ -481,14 +487,93 @@
 //   return {result_move, result_board, res, new_r};
 // }
 
+#define MAX_DEPTH 32
+int PV_LENGTH[MAX_DEPTH];
+move PV_TABLE[MAX_DEPTH][MAX_DEPTH];
+board PV_TABLE_BOARDS[MAX_DEPTH][MAX_DEPTH];
+move PREV_PV[MAX_DEPTH];
+int PREV_PV_LENGTH;
+
+pv_line create_pv_line(bool is_black_turn) {
+  move *moves = malloc(sizeof(move) * PV_LENGTH[0]);
+  memcpy(moves, PV_TABLE[0], sizeof(move) * PV_LENGTH[0]);
+  return (pv_line){is_black_turn, moves, PV_LENGTH[0]};
+}
+
+void destroy_pv_line(pv_line *line) { free(line->moves); }
+
 i32 quiesce_black(position_set *positions, score_weights *w, score_state s,
-                  board b, u64 position_hash, int ply, i32 alpha, i32 beta);
+                  board b, u64 position_hash, int ply, i32 alpha, i32 beta) {
+
+  printf("hit black");
+
+  // We only need to check for a king escape because the previous move will
+  // have been white.
+  if (king_effectively_escaped(&b)) {
+    printf("hit black");
+    return INT_MIN;
+  }
+
+  // assert we don't exceed a generous ply limit to guard against infinite loops
+  assert(ply < 20);
+
+  PV_LENGTH[ply] = ply;
+
+  // check for repetition
+  int position_index;
+  int collision = insert_position(positions, position_hash, &position_index);
+  if (collision) {
+    // we consider the position a draw, and thus score it 0
+    return 0;
+  }
+
+  // black to move, so we score for black
+  i32 static_eval = black_score(w, &s, &b);
+
+  // stand pat
+  // This is sort of like a null move score
+  i32 best_value = static_eval;
+  if (best_value >= beta) {
+    return best_value;
+  }
+  if (best_value > alpha) {
+    alpha = best_value;
+  }
+
+  // TODO: ensure that I follow a king-escape-in-progress to its conclusion.
+  // When I generate a layer of king escape paths and then generate moves to
+  // block them, I need to ensure that return a sensible score when there are no
+  // blocking moves to generate. In default quiescence if I can't generate any
+  // moves then I return a static evaluation, which here is not accurate; the
+  // actual consequence will likely be a king escape. So if I generate king
+  // escape paths and can't generate any moves to block it, I should score it
+  // very poorly (maybe even as a loss). The only problem is that in the
+  // instance where I generate a two-move king-escape path, there may be
+  // instances where a black piece can't block it in one move, but can in two,
+  // and I won't generate that two-move response. The solution would be, in the
+  // king escape path layer, instead of only generating the exact path, also
+  // smearing the final move vector in both perpindicular directions so that we
+  // also generate any move which can obstruct the final move in two moves.
+  // Another option would be to preserve the existing 2-move-escape blocking
+  // function, and only generate 2-move _blocks_ when I can't find any 1-move
+  // blocks.
+
+  return best_value;
+}
 
 i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
                   board b, u64 position_hash, int ply, i32 alpha, i32 beta) {
 
+  // We only need to check for a king capture because the previous move will
+  // have been black.
+  if (king_captured(&b)) {
+    return INT_MIN;
+  }
+
   // assert we don't exceed a generous ply limit to guard against infinite loops
   assert(ply < 20);
+
+  PV_LENGTH[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -499,13 +584,16 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
   }
 
   // white to move, so we score for white
-  // This is sort of like a null move score
   i32 static_eval = white_score(w, &s, &b);
-  if (static_eval >= beta) {
-    return beta;
+
+  // stand pat
+  // This is sort of like a null move score
+  i32 best_value = static_eval;
+  if (best_value >= beta) {
+    return best_value;
   }
-  if (alpha < static_eval) {
-    alpha = static_eval;
+  if (best_value > alpha) {
+    alpha = best_value;
   }
 
   // generate capture moves
@@ -528,6 +616,9 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
                      king_board_occ(b), king_board_occ_r(b), ms, ls, ls_r,
                      &total);
 
+  // hacky bounds check
+  assert(total < 100);
+
   // iterate
   for (int i; i < total; i++) {
     u8 orig = ms[i].orig;
@@ -535,21 +626,32 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
     layer move = ls[i];
     layer move_r = ls_r[i];
 
-    // update board
     board new_b = apply_king_move(b, move, move_r);
-
-    // update zobrist
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
-
-    // apply captures
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
-
-    // update score state
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
+    i32 score = quiesce_black(positions, w, new_score_state, new_b,
+                              new_position_hash, ply + 1, -beta, -alpha);
+    print_board_move(new_b, orig, dest, captures);
 
-    // i32 score = quiesce_black(positions, w, new_score_state, new_b,
-    // new_position_hash, ply + 1, -beta, -alpha);
+    if (score >= beta) {
+      return score;
+    }
+    if (score > best_value) {
+      best_value = score;
+
+      PV_TABLE[ply][ply] = ms[i];
+      // copy up moves discovered at lower depths
+      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
+        PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+      }
+      // adjust pv length
+      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+    }
+    if (score > alpha) {
+      alpha = score;
+    }
   }
 
   // generate capture moves for pawns
@@ -562,4 +664,20 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
 
   // remove the position from the set as we exit
   delete_position(positions, position_index);
+
+  return best_value;
+}
+
+pv_line quiesce_white_runner(board b) {
+  u64 position_hash = hash_for_board(b, false);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  int ply = 0;
+  i32 alpha = INT_MIN;
+  i32 beta = INT_MAX;
+  i32 result =
+      quiesce_white(positions, &weights, s, b, position_hash, ply, alpha, beta);
+  destroy_position_set(positions);
+  return create_pv_line(false);
 }

@@ -1,11 +1,11 @@
-#include "assert.h"
 #include "capture.h"
+#include "assert.h"
 #include "greatest.h"
 #include "io.h"
-#include "stdio.h"
-#include "string.h"
-#include "stdlib.h"
 #include "stdbool.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
 
 void assert_boards_equal(board a, board b, int line, const char *func) {
   if (!boards_equal(a, b)) {
@@ -18,22 +18,23 @@ void assert_boards_equal(board a, board b, int line, const char *func) {
     strcpy(b_str, base);
     fmt_board(b, b_str);
 
-    printf("Boards not equal in function %s at line %d:\n%s%s", func, line, a_str, b_str);
+    printf("Boards not equal in function %s at line %d:\n%s%s", func, line,
+           a_str, b_str);
     exit(1);
   }
 }
 
 board reverse_teams(board b) {
-  return (board){
-      .black = b.white,
-      .black_r = b.white_r,
-      .white = b.black,
-      .white_r = b.black_r,
-      .king = b.king,
-      .king_r = b.king_r};
+  return (board){.black = b.white,
+                 .black_r = b.white_r,
+                 .white = b.black,
+                 .white_r = b.black_r,
+                 .king = b.king,
+                 .king_r = b.king_r};
 }
 
-TEST test(const char *input, const char *expected, unsigned char pos, int line, const char *func) {
+TEST test(const char *input, const char *expected, unsigned char pos, int line,
+          const char *func) {
   const board exp = read_board(expected);
 
   board white = read_board(input);
@@ -44,13 +45,14 @@ TEST test(const char *input, const char *expected, unsigned char pos, int line, 
 
   shield_wall_black_gen(&black, pos);
   assert_boards_equal(reverse_teams(exp), black, line, func);
-  
+
   PASS();
 }
 
 #define TEST_SHIELD_WALL(a, b, p) test(a, b, p, __LINE__, __FUNCTION__)
 
-TEST test_team(bool is_black, const char *input, const char *expected, unsigned char pos, int line, const char *func) {
+TEST test_team(bool is_black, const char *input, const char *expected,
+               unsigned char pos, int line, const char *func) {
   const board exp = read_board(expected);
 
   board got = read_board(input);
@@ -66,7 +68,8 @@ TEST test_team(bool is_black, const char *input, const char *expected, unsigned 
   PASS();
 }
 
-#define TEST_SHIELD_WALL_TEAM(is_black, a, b, p) test_team(is_black, a, b, p, __LINE__, __FUNCTION__)
+#define TEST_SHIELD_WALL_TEAM(is_black, a, b, p)                               \
+  test_team(is_black, a, b, p, __LINE__, __FUNCTION__)
 
 TEST test_capture_s_m(void) {
   const char *s_input = ".  .  .  .  .  .  .  .  .  .  ."
@@ -95,7 +98,6 @@ TEST test_capture_s_m(void) {
 
   return TEST_SHIELD_WALL(s_input, s_expected, 5);
 }
-
 
 TEST test_capture_s_left(void) {
   const char *se_input = ".  .  .  .  .  .  .  .  .  .  ."
@@ -152,7 +154,6 @@ TEST test_capture_s_right(void) {
 
   return TEST_SHIELD_WALL(sw_input, sw_expected, 9);
 }
-
 
 TEST test_capture_e_m(void) {
 

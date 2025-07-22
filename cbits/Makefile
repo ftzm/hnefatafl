@@ -103,8 +103,8 @@ $(TEST_BIN_DIR)/test: $(TEST_DIR)/test.c $(TEST_OBJS) $(LIB_TARGET) | $(TEST_BIN
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(TEST_INCLUDES) -o $@ $(TEST_DIR)/test.c $(TEST_OBJS) $(TEST_LIBS)
 
 .PHONY: test
-test: $(TEST_BIN_DIR)/test
-	@$(RUN_ENV) ./$(TEST_BIN_DIR)/test
+test: $(TEST_BIN_DIR)/test vendor/greatest/contrib/greenest
+	@$(RUN_ENV) ./$(TEST_BIN_DIR)/test | vendor/greatest/contrib/greenest
 
 # ------------------------------------------------------------------------------
 # Automatic bench dispatch
@@ -144,11 +144,14 @@ clean:
 .PHONY: deps
 deps:
 	@echo "Initializing dependencies..."
-	git submodule update --init --recursive
+	@if [ ! -d "vendor/theft/.git" ] || [ ! -d "vendor/greatest/.git" ]; then \
+		git submodule update --init --recursive; \
+	fi
 	@if [ ! -f "vendor/theft/build/libtheft.a" ]; then \
 		echo "Building theft..."; \
 		cd vendor/theft && sed -i '1s|#!/usr/bin/awk -f|#!$(shell which awk) -f|' scripts/mk_bits_lut && make; \
 	fi
+	@sed -i '1s%#!/usr/bin/awk -f%#!/usr/bin/env -S awk -f%' vendor/greatest/contrib/greenest
 
 # ------------------------------------------------------------------------------
 # All
