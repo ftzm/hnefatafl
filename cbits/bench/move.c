@@ -1,16 +1,16 @@
 #include "move.h"
-#include "move_legacy.h"
-#include "move_legacy_mm.h"
 #include "assert.h"
 #include "board.h"
-#include "king_mobility.h"
 #include "io.h"
+#include "king_mobility.h"
 #include "layer.h"
+#include "move_legacy.h"
+#include "move_legacy_mm.h"
+#include "score.h"
 #include "string.h"
 #include "ubench.h"
 #include "victory.h"
-#include "score.h"
-#include "x86intrin.h"
+#include "x86intrin.h" // IWYU pragma: export
 
 const char *sanity_capture_king_string = " .  .  X  .  X  .  .  O  .  .  . "
                                          " .  X  .  X  .  .  .  .  .  .  . "
@@ -535,17 +535,16 @@ UBENCH_EX(king_mobility, corner_paths_1) {
 }
 
 const char *corner_access_double2 = " .  .  X  .  X  .  .  O  .  .  . "
-                                   " .  X  .  X  .  .  .  .  .  .  . "
-                                   " X  .  .  O  O  X  .  .  X  .  . "
-                                   " .  .  .  .  .  .  X  .  .  X  . "
-                                   " .  X  .  .  .  .  O  .  .  .  X "
-                                   " X  .  .  O  O  .  O  .  .  X  X "
-                                   " X  .  .  .  O  O  O  .  .  .  X "
-                                   " X  .  .  .  .  O  .  .  .  .  X "
-                                   " .  #  .  .  .  .  .  .  O  .  . "
-                                   " .  .  .  .  .  X  .  .  .  .  . "
-                                   " .  .  X  .  X  X  X  X  .  .  . ";
-
+                                    " .  X  .  X  .  .  .  .  .  .  . "
+                                    " X  .  .  O  O  X  .  .  X  .  . "
+                                    " .  .  .  .  .  .  X  .  .  X  . "
+                                    " .  X  .  .  .  .  O  .  .  .  X "
+                                    " X  .  .  O  O  .  O  .  .  X  X "
+                                    " X  .  .  .  O  O  O  .  .  .  X "
+                                    " X  .  .  .  .  O  .  .  .  .  X "
+                                    " .  #  .  .  .  .  .  .  O  .  . "
+                                    " .  .  .  .  .  X  .  .  .  .  . "
+                                    " .  .  X  .  X  X  X  X  .  .  . ";
 
 UBENCH_EX(king_mobility, corner_paths_2) {
   board b = read_board(corner_access_double2);

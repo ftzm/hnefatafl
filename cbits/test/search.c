@@ -2,6 +2,7 @@
 #include "capture.h"
 #include "greatest.h"
 #include "io.h"
+#include "macro_util.h"
 #include "stdarg.h"
 #include "stdbool.h"
 
@@ -53,8 +54,13 @@ void print_pv(board b, pv_line *pv) {
   }
 }
 
-TEST assert_pv(pv_line (*f)(board), bool is_black_turn, char *board_string,
-               int length, ...) {
+/* we can signal and empty PV by providing a single move of k1k1 */
+TEST assert_pv(
+    pv_line (*f)(board),
+    bool is_black_turn,
+    char *board_string,
+    int length,
+    ...) {
   board b = read_board(board_string);
 
   // Build expected PV
@@ -62,7 +68,12 @@ TEST assert_pv(pv_line (*f)(board), bool is_black_turn, char *board_string,
   va_list valist;
   va_start(valist, length);
   for (int i = 0; i < length; i++) {
-    moves[i] = va_arg(valist, move);
+    move m = read_move(va_arg(valist, char *));
+    if (length == 1 && m.orig == 0 && m.dest == 0) {
+      length = 0;
+    } else {
+      moves[i] = m;
+    }
   }
   va_end(valist);
   pv_line expected_pv = {is_black_turn, moves, length};
@@ -74,9 +85,6 @@ TEST assert_pv(pv_line (*f)(board), bool is_black_turn, char *board_string,
   if (!pvs_equal(&expected_pv, &computed_pv)) {
     equal = false;
   }
-
-  print_pv(b, &expected_pv);
-  print_pv(b, &computed_pv);
 
   if (equal) {
     destroy_pv_line(&expected_pv);
@@ -93,34 +101,65 @@ TEST assert_pv(pv_line (*f)(board), bool is_black_turn, char *board_string,
   }
 }
 
+#define ASSERT_PV(_f, _t, _b, ...)                                             \
+  RUN_TESTp(assert_pv, _f, _t, _b, WITH_COUNT(FOR_EACH(STR, __VA_ARGS__)))
+
+#define ASSERT_PV_QUIESCE_WHITE(_b, ...)                                       \
+  ASSERT_PV(quiesce_white_runner, false, _b, __VA_ARGS__)
+
+#define EMPTY_PV k1k1
+
+/* Tests for quiesce_white which don't rely on black quiescence logic beyond
+ * static evaluation. */
 SUITE(quiesce_white_suite) {
-  RUN_TESTp(assert_pv, quiesce_white_runner, false,
-            "     +---------------------------------+"
-            " 11  | .  .  X  .  O  X  .  .  .  .  . |"
-            " 10  | .  X  .  .  .  .  .  .  .  .  . |"
-            "  9  | X  .  .  .  .  .  #  .  .  .  . |"
-            "  8  | .  .  .  .  .  .  .  .  .  .  . |"
-            "  7  | .  .  .  .  .  .  .  .  .  .  . |"
-            "  6  | .  .  .  .  .  .  .  .  .  .  . |"
-            "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-            "  4  | .  .  .  .  .  .  .  .  .  .  . |"
-            "  3  | X  .  .  .  .  .  .  .  .  .  X |"
-            "  2  | .  X  .  .  .  .  .  .  .  X  . |"
-            "  1  | .  .  X  .  .  .  .  .  X  .  . |"
-            "     +---------------------------------+"
-            "       a  b  c  d  e  f  g  h  i  j  k  ",
-            1, MOVE(9, g, 11, g));
-  RUN_TESTp(assert_pv, quiesce_white_runner, false,
-            ".  .  X  .  .  .  #  .  .  .  ."
-            ".  X  .  .  .  .  .  .  .  .  ."
-            "X  .  .  .  .  .  .  .  .  .  ."
-            ".  .  .  .  .  .  .  .  .  .  ."
-            ".  .  .  .  .  .  .  .  .  .  ."
-            ".  .  .  .  .  .  .  .  .  .  ."
-            ".  .  .  .  .  .  .  .  .  .  ."
-            ".  .  .  .  .  .  .  .  .  .  ."
-            "X  .  .  .  .  .  .  .  .  .  X"
-            ".  X  .  .  .  .  .  .  .  X  ."
-            ".  .  X  .  .  .  .  .  X  .  .",
-            0);
+  ASSERT_PV_QUIESCE_WHITE(
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  O  X  .  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  .  . |"
+      "  9  | X  .  .  .  .  .  #  .  .  .  . |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      g9g11);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  #  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  .  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      EMPTY_PV);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  O  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  X  .  . |"
+      "  9  | X  .  .  .  .  O  .  .  .  .  . |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  #  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      f9i9);
 };

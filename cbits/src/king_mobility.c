@@ -1,7 +1,7 @@
+#include "constants.h"
 #include "layer.h"
 #include "limits.h"
 #include "stdbool.h"
-#include "constants.h"
 
 // -----------------------------------------------------------------------------
 // Generic macros
@@ -358,7 +358,11 @@ const layer file_mask_adjacent[] = {
 #define CAN_REACH_POS(_i) JOIN(CAN_REACH_POS, _i)
 
 #define BOTH_SIDES_INC(                                                        \
-    _target, _axis, _occ, _parallel_paths, _perpendicular_paths)               \
+    _target,                                                                   \
+    _axis,                                                                     \
+    _occ,                                                                      \
+    _parallel_paths,                                                           \
+    _perpendicular_paths)                                                      \
   {                                                                            \
     u16 row = DIRTY_GET_ROW(_target, AXIS_OCC(NOT_AXIS(_axis)));               \
     {                                                                          \
@@ -420,7 +424,11 @@ const layer file_mask_adjacent[] = {
       const u16 mask = CHOOSE_MASKER(_i, right)(ADJUST_AXIS_VAL(_variable));   \
       if (!(row & mask)) {                                                     \
         ADD_PATHS(                                                             \
-            _i, _variable, right, _parallel_paths, _perpendicular_paths);      \
+            _i,                                                                \
+            _variable,                                                         \
+            right,                                                             \
+            _parallel_paths,                                                   \
+            _perpendicular_paths);                                             \
       }                                                                        \
     }                                                                          \
   }
@@ -525,8 +533,8 @@ void corner_paths_2(
     BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths);
     BOTH_SIDES_STEM_GEN(rank, 9);
 
-    // TODO: I think I can actually get rid of these fallback checks; 
-    if (rank == 9 ) {
+    // TODO: I think I can actually get rid of these fallback checks;
+    if (rank == 9) {
       BOTH_SIDES(9, file, occ, paths, paths_r);
     } else if (rank == 1) {
       BOTH_SIDES(1, file, occ, paths, paths_r);
@@ -541,7 +549,7 @@ void corner_paths_2(
     u16 row = dirty_get_row(occ, rank);
     u16 pos = 1 << file;
 
-    if (rank == 9 ) {
+    if (rank == 9) {
       BOTH_SIDES(9, file, occ, paths, paths_r);
     } else if (rank == 1) {
       BOTH_SIDES(1, file, occ, paths, paths_r);
@@ -563,7 +571,7 @@ void corner_paths_2(
     BOTH_SIDES(0, file, occ, paths, paths_r);
     BOTH_SIDES_INC(1, file, occ, paths, paths_r);
     BOTH_SIDES_STEM_GEN(file, 1);
-    if (file == 9 ) {
+    if (file == 9) {
       BOTH_SIDES(9, rank, occ_r, paths_r, paths);
     } else if (file == 1) {
       BOTH_SIDES(1, rank, occ_r, paths_r, paths);
@@ -579,7 +587,7 @@ void corner_paths_2(
     BOTH_SIDES_INC(9, file, occ, paths, paths_r);
     BOTH_SIDES(10, file, occ, paths, paths_r);
     BOTH_SIDES_STEM_GEN(file, 9);
-    if (file == 9 ) {
+    if (file == 9) {
       BOTH_SIDES(9, rank, occ_r, paths_r, paths);
     } else if (file == 1) {
       BOTH_SIDES(1, rank, occ_r, paths_r, paths);
@@ -606,10 +614,11 @@ void corner_paths_2(
       BOTH_SIDES_STEM_GEN(rank, 9);
 
       // outer
-      // An idea to avoid this check: add artifical blockers so that the stem check itself just fails
+      // An idea to avoid this check: add artifical blockers so that the stem
+      // check itself just fails
       if (rank != 1 && rank != 9) {
-	BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths);
-	BOTH_SIDES_STEM_GEN(rank, 10);
+        BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths);
+        BOTH_SIDES_STEM_GEN(rank, 10);
       }
     }; break;
     case 9: {
@@ -619,8 +628,8 @@ void corner_paths_2(
 
       // outer
       if (rank != 1 && rank != 9) {
-	BOTH_SIDES_STEM_GEN(rank, 0);
-	BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths);
+        BOTH_SIDES_STEM_GEN(rank, 0);
+        BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths);
       }
     }; break;
     default: {
@@ -630,8 +639,8 @@ void corner_paths_2(
 
       // outer
       if (rank != 1 && rank != 9) {
-	BOTH_SIDES_STEM_GEN(rank, 0);
-	BOTH_SIDES_STEM_GEN(rank, 10);
+        BOTH_SIDES_STEM_GEN(rank, 0);
+        BOTH_SIDES_STEM_GEN(rank, 10);
       }
     }; break;
     }
@@ -643,13 +652,13 @@ void corner_paths_2(
     switch (rank) {
     case 1: {
       // inner
-	BOTH_SIDES(1, file, occ, paths, paths_r);
-	BOTH_SIDES_STEM_GEN(file, 1);
+      BOTH_SIDES(1, file, occ, paths, paths_r);
+      BOTH_SIDES_STEM_GEN(file, 1);
 
       // outer
       if (file != 1 && file != 9) {
-      BOTH_SIDES_INC(0, file, occ, paths, paths_r);
-      BOTH_SIDES_STEM_GEN(file, 0);
+        BOTH_SIDES_INC(0, file, occ, paths, paths_r);
+        BOTH_SIDES_STEM_GEN(file, 0);
       }
     }; break;
     case 9: {
@@ -659,8 +668,8 @@ void corner_paths_2(
 
       // outer
       if (file != 1 && file != 9) {
-	BOTH_SIDES_INC(10, file, occ, paths, paths_r);
-	BOTH_SIDES_STEM_GEN(file, 10);
+        BOTH_SIDES_INC(10, file, occ, paths, paths_r);
+        BOTH_SIDES_STEM_GEN(file, 10);
       }
     }; break;
     default: {
@@ -670,19 +679,19 @@ void corner_paths_2(
 
       // outer
       if (file != 1 && file != 9) {
-	BOTH_SIDES_STEM_GEN(file, 0);
-	BOTH_SIDES_STEM_GEN(file, 10);
+        BOTH_SIDES_STEM_GEN(file, 0);
+        BOTH_SIDES_STEM_GEN(file, 10);
       }
     }; break;
     }
   }
 }
 
-
 /* _axis is a token named either rank or file, which determines the
 axis _i should be interpreted as. _i is an int constant. */
 #define GET_POS(_axis, _i)                                                     \
-  (GET_AXIS_VAL(_axis, _axis) + GET_AXIS_VAL(NOT_AXIS(_axis), ADJUST_AXIS_VAL_I(NOT_AXIS(_axis), _i)))
+  (GET_AXIS_VAL(_axis, _axis) +                                                \
+   GET_AXIS_VAL(NOT_AXIS(_axis), ADJUST_AXIS_VAL_I(NOT_AXIS(_axis), _i)))
 #define GET_AXIS_VAL_rank(_i) (_i * 11)
 #define GET_AXIS_VAL_file(_i) _i
 #define GET_AXIS_VAL(_axis, _i) JOIN(GET_AXIS_VAL, _axis)(_i)
@@ -703,12 +712,13 @@ axis _i should be interpreted as. _i is an int constant. */
       const u16 right_mask =                                                   \
           CHOOSE_MASKER(_i, right)(ADJUST_AXIS_VAL(_variable));                \
       if (!(row & left_mask) || !(row & right_mask)) {                         \
-        return true; \
+        return true;                                                           \
       }                                                                        \
     }                                                                          \
   }
 
-// TODO: is the vert indexing I'm doing here actually necessary, here or anywhere?
+// TODO: is the vert indexing I'm doing here actually necessary, here or
+// anywhere?
 #define BOTH_SIDES_MOVE_INC(_target, _axis, _occ)                              \
   {                                                                            \
     u16 row = DIRTY_GET_ROW(_target, AXIS_OCC(NOT_AXIS(_axis)));               \
@@ -716,7 +726,7 @@ axis _i should be interpreted as. _i is an int constant. */
       const u16 left_mask = MASK_LEFTWARD_INC(ADJUST_AXIS_VAL(_axis));         \
       const u16 right_mask = MASK_RIGHTWARD_INC(ADJUST_AXIS_VAL(_axis));       \
       if (!(row & left_mask) || !(row & right_mask)) {                         \
-        ADD_MOVE(GET_POS(_axis, VERT_INDEX(_axis, _target)))                                      \
+        ADD_MOVE(GET_POS(_axis, VERT_INDEX(_axis, _target)))                   \
       }                                                                        \
     }                                                                          \
   }
@@ -734,6 +744,8 @@ axis _i should be interpreted as. _i is an int constant. */
     }                                                                          \
   }
 
+// TODO: consider removing the single move checks from this function and using
+// it in conjuntion with the other function.
 bool corner_moves_2(
     const layer occ,
     const layer occ_r,
@@ -851,7 +863,10 @@ bool corner_moves_2(
  * reach the corner. Instead it should be used as a static heuristic.
  */
 bool corner_moves_1(
-    const layer occ, const layer occ_r, const int rank, const int file) {
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file) {
 
   u16 row;
 

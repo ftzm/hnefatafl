@@ -1,30 +1,9 @@
 #include "move.h"
 #include "board.h"
-#include "capture.h"
-#include "io.h"
 #include "layer.h"
-#include "stdbool.h"
-#include "stdio.h"
-#include "string.h"
-#include "x86intrin.h"
-#include <limits.h>
-
-#define _STR(_s) #_s
-#define STR(_s) _STR(_s)
-
-/* join tokens with an understore */
-#define JOIN(_a, _b) _a##_##_b
-#define JOIN3(_a, _b, _c) _a##_##_b##_##_c
-
-/* Inserts a macro expension phase between a function and its
-arguments, allowing those arguments to expand before being used inside
-of the body of the function. */
-#define APPLY(_func, _a) _func(_a)
-#define APPLY2(_func, _a, _b) _func(_a, _b)
-#define APPLY3(_func, _a, _b, _c) _func(_a, _b, _c)
-#define APPLY4(_func, _a, _b, _c, _d) _func(_a, _b, _c, _e)
-#define APPLY5(_func, _a, _b, _c, _d, _e) _func(_a, _b, _c, _d, _e)
-#define APPLY6(_func, _a, _b, _c, _d, _e, _f) _func(_a, _b, _c, _d, _e, _f)
+#include "limits.h"
+#include "macro_util.h"
+#include "x86intrin.h" // IWYU pragma: export
 
 #define ADJUST_AXIS_VAL_file(_i) _i
 #define ADJUST_AXIS_VAL_rank(_i) (10 - _i)
@@ -59,7 +38,6 @@ const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
 #define ROTATE_r rotate_left
 #define ROTATE_DIR(_r) ROTATE##_r
 
-
 /*
 leftward
 */
@@ -73,7 +51,7 @@ leftward
  *   - doing bitwise and with the occ layer
  *   - doing leading zero count of the result
  *   - subtracting the leading zero count from 64
- * 
+ *
  * TODO: We end up recalculating the origin for each destination,
  *     which seems like it should be inefficient. one idea would be to
  *     iterate over each mover, isolate its destinations, and then
@@ -83,18 +61,17 @@ leftward
  */
 #define EXTRACT_LEFTWARD(_i, _r)                                               \
   u64 dest_bit = _blsi_u64(dests);                                             \
-  u8 dest = _tzcnt_u64(dest_bit);                                         \
+  u8 dest = _tzcnt_u64(dest_bit);                                              \
   OFFSET(dest, _i);                                                            \
-  u8 orig =                                                               \
-      63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & leftward_occ##_r._[_i]);         \
+  u8 orig = 63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & leftward_occ##_r._[_i]);   \
   u64 orig_bit = (u64)1 << orig;                                               \
   OFFSET(orig, _i);
 
 #define EXTRACT_CENTER_LEFTWARD(_l)                                            \
-  u16 dest_bit = dests & -dests;                                          \
-  u8 dest = _tzcnt_u16(dest_bit);                                         \
+  u16 dest_bit = dests & -dests;                                               \
+  u8 dest = _tzcnt_u16(dest_bit);                                              \
   dest += 55;                                                                  \
-  u8 orig = 15 - __lzcnt16((dest_bit - 1) & _l);                          \
+  u8 orig = 15 - __lzcnt16((dest_bit - 1) & _l);                               \
   orig += 55;
 
 #define DROP_1_EAST_0 18410697675910412286ULL
@@ -137,8 +114,8 @@ leftward
                 DROP_1_EAST_##_i;                                              \
     while (dests) {                                                            \
       EXTRACT_LEFTWARD(_i, _r);                                                \
-      u8 orig_r = ROTATE_DIR(_r)[orig];                                   \
-      u8 dest_r = ROTATE_DIR(_r)[dest];                                   \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
+      u8 dest_r = ROTATE_DIR(_r)[dest];                                        \
       BOOKKEEP##_r(_i);                                                        \
       dests -= dest_bit;                                                       \
     }                                                                          \
@@ -146,12 +123,12 @@ leftward
 
 #define LEFTWARD_CENTER(_r)                                                    \
   {                                                                            \
-    u16 dests = GET_CENTER_ROW(targets##_r) &                             \
-                     (center_occ##_r - (center_movers##_r << 1));              \
+    u16 dests = GET_CENTER_ROW(targets##_r) &                                  \
+                (center_occ##_r - (center_movers##_r << 1));                   \
     while (dests) {                                                            \
       EXTRACT_CENTER_LEFTWARD(center_occ##_r);                                 \
-      u8 orig_r = ROTATE_DIR(_r)[orig];                                   \
-      u8 dest_r = ROTATE_DIR(_r)[dest];                                   \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
+      u8 dest_r = ROTATE_DIR(_r)[dest];                                        \
       BOOKKEEP_CENTER##_r();                                                   \
       dests -= dest_bit;                                                       \
     }                                                                          \
@@ -167,11 +144,11 @@ leftward
   u64 dests = targets##_r._[_i] & below & above_highest_occ_mask;
 
 #define RIGHTWARD_DESTS_CENTER(_r)                                             \
-  u16 below = orig_bit - 1;                                               \
-  u16 above_highest_occ_mask =                                            \
+  u16 below = orig_bit - 1;                                                    \
+  u16 above_highest_occ_mask =                                                 \
       (center_occ##_r & below)                                                 \
-          ? ((u16)-1 << (16 - __lzcnt16(center_occ##_r & below)))         \
-          : (u16)-1;                                                      \
+          ? ((u16)-1 << (16 - __lzcnt16(center_occ##_r & below)))              \
+          : (u16)-1;                                                           \
   u16 dests = GET_CENTER_ROW(targets##_r) & below & above_highest_occ_mask;
 
 #define RIGHTWARD(_i, _r)                                                      \
@@ -181,18 +158,18 @@ leftward
     while (origs) {                                                            \
                                                                                \
       u64 orig_bit = _blsi_u64(origs);                                         \
-      u8 orig = _tzcnt_u64(orig_bit);                                     \
+      u8 orig = _tzcnt_u64(orig_bit);                                          \
       OFFSET(orig, _i);                                                        \
-      u8 orig_r = ROTATE_DIR(_r)[orig];                                   \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
       origs -= orig_bit;                                                       \
                                                                                \
       RIGHTWARD_DESTS(_i, _r);                                                 \
                                                                                \
       while (dests) {                                                          \
-        u8 dest = _tzcnt_u64(dests);                                      \
+        u8 dest = _tzcnt_u64(dests);                                           \
         u64 dest_bit = (u64)1 << dest;                                         \
         OFFSET(dest, _i);                                                      \
-        u8 dest_r = ROTATE_DIR(_r)[dest];                                 \
+        u8 dest_r = ROTATE_DIR(_r)[dest];                                      \
                                                                                \
         BOOKKEEP##_r(_i);                                                      \
                                                                                \
@@ -221,24 +198,23 @@ leftward
     u64 blockers = occ##_r._[_i] | file_mask_10._[_i];                         \
     u64 movers_ext = _pext_u64(movers##_r._[_i], blockers) >> 1;               \
     u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));                   \
-    u64 move_mask =                                                            \
-        (movers##_r._[_i] - movers_dep) & targets##_r._[_i];  \
+    u64 move_mask = (movers##_r._[_i] - movers_dep) & targets##_r._[_i];       \
     u64 origs = movers##_r._[_i] & ~(movers##_r._[_i] - targets##_r._[_i]);    \
     while (origs) {                                                            \
                                                                                \
       u64 orig_bit = _blsi_u64(origs);                                         \
-      u8 orig = _tzcnt_u64(orig_bit);                                     \
+      u8 orig = _tzcnt_u64(orig_bit);                                          \
       OFFSET(orig, _i);                                                        \
-      u8 orig_r = ROTATE_DIR(_r)[orig];                                   \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
       origs -= orig_bit;                                                       \
                                                                                \
       u64 dests = move_mask & (orig_bit - 1);                                  \
                                                                                \
       while (dests) {                                                          \
-        u8 dest = _tzcnt_u64(dests);                                      \
+        u8 dest = _tzcnt_u64(dests);                                           \
         u64 dest_bit = (u64)1 << dest;                                         \
         OFFSET(dest, _i);                                                      \
-        u8 dest_r = ROTATE_DIR(_r)[dest];                                 \
+        u8 dest_r = ROTATE_DIR(_r)[dest];                                      \
                                                                                \
         BOOKKEEP##_r(_i);                                                      \
                                                                                \
@@ -261,18 +237,18 @@ leftward
     while (origs) {                                                            \
                                                                                \
       u64 orig_bit = _blsi_u64(origs);                                         \
-      u8 orig = _tzcnt_u64(orig_bit);                                     \
+      u8 orig = _tzcnt_u64(orig_bit);                                          \
       OFFSET(orig, _i);                                                        \
-      u8 orig_r = ROTATE_DIR(_r)[orig];                                   \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
       origs -= orig_bit;                                                       \
                                                                                \
       u64 dests = move_mask & (orig_bit - 1);                                  \
                                                                                \
       while (dests) {                                                          \
-        u8 dest = _tzcnt_u64(dests);                                      \
+        u8 dest = _tzcnt_u64(dests);                                           \
         u64 dest_bit = (u64)1 << dest;                                         \
         OFFSET(dest, _i);                                                      \
-        u8 dest_r = ROTATE_DIR(_r)[dest];                                 \
+        u8 dest_r = ROTATE_DIR(_r)[dest];                                      \
                                                                                \
         BOOKKEEP##_r(_i);                                                      \
                                                                                \
@@ -285,24 +261,24 @@ leftward
 
 #define RIGHTWARD_CENTER(_r)                                                   \
   {                                                                            \
-    u16 origs =                                                           \
+    u16 origs =                                                                \
         center_movers##_r & ~(center_occ##_r - (GET_CENTER_ROW(targets##_r))); \
     while (origs) {                                                            \
                                                                                \
-      u16 orig_bit = origs & -origs;                                      \
-      u8 orig = _tzcnt_u16(orig_bit);                                     \
+      u16 orig_bit = origs & -origs;                                           \
+      u8 orig = _tzcnt_u16(orig_bit);                                          \
       origs -= orig_bit;                                                       \
       orig += 55;                                                              \
-      u8 orig_r = ROTATE_DIR(_r)[orig];                                   \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
                                                                                \
       RIGHTWARD_DESTS_CENTER(_r);                                              \
                                                                                \
       while (dests) {                                                          \
-        u8 dest = _tzcnt_u16(dests);                                      \
-        u16 dest_bit = (u16)1 << dest;                               \
+        u8 dest = _tzcnt_u16(dests);                                           \
+        u16 dest_bit = (u16)1 << dest;                                         \
         dest += 55;                                                            \
                                                                                \
-        u8 dest_r = ROTATE_DIR(_r)[dest];                                 \
+        u8 dest_r = ROTATE_DIR(_r)[dest];                                      \
         BOOKKEEP_CENTER##_r();                                                 \
                                                                                \
         dests -= dest_bit;                                                     \

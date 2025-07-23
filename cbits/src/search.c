@@ -2,7 +2,7 @@
 #include "assert.h"
 #include "board.h"
 #include "capture.h"
-#include "io.h"
+#include "king_mobility.h"
 #include "layer.h"
 #include "limits.h"
 #include "move.h"
@@ -12,6 +12,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include "victory.h"
+#include "x86intrin.h" // IWYU pragma: export
 #include "zobrist.h"
 
 // typedef struct negamax_ab_result {
@@ -502,8 +503,15 @@ pv_line create_pv_line(bool is_black_turn) {
 
 void destroy_pv_line(pv_line *line) { free(line->moves); }
 
-i32 quiesce_black(position_set *positions, score_weights *w, score_state s,
-                  board b, u64 position_hash, int ply, i32 alpha, i32 beta) {
+i32 quiesce_black(
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,
+    i32 alpha,
+    i32 beta) {
 
   printf("hit black");
 
@@ -561,8 +569,15 @@ i32 quiesce_black(position_set *positions, score_weights *w, score_state s,
   return best_value;
 }
 
-i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
-                  board b, u64 position_hash, int ply, i32 alpha, i32 beta) {
+i32 quiesce_white(
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,
+    i32 alpha,
+    i32 beta) {
 
   // We only need to check for a king capture because the previous move will
   // have been black.
@@ -597,10 +612,14 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
   }
 
   // generate capture moves
-  layer capture_dests = find_capture_destinations(LAYER_OR(b.white, b.king),
-                                                  b.black, king_board_occ(b));
+  layer capture_dests = find_capture_destinations(
+      LAYER_OR(b.white, b.king),
+      b.black,
+      king_board_occ(b));
   layer capture_dests_r = find_capture_destinations(
-      LAYER_OR(b.white_r, b.king_r), b.black_r, king_board_occ_r(b));
+      LAYER_OR(b.white_r, b.king_r),
+      b.black_r,
+      king_board_occ_r(b));
 
   // shared move memory
   // 100 is an arbitrary number but almost certainly sufficient.
@@ -611,10 +630,21 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
   layer ls_r[100];
   int total;
 
+  // ---------------------------------------------------------------------------
+  // king capture moves
+
   // generate capture moves for king
-  moves_to_king_impl(capture_dests, capture_dests_r, b.king, b.king_r,
-                     king_board_occ(b), king_board_occ_r(b), ms, ls, ls_r,
-                     &total);
+  moves_to(
+      capture_dests,
+      capture_dests_r,
+      b.white,
+      b.white_r,
+      board_occ(b),
+      board_occ_r(b),
+      ms,
+      ls,
+      ls_r,
+      &total);
 
   // hacky bounds check
   assert(total < 100);
@@ -631,9 +661,15 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
-    i32 score = quiesce_black(positions, w, new_score_state, new_b,
-                              new_position_hash, ply + 1, -beta, -alpha);
-    print_board_move(new_b, orig, dest, captures);
+    i32 score = quiesce_black(
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        -beta,
+        -alpha);
 
     if (score >= beta) {
       return score;
@@ -654,13 +690,96 @@ i32 quiesce_white(position_set *positions, score_weights *w, score_state s,
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // pawn capture moves
+
   // generate capture moves for pawns
+  moves_to_king_impl(
+      capture_dests,
+      capture_dests_r,
+      b.king,
+      b.king_r,
+      king_board_occ(b),
+      king_board_occ_r(b),
+      ms,
+      ls,
+      ls_r,
+      &total);
+
+  // hacky bounds check
+  assert(total < 100);
 
   // iterate
+  for (int i; i < total; i++) {
+    u8 orig = ms[i].orig;
+    u8 dest = ms[i].dest;
+    layer move = ls[i];
+    layer move_r = ls_r[i];
+
+    board new_b = apply_white_move(b, move, move_r);
+    u64 new_position_hash = next_hash_white(position_hash, orig, dest);
+    layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+    score_state new_score_state =
+        update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+    i32 score = quiesce_black(
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        -beta,
+        -alpha);
+
+    if (score >= beta) {
+      return score;
+    }
+    if (score > best_value) {
+      best_value = score;
+
+      PV_TABLE[ply][ply] = ms[i];
+      // copy up moves discovered at lower depths
+      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
+        PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+      }
+      // adjust pv length
+      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+    }
+    if (score > alpha) {
+      alpha = score;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // king escape moves
 
   // generate king escapes
+  layer corner_moves[8] = {0};
+  layer corner_moves_r[8] = {0};
+  int corner_move_count = 0;
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
+  bool single_move_escape = corner_moves_2(
+      board_occ(b),
+      board_occ_r(b),
+      king_rank,
+      king_file,
+      corner_moves,
+      corner_moves_r,
+      &corner_move_count);
+
+  if (single_move_escape) {
+    return INT_MAX;
+  }
 
   // iterate
+  for (int i; i < corner_move_count; i++) {
+    // layer move = corner_moves[i];
+    // layer move_r = corner_moves_r[i];
+    u8 orig = ms[i].orig;
+    u8 dest = ms[i].dest;
+  }
 
   // remove the position from the set as we exit
   delete_position(positions, position_index);
