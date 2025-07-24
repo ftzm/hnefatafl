@@ -1,23 +1,23 @@
 #include "move.h"
-#include "constants.h"
-#include "move_legacy.h"
-#include "move_legacy_mm.h"
-#include "king_mobility.h"
 #include "assert.h"
 #include "board.h"
 #include "capture.h"
+#include "constants.h"
+#include "fixtures.h"
 #include "greatest.h"
 #include "io.h"
+#include "king_mobility.h"
 #include "layer.h"
+#include "move_legacy.h"
+#include "move_legacy_mm.h"
 #include "stdbool.h"
+#include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 #include "theft.h"
 #include "theft_types.h"
 #include "x86intrin.h"
-#include "stdint.h"
-#include "fixtures.h"
 
 u64 rightward_moves_lower(u64 gen, u64 pro) {
   u64 orig = gen;
@@ -511,14 +511,32 @@ void gen_reference_move_breakdown_black(board b, move_breakdown r) {
 
     // north
     reference_dir_moves_black(
-        b, occ, i, r, 11, (r[i].north), &(r[i].north_count));
+        b,
+        occ,
+        i,
+        r,
+        11,
+        (r[i].north),
+        &(r[i].north_count));
 
     // east
     reference_dir_moves_black(
-        b, occ, i, r, -1, (r[i].east), &(r[i].east_count));
+        b,
+        occ,
+        i,
+        r,
+        -1,
+        (r[i].east),
+        &(r[i].east_count));
     // south
     reference_dir_moves_black(
-        b, occ, i, r, -11, (r[i].south), &(r[i].south_count));
+        b,
+        occ,
+        i,
+        r,
+        -11,
+        (r[i].south),
+        &(r[i].south_count));
     // west
     reference_dir_moves_black(b, occ, i, r, 1, (r[i].west), &(r[i].west_count));
   }
@@ -583,7 +601,9 @@ void get_move_set_diff(
   }
 }
 struct move_breakdown_diff get_move_breakdown_diff(
-    board b, move_breakdown expected, move_breakdown actual) {
+    board b,
+    move_breakdown expected,
+    move_breakdown actual) {
   struct move_breakdown_diff diff;
   memset(&diff, 0, sizeof(diff));
   diff.b = b;
@@ -644,7 +664,11 @@ struct move_breakdown_diff get_move_breakdown_diff(
 };
 
 void get_move_breakdown(
-    board b, board bs[235], move ms[235], int total, move_breakdown r) {
+    board b,
+    board bs[235],
+    move ms[235],
+    int total,
+    move_breakdown r) {
 
   for (int i = 0; i < total; i++) {
     move m = ms[i];
@@ -894,14 +918,32 @@ void gen_reference_move_breakdown_white(board b, move_breakdown r) {
 
     // north
     reference_dir_moves_white(
-        b, occ, i, r, 11, (r[i].north), &(r[i].north_count));
+        b,
+        occ,
+        i,
+        r,
+        11,
+        (r[i].north),
+        &(r[i].north_count));
 
     // east
     reference_dir_moves_white(
-        b, occ, i, r, -1, (r[i].east), &(r[i].east_count));
+        b,
+        occ,
+        i,
+        r,
+        -1,
+        (r[i].east),
+        &(r[i].east_count));
     // south
     reference_dir_moves_white(
-        b, occ, i, r, -11, (r[i].south), &(r[i].south_count));
+        b,
+        occ,
+        i,
+        r,
+        -11,
+        (r[i].south),
+        &(r[i].south_count));
     // west
     reference_dir_moves_white(b, occ, i, r, 1, (r[i].west), &(r[i].west_count));
   }
@@ -1052,13 +1094,25 @@ void gen_reference_move_breakdown_king(board b, move_breakdown r) {
 
     // north
     reference_dir_moves_king(
-        b, occ, i, r, 11, (r[i].north), &(r[i].north_count));
+        b,
+        occ,
+        i,
+        r,
+        11,
+        (r[i].north),
+        &(r[i].north_count));
 
     // east
     reference_dir_moves_king(b, occ, i, r, -1, (r[i].east), &(r[i].east_count));
     // south
     reference_dir_moves_king(
-        b, occ, i, r, -11, (r[i].south), &(r[i].south_count));
+        b,
+        occ,
+        i,
+        r,
+        -11,
+        (r[i].south),
+        &(r[i].south_count));
     // west
     reference_dir_moves_king(b, occ, i, r, 1, (r[i].west), &(r[i].west_count));
   }
@@ -1157,7 +1211,10 @@ struct moves_diffs {
 /* requires input lists to be sorted and unique.
  */
 struct moves_diffs compare_moves(
-    const move a[235], const int a_len, const move b[235], const int b_len) {
+    const move a[235],
+    const int a_len,
+    const move b[235],
+    const int b_len) {
   struct moves_diffs d;
   memset(&d, 0, sizeof(d));
 
@@ -1520,7 +1577,15 @@ create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
   uint king_pos =
       b.king._[0] ? _tzcnt_u64(b.king._[0]) : _tzcnt_u64(b.king._[1]) + 64;
   gen_moves_from_mm_king(
-      b, king_pos, mms.king, mms.white, mms.black, ms2, ds2, bs2, &total2);
+      b,
+      king_pos,
+      mms.king,
+      mms.white,
+      mms.black,
+      ms2,
+      ds2,
+      bs2,
+      &total2);
 
   // compare
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -1718,7 +1783,9 @@ moves_to_king_cb(struct theft *t, void *env, void **instance) {
 
   // to test
   moves_to_t r = moves_to_king(
-      b, LAYER_NEG(king_board_occ(b)), LAYER_NEG(king_board_occ_r(b)));
+      b,
+      LAYER_NEG(king_board_occ(b)),
+      LAYER_NEG(king_board_occ_r(b)));
 
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
   qsort(r.ms, r.total, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -2007,7 +2074,9 @@ king_moves_count_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   moves_to_t r = moves_to_king(
-      b, LAYER_NEG(king_board_occ(b)), LAYER_NEG(king_board_occ_r(b)));
+      b,
+      LAYER_NEG(king_board_occ(b)),
+      LAYER_NEG(king_board_occ_r(b)));
 
   int move_count = king_moves_count(&b);
 
@@ -2044,6 +2113,46 @@ TEST test_king_moves_count(void) {
   PASS();
 }
 
+// The king will hop above black piece if we don't use king_board_occ
+TEST king_hopover() {
+  board b = read_board("     +---------------------------------+"
+                       " 11  | .  .  X  .  .  .  .  .  O  .  . |"
+                       " 10  | .  .  .  .  .  .  .  .  .  X  . |"
+                       "  9  | .  .  .  .  .  X  .  .  O  #  . |"
+                       "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+                       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+                       "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+                       "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+                       "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+                       "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+                       "  2  | .  X  .  .  .  .  .  .  .  .  . |"
+                       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+                       "     +---------------------------------+"
+                       "       a  b  c  d  e  f  g  h  i  j  k  ");
+  layer capture_dests = read_layer(
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+      'X');
+  layer capture_dests_r = rotate_layer_right(capture_dests);
+  moves_to_t result = moves_to_king(b, capture_dests, capture_dests_r);
+  if (result.total > 0) {
+    for (int i = 0; i < result.total; i++) {
+      print_layer(result.ls[i]);
+    }
+    FAIL();
+  }
+  PASS();
+}
+
 SUITE(move_suite) {
 
   init_move_globals();
@@ -2055,6 +2164,7 @@ SUITE(move_suite) {
   RUN_TEST(test_black_moves_count);
   RUN_TEST(test_white_moves_count);
   RUN_TEST(test_king_moves_count);
+  RUN_TEST(king_hopover);
 }
 
 // MAYBE TODO:

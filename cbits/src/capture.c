@@ -1,12 +1,12 @@
-#include "layer.h"
-#include "board.h"
 #include "assert.h"
+#include "board.h"
+#include "constants.h"
 #include "io.h"
+#include "layer.h"
+#include "stdbool.h"
 #include "stdio.h"
 #include "x86intrin.h"
-#include "stdbool.h"
 #include "zobrist.h"
-#include "constants.h"
 
 layer foe_masks[120];
 layer foe_masks_r[120];
@@ -59,7 +59,6 @@ void gen_foe_masks() {
   }
 }
 
-
 void gen_surround_masks() {
   int i, modDest, target, target_r;
   for (i = 0; i < 120; i++) {
@@ -98,7 +97,6 @@ void gen_surround_masks() {
     }
   }
 }
-
 
 void gen_ally_masks() {
   int i, modDest, target, target_r;
@@ -142,161 +140,175 @@ void gen_ally_masks() {
 //******************************************************************************
 
 // inline __attribute__((always_inline)) u8
-u8
-apply_captures_niave(const layer friends, layer *foes, layer *foes_r, int dest) {
+u8 apply_captures_niave(
+    const layer friends,
+    layer *foes,
+    layer *foes_r,
+    int dest) {
   u8 count = 0;
 
   int modDest = dest % 11;
   int target;
   int behind;
 
-  //northCapture
+  // northCapture
   target = dest + 11;
   behind = dest + 22;
-  if (dest < 99 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      count++;
+  if (dest < 99 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    count++;
   }
 
-  //southCapture
+  // southCapture
   target = dest - 11;
   behind = dest - 22;
-  if (dest > 21 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      count++;
+  if (dest > 21 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    count++;
   }
 
-  //westCapture
+  // westCapture
   target = dest + 1;
   behind = dest + 2;
-  if (modDest < 9 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      count++;
+  if (modDest < 9 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    count++;
   }
-   
-  //eastCapture
+
+  // eastCapture
   target = dest - 1;
   behind = dest - 2;
-  if (modDest > 1 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      count++;
+  if (modDest > 1 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    count++;
   }
 
   return count;
 }
 
-layer apply_captures_niave_z(const layer friends, layer *foes, layer *foes_r, u64 *z, u64 hash_table[121], int dest) {
+layer apply_captures_niave_z(
+    const layer friends,
+    layer *foes,
+    layer *foes_r,
+    u64 *z,
+    u64 hash_table[121],
+    int dest) {
   layer output = EMPTY_LAYER;
 
   int modDest = dest % 11;
   int target;
   int behind;
 
-  //northCapture
+  // northCapture
   target = dest + 11;
   behind = dest + 22;
-  if (dest < 99 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      *z ^= hash_table[target];
-      SET_INDEX(output, target);
+  if (dest < 99 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    *z ^= hash_table[target];
+    SET_INDEX(output, target);
   }
 
-  //southCapture
+  // southCapture
   target = dest - 11;
   behind = dest - 22;
-  if (dest > 21 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      *z ^= hash_table[target];
-      SET_INDEX(output, target);
+  if (dest > 21 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    *z ^= hash_table[target];
+    SET_INDEX(output, target);
   }
 
-  //westCapture
+  // westCapture
   target = dest + 1;
   behind = dest + 2;
-  if (modDest < 9 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      *z ^= hash_table[target];
-      SET_INDEX(output, target);
+  if (modDest < 9 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    *z ^= hash_table[target];
+    SET_INDEX(output, target);
   }
-   
-  //eastCapture
+
+  // eastCapture
   target = dest - 1;
   behind = dest - 2;
-  if (modDest > 1 &&
-      CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind))
-    {
-      CLEAR_INDEX_PTR(foes, target);
-      int target_r = rotate_right[target];
-      CLEAR_INDEX_PTR(foes_r, target_r);
-      *z ^= hash_table[target];
-      SET_INDEX(output, target);
+  if (modDest > 1 && CHECK_INDEX_PTR(foes, target) &&
+      CHECK_INDEX(friends, behind)) {
+    CLEAR_INDEX_PTR(foes, target);
+    int target_r = rotate_right[target];
+    CLEAR_INDEX_PTR(foes_r, target_r);
+    *z ^= hash_table[target];
+    SET_INDEX(output, target);
   }
 
   return output;
 }
 
 layer apply_captures_z_black(board *b, u64 *z, u8 dest) {
-  return apply_captures_niave_z(b->black, &b->white, &b->white_r, z, white_hashes, dest);
-}  
+  return apply_captures_niave_z(
+      b->black,
+      &b->white,
+      &b->white_r,
+      z,
+      white_hashes,
+      dest);
+}
 
 layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
-  return apply_captures_niave_z(LAYER_OR(b->white, b->king), &b->black, &b->black_r, z, black_hashes, dest);
-}  
+  return apply_captures_niave_z(
+      LAYER_OR(b->white, b->king),
+      &b->black,
+      &b->black_r,
+      z,
+      black_hashes,
+      dest);
+}
 
 //******************************************************************************
 // Capture functions
 
 // #define foes_dir(is_rotated) (is_rotated ? foes_r : foes)
 // #define allies_dir(is_rotated) (is_rotated ? allies_r : allies)
-// #define rotate_table_dir(is_rotated) (is_rotated ? rotate_left : rotate_right)
+// #define rotate_table_dir(is_rotated) (is_rotated ? rotate_left :
+// rotate_right)
 
 //******************************************************************************
 // Components
 
-inline u16 right_shield_captures(const unsigned short flank,
-                                      const unsigned short wall,
-                                      const unsigned short foes,
-                                      const unsigned char pos
-                                      ) {
+inline u16 right_shield_captures(
+    const unsigned short flank,
+    const unsigned short wall,
+    const unsigned short foes,
+    const unsigned char pos) {
   static const unsigned short lowers[10] = {
-      0b00000000000, 0b00000000001, 0b00000000011, 0b00000000111, 0b00000001111,
-      0b00000011111, 0b00000111111, 0b00001111111, 0b00011111111, 0b00111111111,
+      0b00000000000,
+      0b00000000001,
+      0b00000000011,
+      0b00000000111,
+      0b00000001111,
+      0b00000011111,
+      0b00000111111,
+      0b00001111111,
+      0b00011111111,
+      0b00111111111,
   };
   // TODO: check that this is maximally efficient
   const unsigned short rightward = lowers[pos];
@@ -307,15 +319,23 @@ inline u16 right_shield_captures(const unsigned short flank,
   return mask == candidates ? mask : 0;
 }
 
-inline u16 left_shield_captures(const unsigned short flank,
-                                     const unsigned short wall,
-                                     const unsigned short foes,
-                                     const unsigned char pos
-                                     ) {
+inline u16 left_shield_captures(
+    const unsigned short flank,
+    const unsigned short wall,
+    const unsigned short foes,
+    const unsigned char pos) {
   static const unsigned short uppers[11] = {
-      0b11111111110, 0b11111111100, 0b11111111000, 0b11111110000,
-      0b11111100000, 0b11111000000, 0b11110000000, 0b11100000000,
-      0b11000000000, 0b10000000000, 0b00000000000,
+      0b11111111110,
+      0b11111111100,
+      0b11111111000,
+      0b11111110000,
+      0b11111100000,
+      0b11111000000,
+      0b11110000000,
+      0b11100000000,
+      0b11000000000,
+      0b10000000000,
+      0b00000000000,
   };
   // TODO: check that this is maximally efficient
   const unsigned short leftward = uppers[pos];
@@ -354,9 +374,8 @@ inline void upper_middle_shield_captures(
   u16 flank = allies >> 46;
   u16 wall = allies >> 35;
   u16 foes_row = foes >> 46;
-  u16 row_captures =
-      left_shield_captures(flank, wall, foes_row, pos) |
-      right_shield_captures(flank, wall, foes_row, pos);
+  u16 row_captures = left_shield_captures(flank, wall, foes_row, pos) |
+                     right_shield_captures(flank, wall, foes_row, pos);
   (*captures) |= ((u64)row_captures << 46);
 }
 
@@ -365,8 +384,7 @@ inline void lower_left_shield_captures(
     const u64 foes,
     const unsigned char pos,
     u64 *captures) {
-  u16 row_captures =
-      left_shield_captures(allies, (allies >> 11), foes, pos);
+  u16 row_captures = left_shield_captures(allies, (allies >> 11), foes, pos);
   (*captures) |= ((u64)row_captures);
 }
 
@@ -375,8 +393,7 @@ inline void lower_right_shield_captures(
     const u64 foes,
     const unsigned char pos,
     u64 *captures) {
-  u16 row_captures =
-      right_shield_captures(allies, (allies >> 11), foes, pos);
+  u16 row_captures = right_shield_captures(allies, (allies >> 11), foes, pos);
   (*captures) |= ((u64)row_captures);
 }
 
@@ -386,10 +403,9 @@ inline void lower_middle_shield_captures(
     const unsigned char pos,
     u64 *captures) {
   u16 wall = allies >> 11;
-  u16 row_captures =
-      left_shield_captures(allies, wall, foes, pos) |
-      right_shield_captures(allies, wall, foes, pos);
-  (*captures) |= ((u64)row_captures );
+  u16 row_captures = left_shield_captures(allies, wall, foes, pos) |
+                     right_shield_captures(allies, wall, foes, pos);
+  (*captures) |= ((u64)row_captures);
 }
 
 /*[[[cog
@@ -450,443 +466,431 @@ for (c, d, p) in product(colors, dirs, portion):
 ]]]*/
 
 void shield_wall_black_north_left(board *b, int pos) {
-     u64 sub_allies = b->black._[1];
-     u64 *sub_foes = &b->white._[1];
-     layer *foes_r = &b->white_r;
-     
-     pos -= 110;
-     (*sub_foes) |= b->king._[1];
-     u64 captures = 0;
-     upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[1]);
-     while (captures) {
-       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black._[1];
+  u64 *sub_foes = &b->white._[1];
+  layer *foes_r = &b->white_r;
+
+  pos -= 110;
+  (*sub_foes) |= b->king._[1];
+  u64 captures = 0;
+  upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[1]);
+  while (captures) {
+    u8 r = rotate_right[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_north_middle(board *b, int pos) {
-     u64 sub_allies = b->black._[1];
-     u64 *sub_foes = &b->white._[1];
-     layer *foes_r = &b->white_r;
-     
-     pos -= 110;
-     (*sub_foes) |= b->king._[1];
-     u64 captures = 0;
-     upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[1]);
-     while (captures) {
-       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black._[1];
+  u64 *sub_foes = &b->white._[1];
+  layer *foes_r = &b->white_r;
+
+  pos -= 110;
+  (*sub_foes) |= b->king._[1];
+  u64 captures = 0;
+  upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[1]);
+  while (captures) {
+    u8 r = rotate_right[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_north_right(board *b, int pos) {
-     u64 sub_allies = b->black._[1];
-     u64 *sub_foes = &b->white._[1];
-     layer *foes_r = &b->white_r;
-     
-     pos -= 110;
-     (*sub_foes) |= b->king._[1];
-     u64 captures = 0;
-     upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[1]);
-     while (captures) {
-       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black._[1];
+  u64 *sub_foes = &b->white._[1];
+  layer *foes_r = &b->white_r;
+
+  pos -= 110;
+  (*sub_foes) |= b->king._[1];
+  u64 captures = 0;
+  upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[1]);
+  while (captures) {
+    u8 r = rotate_right[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_east_left(board *b, int pos) {
-     u64 sub_allies = b->black_r._[0];
-     u64 *sub_foes = &b->white_r._[0];
-     layer *foes_r = &b->white;
-     pos = rotate_right[pos];
-     
-     (*sub_foes) |= b->king_r._[0];
-     u64 captures = 0;
-     lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[0]);
-     while (captures) {
-       u8 r = rotate_left[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black_r._[0];
+  u64 *sub_foes = &b->white_r._[0];
+  layer *foes_r = &b->white;
+  pos = rotate_right[pos];
+
+  (*sub_foes) |= b->king_r._[0];
+  u64 captures = 0;
+  lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[0]);
+  while (captures) {
+    u8 r = rotate_left[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_east_middle(board *b, int pos) {
-     u64 sub_allies = b->black_r._[0];
-     u64 *sub_foes = &b->white_r._[0];
-     layer *foes_r = &b->white;
-     pos = rotate_right[pos];
-     
-     (*sub_foes) |= b->king_r._[0];
-     u64 captures = 0;
-     lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[0]);
-     while (captures) {
-       u8 r = rotate_left[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black_r._[0];
+  u64 *sub_foes = &b->white_r._[0];
+  layer *foes_r = &b->white;
+  pos = rotate_right[pos];
+
+  (*sub_foes) |= b->king_r._[0];
+  u64 captures = 0;
+  lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[0]);
+  while (captures) {
+    u8 r = rotate_left[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_east_right(board *b, int pos) {
-     u64 sub_allies = b->black_r._[0];
-     u64 *sub_foes = &b->white_r._[0];
-     layer *foes_r = &b->white;
-     pos = rotate_right[pos];
-     
-     (*sub_foes) |= b->king_r._[0];
-     u64 captures = 0;
-     lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[0]);
-     while (captures) {
-       u8 r = rotate_left[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black_r._[0];
+  u64 *sub_foes = &b->white_r._[0];
+  layer *foes_r = &b->white;
+  pos = rotate_right[pos];
+
+  (*sub_foes) |= b->king_r._[0];
+  u64 captures = 0;
+  lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[0]);
+  while (captures) {
+    u8 r = rotate_left[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_south_left(board *b, int pos) {
-     u64 sub_allies = b->black._[0];
-     u64 *sub_foes = &b->white._[0];
-     layer *foes_r = &b->white_r;
-     
-     
-     (*sub_foes) |= b->king._[0];
-     u64 captures = 0;
-     lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[0]);
-     while (captures) {
-       u8 r = rotate_right[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black._[0];
+  u64 *sub_foes = &b->white._[0];
+  layer *foes_r = &b->white_r;
+
+  (*sub_foes) |= b->king._[0];
+  u64 captures = 0;
+  lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[0]);
+  while (captures) {
+    u8 r = rotate_right[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_south_middle(board *b, int pos) {
-     u64 sub_allies = b->black._[0];
-     u64 *sub_foes = &b->white._[0];
-     layer *foes_r = &b->white_r;
-     
-     
-     (*sub_foes) |= b->king._[0];
-     u64 captures = 0;
-     lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[0]);
-     while (captures) {
-       u8 r = rotate_right[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black._[0];
+  u64 *sub_foes = &b->white._[0];
+  layer *foes_r = &b->white_r;
+
+  (*sub_foes) |= b->king._[0];
+  u64 captures = 0;
+  lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[0]);
+  while (captures) {
+    u8 r = rotate_right[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_south_right(board *b, int pos) {
-     u64 sub_allies = b->black._[0];
-     u64 *sub_foes = &b->white._[0];
-     layer *foes_r = &b->white_r;
-     
-     
-     (*sub_foes) |= b->king._[0];
-     u64 captures = 0;
-     lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[0]);
-     while (captures) {
-       u8 r = rotate_right[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black._[0];
+  u64 *sub_foes = &b->white._[0];
+  layer *foes_r = &b->white_r;
+
+  (*sub_foes) |= b->king._[0];
+  u64 captures = 0;
+  lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[0]);
+  while (captures) {
+    u8 r = rotate_right[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_west_left(board *b, int pos) {
-     u64 sub_allies = b->black_r._[1];
-     u64 *sub_foes = &b->white_r._[1];
-     layer *foes_r = &b->white;
-     pos = rotate_right[pos];
-     pos -= 110;
-     (*sub_foes) |= b->king_r._[1];
-     u64 captures = 0;
-     upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[1]);
-     while (captures) {
-       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black_r._[1];
+  u64 *sub_foes = &b->white_r._[1];
+  layer *foes_r = &b->white;
+  pos = rotate_right[pos];
+  pos -= 110;
+  (*sub_foes) |= b->king_r._[1];
+  u64 captures = 0;
+  upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[1]);
+  while (captures) {
+    u8 r = rotate_left[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_west_middle(board *b, int pos) {
-     u64 sub_allies = b->black_r._[1];
-     u64 *sub_foes = &b->white_r._[1];
-     layer *foes_r = &b->white;
-     pos = rotate_right[pos];
-     pos -= 110;
-     (*sub_foes) |= b->king_r._[1];
-     u64 captures = 0;
-     upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[1]);
-     while (captures) {
-       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black_r._[1];
+  u64 *sub_foes = &b->white_r._[1];
+  layer *foes_r = &b->white;
+  pos = rotate_right[pos];
+  pos -= 110;
+  (*sub_foes) |= b->king_r._[1];
+  u64 captures = 0;
+  upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[1]);
+  while (captures) {
+    u8 r = rotate_left[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_black_west_right(board *b, int pos) {
-     u64 sub_allies = b->black_r._[1];
-     u64 *sub_foes = &b->white_r._[1];
-     layer *foes_r = &b->white;
-     pos = rotate_right[pos];
-     pos -= 110;
-     (*sub_foes) |= b->king_r._[1];
-     u64 captures = 0;
-     upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     (*sub_foes) &= ~(b->king._[1]);
-     while (captures) {
-       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->black_r._[1];
+  u64 *sub_foes = &b->white_r._[1];
+  layer *foes_r = &b->white;
+  pos = rotate_right[pos];
+  pos -= 110;
+  (*sub_foes) |= b->king_r._[1];
+  u64 captures = 0;
+  upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  (*sub_foes) &= ~(b->king._[1]);
+  while (captures) {
+    u8 r = rotate_left[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_north_left(board *b, int pos) {
-     u64 sub_allies = b->white._[1];
-     u64 *sub_foes = &b->black._[1];
-     layer *foes_r = &b->black_r;
-     
-     pos -= 110;
-     
-     u64 captures = 0;
-     upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white._[1];
+  u64 *sub_foes = &b->black._[1];
+  layer *foes_r = &b->black_r;
+
+  pos -= 110;
+
+  u64 captures = 0;
+  upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_right[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_north_middle(board *b, int pos) {
-     u64 sub_allies = b->white._[1];
-     u64 *sub_foes = &b->black._[1];
-     layer *foes_r = &b->black_r;
-     
-     pos -= 110;
-     
-     u64 captures = 0;
-     upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white._[1];
+  u64 *sub_foes = &b->black._[1];
+  layer *foes_r = &b->black_r;
+
+  pos -= 110;
+
+  u64 captures = 0;
+  upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_right[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_north_right(board *b, int pos) {
-     u64 sub_allies = b->white._[1];
-     u64 *sub_foes = &b->black._[1];
-     layer *foes_r = &b->black_r;
-     
-     pos -= 110;
-     
-     u64 captures = 0;
-     upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_right[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white._[1];
+  u64 *sub_foes = &b->black._[1];
+  layer *foes_r = &b->black_r;
+
+  pos -= 110;
+
+  u64 captures = 0;
+  upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_right[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_east_left(board *b, int pos) {
-     u64 sub_allies = b->white_r._[0];
-     u64 *sub_foes = &b->black_r._[0];
-     layer *foes_r = &b->black;
-     pos = rotate_right[pos];
-     
-     
-     u64 captures = 0;
-     lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_left[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white_r._[0];
+  u64 *sub_foes = &b->black_r._[0];
+  layer *foes_r = &b->black;
+  pos = rotate_right[pos];
+
+  u64 captures = 0;
+  lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_left[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_east_middle(board *b, int pos) {
-     u64 sub_allies = b->white_r._[0];
-     u64 *sub_foes = &b->black_r._[0];
-     layer *foes_r = &b->black;
-     pos = rotate_right[pos];
-     
-     
-     u64 captures = 0;
-     lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_left[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white_r._[0];
+  u64 *sub_foes = &b->black_r._[0];
+  layer *foes_r = &b->black;
+  pos = rotate_right[pos];
+
+  u64 captures = 0;
+  lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_left[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_east_right(board *b, int pos) {
-     u64 sub_allies = b->white_r._[0];
-     u64 *sub_foes = &b->black_r._[0];
-     layer *foes_r = &b->black;
-     pos = rotate_right[pos];
-     
-     
-     u64 captures = 0;
-     lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_left[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white_r._[0];
+  u64 *sub_foes = &b->black_r._[0];
+  layer *foes_r = &b->black;
+  pos = rotate_right[pos];
+
+  u64 captures = 0;
+  lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_left[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_south_left(board *b, int pos) {
-     u64 sub_allies = b->white._[0];
-     u64 *sub_foes = &b->black._[0];
-     layer *foes_r = &b->black_r;
-     
-     
-     
-     u64 captures = 0;
-     lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_right[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white._[0];
+  u64 *sub_foes = &b->black._[0];
+  layer *foes_r = &b->black_r;
+
+  u64 captures = 0;
+  lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_right[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_south_middle(board *b, int pos) {
-     u64 sub_allies = b->white._[0];
-     u64 *sub_foes = &b->black._[0];
-     layer *foes_r = &b->black_r;
-     
-     
-     
-     u64 captures = 0;
-     lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_right[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white._[0];
+  u64 *sub_foes = &b->black._[0];
+  layer *foes_r = &b->black_r;
+
+  u64 captures = 0;
+  lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_right[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_south_right(board *b, int pos) {
-     u64 sub_allies = b->white._[0];
-     u64 *sub_foes = &b->black._[0];
-     layer *foes_r = &b->black_r;
-     
-     
-     
-     u64 captures = 0;
-     lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_right[_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white._[0];
+  u64 *sub_foes = &b->black._[0];
+  layer *foes_r = &b->black_r;
+
+  u64 captures = 0;
+  lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_right[_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_west_left(board *b, int pos) {
-     u64 sub_allies = b->white_r._[1];
-     u64 *sub_foes = &b->black_r._[1];
-     layer *foes_r = &b->black;
-     pos = rotate_right[pos];
-     pos -= 110;
-     
-     u64 captures = 0;
-     upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white_r._[1];
+  u64 *sub_foes = &b->black_r._[1];
+  layer *foes_r = &b->black;
+  pos = rotate_right[pos];
+  pos -= 110;
+
+  u64 captures = 0;
+  upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_left[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_west_middle(board *b, int pos) {
-     u64 sub_allies = b->white_r._[1];
-     u64 *sub_foes = &b->black_r._[1];
-     layer *foes_r = &b->black;
-     pos = rotate_right[pos];
-     pos -= 110;
-     
-     u64 captures = 0;
-     upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white_r._[1];
+  u64 *sub_foes = &b->black_r._[1];
+  layer *foes_r = &b->black;
+  pos = rotate_right[pos];
+  pos -= 110;
+
+  u64 captures = 0;
+  upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_left[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 void shield_wall_white_west_right(board *b, int pos) {
-     u64 sub_allies = b->white_r._[1];
-     u64 *sub_foes = &b->black_r._[1];
-     layer *foes_r = &b->black;
-     pos = rotate_right[pos];
-     pos -= 110;
-     
-     u64 captures = 0;
-     upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     
-     while (captures) {
-       u8 r = rotate_left[64 + _tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }
+  u64 sub_allies = b->white_r._[1];
+  u64 *sub_foes = &b->black_r._[1];
+  layer *foes_r = &b->black;
+  pos = rotate_right[pos];
+  pos -= 110;
+
+  u64 captures = 0;
+  upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+
+  while (captures) {
+    u8 r = rotate_left[64 + _tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }
 }
-    
+
 //[[[end]]]
 
 /*[[[cog
 import cog
 
-  
+
 def build_map(color):
     return [
         ("shield_wall_" + color + "_south_left", [1,2]),
@@ -923,94 +927,240 @@ cog.outl("  }\n}")
 ]]]*/
 void shield_wall_black(board *b, uint pos) {
   switch (pos) {
-  case 1: shield_wall_black_south_left(b, pos); break;
-  case 2: shield_wall_black_south_left(b, pos); break;
-  case 3: shield_wall_black_south_middle(b, pos); break;
-  case 4: shield_wall_black_south_middle(b, pos); break;
-  case 5: shield_wall_black_south_middle(b, pos); break;
-  case 6: shield_wall_black_south_middle(b, pos); break;
-  case 7: shield_wall_black_south_middle(b, pos); break;
-  case 8: shield_wall_black_south_right(b, pos); break;
-  case 9: shield_wall_black_south_right(b, pos); break;
-  case 111: shield_wall_black_north_left(b, pos); break;
-  case 112: shield_wall_black_north_left(b, pos); break;
-  case 113: shield_wall_black_north_middle(b, pos); break;
-  case 114: shield_wall_black_north_middle(b, pos); break;
-  case 115: shield_wall_black_north_middle(b, pos); break;
-  case 116: shield_wall_black_north_middle(b, pos); break;
-  case 117: shield_wall_black_north_middle(b, pos); break;
-  case 118: shield_wall_black_north_right(b, pos); break;
-  case 119: shield_wall_black_north_right(b, pos); break;
-  case 11: shield_wall_black_east_right(b, pos); break;
-  case 22: shield_wall_black_east_right(b, pos); break;
-  case 33: shield_wall_black_east_middle(b, pos); break;
-  case 44: shield_wall_black_east_middle(b, pos); break;
-  case 55: shield_wall_black_east_middle(b, pos); break;
-  case 66: shield_wall_black_east_middle(b, pos); break;
-  case 77: shield_wall_black_east_middle(b, pos); break;
-  case 88: shield_wall_black_east_left(b, pos); break;
-  case 99: shield_wall_black_east_left(b, pos); break;
-  case 21: shield_wall_black_west_right(b, pos); break;
-  case 32: shield_wall_black_west_right(b, pos); break;
-  case 43: shield_wall_black_west_middle(b, pos); break;
-  case 54: shield_wall_black_west_middle(b, pos); break;
-  case 65: shield_wall_black_west_middle(b, pos); break;
-  case 76: shield_wall_black_west_middle(b, pos); break;
-  case 87: shield_wall_black_west_middle(b, pos); break;
-  case 98: shield_wall_black_west_left(b, pos); break;
-  case 109: shield_wall_black_west_left(b, pos); break;
+  case 1:
+    shield_wall_black_south_left(b, pos);
+    break;
+  case 2:
+    shield_wall_black_south_left(b, pos);
+    break;
+  case 3:
+    shield_wall_black_south_middle(b, pos);
+    break;
+  case 4:
+    shield_wall_black_south_middle(b, pos);
+    break;
+  case 5:
+    shield_wall_black_south_middle(b, pos);
+    break;
+  case 6:
+    shield_wall_black_south_middle(b, pos);
+    break;
+  case 7:
+    shield_wall_black_south_middle(b, pos);
+    break;
+  case 8:
+    shield_wall_black_south_right(b, pos);
+    break;
+  case 9:
+    shield_wall_black_south_right(b, pos);
+    break;
+  case 111:
+    shield_wall_black_north_left(b, pos);
+    break;
+  case 112:
+    shield_wall_black_north_left(b, pos);
+    break;
+  case 113:
+    shield_wall_black_north_middle(b, pos);
+    break;
+  case 114:
+    shield_wall_black_north_middle(b, pos);
+    break;
+  case 115:
+    shield_wall_black_north_middle(b, pos);
+    break;
+  case 116:
+    shield_wall_black_north_middle(b, pos);
+    break;
+  case 117:
+    shield_wall_black_north_middle(b, pos);
+    break;
+  case 118:
+    shield_wall_black_north_right(b, pos);
+    break;
+  case 119:
+    shield_wall_black_north_right(b, pos);
+    break;
+  case 11:
+    shield_wall_black_east_right(b, pos);
+    break;
+  case 22:
+    shield_wall_black_east_right(b, pos);
+    break;
+  case 33:
+    shield_wall_black_east_middle(b, pos);
+    break;
+  case 44:
+    shield_wall_black_east_middle(b, pos);
+    break;
+  case 55:
+    shield_wall_black_east_middle(b, pos);
+    break;
+  case 66:
+    shield_wall_black_east_middle(b, pos);
+    break;
+  case 77:
+    shield_wall_black_east_middle(b, pos);
+    break;
+  case 88:
+    shield_wall_black_east_left(b, pos);
+    break;
+  case 99:
+    shield_wall_black_east_left(b, pos);
+    break;
+  case 21:
+    shield_wall_black_west_right(b, pos);
+    break;
+  case 32:
+    shield_wall_black_west_right(b, pos);
+    break;
+  case 43:
+    shield_wall_black_west_middle(b, pos);
+    break;
+  case 54:
+    shield_wall_black_west_middle(b, pos);
+    break;
+  case 65:
+    shield_wall_black_west_middle(b, pos);
+    break;
+  case 76:
+    shield_wall_black_west_middle(b, pos);
+    break;
+  case 87:
+    shield_wall_black_west_middle(b, pos);
+    break;
+  case 98:
+    shield_wall_black_west_left(b, pos);
+    break;
+  case 109:
+    shield_wall_black_west_left(b, pos);
+    break;
   }
 }
 
 void shield_wall_white(board *b, uint pos) {
   switch (pos) {
-  case 1: shield_wall_white_south_left(b, pos); break;
-  case 2: shield_wall_white_south_left(b, pos); break;
-  case 3: shield_wall_white_south_middle(b, pos); break;
-  case 4: shield_wall_white_south_middle(b, pos); break;
-  case 5: shield_wall_white_south_middle(b, pos); break;
-  case 6: shield_wall_white_south_middle(b, pos); break;
-  case 7: shield_wall_white_south_middle(b, pos); break;
-  case 8: shield_wall_white_south_right(b, pos); break;
-  case 9: shield_wall_white_south_right(b, pos); break;
-  case 111: shield_wall_white_north_left(b, pos); break;
-  case 112: shield_wall_white_north_left(b, pos); break;
-  case 113: shield_wall_white_north_middle(b, pos); break;
-  case 114: shield_wall_white_north_middle(b, pos); break;
-  case 115: shield_wall_white_north_middle(b, pos); break;
-  case 116: shield_wall_white_north_middle(b, pos); break;
-  case 117: shield_wall_white_north_middle(b, pos); break;
-  case 118: shield_wall_white_north_right(b, pos); break;
-  case 119: shield_wall_white_north_right(b, pos); break;
-  case 11: shield_wall_white_east_right(b, pos); break;
-  case 22: shield_wall_white_east_right(b, pos); break;
-  case 33: shield_wall_white_east_middle(b, pos); break;
-  case 44: shield_wall_white_east_middle(b, pos); break;
-  case 55: shield_wall_white_east_middle(b, pos); break;
-  case 66: shield_wall_white_east_middle(b, pos); break;
-  case 77: shield_wall_white_east_middle(b, pos); break;
-  case 88: shield_wall_white_east_left(b, pos); break;
-  case 99: shield_wall_white_east_left(b, pos); break;
-  case 21: shield_wall_white_west_right(b, pos); break;
-  case 32: shield_wall_white_west_right(b, pos); break;
-  case 43: shield_wall_white_west_middle(b, pos); break;
-  case 54: shield_wall_white_west_middle(b, pos); break;
-  case 65: shield_wall_white_west_middle(b, pos); break;
-  case 76: shield_wall_white_west_middle(b, pos); break;
-  case 87: shield_wall_white_west_middle(b, pos); break;
-  case 98: shield_wall_white_west_left(b, pos); break;
-  case 109: shield_wall_white_west_left(b, pos); break;
+  case 1:
+    shield_wall_white_south_left(b, pos);
+    break;
+  case 2:
+    shield_wall_white_south_left(b, pos);
+    break;
+  case 3:
+    shield_wall_white_south_middle(b, pos);
+    break;
+  case 4:
+    shield_wall_white_south_middle(b, pos);
+    break;
+  case 5:
+    shield_wall_white_south_middle(b, pos);
+    break;
+  case 6:
+    shield_wall_white_south_middle(b, pos);
+    break;
+  case 7:
+    shield_wall_white_south_middle(b, pos);
+    break;
+  case 8:
+    shield_wall_white_south_right(b, pos);
+    break;
+  case 9:
+    shield_wall_white_south_right(b, pos);
+    break;
+  case 111:
+    shield_wall_white_north_left(b, pos);
+    break;
+  case 112:
+    shield_wall_white_north_left(b, pos);
+    break;
+  case 113:
+    shield_wall_white_north_middle(b, pos);
+    break;
+  case 114:
+    shield_wall_white_north_middle(b, pos);
+    break;
+  case 115:
+    shield_wall_white_north_middle(b, pos);
+    break;
+  case 116:
+    shield_wall_white_north_middle(b, pos);
+    break;
+  case 117:
+    shield_wall_white_north_middle(b, pos);
+    break;
+  case 118:
+    shield_wall_white_north_right(b, pos);
+    break;
+  case 119:
+    shield_wall_white_north_right(b, pos);
+    break;
+  case 11:
+    shield_wall_white_east_right(b, pos);
+    break;
+  case 22:
+    shield_wall_white_east_right(b, pos);
+    break;
+  case 33:
+    shield_wall_white_east_middle(b, pos);
+    break;
+  case 44:
+    shield_wall_white_east_middle(b, pos);
+    break;
+  case 55:
+    shield_wall_white_east_middle(b, pos);
+    break;
+  case 66:
+    shield_wall_white_east_middle(b, pos);
+    break;
+  case 77:
+    shield_wall_white_east_middle(b, pos);
+    break;
+  case 88:
+    shield_wall_white_east_left(b, pos);
+    break;
+  case 99:
+    shield_wall_white_east_left(b, pos);
+    break;
+  case 21:
+    shield_wall_white_west_right(b, pos);
+    break;
+  case 32:
+    shield_wall_white_west_right(b, pos);
+    break;
+  case 43:
+    shield_wall_white_west_middle(b, pos);
+    break;
+  case 54:
+    shield_wall_white_west_middle(b, pos);
+    break;
+  case 65:
+    shield_wall_white_west_middle(b, pos);
+    break;
+  case 76:
+    shield_wall_white_west_middle(b, pos);
+    break;
+  case 87:
+    shield_wall_white_west_middle(b, pos);
+    break;
+  case 98:
+    shield_wall_white_west_left(b, pos);
+    break;
+  case 109:
+    shield_wall_white_west_left(b, pos);
+    break;
   }
 }
 //[[[end]]]
 
-typedef enum {
-  LEFT,
-  RIGHT,
-  MIDDLE  
-} Portion;
+typedef enum { LEFT, RIGHT, MIDDLE } Portion;
 
-void shield_wall_gen(bool is_black, bool is_rotated, int sub_index, Portion portion, board *b, uint pos) {
+void shield_wall_gen(
+    bool is_black,
+    bool is_rotated,
+    int sub_index,
+    Portion portion,
+    board *b,
+    uint pos) {
   layer *allies = is_black ? &b->black : &b->white;
   layer *allies_r = is_black ? &b->black_r : &b->white_r;
   layer *foes = is_black ? &b->white : &b->black;
@@ -1024,7 +1174,8 @@ void shield_wall_gen(bool is_black, bool is_rotated, int sub_index, Portion port
     pos -= 110;
   }
 
-  const u64 sub_allies = (is_rotated ? allies_r : allies)->_[sub_index] | corners._[sub_index];
+  const u64 sub_allies =
+      (is_rotated ? allies_r : allies)->_[sub_index] | corners._[sub_index];
   u64 sub_foes = (is_rotated ? foes_r : foes)->_[sub_index];
 
   // add king to foes if foes are white
@@ -1036,27 +1187,42 @@ void shield_wall_gen(bool is_black, bool is_rotated, int sub_index, Portion port
 
   if (sub_index) {
     switch (portion) {
-      case LEFT: upper_left_shield_captures(sub_allies, sub_foes, pos, &captures); break;
-      case RIGHT: upper_right_shield_captures(sub_allies, sub_foes, pos, &captures); break;
-      case MIDDLE: upper_middle_shield_captures(sub_allies, sub_foes, pos, &captures); break;
-    } 
+    case LEFT:
+      upper_left_shield_captures(sub_allies, sub_foes, pos, &captures);
+      break;
+    case RIGHT:
+      upper_right_shield_captures(sub_allies, sub_foes, pos, &captures);
+      break;
+    case MIDDLE:
+      upper_middle_shield_captures(sub_allies, sub_foes, pos, &captures);
+      break;
+    }
   } else {
     switch (portion) {
-      case LEFT: lower_left_shield_captures(sub_allies, sub_foes, pos, &captures); break;
-      case RIGHT: lower_right_shield_captures(sub_allies, sub_foes, pos, &captures); break;
-      case MIDDLE: lower_middle_shield_captures(sub_allies, sub_foes, pos, &captures); break;
-    } 
+    case LEFT:
+      lower_left_shield_captures(sub_allies, sub_foes, pos, &captures);
+      break;
+    case RIGHT:
+      lower_right_shield_captures(sub_allies, sub_foes, pos, &captures);
+      break;
+    case MIDDLE:
+      lower_middle_shield_captures(sub_allies, sub_foes, pos, &captures);
+      break;
+    }
   }
-   
+
   // remove king from captures if it's there
   if (is_black) {
     captures &= ~(is_rotated ? b->king_r : b->king)._[sub_index];
   }
 
   (is_rotated ? foes_r : foes)->_[sub_index] -= captures;
-  
+
   while (captures) {
-    u8 r = (is_rotated ? rotate_left : rotate_right)[(sub_index ? 64 : 0) + _tzcnt_u64(captures)];
+    u8 r =
+        (is_rotated
+             ? rotate_left
+             : rotate_right)[(sub_index ? 64 : 0) + _tzcnt_u64(captures)];
     OP_LAYER_BIT_PTR((is_rotated ? foes : foes_r), r, ^=);
     captures = _blsr_u64(captures);
   }
@@ -1065,21 +1231,22 @@ void shield_wall_gen(bool is_black, bool is_rotated, int sub_index, Portion port
 /*[[[cog
 import cog
 
-  
+
 def build_map(is_black):
     return [
         (f"shield_wall_gen({is_black}, false, 0, LEFT, b, pos)", [1,2]),
         (f"shield_wall_gen({is_black}, false, 0, MIDDLE, b, pos)", [3,4,5,6,7]),
         (f"shield_wall_gen({is_black}, false, 0, RIGHT, b, pos)", [8,9]),
         (f"shield_wall_gen({is_black}, false, 1, LEFT, b, pos)", [111,112]),
-        (f"shield_wall_gen({is_black}, false, 1, MIDDLE, b, pos)", [113,114,115,116,117]),
-        (f"shield_wall_gen({is_black}, false, 1, RIGHT, b, pos)", [118,119]),
-        (f"shield_wall_gen({is_black}, true,  0, LEFT, b, pos)", [11,22]),
-        (f"shield_wall_gen({is_black}, true,  0, MIDDLE, b, pos)", [33,44,55,66,77]),
-        (f"shield_wall_gen({is_black}, true,  0, RIGHT, b, pos)", [88,99]),
-        (f"shield_wall_gen({is_black}, true,  1, LEFT, b, pos)", [21,32]),
-        (f"shield_wall_gen({is_black}, true,  1, MIDDLE, b, pos)", [43,54,65,76,87]),
-        (f"shield_wall_gen({is_black}, true,  1, RIGHT, b, pos)", [98,109]),
+        (f"shield_wall_gen({is_black}, false, 1, MIDDLE, b, pos)",
+[113,114,115,116,117]), (f"shield_wall_gen({is_black}, false, 1, RIGHT, b,
+pos)", [118,119]), (f"shield_wall_gen({is_black}, true,  0, LEFT, b, pos)",
+[11,22]), (f"shield_wall_gen({is_black}, true,  0, MIDDLE, b, pos)",
+[33,44,55,66,77]), (f"shield_wall_gen({is_black}, true,  0, RIGHT, b, pos)",
+[88,99]), (f"shield_wall_gen({is_black}, true,  1, LEFT, b, pos)", [21,32]),
+        (f"shield_wall_gen({is_black}, true,  1, MIDDLE, b, pos)",
+[43,54,65,76,87]), (f"shield_wall_gen({is_black}, true,  1, RIGHT, b, pos)",
+[98,109]),
     ]
 
 
@@ -1103,83 +1270,227 @@ cog.outl("  }\n}")
 
 void shield_wall_black_gen(board *b, uint pos) {
   switch (pos) {
-  case 1: shield_wall_gen(true, false, 0, LEFT, b, pos);  break;
-  case 2: shield_wall_gen(true, false, 0, LEFT, b, pos);  break;
-  case 3: shield_wall_gen(true, false, 0, MIDDLE, b, pos);  break;
-  case 4: shield_wall_gen(true, false, 0, MIDDLE, b, pos);  break;
-  case 5: shield_wall_gen(true, false, 0, MIDDLE, b, pos);  break;
-  case 6: shield_wall_gen(true, false, 0, MIDDLE, b, pos);  break;
-  case 7: shield_wall_gen(true, false, 0, MIDDLE, b, pos);  break;
-  case 8: shield_wall_gen(true, false, 0, RIGHT, b, pos);  break;
-  case 9: shield_wall_gen(true, false, 0, RIGHT, b, pos);  break;
-  case 111: shield_wall_gen(true, false, 1, LEFT, b, pos);  break;
-  case 112: shield_wall_gen(true, false, 1, LEFT, b, pos);  break;
-  case 113: shield_wall_gen(true, false, 1, MIDDLE, b, pos);  break;
-  case 114: shield_wall_gen(true, false, 1, MIDDLE, b, pos);  break;
-  case 115: shield_wall_gen(true, false, 1, MIDDLE, b, pos);  break;
-  case 116: shield_wall_gen(true, false, 1, MIDDLE, b, pos);  break;
-  case 117: shield_wall_gen(true, false, 1, MIDDLE, b, pos);  break;
-  case 118: shield_wall_gen(true, false, 1, RIGHT, b, pos);  break;
-  case 119: shield_wall_gen(true, false, 1, RIGHT, b, pos);  break;
-  case 11: shield_wall_gen(true, true,  0, LEFT, b, pos);  break;
-  case 22: shield_wall_gen(true, true,  0, LEFT, b, pos);  break;
-  case 33: shield_wall_gen(true, true,  0, MIDDLE, b, pos);  break;
-  case 44: shield_wall_gen(true, true,  0, MIDDLE, b, pos);  break;
-  case 55: shield_wall_gen(true, true,  0, MIDDLE, b, pos);  break;
-  case 66: shield_wall_gen(true, true,  0, MIDDLE, b, pos);  break;
-  case 77: shield_wall_gen(true, true,  0, MIDDLE, b, pos);  break;
-  case 88: shield_wall_gen(true, true,  0, RIGHT, b, pos);  break;
-  case 99: shield_wall_gen(true, true,  0, RIGHT, b, pos);  break;
-  case 21: shield_wall_gen(true, true,  1, LEFT, b, pos);  break;
-  case 32: shield_wall_gen(true, true,  1, LEFT, b, pos);  break;
-  case 43: shield_wall_gen(true, true,  1, MIDDLE, b, pos);  break;
-  case 54: shield_wall_gen(true, true,  1, MIDDLE, b, pos);  break;
-  case 65: shield_wall_gen(true, true,  1, MIDDLE, b, pos);  break;
-  case 76: shield_wall_gen(true, true,  1, MIDDLE, b, pos);  break;
-  case 87: shield_wall_gen(true, true,  1, MIDDLE, b, pos);  break;
-  case 98: shield_wall_gen(true, true,  1, RIGHT, b, pos);  break;
-  case 109: shield_wall_gen(true, true,  1, RIGHT, b, pos);  break;
+  case 1:
+    shield_wall_gen(true, false, 0, LEFT, b, pos);
+    break;
+  case 2:
+    shield_wall_gen(true, false, 0, LEFT, b, pos);
+    break;
+  case 3:
+    shield_wall_gen(true, false, 0, MIDDLE, b, pos);
+    break;
+  case 4:
+    shield_wall_gen(true, false, 0, MIDDLE, b, pos);
+    break;
+  case 5:
+    shield_wall_gen(true, false, 0, MIDDLE, b, pos);
+    break;
+  case 6:
+    shield_wall_gen(true, false, 0, MIDDLE, b, pos);
+    break;
+  case 7:
+    shield_wall_gen(true, false, 0, MIDDLE, b, pos);
+    break;
+  case 8:
+    shield_wall_gen(true, false, 0, RIGHT, b, pos);
+    break;
+  case 9:
+    shield_wall_gen(true, false, 0, RIGHT, b, pos);
+    break;
+  case 111:
+    shield_wall_gen(true, false, 1, LEFT, b, pos);
+    break;
+  case 112:
+    shield_wall_gen(true, false, 1, LEFT, b, pos);
+    break;
+  case 113:
+    shield_wall_gen(true, false, 1, MIDDLE, b, pos);
+    break;
+  case 114:
+    shield_wall_gen(true, false, 1, MIDDLE, b, pos);
+    break;
+  case 115:
+    shield_wall_gen(true, false, 1, MIDDLE, b, pos);
+    break;
+  case 116:
+    shield_wall_gen(true, false, 1, MIDDLE, b, pos);
+    break;
+  case 117:
+    shield_wall_gen(true, false, 1, MIDDLE, b, pos);
+    break;
+  case 118:
+    shield_wall_gen(true, false, 1, RIGHT, b, pos);
+    break;
+  case 119:
+    shield_wall_gen(true, false, 1, RIGHT, b, pos);
+    break;
+  case 11:
+    shield_wall_gen(true, true, 0, LEFT, b, pos);
+    break;
+  case 22:
+    shield_wall_gen(true, true, 0, LEFT, b, pos);
+    break;
+  case 33:
+    shield_wall_gen(true, true, 0, MIDDLE, b, pos);
+    break;
+  case 44:
+    shield_wall_gen(true, true, 0, MIDDLE, b, pos);
+    break;
+  case 55:
+    shield_wall_gen(true, true, 0, MIDDLE, b, pos);
+    break;
+  case 66:
+    shield_wall_gen(true, true, 0, MIDDLE, b, pos);
+    break;
+  case 77:
+    shield_wall_gen(true, true, 0, MIDDLE, b, pos);
+    break;
+  case 88:
+    shield_wall_gen(true, true, 0, RIGHT, b, pos);
+    break;
+  case 99:
+    shield_wall_gen(true, true, 0, RIGHT, b, pos);
+    break;
+  case 21:
+    shield_wall_gen(true, true, 1, LEFT, b, pos);
+    break;
+  case 32:
+    shield_wall_gen(true, true, 1, LEFT, b, pos);
+    break;
+  case 43:
+    shield_wall_gen(true, true, 1, MIDDLE, b, pos);
+    break;
+  case 54:
+    shield_wall_gen(true, true, 1, MIDDLE, b, pos);
+    break;
+  case 65:
+    shield_wall_gen(true, true, 1, MIDDLE, b, pos);
+    break;
+  case 76:
+    shield_wall_gen(true, true, 1, MIDDLE, b, pos);
+    break;
+  case 87:
+    shield_wall_gen(true, true, 1, MIDDLE, b, pos);
+    break;
+  case 98:
+    shield_wall_gen(true, true, 1, RIGHT, b, pos);
+    break;
+  case 109:
+    shield_wall_gen(true, true, 1, RIGHT, b, pos);
+    break;
   }
 }
 
 void shield_wall_white_gen(board *b, uint pos) {
   switch (pos) {
-  case 1: shield_wall_gen(false, false, 0, LEFT, b, pos); break;
-  case 2: shield_wall_gen(false, false, 0, LEFT, b, pos); break;
-  case 3: shield_wall_gen(false, false, 0, MIDDLE, b, pos); break;
-  case 4: shield_wall_gen(false, false, 0, MIDDLE, b, pos); break;
-  case 5: shield_wall_gen(false, false, 0, MIDDLE, b, pos); break;
-  case 6: shield_wall_gen(false, false, 0, MIDDLE, b, pos); break;
-  case 7: shield_wall_gen(false, false, 0, MIDDLE, b, pos); break;
-  case 8: shield_wall_gen(false, false, 0, RIGHT, b, pos); break;
-  case 9: shield_wall_gen(false, false, 0, RIGHT, b, pos); break;
-  case 111: shield_wall_gen(false, false, 1, LEFT, b, pos); break;
-  case 112: shield_wall_gen(false, false, 1, LEFT, b, pos); break;
-  case 113: shield_wall_gen(false, false, 1, MIDDLE, b, pos); break;
-  case 114: shield_wall_gen(false, false, 1, MIDDLE, b, pos); break;
-  case 115: shield_wall_gen(false, false, 1, MIDDLE, b, pos); break;
-  case 116: shield_wall_gen(false, false, 1, MIDDLE, b, pos); break;
-  case 117: shield_wall_gen(false, false, 1, MIDDLE, b, pos); break;
-  case 118: shield_wall_gen(false, false, 1, RIGHT, b, pos); break;
-  case 119: shield_wall_gen(false, false, 1, RIGHT, b, pos); break;
-  case 11: shield_wall_gen(false, true,  0, LEFT, b, pos); break;
-  case 22: shield_wall_gen(false, true,  0, LEFT, b, pos); break;
-  case 33: shield_wall_gen(false, true,  0, MIDDLE, b, pos); break;
-  case 44: shield_wall_gen(false, true,  0, MIDDLE, b, pos); break;
-  case 55: shield_wall_gen(false, true,  0, MIDDLE, b, pos); break;
-  case 66: shield_wall_gen(false, true,  0, MIDDLE, b, pos); break;
-  case 77: shield_wall_gen(false, true,  0, MIDDLE, b, pos); break;
-  case 88: shield_wall_gen(false, true,  0, RIGHT, b, pos); break;
-  case 99: shield_wall_gen(false, true,  0, RIGHT, b, pos); break;
-  case 21: shield_wall_gen(false, true,  1, LEFT, b, pos); break;
-  case 32: shield_wall_gen(false, true,  1, LEFT, b, pos); break;
-  case 43: shield_wall_gen(false, true,  1, MIDDLE, b, pos); break;
-  case 54: shield_wall_gen(false, true,  1, MIDDLE, b, pos); break;
-  case 65: shield_wall_gen(false, true,  1, MIDDLE, b, pos); break;
-  case 76: shield_wall_gen(false, true,  1, MIDDLE, b, pos); break;
-  case 87: shield_wall_gen(false, true,  1, MIDDLE, b, pos); break;
-  case 98: shield_wall_gen(false, true,  1, RIGHT, b, pos); break;
-  case 109: shield_wall_gen(false, true,  1, RIGHT, b, pos); break;
+  case 1:
+    shield_wall_gen(false, false, 0, LEFT, b, pos);
+    break;
+  case 2:
+    shield_wall_gen(false, false, 0, LEFT, b, pos);
+    break;
+  case 3:
+    shield_wall_gen(false, false, 0, MIDDLE, b, pos);
+    break;
+  case 4:
+    shield_wall_gen(false, false, 0, MIDDLE, b, pos);
+    break;
+  case 5:
+    shield_wall_gen(false, false, 0, MIDDLE, b, pos);
+    break;
+  case 6:
+    shield_wall_gen(false, false, 0, MIDDLE, b, pos);
+    break;
+  case 7:
+    shield_wall_gen(false, false, 0, MIDDLE, b, pos);
+    break;
+  case 8:
+    shield_wall_gen(false, false, 0, RIGHT, b, pos);
+    break;
+  case 9:
+    shield_wall_gen(false, false, 0, RIGHT, b, pos);
+    break;
+  case 111:
+    shield_wall_gen(false, false, 1, LEFT, b, pos);
+    break;
+  case 112:
+    shield_wall_gen(false, false, 1, LEFT, b, pos);
+    break;
+  case 113:
+    shield_wall_gen(false, false, 1, MIDDLE, b, pos);
+    break;
+  case 114:
+    shield_wall_gen(false, false, 1, MIDDLE, b, pos);
+    break;
+  case 115:
+    shield_wall_gen(false, false, 1, MIDDLE, b, pos);
+    break;
+  case 116:
+    shield_wall_gen(false, false, 1, MIDDLE, b, pos);
+    break;
+  case 117:
+    shield_wall_gen(false, false, 1, MIDDLE, b, pos);
+    break;
+  case 118:
+    shield_wall_gen(false, false, 1, RIGHT, b, pos);
+    break;
+  case 119:
+    shield_wall_gen(false, false, 1, RIGHT, b, pos);
+    break;
+  case 11:
+    shield_wall_gen(false, true, 0, LEFT, b, pos);
+    break;
+  case 22:
+    shield_wall_gen(false, true, 0, LEFT, b, pos);
+    break;
+  case 33:
+    shield_wall_gen(false, true, 0, MIDDLE, b, pos);
+    break;
+  case 44:
+    shield_wall_gen(false, true, 0, MIDDLE, b, pos);
+    break;
+  case 55:
+    shield_wall_gen(false, true, 0, MIDDLE, b, pos);
+    break;
+  case 66:
+    shield_wall_gen(false, true, 0, MIDDLE, b, pos);
+    break;
+  case 77:
+    shield_wall_gen(false, true, 0, MIDDLE, b, pos);
+    break;
+  case 88:
+    shield_wall_gen(false, true, 0, RIGHT, b, pos);
+    break;
+  case 99:
+    shield_wall_gen(false, true, 0, RIGHT, b, pos);
+    break;
+  case 21:
+    shield_wall_gen(false, true, 1, LEFT, b, pos);
+    break;
+  case 32:
+    shield_wall_gen(false, true, 1, LEFT, b, pos);
+    break;
+  case 43:
+    shield_wall_gen(false, true, 1, MIDDLE, b, pos);
+    break;
+  case 54:
+    shield_wall_gen(false, true, 1, MIDDLE, b, pos);
+    break;
+  case 65:
+    shield_wall_gen(false, true, 1, MIDDLE, b, pos);
+    break;
+  case 76:
+    shield_wall_gen(false, true, 1, MIDDLE, b, pos);
+    break;
+  case 87:
+    shield_wall_gen(false, true, 1, MIDDLE, b, pos);
+    break;
+  case 98:
+    shield_wall_gen(false, true, 1, RIGHT, b, pos);
+    break;
+  case 109:
+    shield_wall_gen(false, true, 1, RIGHT, b, pos);
+    break;
   }
 }
 //[[[end]]]

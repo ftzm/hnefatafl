@@ -4,11 +4,10 @@
 #include "greatest.h"
 #include "io.h"
 #include "layer.h"
-#include "move.h"
 #include "stdio.h"
 #include "theft.h"
 #include "theft_types.h"
-#include "x86intrin.h"
+#include "x86intrin.h" // IWYU pragma: export
 
 // -----------------------------------------------------------------------------
 // corner moves 2
@@ -44,7 +43,12 @@ void draw_vertical(int rank, int file, int dest_rank, layer *l) {
 }
 
 void paths_to(
-    layer occ, int rank, int file, int dest_rank, int dest_file, layer *l) {
+    layer occ,
+    int rank,
+    int file,
+    int dest_rank,
+    int dest_file,
+    layer *l) {
   // vertical then horizontal
   {
     layer candidate = EMPTY_LAYER;
@@ -52,7 +56,7 @@ void paths_to(
     if ((rank != 0 && rank != 10 && file != 0 && file != 10) ||
         IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
       if ((dest_rank != 0 && dest_rank != 10) || (file != 1 && file != 9)) {
-	draw_horizontal(dest_rank, file, dest_file, &candidate);
+        draw_horizontal(dest_rank, file, dest_file, &candidate);
       }
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
         LAYER_OR_ASSG_PTR(l, candidate);
@@ -68,7 +72,7 @@ void paths_to(
     if ((rank != 0 && rank != 10 && file != 0 && file != 10) ||
         IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
       if ((dest_file != 0 && dest_file != 10) || (rank != 1 && rank != 9)) {
-	draw_vertical(rank, dest_file, dest_rank, &candidate);
+        draw_vertical(rank, dest_file, dest_rank, &candidate);
       }
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
         LAYER_OR_ASSG_PTR(l, candidate);
@@ -142,7 +146,12 @@ corner_paths_2_cb(struct theft *t, void *env, void **instance) {
 
   corner_paths_2(occ, occ_r, king_rank, king_file, &x, &x_r);
   corner_paths_2_ref(
-      board_occ(b), board_occ_r(b), king_rank, king_file, &y, &y_r);
+      board_occ(b),
+      board_occ_r(b),
+      king_rank,
+      king_file,
+      &y,
+      &y_r);
 
   struct layer_comparison c = {b, x, x_r, y, y_r};
 
@@ -215,9 +224,13 @@ TEST prop_test_corner_paths_2(void) {
 // -----------------------------------------------------------------------------
 // corner moves 2
 
-
 bool moves_to_ref(
-    layer occ, int rank, int file, int dest_rank, int dest_file, layer *l) {
+    layer occ,
+    int rank,
+    int file,
+    int dest_rank,
+    int dest_file,
+    layer *l) {
   // vertical then horizontal
   {
     layer candidate = EMPTY_LAYER;
@@ -234,8 +247,8 @@ bool moves_to_ref(
       }
       draw_horizontal(dest_rank, file, dest_file, &candidate);
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
-	int i = (dest_rank * 11) + file;
-	OP_LAYER_BIT_PTR(l, i, |=);
+        int i = (dest_rank * 11) + file;
+        OP_LAYER_BIT_PTR(l, i, |=);
       }
     }
   }
@@ -253,13 +266,13 @@ bool moves_to_ref(
 
     if (IS_EMPTY(LAYER_AND(candidate, occ))) {
       if (NOT_EMPTY(LAYER_AND(candidate, LAYER_OR(ADJACENTS, corners)))) {
-	// printf("escape");
+        // printf("escape");
         return true;
       }
       draw_vertical(rank, dest_file, dest_rank, &candidate);
       if (IS_EMPTY(LAYER_AND(candidate, occ))) {
-	int i = (rank * 11) + dest_file;
-	OP_LAYER_BIT_PTR(l, i, |=);
+        int i = (rank * 11) + dest_file;
+        OP_LAYER_BIT_PTR(l, i, |=);
       }
     }
   }
@@ -288,8 +301,6 @@ bool corner_moves_2_ref(
   return escape;
 }
 
-
-
 struct moves_2_comparison {
   board b;
   layer x;
@@ -314,23 +325,19 @@ corner_moves_2_cb(struct theft *t, void *env, void **instance) {
   layer occ = LAYER_OR(b.white, b.black);
   layer occ_r = LAYER_OR(b.white_r, b.black_r);
 
-  layer paths[8] = {{0}};
-  layer paths_r[8] = {{0}};
+  int dests[8] = {0};
 
   int count = 0;
-  bool x_escape = corner_moves_2(occ, occ_r, king_rank, king_file, paths, paths_r, &count);
+  bool x_escape =
+      corner_moves_2(occ, occ_r, king_rank, king_file, dests, &count);
   bool y_escape = corner_moves_2_ref(occ, king_rank, king_file, &y, &y_r);
 
   layer x = EMPTY_LAYER;
   for (int i = 0; i < count; i++) {
-    LAYER_OR_ASSG(x, paths[i]);
+    SET_INDEX(x, dests[i]);
   }
 
-  layer x_r = EMPTY_LAYER;
-  layer combined_paths_r = EMPTY_LAYER;
-  for (int i = 0; i < count; i++) {
-    LAYER_OR_ASSG(x_r, paths_r[i]);
-  }
+  layer x_r = rotate_layer_right(x);
 
   struct moves_2_comparison c = {b, x, x_r, x_escape, y, y_r, y_escape};
 
@@ -341,14 +348,16 @@ corner_moves_2_cb(struct theft *t, void *env, void **instance) {
   return THEFT_ALLOC_OK;
 };
 
-static enum theft_trial_res prop_moves_2_comparison_equal(struct theft *t, void *arg1) {
+static enum theft_trial_res
+prop_moves_2_comparison_equal(struct theft *t, void *arg1) {
   struct moves_2_comparison *input = (struct moves_2_comparison *)arg1;
 
   if (input->x_escape != input->y_escape) {
     return THEFT_TRIAL_FAIL;
   } else if (input->x_escape) {
     return THEFT_TRIAL_PASS;
-  } else if (LAYERS_EQUAL(input->x, input->y) &&
+  } else if (
+      LAYERS_EQUAL(input->x, input->y) &&
       LAYERS_EQUAL(input->x_r, input->y_r)) {
     return THEFT_TRIAL_PASS;
   } else {
@@ -364,7 +373,6 @@ void moves_2_comparison_print_cb(FILE *f, const void *instance, void *env) {
   strcpy(output, base);
   fmt_board(input->b, output);
   fprintf(f, "%s", output);
-
 
   if (input->x_escape != input->y_escape) {
     fprintf(f, "actual escape: %d\n", input->x_escape);
@@ -1644,6 +1652,7 @@ TEST test_corner_paths_2(const char *b, const char *e) {
   PASS();
 }
 
+// TODO: I don't need to test the rotated board anymore
 TEST test_corner_moves_2(const char *b, const char *e, bool should_escape) {
   layer expected = read_layer(e, 'X');
   layer expected_r = rotate_layer_right(expected);
@@ -1658,22 +1667,17 @@ TEST test_corner_moves_2(const char *b, const char *e, bool should_escape) {
   int king_file = FILE(king_pos);
 
   int count = 0;
-  layer paths[8] = {{0}};
-  layer paths_r[8] = {{0}};
+  int dests[8] = {0};
 
   // generate layers
-  bool escape =
-      corner_moves_2(occ, occ_r, king_rank, king_file, paths, paths_r, &count);
+  bool escape = corner_moves_2(occ, occ_r, king_rank, king_file, dests, &count);
 
   layer combined_paths = EMPTY_LAYER;
   for (int i = 0; i < count; i++) {
-    LAYER_OR_ASSG(combined_paths, paths[i]);
+    SET_INDEX(combined_paths, dests[i]);
   }
 
-  layer combined_paths_r = EMPTY_LAYER;
-  for (int i = 0; i < count; i++) {
-    LAYER_OR_ASSG(combined_paths_r, paths_r[i]);
-  }
+  layer combined_paths_r = rotate_layer_right(combined_paths);
 
   if (should_escape) {
     if (should_escape != escape) {
@@ -2278,7 +2282,6 @@ SUITE(corner_paths_2_suite) {
       ".  .  .  .  .  .  .  .  .  X  ."
       "X  X  X  X  X  X  X  .  X  X  X"
       ".  X  X  X  X  X  X  X  X  X  .");
-
 
   RUN_TEST(prop_test_corner_paths_2);
 }

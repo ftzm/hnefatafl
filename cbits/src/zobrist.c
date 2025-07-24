@@ -1,8 +1,8 @@
-#include "stdint.h"
-#include "stdbool.h"
-#include "board.h"
-#include "x86intrin.h"
 #include "zobrist.h"
+#include "board.h"
+#include "stdbool.h"
+#include "stdint.h"
+#include "x86intrin.h"
 
 /*
 pseudo random number generation
@@ -12,14 +12,14 @@ These have really nice distribution over the whole integer, making it
 appropriate for use with e.g. fastrange
 */
 u64 mix(u64 x) {
-	x ^= x >> 32;
-	x *= 0xbea225f9eb34556d;
-	x ^= x >> 29;
-	x *= 0xbea225f9eb34556d;
-	x ^= x >> 32;
-	x *= 0xbea225f9eb34556d;
-	x ^= x >> 29;    	
-	return x;
+  x ^= x >> 32;
+  x *= 0xbea225f9eb34556d;
+  x ^= x >> 29;
+  x *= 0xbea225f9eb34556d;
+  x ^= x >> 32;
+  x *= 0xbea225f9eb34556d;
+  x ^= x >> 29;
+  return x;
 }
 
 u64 black_hashes[121];

@@ -8,5 +8,6 @@ struct pv_line {
 } typedef pv_line;
 
 pv_line quiesce_white_runner(board b);
+pv_line quiesce_black_runner(board b);
 
 void destroy_pv_line(pv_line *line);

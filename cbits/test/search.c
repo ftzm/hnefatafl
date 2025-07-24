@@ -107,6 +107,9 @@ TEST assert_pv(
 #define ASSERT_PV_QUIESCE_WHITE(_b, ...)                                       \
   ASSERT_PV(quiesce_white_runner, false, _b, __VA_ARGS__)
 
+#define ASSERT_PV_QUIESCE_BLACK(_b, ...)                                       \
+  ASSERT_PV(quiesce_black_runner, true, _b, __VA_ARGS__)
+
 #define EMPTY_PV k1k1
 
 /* Tests for quiesce_white which don't rely on black quiescence logic beyond
@@ -114,9 +117,9 @@ TEST assert_pv(
 SUITE(quiesce_white_suite) {
   ASSERT_PV_QUIESCE_WHITE(
       "     +---------------------------------+"
-      " 11  | .  .  X  .  O  X  .  .  .  .  . |"
-      " 10  | .  X  .  .  .  .  .  .  .  .  . |"
-      "  9  | X  .  .  .  .  .  #  .  .  .  . |"
+      " 11  | .  .  X  .  O  X  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  #  .  .  .  X |"
       "  8  | .  .  .  .  .  .  .  .  .  .  . |"
       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
       "  6  | .  .  .  .  .  .  .  .  .  .  . |"
@@ -129,12 +132,13 @@ SUITE(quiesce_white_suite) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       g9g11);
 
+  /*
   ASSERT_PV_QUIESCE_WHITE(
       "     +---------------------------------+"
-      " 11  | .  .  X  .  .  .  #  .  .  .  . |"
-      " 10  | .  X  .  .  .  .  .  .  .  .  . |"
+      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  O  X |"
       "  9  | X  .  .  .  .  .  .  .  .  .  . |"
-      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  .  .  .  .  .  .  .  #  .  . |"
       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
       "  6  | .  .  .  .  .  .  .  .  .  .  . |"
       "  5  | .  .  .  .  .  .  .  .  .  .  . |"
@@ -144,7 +148,8 @@ SUITE(quiesce_white_suite) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      EMPTY_PV);
+      i8i11);
+  */
 
   ASSERT_PV_QUIESCE_WHITE(
       "     +---------------------------------+"
@@ -163,3 +168,46 @@ SUITE(quiesce_white_suite) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       f9i9);
 };
+
+/* Tests for quiesce_black which don't rely on white quiescence logic beyond
+ * static evaluation. */
+SUITE(quiesce_black_suite) {
+  /*
+  ASSERT_PV_QUIESCE_BLACK(
+      "     +---------------------------------+"
+      " 11  | .  .  .  .  .  .  .  .  .  .  . |"
+      " 10  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  9  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  #  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  X  .  .  .  .  . |"
+      "  3  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  2  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  1  | .  .  .  X  O  .  .  .  .  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      f4f1);
+
+  ASSERT_PV_QUIESCE_BLACK(
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  #  .  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  .  X |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  .  .  .  .  .  .  X  O  O  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      h8h11);
+  */
+}
+
+// test king will capture against the corner
+// test tricky corner

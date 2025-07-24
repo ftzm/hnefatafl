@@ -87,10 +87,10 @@ Convert a position to positional notation. The output buffer needs to be 4 bytes
 in length.
 */
 void as_notation(u8 position, char *output) {
-  const char rank2[11] = {'1', '2', '3', '4', '5', '6',
-                          '7', '8', '9', '0', '1'};
-  const char fileChar[11] = {'k', 'j', 'i', 'h', 'g', 'f',
-                             'e', 'd', 'c', 'b', 'a'};
+  const char rank2[11] =
+      {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '1'};
+  const char fileChar[11] =
+      {'k', 'j', 'i', 'h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'};
   int rank = position / 11;
   int file = position % 11;
   output[0] = (rank > 8) ? '1' : ' ';
@@ -140,11 +140,13 @@ void fmt_board(board board, char *input) {
     if (board.black._[SUB_LAYER(board_index)] &
         ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'X';
-    } else if (board.white._[SUB_LAYER(board_index)] &
-               ((u64)1 << sub_layer_offset_direct[board_index])) {
+    } else if (
+        board.white._[SUB_LAYER(board_index)] &
+        ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'O';
-    } else if (board.king._[SUB_LAYER(board_index)] &
-               ((u64)1 << sub_layer_offset_direct[board_index])) {
+    } else if (
+        board.king._[SUB_LAYER(board_index)] &
+        ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = '#';
     }
   }
@@ -206,7 +208,9 @@ struct move_string fmt_move(int orig, int dest) {
   return ret;
 }
 
-void print_move(int orig, int dest) { printf("%s", fmt_move(orig, dest).buf); }
+void print_move(int orig, int dest) {
+  printf("%s\n", fmt_move(orig, dest).buf);
+}
 
 board_string_t to_board_string(board b) {
   board_string_t output;
@@ -216,8 +220,8 @@ board_string_t to_board_string(board b) {
   return output;
 }
 
-board_string_t to_board_move_string(board b, int orig, int dest,
-                                    layer captures) {
+board_string_t
+to_board_move_string(board b, int orig, int dest, layer captures) {
   board_string_t output;
   strcpy(output._, base);
   fmt_board(b, output._);

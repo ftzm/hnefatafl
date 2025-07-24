@@ -1,7 +1,9 @@
 #include "constants.h"
+#include "io.h"
 #include "layer.h"
 #include "limits.h"
 #include "stdbool.h"
+#include <stdio.h>
 
 // -----------------------------------------------------------------------------
 // Generic macros
@@ -697,8 +699,7 @@ axis _i should be interpreted as. _i is an int constant. */
 #define GET_AXIS_VAL(_axis, _i) JOIN(GET_AXIS_VAL, _axis)(_i)
 
 #define ADD_MOVE(_pos)                                                         \
-  OP_LAYER_BIT(paths[(*total)], _pos, |=);                                     \
-  OP_LAYER_BIT(paths_r[(*total)], rotate_right[_pos], |=);                     \
+  dests[(*total)] = _pos;                                                      \
   (*total)++;
 
 // this is used directly from the king, so there's no intermediate
@@ -746,13 +747,13 @@ axis _i should be interpreted as. _i is an int constant. */
 
 // TODO: consider removing the single move checks from this function and using
 // it in conjuntion with the other function.
+// IMPORTANT: occ must not include the king
 bool corner_moves_2(
     const layer occ,
     const layer occ_r,
     const int rank,
     const int file,
-    layer *paths,
-    layer *paths_r,
+    int *dests,
     int *total) {
 
   // on file 0 or 10 we should only do the file methods
