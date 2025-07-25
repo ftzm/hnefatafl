@@ -554,7 +554,8 @@ i32 quiesce_black(
   int collision = insert_position(positions, position_hash, &position_index);
   if (collision) {
     // we consider the position a draw, and thus score it 0
-    return 0;
+    // return 0;
+    return INT_MIN;
   }
 
   // generate capture moves for pawns
@@ -582,6 +583,9 @@ i32 quiesce_black(
     // moves then we can presume that the king will succeed to escape, so this
     // position needs to have a losing score static evaluation.
     static_eval = INT_MIN;
+  }
+  if (ply == 0) {
+    printf("initial static eval for black: %d\n", static_eval);
   }
 
   // stand pat
@@ -752,6 +756,7 @@ i32 quiesce_black(
   // remove the position from the set as we exit
   delete_position(positions, position_index);
 
+  printf("best value from black: %d\n", best_value);
   return best_value;
 }
 
@@ -790,11 +795,16 @@ i32 quiesce_white(
   int collision = insert_position(positions, position_hash, &position_index);
   if (collision) {
     // we consider the position a draw, and thus score it 0
-    return 0;
+    // return 0;
+    return INT_MIN;
   }
 
   // white to move, so we score for white
   i32 static_eval = white_score(w, &s, &b);
+
+  if (ply == 0) {
+    printf("initial static eval for white: %d\n", static_eval);
+  }
 
   // stand pat
   // This is sort of like a null move score
@@ -825,6 +835,77 @@ i32 quiesce_white(
   move ms[100];
   layer ls[100];
   layer ls_r[100];
+
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
+
+  // ---------------------------------------------------------------------------
+  // king escape moves in 2
+
+  // generate king escapes
+  int dests[8];
+  int corner_move_count = 0;
+  bool single_move_escape = corner_moves_2(
+      LAYER_OR(b.black, b.white),
+      LAYER_OR(b.black_r, b.white_r),
+      king_rank,
+      king_file,
+      dests,
+      &corner_move_count);
+
+  if (single_move_escape) {
+    return INT_MAX;
+  }
+
+  // iterate
+  for (int i; i < corner_move_count; i++) {
+    u8 orig = king_pos;
+    u8 dest = dests[i];
+    move m = {orig, dest};
+    // print_move(orig, dest);
+
+    board new_b = b;
+    CLEAR_INDEX(new_b.king, orig);
+    CLEAR_INDEX(new_b.king_r, rotate_right[orig]);
+    SET_INDEX(new_b.king, dest);
+    SET_INDEX(new_b.king_r, rotate_right[dest]);
+
+    u64 new_position_hash = next_hash_king(position_hash, orig, dest);
+    layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+    // printf("new_postition_hash %juULL\n", new_position_hash);
+    // print_board_move(new_b, orig, dest, captures);
+    score_state new_score_state =
+        update_score_state_king_move_and_capture(w, s, orig, dest, captures);
+    printf("from king escape\n");
+    i32 score = -quiesce_black(
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        -beta,
+        -alpha);
+
+    if (score >= beta) {
+      return score;
+    }
+    if (score > best_value) {
+      best_value = score;
+
+      PV_TABLE[ply][ply] = m;
+      // copy up moves discovered at lower depths
+      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
+        PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+      }
+      // adjust pv length
+      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+    }
+    if (score > alpha) {
+      alpha = score;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // king capture moves
@@ -957,79 +1038,10 @@ i32 quiesce_white(
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // king escape moves
-
-  // generate king escapes
-  int dests[8];
-  int corner_move_count = 0;
-  int king_pos = LOWEST_INDEX(b.king);
-  int king_rank = RANK(king_pos);
-  int king_file = FILE(king_pos);
-  bool single_move_escape = corner_moves_2(
-      LAYER_OR(b.black, b.white),
-      LAYER_OR(b.black_r, b.white_r),
-      king_rank,
-      king_file,
-      dests,
-      &corner_move_count);
-
-  if (single_move_escape) {
-    return INT_MAX;
-  }
-
-  // iterate
-  for (int i; i < corner_move_count; i++) {
-    u8 orig = king_pos;
-    u8 dest = dests[i];
-    move m = {orig, dest};
-    // print_move(orig, dest);
-
-    board new_b = b;
-    CLEAR_INDEX(new_b.king, orig);
-    CLEAR_INDEX(new_b.king_r, rotate_right[orig]);
-    SET_INDEX(new_b.king, dest);
-    SET_INDEX(new_b.king_r, rotate_right[dest]);
-
-    u64 new_position_hash = next_hash_king(position_hash, orig, dest);
-    layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
-    // printf("new_postition_hash %juULL\n", new_position_hash);
-    // print_board_move(new_b, orig, dest, captures);
-    score_state new_score_state =
-        update_score_state_king_move_and_capture(w, s, orig, dest, captures);
-    printf("from king escape\n");
-    i32 score = -quiesce_black(
-        positions,
-        w,
-        new_score_state,
-        new_b,
-        new_position_hash,
-        ply + 1,
-        -beta,
-        -alpha);
-
-    if (score >= beta) {
-      return score;
-    }
-    if (score > best_value) {
-      best_value = score;
-
-      PV_TABLE[ply][ply] = m;
-      // copy up moves discovered at lower depths
-      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
-        PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
-      }
-      // adjust pv length
-      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
-    }
-    if (score > alpha) {
-      alpha = score;
-    }
-  }
-
   // remove the position from the set as we exit
   delete_position(positions, position_index);
 
+  printf("best value from white: %d\n", best_value);
   return best_value;
 }
 
