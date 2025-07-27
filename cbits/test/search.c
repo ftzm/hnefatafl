@@ -2,9 +2,13 @@
 #include "capture.h"
 #include "greatest.h"
 #include "io.h"
+#include "limits.h"
 #include "macro_util.h"
+#include "score.h"
 #include "stdarg.h"
 #include "stdbool.h"
+
+typedef enum result_score { VICTORY, LOSS, INCREASE, DECREASE } result_score;
 
 bool pvs_equal(pv_line *a, pv_line *b) {
   if (a->length != b->length) {
@@ -51,6 +55,7 @@ void print_pv(board b, pv_line *pv) {
       captures = apply_captures_z_white(&b, &dummy_zobrist, m.dest);
     }
     print_board_move(b, m.orig, m.dest, captures);
+    is_black_turn = !is_black_turn;
   }
 }
 
@@ -59,9 +64,19 @@ TEST assert_pv(
     pv_line (*f)(board),
     bool is_black_turn,
     char *board_string,
+    result_score result_score,
     int length,
     ...) {
   board b = read_board(board_string);
+
+  score_weights w = init_default_weights();
+  score_state s = init_score_state(&w, &b);
+  i32 static_eval;
+  if (is_black_turn) {
+    static_eval = black_score(&w, &s, &b);
+  } else {
+    static_eval = white_score(&w, &s, &b);
+  }
 
   // Build expected PV
   move *moves = malloc(sizeof(move) * length);
@@ -86,11 +101,7 @@ TEST assert_pv(
     equal = false;
   }
 
-  if (equal) {
-    destroy_pv_line(&expected_pv);
-    destroy_pv_line(&computed_pv);
-    PASS();
-  } else {
+  if (!equal) {
     printf("expected PV:\n\n");
     print_pv(b, &expected_pv);
     printf("\ncomputed PV:\n\n");
@@ -98,17 +109,37 @@ TEST assert_pv(
     destroy_pv_line(&expected_pv);
     destroy_pv_line(&computed_pv);
     FAILm("PVs unequal");
+  } else {
+    destroy_pv_line(&expected_pv);
+    destroy_pv_line(&computed_pv);
   }
+
+  if (result_score == VICTORY) {
+    ASSERT_EQ_FMTm("returns victory score", MAX_SCORE, computed_pv.score, "%d");
+    // ASSERT_EQm("victory", computed_pv.score, MAX_SCORE);
+  } else if (result_score == LOSS) {
+    ASSERT_EQ_FMTm("returns loss score", MIN_SCORE, computed_pv.score, "%d");
+  } else if (result_score == INCREASE) {
+    ASSERT_GTm("increase", computed_pv.score, static_eval);
+  } else if (result_score == DECREASE) {
+    ASSERT_LTm("decrease", computed_pv.score, static_eval);
+  } else {
+    printf("you've added a new element you fool");
+    exit(1);
+  }
+
+  PASS();
 }
 
-#define ASSERT_PV(_f, _t, _b, ...)                                             \
-  RUN_TESTp(assert_pv, _f, _t, _b, WITH_COUNT(FOR_EACH(STR, __VA_ARGS__)))
+#define ASSERT_PV(_f, _t, _n, _b, _s, ...)                                     \
+  greatest_set_test_suffix(_n);                                                \
+  RUN_TESTp(assert_pv, _f, _t, _b, _s, WITH_COUNT(FOR_EACH(STR, __VA_ARGS__)))
 
-#define ASSERT_PV_QUIESCE_WHITE(_b, ...)                                       \
-  ASSERT_PV(quiesce_white_runner, false, _b, __VA_ARGS__)
+#define ASSERT_PV_QUIESCE_WHITE(...)                                           \
+  ASSERT_PV(quiesce_white_runner, false, __VA_ARGS__)
 
-#define ASSERT_PV_QUIESCE_BLACK(_b, ...)                                       \
-  ASSERT_PV(quiesce_black_runner, true, _b, __VA_ARGS__)
+#define ASSERT_PV_QUIESCE_BLACK(...)                                           \
+  ASSERT_PV(quiesce_black_runner, true, __VA_ARGS__)
 
 #define EMPTY_PV k1k1
 
@@ -116,6 +147,25 @@ TEST assert_pv(
  * static evaluation. */
 SUITE(quiesce_white_suite) {
   ASSERT_PV_QUIESCE_WHITE(
+      "king escape is victory",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | O  O  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  .  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  #  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      VICTORY,
+      EMPTY_PV);
+  ASSERT_PV_QUIESCE_WHITE(
+      "king captures black",
       "     +---------------------------------+"
       " 11  | .  .  X  .  O  X  .  .  X  .  . |"
       " 10  | .  X  .  .  .  .  .  .  .  X  . |"
@@ -130,10 +180,11 @@ SUITE(quiesce_white_suite) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
+      INCREASE,
       g9g11);
 
-  /*
   ASSERT_PV_QUIESCE_WHITE(
+      "king pursues escape in 2 rather than capturing",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  .  .  . |"
       " 10  | .  X  .  .  .  .  .  .  .  O  X |"
@@ -148,14 +199,15 @@ SUITE(quiesce_white_suite) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      i8i11);
-  */
+      VICTORY,
+      EMPTY_PV);
 
   ASSERT_PV_QUIESCE_WHITE(
+      "white captures black",
       "     +---------------------------------+"
-      " 11  | .  .  X  .  .  .  .  .  O  .  . |"
-      " 10  | .  X  .  .  .  .  .  .  X  .  . |"
-      "  9  | X  .  .  .  .  O  .  .  .  .  . |"
+      " 11  | .  .  X  .  .  .  O  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  X  .  .  X  . |"
+      "  9  | X  .  .  .  .  O  .  .  .  .  X |"
       "  8  | .  .  .  .  .  .  .  .  .  .  . |"
       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
       "  6  | .  .  .  .  .  #  .  .  .  .  . |"
@@ -166,12 +218,31 @@ SUITE(quiesce_white_suite) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      f9i9);
+      INCREASE,
+      f9g9);
 };
 
 /* Tests for quiesce_black which don't rely on white quiescence logic beyond
  * static evaluation. */
 SUITE(quiesce_black_suite) {
+  ASSERT_PV_QUIESCE_BLACK(
+      "black loss when can't block 1-move king escape",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  #  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  O  X |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      LOSS,
+      EMPTY_PV);
   /*
   ASSERT_PV_QUIESCE_BLACK(
       "     +---------------------------------+"
@@ -209,5 +280,19 @@ SUITE(quiesce_black_suite) {
   */
 }
 
+// test king will escape in 1
 // test king will capture against the corner
+// Test score good on white escape for white
+// Test score bad on white escape for black
+// test black loss when cant block 1 move king escape
+// test black loss when cant block 2 move king escape
+// test black loss when can only block 1 of 2 1 move escapes
+// test black loss when can only block 1 of 2 2 move escapes
+// test black prevents 1 move escape
+// test black prevents 2 move escape
+// tests for the black losses behind white moves
+// test king will escape rather than capture
+// test king will pursue escape (go down a line leading to inevetable escape)
+//   rather than do white or king capture
+
 // test tricky corner
