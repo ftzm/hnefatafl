@@ -2,6 +2,7 @@
 #include "assert.h"
 #include "board.h"
 #include "capture.h"
+#include "constants.h"
 #include "king_mobility.h"
 #include "layer.h"
 #include "limits.h"
@@ -377,58 +378,7 @@
 //   i32 s;
 //   team_repetitions r;
 // };
-//
-// i32 quiesce(
-//     const move m,
-//     const board b,
-//     const team_repetitions r,
-//     const bool is_black_turn,
-//     // const int depth,
-//     const int ply,
-//     i32 alpha,
-//     const i32 beta,
-//     int *tally,
-//     // const bool is_pv,
-//     const score_state ss,
-//     // const bool allow_null_move,
-//     const struct ai_settings &ai_settings) {
-//   // base implementation from:
-//   // https://www.chessprogramming.org/Quiescence_Search
-//
-//   // TODO: implement delta pruning
-//
-//   // assert we don't exceed a generous ply limit to guard against infinite
-//   loops assert(ply < 20);
-//
-//   // int stand_pat = Evaluate();
-//   // if( stand_pat >= beta )
-//   //     return beta;
-//   // if( alpha < stand_pat )
-//   //     alpha = stand_pat;
-//   int stand_pat = score_board(b, is_black_turn) +
-//   ss.get_score(is_black_turn); if (stand_pat >= beta)
-//     return beta;
-//   if (alpha < stand_pat)
-//     alpha = stand_pat;
-//
-//   // Gen moves
-//   // 1. a) if black, moves that block escape paths
-//   //    b) if white, escape moves
-//   // 2. capture moves
-//
-//   // until( every_capture_has_been_examined )  {
-//   //     MakeCapture();
-//   //     score = -Quiesce( -beta, -alpha );
-//   //     TakeBackMove();
-//
-//   //     if( score >= beta )
-//   //         return beta;
-//   //     if( score > alpha )
-//   //        alpha = score;
-//   // }
-//   // return alpha;
-// }
-//
+
 // search_result negamax_ab_sorted_pv_runner(
 //     board b,
 //     team_repetitions r,
@@ -503,6 +453,14 @@ pv_line create_pv_line(bool is_black_turn, i32 result) {
 
 void destroy_pv_line(pv_line *line) { free(line->moves); }
 
+void clear_pv_memory() {
+  memset(PV_LENGTH, 0, MAX_DEPTH * sizeof(int));
+  memset(PV_TABLE, 0, MAX_DEPTH * MAX_DEPTH * sizeof(move));
+  memset(PV_TABLE_BOARDS, 0, MAX_DEPTH * MAX_DEPTH * sizeof(board));
+  memset(PREV_PV, 0, MAX_DEPTH * sizeof(move));
+  PREV_PV_LENGTH = 0;
+}
+
 i32 quiesce_white(
     position_set *positions,
     score_weights *w,
@@ -523,10 +481,10 @@ i32 quiesce_black(
     i32 alpha,
     i32 beta) {
 
-  // printf("ply: %d\n", ply);
+  printf("ply: %d\n", ply);
   // // printf("hash_for_board %juULL\n", hash_for_board(b, true));
-  // printf("in quiesce black\n");
-  // print_board(b);
+  printf("in quiesce black\n");
+  print_board(b);
 
   if (LAYER_POPCOUNT(b.king) > 1) {
     print_layer(b.king);
@@ -545,7 +503,7 @@ i32 quiesce_black(
   }
 
   // assert we don't exceed a generous ply limit to guard against infinite loops
-  assert(ply < 20);
+  assert(ply < 10);
 
   PV_LENGTH[ply] = ply;
 
@@ -566,25 +524,11 @@ i32 quiesce_black(
   int king_file = FILE(king_pos);
 
   i32 static_eval = black_score(w, &s, &b);
+  i32 best_value = static_eval;
 
   if (ply == 0) {
     // printf("initial static eval for black: %d\n", static_eval);
   }
-
-  // stand pat
-  // This is sort of like a null move score
-  i32 best_value = static_eval;
-  if (best_value >= beta) {
-    return best_value;
-  }
-  if (best_value > alpha) {
-    alpha = best_value;
-  }
-
-  move ms[100];
-  layer ls[100];
-  layer ls_r[100];
-  int total;
 
   // TODO: ensure that I follow a king-escape-in-progress to its conclusion.
   // When I generate a layer of king escape paths and then generate moves to
@@ -619,9 +563,111 @@ i32 quiesce_black(
   if (NOT_EMPTY(corner_paths)) {
     // If there are escape paths then we return a losing score unless we can
     // raise the score with a blocking move
-    best_value = MIN_SCORE;
+    // best_value = MIN_SCORE;
+    // trying to also set alpha so that we don't fail high in nested quiescence
+    // stand-pat
+    best_value = alpha = MIN_SCORE;
 
-    total = 0;
+    {
+      move ms[100] = {0};
+      layer ls[100] = {0};
+      layer ls_r[100] = {0};
+      int total = 0;
+      moves_to(
+          corner_paths,
+          corner_paths_r,
+          b.black,
+          b.black_r,
+          board_occ(b),
+          board_occ_r(b),
+          ms,
+          ls,
+          ls_r,
+          &total);
+
+      // If black can't block an escape in one then they've lost.
+      if (!total) {
+        return MIN_SCORE;
+      }
+
+      // hacky bounds check
+      assert(total < 100);
+
+      // iterate
+      for (int i = 0; i < total; i++) {
+        u8 orig = ms[i].orig;
+        u8 dest = ms[i].dest;
+        layer move = ls[i];
+        layer move_r = ls_r[i];
+
+        board new_b = apply_black_move(b, move, move_r);
+        u64 new_position_hash = next_hash_black(position_hash, orig, dest);
+        layer captures =
+            apply_captures_z_black(&new_b, &new_position_hash, dest);
+        // printf("new_postition_hash %juULL\n", new_position_hash);
+        // print_board_move(new_b, orig, dest, captures);
+        score_state new_score_state = update_score_state_black_move_and_capture(
+            w,
+            s,
+            orig,
+            dest,
+            captures);
+        i32 score = -quiesce_white(
+            positions,
+            w,
+            new_score_state,
+            new_b,
+            new_position_hash,
+            ply + 1,
+            -beta,
+            -alpha);
+
+        if (score >= beta) {
+          return score;
+        }
+        if (score > best_value) {
+          best_value = score;
+
+          PV_TABLE[ply][ply] = ms[i];
+          // copy up moves discovered at lower depths
+          for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1];
+               next_ply++) {
+            PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+          }
+          // adjust pv length
+          PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+        }
+        if (score > alpha) {
+          alpha = score;
+        }
+      }
+
+      return best_value;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // escape-in-2 blocking dests
+  // TODO: if there are escape paths we should set
+
+  corner_paths_2(
+      LAYER_OR(b.black, b.white),
+      LAYER_OR(b.black_r, b.white_r),
+      king_rank,
+      king_file,
+      &corner_paths,
+      &corner_paths_r);
+
+  if (NOT_EMPTY(corner_paths)) {
+    best_value = alpha = MIN_SCORE;
+  }
+
+  {
+
+    move ms[100] = {0};
+    layer ls[100] = {0};
+    layer ls_r[100] = {0};
+    int total = 0;
     moves_to(
         corner_paths,
         corner_paths_r,
@@ -634,10 +680,8 @@ i32 quiesce_black(
         ls_r,
         &total);
 
-    // If black can't block an escape in one then they've lost.
-    if (!total) {
-      return MIN_SCORE;
-    }
+    // TODO: if total is 0 then ensure there are followup moves otherwise losing
+    // score
 
     // hacky bounds check
     assert(total < 100);
@@ -685,87 +729,21 @@ i32 quiesce_black(
         alpha = score;
       }
     }
-
-    return best_value;
   }
 
   // ---------------------------------------------------------------------------
-  // escape-in-2 blocking dests
-  // TODO: if there are escape paths we should set
 
-  corner_paths_2(
-      LAYER_OR(b.black, b.white),
-      LAYER_OR(b.black_r, b.white_r),
-      king_rank,
-      king_file,
-      &corner_paths,
-      &corner_paths_r);
+  // stand pat
+  // This is sort of like a null move score
 
-  if (NOT_EMPTY(corner_paths)) {
-    best_value = MIN_SCORE;
+  // We only consider it after we've handled escape-blocking moves to ensure
+  // that we don't accept a static evaluation when we need to block a king
+  // escape.
+  if (best_value >= beta) {
+    return best_value;
   }
-
-  total = 0;
-
-  moves_to(
-      corner_paths,
-      corner_paths_r,
-      b.black,
-      b.black_r,
-      board_occ(b),
-      board_occ_r(b),
-      ms,
-      ls,
-      ls_r,
-      &total);
-
-  // TODO: if total is 0 then ensure there are followup moves otherwise losing
-  // score
-
-  // hacky bounds check
-  assert(total < 100);
-
-  // iterate
-  for (int i = 0; i < total; i++) {
-    u8 orig = ms[i].orig;
-    u8 dest = ms[i].dest;
-    layer move = ls[i];
-    layer move_r = ls_r[i];
-
-    board new_b = apply_black_move(b, move, move_r);
-    u64 new_position_hash = next_hash_black(position_hash, orig, dest);
-    layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
-    // printf("new_postition_hash %juULL\n", new_position_hash);
-    // print_board_move(new_b, orig, dest, captures);
-    score_state new_score_state =
-        update_score_state_black_move_and_capture(w, s, orig, dest, captures);
-    i32 score = -quiesce_white(
-        positions,
-        w,
-        new_score_state,
-        new_b,
-        new_position_hash,
-        ply + 1,
-        -beta,
-        -alpha);
-
-    if (score >= beta) {
-      return score;
-    }
-    if (score > best_value) {
-      best_value = score;
-
-      PV_TABLE[ply][ply] = ms[i];
-      // copy up moves discovered at lower depths
-      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
-        PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
-      }
-      // adjust pv length
-      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
-    }
-    if (score > alpha) {
-      alpha = score;
-    }
+  if (best_value > alpha) {
+    alpha = best_value;
   }
 
   // ---------------------------------------------------------------------------
@@ -777,62 +755,72 @@ i32 quiesce_black(
   layer capture_dests_r =
       find_capture_destinations(b.black_r, b.white_r, board_occ_r(b));
 
-  total = 0;
-  moves_to(
-      capture_dests,
-      capture_dests_r,
-      b.black,
-      b.black_r,
-      board_occ(b),
-      board_occ_r(b),
-      ms,
-      ls,
-      ls_r,
-      &total);
+  {
+    move ms[100] = {0};
+    layer ls[100] = {0};
+    layer ls_r[100] = {0};
+    int total = 0;
+    moves_to(
+        capture_dests,
+        capture_dests_r,
+        b.black,
+        b.black_r,
+        board_occ(b),
+        board_occ_r(b),
+        ms,
+        ls,
+        ls_r,
+        &total);
 
-  // hacky bounds check
-  assert(total < 100);
+    // hacky bounds check
+    assert(total < 100);
 
-  // iterate
-  for (int i = 0; i < total; i++) {
-    u8 orig = ms[i].orig;
-    u8 dest = ms[i].dest;
-    layer move = ls[i];
-    layer move_r = ls_r[i];
+    // iterate
+    for (int i = 0; i < total; i++) {
+      u8 orig = ms[i].orig;
+      u8 dest = ms[i].dest;
+      layer move = ls[i];
+      layer move_r = ls_r[i];
 
-    board new_b = apply_black_move(b, move, move_r);
-    u64 new_position_hash = next_hash_black(position_hash, orig, dest);
-    layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
-    // printf("new_postition_hash %juULL\n", new_position_hash);
-    // print_board_move(new_b, orig, dest, captures);
-    score_state new_score_state =
-        update_score_state_black_move_and_capture(w, s, orig, dest, captures);
-    i32 score = -quiesce_white(
-        positions,
-        w,
-        new_score_state,
-        new_b,
-        new_position_hash,
-        ply + 1,
-        -beta,
-        -alpha);
+      print_layer(move);
+      print_layer(move_r);
+      board new_b = apply_black_move(b, move, move_r);
+      u64 new_position_hash = next_hash_black(position_hash, orig, dest);
+      layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
+      print_layer(captures);
+      printf("black_capture");
+      // printf("new_postition_hash %juULL\n", new_position_hash);
+      print_board_move(new_b, orig, dest, captures);
+      score_state new_score_state =
+          update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+      i32 score = -quiesce_white(
+          positions,
+          w,
+          new_score_state,
+          new_b,
+          new_position_hash,
+          ply + 1,
+          -beta,
+          -alpha);
 
-    if (score >= beta) {
-      return score;
-    }
-    if (score > best_value) {
-      best_value = score;
-
-      PV_TABLE[ply][ply] = ms[i];
-      // copy up moves discovered at lower depths
-      for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
-        PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+      if (score >= beta) {
+        return score;
       }
-      // adjust pv length
-      PV_LENGTH[ply] = PV_LENGTH[ply + 1];
-    }
-    if (score > alpha) {
-      alpha = score;
+      if (score > best_value) {
+        best_value = score;
+
+        PV_TABLE[ply][ply] = ms[i];
+        // copy up moves discovered at lower depths
+        for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1];
+             next_ply++) {
+          PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+        }
+        // adjust pv length
+        PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+      }
+      if (score > alpha) {
+        alpha = score;
+      }
     }
   }
 
@@ -855,10 +843,10 @@ i32 quiesce_white(
     i32 alpha,
     i32 beta) {
 
-  // printf("ply: %d\n", ply);
+  printf("ply: %d\n", ply);
   // // printf("hash_for_board %juULL\n", hash_for_board(b, false));
-  // printf("in quiesce white\n");
-  // print_board(b);
+  printf("in quiesce white\n");
+  print_board(b);
 
   if (LAYER_POPCOUNT(b.king) > 1) {
     print_layer(b.king);
@@ -871,7 +859,7 @@ i32 quiesce_white(
   }
 
   // assert we don't exceed a generous ply limit to guard against infinite loops
-  assert(ply < 20);
+  assert(ply < 10);
 
   PV_LENGTH[ply] = ply;
 
@@ -886,6 +874,9 @@ i32 quiesce_white(
 
   // white to move, so we score for white
   i32 static_eval = white_score(w, &s, &b);
+  if (ply == 0) {
+    printf("root stand pat: %d\n", static_eval);
+  }
 
   if (ply == 0) {
     // printf("initial static eval for white: %d\n", static_eval);
@@ -894,32 +885,20 @@ i32 quiesce_white(
   // stand pat
   // This is sort of like a null move score
   i32 best_value = static_eval;
-  if (best_value >= beta) {
-    return best_value;
-  }
-  if (best_value > alpha) {
-    alpha = best_value;
-  }
+  /*
+   */
 
   // generate capture moves
   // TODO: remove throne from dests before finding pawn captures
   // actually maybe not necessary, it's covered by the blockers in moves_to
   layer capture_dests = find_capture_destinations(
-      LAYER_OR(b.white, b.king),
+      LAYER_OR(LAYER_OR(b.white, b.king), corners),
       b.black,
       king_board_occ(b));
   layer capture_dests_r = find_capture_destinations(
-      LAYER_OR(b.white_r, b.king_r),
+      LAYER_OR(LAYER_OR(b.white_r, b.king_r), corners),
       b.black_r,
       king_board_occ_r(b));
-
-  // shared move memory
-  // 100 is an arbitrary number but almost certainly sufficient.
-  // TODO: find the "correct" size for this based on the maximum capture count,
-  // either theoretical or statistical
-  move ms[100];
-  layer ls[100];
-  layer ls_r[100];
 
   int king_pos = LOWEST_INDEX(b.king);
   int king_rank = RANK(king_pos);
@@ -961,7 +940,8 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     // printf("new_postition_hash %juULL\n", new_position_hash);
-    // print_board_move(new_b, orig, dest, captures);
+    printf("escape move 2");
+    print_board_move(new_b, orig, dest, captures);
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
     // printf("from king escape\n");
@@ -974,6 +954,7 @@ i32 quiesce_white(
         ply + 1,
         -beta,
         -alpha);
+    printf("score: %d\n", score);
 
     if (score >= beta) {
       return score;
@@ -997,7 +978,22 @@ i32 quiesce_white(
   // ---------------------------------------------------------------------------
   // king capture moves
 
+  // we delay stand pat to after exploration of imminent escapes
+  // expand reasoning based on check section in quiescence page in chess wiki
+  if (best_value >= beta) {
+    printf("beta: %d\n", beta);
+    printf("static_eval: %d\n", static_eval);
+    printf("over beta\n");
+    return best_value;
+  }
+  if (best_value > alpha) {
+    alpha = best_value;
+  }
+
   // generate capture moves for king
+  move ms[100];
+  layer ls[100];
+  layer ls_r[100];
   int total = 0;
   moves_to_king_impl(
       capture_dests,
@@ -1025,6 +1021,8 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     // printf("new_postition_hash %juULL\n", new_position_hash);
+    printf("king capture");
+    print_board_move(new_b, orig, dest, captures);
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
 
@@ -1093,6 +1091,9 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_white(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     // printf("new_postition_hash %juULL\n", new_position_hash);
+    print_board(b);
+    printf("pawn capture");
+    print_board_move(new_b, orig, dest, captures);
     score_state new_score_state =
         update_score_state_white_move_and_capture(w, s, orig, dest, captures);
     i32 score = -quiesce_black(
@@ -1128,17 +1129,21 @@ i32 quiesce_white(
   delete_position(positions, position_index);
 
   // printf("best value from white: %d\n", best_value);
+  if (ply == 0) {
+    printf("root exit with score: %d\n", best_value);
+  }
   return best_value;
 }
 
 pv_line quiesce_white_runner(board b) {
+  clear_pv_memory();
   u64 position_hash = hash_for_board(b, false);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
-  i32 alpha = MIN_SCORE;
-  i32 beta = MAX_SCORE;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
   i32 result =
       quiesce_white(positions, &weights, s, b, position_hash, ply, alpha, beta);
   destroy_position_set(positions);
@@ -1146,13 +1151,14 @@ pv_line quiesce_white_runner(board b) {
 }
 
 pv_line quiesce_black_runner(board b) {
+  clear_pv_memory();
   u64 position_hash = hash_for_board(b, true);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
-  i32 alpha = MIN_SCORE;
-  i32 beta = MAX_SCORE;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
   i32 result =
       quiesce_black(positions, &weights, s, b, position_hash, ply, alpha, beta);
   destroy_position_set(positions);

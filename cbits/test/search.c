@@ -8,7 +8,13 @@
 #include "stdarg.h"
 #include "stdbool.h"
 
-typedef enum result_score { VICTORY, LOSS, INCREASE, DECREASE } result_score;
+typedef enum result_score {
+  VICTORY,
+  LOSS,
+  INCREASE,
+  DECREASE,
+  ANY
+} result_score;
 
 bool pvs_equal(pv_line *a, pv_line *b) {
   if (a->length != b->length) {
@@ -116,13 +122,13 @@ TEST assert_pv(
 
   if (result_score == VICTORY) {
     ASSERT_EQ_FMTm("returns victory score", MAX_SCORE, computed_pv.score, "%d");
-    // ASSERT_EQm("victory", computed_pv.score, MAX_SCORE);
   } else if (result_score == LOSS) {
     ASSERT_EQ_FMTm("returns loss score", MIN_SCORE, computed_pv.score, "%d");
   } else if (result_score == INCREASE) {
-    ASSERT_GTm("increase", computed_pv.score, static_eval);
+    ASSERT_GTm("returns score increase", computed_pv.score, static_eval);
   } else if (result_score == DECREASE) {
-    ASSERT_LTm("decrease", computed_pv.score, static_eval);
+    ASSERT_LTm("returns score decrease", computed_pv.score, static_eval);
+  } else if (result_score == ANY) {
   } else {
     printf("you've added a new element you fool");
     exit(1);
@@ -143,9 +149,8 @@ TEST assert_pv(
 
 #define EMPTY_PV k1k1
 
-/* Tests for quiesce_white which don't rely on black quiescence logic beyond
- * static evaluation. */
-SUITE(quiesce_white_suite) {
+/* Tests for quiesce_white which don't rely on black quiescence logic */
+SUITE(quiesce_white_only) {
   ASSERT_PV_QUIESCE_WHITE(
       "king escape is victory",
       "     +---------------------------------+"
@@ -160,43 +165,6 @@ SUITE(quiesce_white_suite) {
       "  3  | .  .  .  .  .  .  .  .  .  .  X |"
       "  2  | .  .  .  .  .  .  .  .  .  X  . |"
       "  1  | .  .  #  .  .  .  .  .  X  .  . |"
-      "     +---------------------------------+"
-      "       a  b  c  d  e  f  g  h  i  j  k  ",
-      VICTORY,
-      EMPTY_PV);
-  ASSERT_PV_QUIESCE_WHITE(
-      "king captures black",
-      "     +---------------------------------+"
-      " 11  | .  .  X  .  O  X  .  .  X  .  . |"
-      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
-      "  9  | X  .  .  .  .  .  #  .  .  .  X |"
-      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
-      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
-      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
-      "     +---------------------------------+"
-      "       a  b  c  d  e  f  g  h  i  j  k  ",
-      INCREASE,
-      g9g11);
-
-  ASSERT_PV_QUIESCE_WHITE(
-      "king pursues escape in 2 rather than capturing",
-      "     +---------------------------------+"
-      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
-      " 10  | .  X  .  .  .  .  .  .  .  O  X |"
-      "  9  | X  .  .  .  .  .  .  .  .  .  . |"
-      "  8  | .  .  .  .  .  .  .  .  #  .  . |"
-      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
-      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
-      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       VICTORY,
@@ -220,11 +188,175 @@ SUITE(quiesce_white_suite) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       INCREASE,
       f9g9);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "test king will escape in 1 rather than capture",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | O  O  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | .  .  .  .  .  O  .  .  .  .  X |"
+      "  2  | .  .  .  .  .  X  .  .  .  X  . |"
+      "  1  | .  .  #  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      VICTORY,
+      EMPTY_PV);
 };
+
+/* Tests for quiesce_white which don't rely on black quiescence logic beyond
+ * static evaluation. */
+SUITE(quiesce_white_shallow) {
+  ASSERT_PV_QUIESCE_WHITE(
+      "king captures black",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  O  X  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  #  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      INCREASE,
+      g9g11);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "king will capture against the corner",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  O  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  .  X |"
+      "  1  | .  .  X  .  .  .  #  .  .  X  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      VICTORY,
+      g1i1);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "white captures black",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  #  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  O  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  X  O  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      INCREASE,
+      e4e1);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "white captures against corner",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  #  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  O  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  X  .  .  .  .  O  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      INCREASE,
+      g1c1);
+}
+/* Tests for quiesce_white which rely on full black quiescence logic */
+SUITE(quiesce_white_recursive) {
+  ASSERT_PV_QUIESCE_WHITE(
+      "king pursues escape in 2 rather than capturing",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  O  .  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  O  X |"
+      "  8  | .  .  .  .  .  .  #  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  O |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      VICTORY,
+      g8g11);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "white does the tricky corner move",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  #  X  . |"
+      " 10  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  9  | X  X  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  O  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      VICTORY,
+      // There aren't more moves because no black moves beyond this point can
+      // prevent an escape, thus none can raise the best score.
+      i11i10);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "white finds the tricky corner move",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+      " 10  | .  .  .  .  .  .  .  .  .  X  X |"
+      "  9  | X  X  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  #  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  O  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      VICTORY,
+      // There aren't more moves because no black moves beyond this point can
+      // prevent an escape, thus none can raise the best score.
+      i7i11);
+  /*
+   */
+}
 
 /* Tests for quiesce_black which don't rely on white quiescence logic beyond
  * static evaluation. */
-SUITE(quiesce_black_suite) {
+SUITE(quiesce_black_only) {
   ASSERT_PV_QUIESCE_BLACK(
       "black loss when can't block 1-move king escape",
       "     +---------------------------------+"
@@ -243,25 +375,32 @@ SUITE(quiesce_black_suite) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       LOSS,
       EMPTY_PV);
-  /*
+}
+
+/* Tests for quiesce_black which don't rely on white quiescence logic beyond
+ * static evaluation. */
+SUITE(quiesce_black_shallow) {
   ASSERT_PV_QUIESCE_BLACK(
+      "black performs obvious capture",
       "     +---------------------------------+"
-      " 11  | .  .  .  .  .  .  .  .  .  .  . |"
-      " 10  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  9  | .  .  .  .  .  .  .  .  .  .  . |"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
       "  8  | .  .  .  .  .  .  .  .  .  .  . |"
       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
       "  6  | .  .  .  .  .  #  .  .  .  .  . |"
       "  5  | .  .  .  .  .  .  .  .  .  .  . |"
       "  4  | .  .  .  .  .  X  .  .  .  .  . |"
-      "  3  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  2  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  1  | .  .  .  X  O  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  X  O  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
+      INCREASE,
       f4f1);
 
   ASSERT_PV_QUIESCE_BLACK(
+      "black prevents escape in 1",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  #  .  .  .  .  . |"
       " 10  | .  X  .  .  .  .  .  .  .  .  X |"
@@ -276,23 +415,128 @@ SUITE(quiesce_black_suite) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
+      ANY,
       h8h11);
-  */
+
+  ASSERT_PV_QUIESCE_BLACK(
+      "black prevents escape in 2",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+      " 10  | .  X  O  .  .  .  .  .  O  X  . |"
+      "  9  | X  O  .  .  .  #  .  .  .  O  X |"
+      "  8  | O  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | O  .  .  .  .  .  .  .  .  .  O |"
+      "  3  | X  O  .  .  .  .  .  .  .  O  X |"
+      "  2  | .  X  O  .  .  .  .  .  O  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      ANY,
+      c11f11);
+
+  ASSERT_PV_QUIESCE_BLACK(
+      "black loss when can't black 1 move king escape",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  #  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  O  .  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  O  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  O |"
+      "  5  | .  .  .  .  .  .  .  .  .  X  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      LOSS,
+      EMPTY_PV);
+
+  ASSERT_PV_QUIESCE_BLACK(
+      "black loss when can't block 2 move king escape",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  O  .  .  .  .  . |"
+      " 10  | .  X  .  .  .  O  .  .  O  .  . |"
+      "  9  | X  .  .  .  .  O  .  .  O  O  X |"
+      "  8  | .  .  .  .  .  .  #  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  O |"
+      "  5  | .  .  .  .  .  .  .  .  .  X  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      LOSS,
+      EMPTY_PV);
 }
 
-// test king will escape in 1
-// test king will capture against the corner
-// Test score good on white escape for white
-// Test score bad on white escape for black
-// test black loss when cant block 1 move king escape
-// test black loss when cant block 2 move king escape
-// test black loss when can only block 1 of 2 1 move escapes
-// test black loss when can only block 1 of 2 2 move escapes
-// test black prevents 1 move escape
-// test black prevents 2 move escape
-// tests for the black losses behind white moves
-// test king will escape rather than capture
-// test king will pursue escape (go down a line leading to inevetable escape)
-//   rather than do white or king capture
+/* Tests for quiesce_white which rely on full white quiescence logic */
+SUITE(quiesce_black_recursive) {
+  ASSERT_PV_QUIESCE_BLACK(
+      "test black loss when can only block 1 of 2 1 move escapes",
+      "     +---------------------------------+"
+      " 11  | .  .  .  .  .  #  .  .  .  .  . |"
+      " 10  | .  X  O  .  .  .  .  .  O  X  . |"
+      "  9  | X  O  .  .  .  .  .  .  .  O  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      LOSS,
+      EMPTY_PV);
 
-// test tricky corner
+  ASSERT_PV_QUIESCE_BLACK(
+      "black loss when can only block 1 of 2 X move escapes",
+      "     +---------------------------------+"
+      " 11  | .  .  .  .  .  .  .  .  .  .  . |"
+      " 10  | X  .  .  .  .  #  .  .  .  .  X |"
+      "  9  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  O  O  X  .  .  .  X  O  O  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      LOSS,
+      EMPTY_PV);
+  ASSERT_PV_QUIESCE_BLACK(
+      "black survives when can block both 2 move escapes",
+      "     +---------------------------------+"
+      " 11  | .  .  .  .  .  .  .  .  .  .  . |"
+      " 10  | X  .  .  .  .  #  .  .  .  .  X |"
+      "  9  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  O  O  X  .  .  .  X  O  O  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      LOSS,
+      EMPTY_PV);
+  // test black loss when can only block 1 of 2 2 move escapes
+  // black doesn't perform a capture that will result in a king escape
+  // test tricky corner causes loss for black
+  // test tricky corner blocked by black
+}
+
+// tests for the black losses behind white moves (MAYBE?)

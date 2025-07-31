@@ -264,7 +264,7 @@ layer apply_captures_niave_z(
 
 layer apply_captures_z_black(board *b, u64 *z, u8 dest) {
   return apply_captures_niave_z(
-      b->black,
+      LAYER_OR(b->black, corners),
       &b->white,
       &b->white_r,
       z,
@@ -274,7 +274,7 @@ layer apply_captures_z_black(board *b, u64 *z, u8 dest) {
 
 layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
   return apply_captures_niave_z(
-      LAYER_OR(b->white, b->king),
+      LAYER_OR(LAYER_OR(b->white, b->king), corners),
       &b->black,
       &b->black_r,
       z,

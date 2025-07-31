@@ -89,6 +89,33 @@ $(DEP_FILES):
 include $(wildcard $(DEP_FILES))
 
 # ------------------------------------------------------------------------------
+# Test suite auto-generation
+#
+# This target scans all test files for SUITE definitions and updates test.c
+
+.PHONY: update-test-suites
+update-test-suites:
+	@echo "Scanning for test suites..."
+	@SUITES=$$(grep -h '^SUITE(' $(TEST_DIR)/*.c | sed 's/SUITE(\([^)]*\)).*/\1/' | sort); \
+	CUSTOM_INITIALIZATION="init_hashes();"; \
+	{ \
+		echo '#include "greatest.h"'; \
+		echo '#include "zobrist.h"'; \
+		echo ''; \
+		for suite in $$SUITES; do echo "SUITE_EXTERN($${suite});"; done; \
+		echo ''; \
+		echo 'GREATEST_MAIN_DEFS();'; \
+		echo ''; \
+		echo 'int main(int argc, char **argv) {'; \
+		echo "  $$CUSTOM_INITIALIZATION"; \
+		echo ''; \
+		echo '  GREATEST_MAIN_BEGIN();'; \
+		for suite in $$SUITES; do echo "  RUN_SUITE($${suite});"; done; \
+		echo '  GREATEST_MAIN_END();'; \
+		echo '}'; \
+	} > $(TEST_DIR)/test.c
+
+# ------------------------------------------------------------------------------
 # Test executable compilation and execution
 #
 # Running `make test` will run all tests.
@@ -103,8 +130,11 @@ $(TEST_BIN_DIR)/test: $(TEST_DIR)/test.c $(TEST_OBJS) $(LIB_TARGET) | $(TEST_BIN
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(TEST_INCLUDES) -o $@ $(TEST_DIR)/test.c $(TEST_OBJS) $(TEST_LIBS)
 
 .PHONY: test
-test: $(TEST_BIN_DIR)/test vendor/greatest/contrib/greenest
+.ONESHELL:
+test: update-test-suites $(TEST_BIN_DIR)/test vendor/greatest/contrib/greenest
 	@$(RUN_ENV) ./$(TEST_BIN_DIR)/test | vendor/greatest/contrib/greenest
+	RESULT=$${PIPESTATUS[0]}
+	@exit $$RESULT
 
 # ------------------------------------------------------------------------------
 # Automatic bench dispatch
