@@ -13,6 +13,7 @@ typedef enum result_score {
   LOSS,
   INCREASE,
   DECREASE,
+  MIDDLING,
   ANY
 } result_score;
 
@@ -128,6 +129,9 @@ TEST assert_pv(
     ASSERT_GTm("returns score increase", computed_pv.score, static_eval);
   } else if (result_score == DECREASE) {
     ASSERT_LTm("returns score decrease", computed_pv.score, static_eval);
+  } else if (result_score == MIDDLING) {
+    ASSERT_GTm("not losing", computed_pv.score, MIN_SCORE + 100);
+    ASSERT_LTm("not winning", computed_pv.score, MAX_SCORE - 100);
   } else if (result_score == ANY) {
   } else {
     printf("you've added a new element you fool");
@@ -498,7 +502,7 @@ SUITE(quiesce_black_recursive) {
       EMPTY_PV);
 
   ASSERT_PV_QUIESCE_BLACK(
-      "black loss when can only block 1 of 2 X move escapes",
+      "black loss when can only block 1 of 2 2 move escapes",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  .  .  .  .  .  . |"
       " 10  | X  .  .  .  .  #  .  .  .  .  X |"
@@ -515,11 +519,12 @@ SUITE(quiesce_black_recursive) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       LOSS,
       EMPTY_PV);
+
   ASSERT_PV_QUIESCE_BLACK(
       "black survives when can block both 2 move escapes",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  .  .  .  .  .  . |"
-      " 10  | X  .  .  .  .  #  .  .  .  .  X |"
+      " 10  | .  X  .  X  .  #  .  X  .  X  . |"
       "  9  | .  .  .  .  .  .  .  .  .  .  . |"
       "  8  | .  O  O  X  .  .  .  X  O  O  . |"
       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
@@ -531,12 +536,46 @@ SUITE(quiesce_black_recursive) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      LOSS,
-      EMPTY_PV);
-  // test black loss when can only block 1 of 2 2 move escapes
-  // black doesn't perform a capture that will result in a king escape
-  // test tricky corner causes loss for black
-  // test tricky corner blocked by black
-}
+      MIDDLING,
+      h10h11);
 
-// tests for the black losses behind white moves (MAYBE?)
+  ASSERT_PV_QUIESCE_BLACK(
+      "black doesn't perform a capture that will result in a king escape",
+      "     +---------------------------------+"
+      " 11  | .  .  .  .  .  #  .  .  X  .  . |"
+      " 10  | .  X  X  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  X  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  X  O  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      INCREASE,
+      c10c11);
+
+  ASSERT_PV_QUIESCE_BLACK(
+      "test tricky corner causes loss for black",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  #  .  . |"
+      " 10  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  9  | X  X  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  X  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  O  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      LOSS,
+      // There aren't more moves because no black moves beyond this point can
+      // prevent an escape, thus none can raise the best score.
+      EMPTY_PV);
+}
