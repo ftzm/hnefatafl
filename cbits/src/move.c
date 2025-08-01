@@ -1,8 +1,13 @@
 #include "move.h"
 #include "board.h"
+#include "capture.h"
+#include "io.h"
 #include "layer.h"
 #include "limits.h"
 #include "macro_util.h"
+#include "stdbool.h"
+#include "stdio.h"
+#include "string.h"
 #include "x86intrin.h" // IWYU pragma: export
 
 #define ADJUST_AXIS_VAL_file(_i) _i
@@ -786,3 +791,35 @@ int king_moves_count(const board *b) {
   total += rightward_moves_count_king(b->king_r, occ_r);
   return total;
 }
+
+/*
+  Idea for a move generator so we don't end up allocating so much memory for
+move lists:
+
+The general idea is to create new versions of the moves_to and the macros it
+uses to return one move at a time. This means that instead of using a while loop
+and looping over the dests as they're created, I split it up into stages, where
+I first generate dests, and then separetaly I check if the u64 of dests is empty
+and if not extract and return the next move.
+
+In order to return one move at a time and pick up where I left off each time
+I'll need a struct to hold onto state. It will contain a state int which tells
+where we are in the progress. Another struct member with a u64 of positions to
+extract. the movers, targets, occ, etc.
+
+I'll then need a function that takes a reference to this state struct and
+processes moves. It will consist mainly of a large switch statement. The switch
+branches will have alternating purposes: the first will generate dests for one
+direction for one layer portion (equivalent to say LEFTWARD(0, ) in moves_to,
+say). so it will produce a single u64 of dests. It will also need to set a
+pointer to the movers so that we have the information we need to extract moves.
+There will be no breaks in any of the branches; they will all fall through to
+the next. The next type of branch, which will come after each dest generating
+branch, is the one in which we will extract a move. the logic is largely the
+same as the existing, except when a move is found we return rather than adding
+it to a list of moves. To keep the initial implementation simple we'll only
+return a move as a move struct, not the layers. Before returning we'll also need
+to set the state int to the number of the current switch state that we're in, so
+that when the function is called again we continue to pull moves from that u64.
+
+*/
