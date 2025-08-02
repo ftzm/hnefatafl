@@ -820,9 +820,9 @@ i32 quiesce_white(
   // printf("in quiesce white\n");
   // print_board(b);
 
-  if (LAYER_POPCOUNT(b.king) > 1) {
-    print_layer(b.king);
-  }
+  // if (LAYER_POPCOUNT(b.king) > 1) {
+  //   print_layer(b.king);
+  // }
 
   // We only need to check for a king capture because the previous move will
   // have been black.
@@ -887,8 +887,8 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     // printf("new_postition_hash %juULL\n", new_position_hash);
-    printf("escape move 2");
-    print_board_move(new_b, orig, dest, captures);
+    // printf("escape move 2");
+    // print_board_move(new_b, orig, dest, captures);
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
     // printf("from king escape\n");
@@ -901,7 +901,6 @@ i32 quiesce_white(
         ply + 1,
         -beta,
         -alpha);
-    printf("score: %d\n", score);
 
     if (score >= beta) {
       return score;
@@ -973,8 +972,8 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     // printf("new_postition_hash %juULL\n", new_position_hash);
-    printf("king capture");
-    print_board_move(new_b, orig, dest, captures);
+    // printf("king capture");
+    // print_board_move(new_b, orig, dest, captures);
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
 

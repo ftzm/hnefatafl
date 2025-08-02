@@ -136,6 +136,51 @@ int black_moves_count(const board *b);
 int white_moves_count(const board *b);
 int king_moves_count(const board *b);
 
+// Move generator structure definition
+typedef struct move_generator {
+  // Input parameters
+  layer targets;
+  layer targets_r;
+  layer movers;
+  layer movers_r;
+  layer occ;
+  layer occ_r;
+  
+  // Derived values calculated once during initialization
+  u16 center_occ;
+  u16 center_occ_r;
+  u16 center_movers;
+  u16 center_movers_r;
+  layer leftward_occ;
+  layer leftward_occ_r;
+  layer rightward_occ;
+  layer rightward_occ_r;
+  
+  // Generator state
+  int state;
+  u64 dests;
+  u64 origs;
+  u64 current_orig_bit;
+  u8 current_orig;
+  
+  // For rightward moves
+  u64 move_mask;
+} move_generator;
+
+// Initialize a move generator
+void init_move_generator(
+    move_generator *gen,
+    layer targets,
+    layer targets_r,
+    layer movers,
+    layer movers_r,
+    layer occ,
+    layer occ_r);
+
+// Get the next move from the generator
+// Returns true if a move was generated, false if no more moves
+bool next_move(move_generator *gen, move *result);
+
 #define MOVE_a 10
 #define MOVE_b 9
 #define MOVE_c 8
