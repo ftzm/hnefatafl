@@ -93,9 +93,9 @@ void as_notation(u8 position, char *output) {
       {'k', 'j', 'i', 'h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'};
   int rank = position / 11;
   int file = position % 11;
-  output[0] = (rank > 8) ? '1' : ' ';
-  output[1] = rank2[rank];
-  output[2] = fileChar[file];
+  output[0] = fileChar[file];
+  output[1] = (rank > 8) ? '1' : ' ';
+  output[2] = rank2[rank];
   output[3] = '\0';
 }
 
