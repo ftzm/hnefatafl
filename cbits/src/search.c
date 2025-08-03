@@ -500,7 +500,9 @@ i32 quiesce_black(
   }
 
   // assert we don't exceed a generous ply limit to guard against infinite loops
-  assert(ply < 10);
+  if (ply > 5) {
+    return 0;
+  }
 
   PV_LENGTH[ply] = ply;
 
@@ -510,6 +512,7 @@ i32 quiesce_black(
   if (collision) {
     // we consider the position a draw, and thus score it 0
     // return 0;
+    delete_position(positions, position_index);
     return MIN_SCORE;
   }
 
@@ -580,6 +583,7 @@ i32 quiesce_black(
 
       // If black can't block an escape in one then they've lost.
       if (!total) {
+        delete_position(positions, position_index);
         return MIN_SCORE;
       }
 
@@ -618,6 +622,7 @@ i32 quiesce_black(
             -alpha);
 
         if (score >= beta) {
+          delete_position(positions, position_index);
           return score;
         }
         if (score > best_value) {
@@ -629,6 +634,7 @@ i32 quiesce_black(
         }
       }
 
+      delete_position(positions, position_index);
       return best_value;
     }
   }
@@ -699,6 +705,7 @@ i32 quiesce_black(
           -alpha);
 
       if (score >= beta) {
+        delete_position(positions, position_index);
         return score;
       }
       if (score > best_value) {
@@ -720,6 +727,7 @@ i32 quiesce_black(
   // that we don't accept a static evaluation when we need to block a king
   // escape.
   if (best_value >= beta) {
+    delete_position(positions, position_index);
     return best_value;
   }
   if (best_value > alpha) {
@@ -784,6 +792,7 @@ i32 quiesce_black(
           -alpha);
 
       if (score >= beta) {
+        delete_position(positions, position_index);
         return score;
       }
       if (score > best_value) {
@@ -831,7 +840,9 @@ i32 quiesce_white(
   }
 
   // assert we don't exceed a generous ply limit to guard against infinite loops
-  assert(ply < 10);
+  if (ply > 6) {
+    return 0;
+  }
 
   PV_LENGTH[ply] = ply;
 
@@ -868,6 +879,7 @@ i32 quiesce_white(
       &corner_move_count);
 
   if (single_move_escape) {
+    delete_position(positions, position_index);
     return MAX_SCORE;
   }
 
@@ -903,6 +915,7 @@ i32 quiesce_white(
         -alpha);
 
     if (score >= beta) {
+      delete_position(positions, position_index);
       return score;
     }
     if (score > best_value) {
@@ -932,6 +945,7 @@ i32 quiesce_white(
   // we delay stand pat to after exploration of imminent escapes
   // expand reasoning based on check section in quiescence page in chess wiki
   if (best_value >= beta) {
+    delete_position(positions, position_index);
     return best_value;
   }
   if (best_value > alpha) {
@@ -988,6 +1002,7 @@ i32 quiesce_white(
         -alpha);
 
     if (score >= beta) {
+      delete_position(positions, position_index);
       return score;
     }
     if (score > best_value) {
@@ -1041,6 +1056,7 @@ i32 quiesce_white(
         -alpha);
 
     if (score >= beta) {
+      delete_position(positions, position_index);
       return score;
     }
     if (score > best_value) {

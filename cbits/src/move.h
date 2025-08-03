@@ -1,8 +1,6 @@
 #pragma once
 
 #include "board.h"
-#include "io.h"
-#include "stdbool.h"
 #include <stdio.h>
 
 // -----------------------------------------------------------------------------
@@ -130,73 +128,9 @@ moves_to_king(board b, layer targets, layer targets_r) {
   return results;
 }
 
-// layer rightward_moves_layer(layer movers, layer occ);
-
 int black_moves_count(const board *b);
 int white_moves_count(const board *b);
 int king_moves_count(const board *b);
-
-// Move generator structure definition
-typedef struct move_generator {
-  // Input parameters
-  layer targets;
-  layer targets_r;
-  layer movers;
-  layer movers_r;
-  layer occ;
-  layer occ_r;
-  
-  // Derived values calculated once during initialization
-  u16 center_occ;
-  u16 center_occ_r;
-  u16 center_movers;
-  u16 center_movers_r;
-  layer leftward_occ;
-  layer leftward_occ_r;
-  layer rightward_occ;
-  layer rightward_occ_r;
-  
-  // Generator state
-  int state;
-  u64 dests;
-  u64 origs;
-  u64 current_orig_bit;
-  u8 current_orig;
-  
-  // For rightward moves
-  u64 move_mask;
-} move_generator;
-
-// Initialize a move generator
-void init_move_generator(
-    move_generator *gen,
-    layer targets,
-    layer targets_r,
-    layer movers,
-    layer movers_r,
-    layer occ,
-    layer occ_r);
-
-// Get the next move from the generator
-// Returns true if a move was generated, false if no more moves
-bool next_move(move_generator *gen, move *result);
-
-#define MOVE_a 10
-#define MOVE_b 9
-#define MOVE_c 8
-#define MOVE_d 7
-#define MOVE_e 6
-#define MOVE_f 5
-#define MOVE_g 4
-#define MOVE_h 3
-#define MOVE_i 2
-#define MOVE_j 1
-#define MOVE_k 0
-
-#define MOVE(_orig_rank, _orig_file, _dest_rank, _dest_file)                   \
-  ((move){                                                                     \
-      ((_orig_rank - 1) * 11) + (MOVE_##_orig_file),                           \
-      ((_dest_rank - 1) * 11) + (MOVE_##_dest_file)})
 
 inline move read_move(char *s) {
   int input_orig_rank;
