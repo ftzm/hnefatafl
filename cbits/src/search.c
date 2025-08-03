@@ -483,6 +483,12 @@ i32 quiesce_white(
     i32 alpha,
     i32 beta);
 
+/*
+  Potential areas of improvement:
+  - short circuit in quiet positions earlier
+  - identify when there are 2-move escape branches that can't be block and bail
+  out early.
+*/
 i32 quiesce_black(
     position_set *positions,
     score_weights *w,
@@ -499,8 +505,10 @@ i32 quiesce_black(
     return MIN_SCORE;
   }
 
-  // assert we don't exceed a generous ply limit to guard against infinite loops
-  if (ply > 5) {
+  // If we can't find a quiet position in 6 moves we consider the line unstable
+  // and score it as a draw for each player, as we can't tell who comes out on
+  // top.
+  if (ply > 6) {
     return 0;
   }
 
@@ -558,12 +566,10 @@ i32 quiesce_black(
         &corner_paths_r);
 
     if (NOT_EMPTY(corner_paths)) {
-      // If there are escape paths then we return a losing score unless we can
-      // raise the score with a blocking move
-      // best_value = MIN_SCORE;
-      // trying to also set alpha so that we don't fail high in nested
-      // quiescence stand-pat
-      best_value = alpha = MIN_SCORE;
+      // If there are escape paths then we set the best value to a losing score.
+      // We can only raise the score by finding a move that does not result in
+      // an escape.
+      best_value = MIN_SCORE;
 
       move ms[100] = {0};
       layer ls[100] = {0};
@@ -601,8 +607,6 @@ i32 quiesce_black(
         u64 new_position_hash = next_hash_black(position_hash, orig, dest);
         layer captures =
             apply_captures_z_black(&new_b, &new_position_hash, dest);
-        // printf("new_postition_hash %juULL\n", new_position_hash);
-        // print_board_move(new_b, orig, dest, captures);
         score_state new_score_state = update_score_state_black_move_and_capture(
             w,
             s,
@@ -655,7 +659,10 @@ i32 quiesce_black(
         &corner_paths_r);
 
     if (NOT_EMPTY(corner_paths)) {
-      best_value = alpha = MIN_SCORE;
+      // If there are escape paths then we set the best value to a losing score.
+      // We can only raise the score by finding a move that does not result in
+      // an escape.
+      best_value = MIN_SCORE;
     }
 
     move ms[100] = {0};
@@ -690,8 +697,6 @@ i32 quiesce_black(
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
-      // printf("new_postition_hash %juULL\n", new_position_hash);
-      // print_board_move(new_b, orig, dest, captures);
       score_state new_score_state =
           update_score_state_black_move_and_capture(w, s, orig, dest, captures);
       i32 score = -quiesce_white(
@@ -720,12 +725,31 @@ i32 quiesce_black(
 
   // ---------------------------------------------------------------------------
 
-  // stand pat
-  // This is sort of like a null move score
+  // Stand pat. This is sort of like a null move score.
+  //
+  // It's important that this evaluation comes _after_ exploration of
+  // king blocking moves above. This is because what we're essentially
+  // asking here is "does white have access to another line that
+  // yields an equal or better score for white than the static
+  // evaluation score of this position?" If the answer is yes then way
+  // may as well stop now, because when black responds the score for
+  // this line will only get worse for white (assuming black is not in
+  // zugzwang). The problem with this logic in the context of
+  // following king escape sequences to their conclusion is that it
+  // wants every white move to result in a better static evaluation
+  // (indeed, it was devised in the context of chess quiescence in
+  // which material is typically being traded each iteration), but a
+  // move which puts the king within 1 or 2 moves of escape does not
+  // result in a better _static_ score; the move only pays off
+  // score-wise if the king manages to escape as a result of
+  // subsequent moves. So if this function is evaluating a position in
+  // which the king has advanced towards an escape, but we do
+  // stand-pat at the beginning, we'll more than likely bail out
+  // before we see if subsequent moves would result in an escape. By
+  // delaying stand-pat evaluation to after black responds to any
+  // escape threats, we ensure that escape-in-progress lines are
+  // explored.
 
-  // We only consider it after we've handled escape-blocking moves to ensure
-  // that we don't accept a static evaluation when we need to block a king
-  // escape.
   if (best_value >= beta) {
     delete_position(positions, position_index);
     return best_value;
@@ -770,15 +794,9 @@ i32 quiesce_black(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
-      // print_layer(move);
-      // print_layer(move_r);
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
-      // print_layer(captures);
-      // printf("black_capture");
-      // printf("new_postition_hash %juULL\n", new_position_hash);
-      // print_board_move(new_b, orig, dest, captures);
       score_state new_score_state =
           update_score_state_black_move_and_capture(w, s, orig, dest, captures);
       i32 score = -quiesce_white(
@@ -809,11 +827,13 @@ i32 quiesce_black(
 
   // remove the position from the set as we exit
   delete_position(positions, position_index);
-
-  // printf("best value from black: %d\n", best_value);
   return best_value;
 }
 
+/*
+  Potential areas of improvement:
+  - short circuit in quiet positions earlier
+*/
 i32 quiesce_white(
     position_set *positions,
     score_weights *w,
@@ -824,22 +844,15 @@ i32 quiesce_white(
     i32 alpha,
     i32 beta) {
 
-  // printf("ply: %d\n", ply);
-  // // printf("hash_for_board %juULL\n", hash_for_board(b, false));
-  // printf("in quiesce white\n");
-  // print_board(b);
-
-  // if (LAYER_POPCOUNT(b.king) > 1) {
-  //   print_layer(b.king);
-  // }
-
   // We only need to check for a king capture because the previous move will
   // have been black.
   if (king_captured(&b)) {
     return MIN_SCORE;
   }
 
-  // assert we don't exceed a generous ply limit to guard against infinite loops
+  // If we can't find a quiet position in 6 moves we consider the line unstable
+  // and score it as a draw for each player, as we can't tell who comes out on
+  // top.
   if (ply > 6) {
     return 0;
   }
@@ -858,11 +871,20 @@ i32 quiesce_white(
   // white to move, so we score for white
   i32 best_value = white_score(w, &s, &b);
 
+  // ---------------------------------------------------------------------------
+  // Stand pat
+  if (best_value >= beta) {
+    delete_position(positions, position_index);
+    return best_value;
+  }
+  if (best_value > alpha) {
+    alpha = best_value;
+  }
+  // ---------------------------------------------------------------------------
+
   int king_pos = LOWEST_INDEX(b.king);
   int king_rank = RANK(king_pos);
   int king_file = FILE(king_pos);
-  // printf("king rank: %d\n", king_rank);
-  // printf("king file: %d\n", king_file);
 
   // ---------------------------------------------------------------------------
   // king escape moves in 2
@@ -888,7 +910,6 @@ i32 quiesce_white(
     u8 orig = king_pos;
     u8 dest = dests[i];
     move m = {orig, dest};
-    // print_move(orig, dest);
 
     board new_b = b;
     CLEAR_INDEX(new_b.king, orig);
@@ -898,12 +919,8 @@ i32 quiesce_white(
 
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
-    // printf("new_postition_hash %juULL\n", new_position_hash);
-    // printf("escape move 2");
-    // print_board_move(new_b, orig, dest, captures);
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
-    // printf("from king escape\n");
     i32 score = -quiesce_black(
         positions,
         w,
@@ -941,18 +958,6 @@ i32 quiesce_white(
       king_board_occ_r(b));
 
   // ---------------------------------------------------------------------------
-  // Stand pat
-  // we delay stand pat to after exploration of imminent escapes
-  // expand reasoning based on check section in quiescence page in chess wiki
-  if (best_value >= beta) {
-    delete_position(positions, position_index);
-    return best_value;
-  }
-  if (best_value > alpha) {
-    alpha = best_value;
-  }
-
-  // ---------------------------------------------------------------------------
   // king capture moves
 
   // generate capture moves for king
@@ -985,9 +990,6 @@ i32 quiesce_white(
     board new_b = apply_king_move(b, move, move_r);
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
-    // printf("new_postition_hash %juULL\n", new_position_hash);
-    // printf("king capture");
-    // print_board_move(new_b, orig, dest, captures);
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
 
@@ -1068,9 +1070,9 @@ i32 quiesce_white(
     }
   }
 
-  // remove the position from the set as we exit
-  delete_position(positions, position_index);
+  // ---------------------------------------------------------------------------
 
+  delete_position(positions, position_index);
   return best_value;
 }
 

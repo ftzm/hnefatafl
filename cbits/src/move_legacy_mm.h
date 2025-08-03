@@ -2,10 +2,7 @@
 
 #include "board.h"
 #include "move.h"
-#include "x86intrin.h"
-#include "string.h"
-#include "capture.h"
-
+#include "x86intrin.h" // IWYU pragma: export
 
 struct sources {
   u8 north;
@@ -25,16 +22,32 @@ struct move_maps {
 void build_mm(layer movers, const layer occ, move_map mm);
 
 void apply_southward_move(
-    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
+    u8 src,
+    u8 dest,
+    move_map allies,
+    move_map foes,
+    move_map king);
 
 void apply_northward_move(
-    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
+    u8 src,
+    u8 dest,
+    move_map allies,
+    move_map foes,
+    move_map king);
 
 void apply_eastward_move(
-    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
+    u8 src,
+    u8 dest,
+    move_map allies,
+    move_map foes,
+    move_map king);
 
 void apply_westward_move(
-    u8 src, u8 dest, move_map allies, move_map foes, move_map king);
+    u8 src,
+    u8 dest,
+    move_map allies,
+    move_map foes,
+    move_map king);
 
 void gen_king_mm(board b, layer occ, int orig, move_map mm);
 
@@ -97,4 +110,3 @@ void gen_moves_from_mm_king_capture(
     dir *ds,
     board *bs,
     int *total);
-

@@ -1,4 +1,7 @@
 #include "move_legacy_mm.h"
+#include "capture.h"
+#include "stdbool.h"
+#include "string.h"
 
 const u8 rank_mod[121] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,  0,  0,  11, 11, 11, 11,  11,
@@ -9,7 +12,6 @@ const u8 rank_mod[121] = {
     77,  77,  77,  77,  77,  77,  77,  77,  88, 88, 88, 88, 88, 88, 88,  88,
     88,  88,  88,  99,  99,  99,  99,  99,  99, 99, 99, 99, 99, 99, 110, 110,
     110, 110, 110, 110, 110, 110, 110, 110, 110};
-
 
 void gen_king_mm(board b, layer occ, int orig, move_map mm) {
   int dest;
@@ -96,7 +98,10 @@ direction.
 #define WESTMOST(_pos) DIRMOST(_pos, west)
 
 inline void departure_rank_correction(
-    const u8 pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos,
+    move_map allies,
+    move_map them1,
+    move_map them2) {
   // correct the rank to the east
   for (int i = EASTMOST(pos); i < pos; i++) {
     allies[i].west = allies[pos].west;
@@ -113,7 +118,10 @@ inline void departure_rank_correction(
 }
 
 inline void arrival_rank_correction(
-    const u8 pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos,
+    move_map allies,
+    move_map them1,
+    move_map them2) {
   // correct the rank to the east
   for (int i = EASTMOST(pos); i < pos; i++) {
     allies[i].west = pos;
@@ -130,7 +138,10 @@ inline void arrival_rank_correction(
 }
 
 inline void departure_file_correction(
-    const u8 pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos,
+    move_map allies,
+    move_map them1,
+    move_map them2) {
   // correct the rank to the south
   for (int i = SOUTHMOST(pos); i < pos; i += 11) {
     allies[i].north = allies[pos].north;
@@ -147,7 +158,10 @@ inline void departure_file_correction(
 }
 
 inline void arrival_file_correction(
-    const u8 pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos,
+    move_map allies,
+    move_map them1,
+    move_map them2) {
   // correct the rank to the south
   for (int i = SOUTHMOST(pos); i < pos; i += 11) {
     allies[i].north = pos;
@@ -164,7 +178,10 @@ inline void arrival_file_correction(
 }
 
 inline void capture_correction(
-    const u8 pos, move_map allies, move_map them1, move_map them2) {
+    const u8 pos,
+    move_map allies,
+    move_map them1,
+    move_map them2) {
   departure_file_correction(pos, allies, them1, them2);
   departure_rank_correction(pos, allies, them1, them2);
 }
@@ -219,15 +236,13 @@ void apply_northward_move(
     move_map them1,
     move_map them2) {
   // correct file positions north of the dest
-  const u8 north_occ =
-      allies[src].north | them1[src].north | them2[src].north;
+  const u8 north_occ = allies[src].north | them1[src].north | them2[src].north;
   for (int i = dest + 11; i <= (north_occ ? north_occ : 120); i += 11) {
     allies[i].south = dest;
   }
 
   // correct file positions south of the src
-  const u8 south_occ =
-      allies[src].south | them1[src].south | them2[src].south;
+  const u8 south_occ = allies[src].south | them1[src].south | them2[src].south;
   for (int i = src - 11; i >= (south_occ ? south_occ : 0); i -= 11) {
     allies[i].north = dest;
   }
