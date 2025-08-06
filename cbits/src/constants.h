@@ -20,7 +20,7 @@ static const layer below_4 = {17592186044415ULL, 0ULL};
 static const layer below_3 = {8589934591ULL, 0ULL};
 static const layer below_2 = {4194303ULL, 0ULL};
 static const layer below_1 = {2047ULL, 0ULL};
-static const layer below_0 = EMPTY_LAYER;
+static const layer below_0 = {0ULL, 0ULL};
 
 static const layer file_mask_0 = {36046397799139329ULL, 70403120701444ULL};
 static const layer legal_file_mask_0 = {36046397799139328ULL, 34376523780ULL};
@@ -131,3 +131,6 @@ static const layer corner_guard_sw = {4296016128ULL, 0ULL};
 static const layer corner_guard_se = {4198404ULL, 0ULL};
 static const layer INTERIOR = {18392674477010841600ULL, 35132807303161ULL};
 static const layer SURROUND_MASK = {8398850ULL, 0ULL};
+#define EDGE_POSITIONS_0 54069596699761662ULL
+#define EDGE_POSITIONS_1 71969753391968262ULL
+#define EDGE_POSITIONS ((layer){54069596699761662ULL, 71969753391968262ULL})

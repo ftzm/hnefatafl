@@ -1,3 +1,9 @@
+* Design
+** Board representation
+** Position representation
+** move representation
+
+
 * Why not Rust
 - My goal is to make the fastest engine possible, so I'll take the extra fraction of performance C provides over all of Rust's niceties
 - I want easy access to exotic cpu intrinsics

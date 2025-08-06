@@ -14,8 +14,7 @@ layer read_layer(const char *string, u8 symbol) {
   for (int i = 0; i < len; i++) {
     char c = string[i];
     if (c == symbol) {
-      output._[SUB_LAYER(index)] |=
-          ((u64)1 << sub_layer_offset_direct[index]);
+      output._[SUB_LAYER(index)] |= ((u64)1 << sub_layer_offset_direct[index]);
       index--;
     } else if (c == ' ') {
       // skip space
@@ -29,7 +28,11 @@ layer read_layer(const char *string, u8 symbol) {
 
 void print_layer_info(char *layer_str, char *name_str) {
   layer l = read_layer(layer_str, 'X');
-  printf("static const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
+  printf(
+      "static const layer %s = {%juULL, %juULL};\n",
+      name_str,
+      l._[0],
+      l._[1]);
 };
 
 void print_layer_defines(char *layer_str, char *name_str) {
@@ -40,7 +43,11 @@ void print_layer_defines(char *layer_str, char *name_str) {
 };
 
 void print_layer_direct(layer l, char *name_str) {
-  printf("static const layer %s = {%juULL, %juULL};\n", name_str, l._[0], l._[1]);
+  printf(
+      "static const layer %s = {%juULL, %juULL};\n",
+      name_str,
+      l._[0],
+      l._[1]);
 };
 
 #define PRINT_LAYER_DIRECT(name) print_layer_direct(name, #name);
@@ -393,7 +400,6 @@ int main() {
       ".  .  .  .  X  .  .  .  .  .  .",
       "FILE_MASK_6");
 
-
   print_layer_defines(
       ".  .  .  X  .  .  .  .  .  .  ."
       ".  .  .  X  .  .  .  .  .  .  ."
@@ -491,7 +497,6 @@ int main() {
       ".  .  .  .  X  .  .  .  .  .  ."
       ".  .  .  .  .  .  .  .  .  .  .",
       "FILE_MASK_ADJACENT_6");
-
 
   print_layer_defines(
       ".  .  .  .  .  .  .  .  .  .  ."
@@ -801,9 +806,6 @@ int main() {
       "X  X  .  .  .  .  .  .  .  X  X",
       "CORNERS_AND_ADJACENTS");
 
-
-
-
   printf("\n");
 
   PRINT_LAYER_DIRECT(above_0);
@@ -819,86 +821,100 @@ int main() {
   PRINT_LAYER_DIRECT(above_10);
 
   print_layer_info(
-    ".  .  X  .  .  .  .  .  .  .  ."
-    ".  X  .  .  .  .  .  .  .  .  ."
-    "X  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  .",
+      ".  .  X  .  .  .  .  .  .  .  ."
+      ".  X  .  .  .  .  .  .  .  .  ."
+      "X  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
       "corner_guard_nw");
 
   print_layer_info(
-    ".  .  .  .  .  .  .  .  X  .  ."
-    ".  .  .  .  .  .  .  .  .  X  ."
-    ".  .  .  .  .  .  .  .  .  .  X"
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  .",
+      ".  .  .  .  .  .  .  .  X  .  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  .  .  X"
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
       "corner_guard_ne");
 
   print_layer_info(
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    "X  .  .  .  .  .  .  .  .  .  ."
-    ".  X  .  .  .  .  .  .  .  .  ."
-    ".  .  X  .  .  .  .  .  .  .  .",
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      "X  .  .  .  .  .  .  .  .  .  ."
+      ".  X  .  .  .  .  .  .  .  .  ."
+      ".  .  X  .  .  .  .  .  .  .  .",
       "corner_guard_sw");
 
   print_layer_info(
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  X"
-    ".  .  .  .  .  .  .  .  .  X  ."
-    ".  .  .  .  .  .  .  .  X  .  .",
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  X"
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  X  .  .",
       "corner_guard_se");
 
   print_layer_info(
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  X  X  X  X  X  X  X  X  X  ."
-    ".  .  .  .  .  .  .  .  .  .  .",
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
       "INTERIOR");
 
   print_layer_info(
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  .  ."
-    ".  .  .  .  .  .  .  .  .  X  ."
-    ".  .  .  .  .  .  .  .  X  .  X"
-    ".  .  .  .  .  .  .  .  .  X  .",
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  X  ."
+      ".  .  .  .  .  .  .  .  X  .  X"
+      ".  .  .  .  .  .  .  .  .  X  .",
       "SURROUND_MASK");
+
+  print_layer_defines(
+      ".  X  X  X  X  X  X  X  X  X  ."
+      "X  X  .  .  .  .  .  .  .  X  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  X  .  .  .  .  .  .  .  X  X"
+      ".  X  X  X  X  X  X  X  X  X  .",
+      "EDGE_POSITIONS");
 }

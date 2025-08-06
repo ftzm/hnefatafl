@@ -1,12 +1,14 @@
 #include "greatest.h"
 
-#include "layer.h"
 #include "board.h"
-#include "stdbool.h"
 #include "io.h"
+#include "layer.h"
+#include "stdbool.h"
 #include "victory.h"
 
-TEST test_king_capture_check(bool (*check1)(const board *b), bool (*check2)(const board *b)) {
+TEST test_king_capture_check(
+    bool (*check1)(const board *b),
+    bool (*check2)(const board *b)) {
   for (int i = 0; i < 121; i++) {
     for (u8 attackers = 0; attackers < 16; attackers++) {
       board b = {.king = EMPTY_LAYER, .black = EMPTY_LAYER};
@@ -35,17 +37,85 @@ TEST test_king_capture_check(bool (*check1)(const board *b), bool (*check2)(cons
       bool check2_res = check2(&b);
       // print_board(b);
       if (check1_res != check2_res) {
-	printf("check1: %b\n", check1_res);
-	printf("check2: %b\n", check2_res);
+        printf("check1: %b\n", check1_res);
+        printf("check2: %b\n", check2_res);
         print_board(b);
-	FAIL();
+        FAIL();
       }
     }
   }
   PASS();
 }
 
-SUITE(victory_suite) {
-  RUN_TESTp(test_king_capture_check, king_capture_check_ref, king_capture_check);
+TEST test_surround(const char *b, bool should_surround) {
+  board board = read_board(b);
+  bool is_surrounded = surrounded(&board);
+  if (is_surrounded != should_surround) {
+    FAIL();
+  }
+  PASS();
 }
 
+SUITE(victory_suite) {
+  RUN_TESTp(
+      test_king_capture_check,
+      king_capture_check_ref,
+      king_capture_check);
+  RUN_TESTp(
+      test_surround,
+      ".  .  .  X  X  X  X  X  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      "X  .  .  .  .  O  .  .  .  .  X"
+      "X  .  .  .  O  O  O  .  .  .  X"
+      "X  X  .  O  O  #  O  O  .  X  X"
+      "X  .  .  .  O  O  O  .  .  .  X"
+      "X  .  .  .  .  O  .  .  .  .  X"
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  .  X  X  X  X  X  .  .  .",
+      false);
+  RUN_TESTp(
+      test_surround,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  O  O  O  O  .  .  .  .  ."
+      ".  .  .  .  O  .  .  .  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  #  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+      false);
+  RUN_TESTp(
+      test_surround,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  X  X  .  .  .  .  .  ."
+      ".  .  X  .  .  X  .  .  .  .  ."
+      ".  X  O  O  O  O  X  .  .  .  ."
+      ".  .  X  .  O  #  X  .  .  .  ."
+      ".  .  .  X  .  X  .  .  .  .  ."
+      ".  .  .  .  X  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+      true);
+
+  RUN_TESTp(
+      test_surround,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  X  X  .  .  O  .  .  ."
+      ".  .  X  .  .  X  .  .  .  .  ."
+      ".  X  O  O  O  O  X  .  .  .  ."
+      ".  .  X  .  O  #  X  .  .  .  ."
+      ".  .  .  X  .  X  .  .  .  .  ."
+      ".  .  .  .  X  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+      false);
+}

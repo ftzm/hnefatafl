@@ -1,11 +1,9 @@
 #include "board.h"
 #include "capture.h"
 #include "constants.h"
-#include "io.h"
 #include "layer.h"
 #include "stdbool.h"
-#include "x86intrin.h"
-#include <stdio.h>
+#include "x86intrin.h" // IWYU pragma: export
 
 #define THRONE_MASK_0 1152921504606846976ULL
 
@@ -38,10 +36,8 @@ bool king_capture_check(const board *b) {
   // surround the king.
   const layer surround_mask = layer_shift(SURROUND_MASK, mask_shift);
 
-
   // The throne also participates in king captures.
   const layer attackers = {b->black._[0] | THRONE_MASK_0, b->black._[1]};
-
 
   // Get a layer of the occupied positions.
   const layer present = LAYER_AND(attackers, surround_mask);
@@ -62,7 +58,8 @@ bool king_escaped(const board *b) {
 }
 
 bool king_effectively_escaped(const board *b) {
-  return b->king._[0] & CORNERS_AND_ADJACENTS_0 || b->king._[1] & CORNERS_AND_ADJACENTS_1;
+  return b->king._[0] & CORNERS_AND_ADJACENTS_0 ||
+         b->king._[1] & CORNERS_AND_ADJACENTS_1;
 }
 
 bool king_captured(const board *b) {
@@ -77,4 +74,31 @@ bool king_captured(const board *b) {
   layer present = LAYER_AND(attackers, surround_mask);
 
   return LAYERS_EQUAL(surround_mask, present);
+}
+
+bool surrounded(board *b) {
+  layer white = LAYER_OR(b->white, b->king);
+  layer open = LAYER_NOT(board_occ(*b));
+  layer prev = EMPTY_LAYER;
+
+  do {
+    prev = white;
+
+    // Check if any white pieces are at the edge, in which case they can't be
+    // surrounded.
+    if ((white._[0] & EDGE_POSITIONS_0) | (white._[1] & EDGE_POSITIONS_1)) {
+      return false;
+    }
+
+    layer temp = white;
+    LAYER_OR_ASSG(white, LAYER_AND(open, LAYER_SHIFTL_SHORT(temp, 1)));
+    LAYER_OR_ASSG(white, LAYER_AND(open, LAYER_SHIFTL_SHORT(temp, 11)));
+    LAYER_OR_ASSG(white, LAYER_AND(open, LAYER_SHIFTR(temp, 1)));
+    LAYER_OR_ASSG(white, LAYER_AND(open, LAYER_SHIFTR(temp, 11)));
+
+    // If the white layer remains unchanged after expansion then available space
+    // must be filled, in which case white is surrounded.
+  } while (!LAYERS_EQUAL(white, prev));
+
+  return true;
 }
