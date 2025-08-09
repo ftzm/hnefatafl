@@ -501,7 +501,7 @@ i32 quiesce_black(
 
   // We only need to check for a king escape because the previous move will
   // have been white.
-  if (king_effectively_escaped(&b)) {
+  if (white_victory(&b)) {
     return MIN_SCORE;
   }
 
@@ -844,14 +844,14 @@ i32 quiesce_white(
     i32 alpha,
     i32 beta) {
 
-  // We only need to check for a king capture because the previous move will
+  // We only need to check for a black_victory because the previous move will
   // have been black.
-  if (king_captured(&b)) {
+  if (black_victory(&b)) {
     return MIN_SCORE;
   }
 
   // If we can't find a quiet position in 6 moves we consider the line unstable
-  // and score it as a draw for each player, as we can't tell who comes out on
+  // and score it as a draw, as we can't tell who comes out on
   // top.
   if (ply > 6) {
     return 0;

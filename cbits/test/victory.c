@@ -56,11 +56,47 @@ TEST test_surround(const char *b, bool should_surround) {
   PASS();
 }
 
+TEST test_exit_fort(const char *board_string, bool should_be_exit_fort) {
+  board b = read_board(board_string);
+  board b_r = rotate_board_right(b);
+  board b_r_r = rotate_board_right(b_r);
+  board b_r_r_r = rotate_board_right(b_r_r);
+  bool is_exit_fort;
+
+  is_exit_fort = exit_fort(&b);
+  if (is_exit_fort != should_be_exit_fort) {
+    FAIL();
+  }
+
+  is_exit_fort = exit_fort(&b_r);
+  if (is_exit_fort != should_be_exit_fort) {
+    print_board(b);
+    print_board(b_r);
+    FAIL();
+  }
+
+  is_exit_fort = exit_fort(&b_r_r);
+  if (is_exit_fort != should_be_exit_fort) {
+    print_board(b);
+    print_board(b_r_r);
+    FAIL();
+  }
+
+  is_exit_fort = exit_fort(&b_r_r_r);
+  if (is_exit_fort != should_be_exit_fort) {
+    print_board(b_r_r_r);
+    FAIL();
+  }
+
+  PASS();
+}
+
 SUITE(victory_suite) {
   RUN_TESTp(
       test_king_capture_check,
       king_capture_check_ref,
       king_capture_check);
+
   RUN_TESTp(
       test_surround,
       ".  .  .  X  X  X  X  X  .  .  ."
@@ -75,6 +111,7 @@ SUITE(victory_suite) {
       ".  .  .  .  .  X  .  .  .  .  ."
       ".  .  .  X  X  X  X  X  .  .  .",
       false);
+
   RUN_TESTp(
       test_surround,
       ".  .  .  .  .  .  .  .  .  .  ."
@@ -89,6 +126,7 @@ SUITE(victory_suite) {
       ".  .  .  .  .  .  .  .  .  .  ."
       ".  .  .  .  .  .  .  .  .  .  .",
       false);
+
   RUN_TESTp(
       test_surround,
       ".  .  .  .  .  .  .  .  .  .  ."
@@ -117,5 +155,95 @@ SUITE(victory_suite) {
       ".  .  .  .  .  .  .  .  .  .  ."
       ".  .  .  .  .  .  .  .  .  .  ."
       ".  .  .  .  .  .  .  .  .  .  .",
+      false);
+
+  RUN_TESTp(
+      test_exit_fort,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  O  .  X  .  X  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  O  .  .  .  O  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  X  .  .  ."
+      ".  .  .  .  .  .  X  O  O  .  ."
+      ".  .  .  .  .  .  O  .  #  O  .",
+      true);
+
+  RUN_TESTp(
+      test_exit_fort,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  O  .  X  .  X  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  O  .  .  .  O  .  .  ."
+      ".  .  .  .  .  .  .  .  #  .  ."
+      ".  .  .  .  .  .  .  X  .  .  ."
+      ".  .  .  .  .  .  X  O  O  .  ."
+      ".  .  .  .  .  .  O  .  .  O  .",
+      false);
+
+  RUN_TESTp(
+      test_exit_fort,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  X  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  .  .  O  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  .  .  X  O  O  .  .  .  ."
+      ".  .  .  .  O  .  #  O  .  .  .",
+      true);
+
+  RUN_TESTp(
+      test_exit_fort,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  X  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  .  .  O  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  .  .  .  .  ."
+      ".  .  .  .  X  O  O  .  .  .  ."
+      ".  .  .  .  O  .  #  .  .  .  .",
+      false);
+
+  RUN_TESTp(
+      test_exit_fort,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  X  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  .  .  O  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  O  O  .  .  ."
+      ".  .  .  .  X  O  .  O  X  .  ."
+      ".  .  .  .  O  O  #  O  .  .  .",
+      true);
+
+  RUN_TESTp(
+      test_exit_fort,
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  X  .  X  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  O  .  .  .  O  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  X  O  O  .  .  ."
+      ".  .  .  .  X  O  X  O  X  .  ."
+      ".  .  .  .  O  O  #  O  .  .  .",
       false);
 }

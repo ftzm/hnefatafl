@@ -76,7 +76,7 @@ bool king_captured(const board *b) {
   return LAYERS_EQUAL(surround_mask, present);
 }
 
-bool surrounded(board *b) {
+bool surrounded(const board *b) {
   layer white = LAYER_OR(b->white, b->king);
   layer open = LAYER_NOT(board_occ(*b));
   layer prev = EMPTY_LAYER;
@@ -101,4 +101,79 @@ bool surrounded(board *b) {
   } while (!LAYERS_EQUAL(white, prev));
 
   return true;
+}
+
+#define U64_CONTAINS(_haystack, _needle) ((_haystack & _needle) == _needle)
+
+bool exit_fort(const board *b) {
+  if (NOT_EMPTY(LAYER_AND(b->king, EXIT_FORT_ELIGIBLE))) {
+    int king_pos = LOWEST_INDEX(b->king);
+    int king_rank = RANK(king_pos);
+    int king_file = FILE(king_pos);
+    if (king_rank == 0) {
+      int adjust = king_file - 2;
+      u64 white_adjusted = b->white._[0] >> adjust;
+      u64 black_adjusted = b->black._[0] >> adjust;
+      // if any of the adjacent squares to the king contain black pieces then
+      // either there isn't an exit fort or the exit fort contains a black piece
+      // and thus is invalid.
+      if (BLACK_FREE_0 & black_adjusted) {
+        return false;
+      }
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_0) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_0) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_0) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_0)) {
+        return true;
+      }
+    } else if (king_file == 0) {
+      int adjust = 8 - king_rank;
+      u64 white_adjusted = b->white_r._[0] >> adjust;
+      u64 black_adjusted = b->black_r._[0] >> adjust;
+      if (BLACK_FREE_0 & black_adjusted) {
+        return false;
+      }
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_0) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_0) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_0) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_0)) {
+        return true;
+      }
+    } else if (king_rank == 10) {
+      int adjust = king_file - 2;
+      u64 white_adjusted = b->white._[1] >> adjust;
+      u64 black_adjusted = b->black._[1] >> adjust;
+      if (BLACK_FREE_UPPER_1 & black_adjusted) {
+        return false;
+      }
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_UPPER_1) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_UPPER_1) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_UPPER_1) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_UPPER_1)) {
+        return true;
+      }
+    } else if (king_file == 10) {
+      int adjust = 8 - king_rank;
+      u64 white_adjusted = b->white_r._[1] >> adjust;
+      u64 black_adjusted = b->black_r._[1] >> adjust;
+      if (BLACK_FREE_UPPER_1 & black_adjusted) {
+        return false;
+      }
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_UPPER_1) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_UPPER_1) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_UPPER_1) ||
+          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_UPPER_1)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool black_victory(const board *b) {
+  return king_capture_check(b) || surrounded(b);
+}
+
+bool white_victory(const board *b) {
+  return king_effectively_escaped(b) || exit_fort(b);
 }

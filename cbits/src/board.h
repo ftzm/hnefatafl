@@ -45,3 +45,5 @@ inline board apply_king_move(board b, layer l, layer l_r) {
   LAYER_XOR_ASSG(b.king_r, l_r);
   return b;
 }
+
+board rotate_board_right(board b);

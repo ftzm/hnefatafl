@@ -3,6 +3,9 @@
 ** Position representation
 ** move representation
 
+* Compromises
+** Exit forts
+While the engine does detect exit forts, it only detects the 2 most minimal exit fort shapes, as detecting more complex shapes would be prohibitevely expensive. 
 
 * Why not Rust
 - My goal is to make the fastest engine possible, so I'll take the extra fraction of performance C provides over all of Rust's niceties
