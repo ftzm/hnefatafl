@@ -27,8 +27,9 @@ BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 
 # Compiler and flags
 CC := gcc
-CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -fsanitize=address -Wformat
-LDFLAGS := -fsanitize=address
+#CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -fsanitize=address -Wformat
+CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g
+LDFLAGS := 
 DEP_FLAGS = -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d
 
 # Include paths
