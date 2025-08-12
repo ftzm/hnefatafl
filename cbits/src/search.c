@@ -481,7 +481,8 @@ i32 quiesce_white(
     u64 position_hash,
     int ply,
     i32 alpha,
-    i32 beta);
+    i32 beta,
+    stats *statistics);
 
 /*
   Potential areas of improvement:
@@ -497,7 +498,11 @@ i32 quiesce_black(
     u64 position_hash,
     int ply,
     i32 alpha,
-    i32 beta) {
+    i32 beta,
+    stats *statistics) {
+
+  // Increment black position evaluation count
+  statistics->quiescence_positions_black++;
 
   // We only need to check for a king escape because the previous move will
   // have been white.
@@ -509,6 +514,7 @@ i32 quiesce_black(
   // and score it as a draw for each player, as we can't tell who comes out on
   // top.
   if (ply > 6) {
+    statistics->quiescence_limit_reached++;
     return 0;
   }
 
@@ -520,6 +526,7 @@ i32 quiesce_black(
   if (collision) {
     // we consider the position a draw, and thus score it 0
     // return 0;
+    statistics->repeat_moves_encountered++;
     delete_position(positions, position_index);
     return MIN_SCORE;
   }
@@ -623,9 +630,11 @@ i32 quiesce_black(
             new_position_hash,
             ply + 1,
             -beta,
-            -alpha);
+            -alpha,
+            statistics);
 
         if (score >= beta) {
+          statistics->quiencence_beta_cutoff_black++;
           delete_position(positions, position_index);
           return score;
         }
@@ -646,6 +655,7 @@ i32 quiesce_black(
   // ---------------------------------------------------------------------------
   // escape-in-2 blocking dests
   // TODO: if there are escape paths we should set
+  /*
   {
     layer corner_paths = EMPTY_LAYER;
     layer corner_paths_r = EMPTY_LAYER;
@@ -707,9 +717,11 @@ i32 quiesce_black(
           new_position_hash,
           ply + 1,
           -beta,
-          -alpha);
+          -alpha,
+          statistics);
 
       if (score >= beta) {
+        statistics->quiencence_beta_cutoff_black++;
         delete_position(positions, position_index);
         return score;
       }
@@ -723,6 +735,7 @@ i32 quiesce_black(
     }
   }
 
+*/
   // ---------------------------------------------------------------------------
 
   // Stand pat. This is sort of like a null move score.
@@ -807,9 +820,11 @@ i32 quiesce_black(
           new_position_hash,
           ply + 1,
           -beta,
-          -alpha);
+          -alpha,
+          statistics);
 
       if (score >= beta) {
+        statistics->quiencence_beta_cutoff_black++;
         delete_position(positions, position_index);
         return score;
       }
@@ -842,7 +857,11 @@ i32 quiesce_white(
     u64 position_hash,
     int ply,
     i32 alpha,
-    i32 beta) {
+    i32 beta,
+    stats *statistics) {
+
+  // Increment white position evaluation count
+  statistics->quiescence_positions_white++;
 
   // We only need to check for a black_victory because the previous move will
   // have been black.
@@ -850,10 +869,10 @@ i32 quiesce_white(
     return MIN_SCORE;
   }
 
-  // If we can't find a quiet position in 6 moves we consider the line unstable
-  // and score it as a draw, as we can't tell who comes out on
-  // top.
+  // If we can't find a quiet position in 6 moves we consider the line
+  // unstable and score it as a draw, as we can't tell who comes out on top.
   if (ply > 6) {
+    statistics->quiescence_limit_reached++;
     return 0;
   }
 
@@ -865,6 +884,7 @@ i32 quiesce_white(
   if (collision) {
     // we consider the position a draw, and thus score it 0
     // return 0;
+    statistics->repeat_moves_encountered++;
     return MIN_SCORE;
   }
 
@@ -929,9 +949,11 @@ i32 quiesce_white(
         new_position_hash,
         ply + 1,
         -beta,
-        -alpha);
+        -alpha,
+        statistics);
 
     if (score >= beta) {
+      statistics->quiencence_beta_cutoff_white++;
       delete_position(positions, position_index);
       return score;
     }
@@ -961,9 +983,9 @@ i32 quiesce_white(
   // king capture moves
 
   // generate capture moves for king
-  move ms[100];
-  layer ls[100];
-  layer ls_r[100];
+  move ms[100] = {0};
+  layer ls[100] = {0};
+  layer ls_r[100] = {0};
   int total = 0;
   moves_to_king_impl(
       capture_dests,
@@ -1001,9 +1023,11 @@ i32 quiesce_white(
         new_position_hash,
         ply + 1,
         -beta,
-        -alpha);
+        -alpha,
+        statistics);
 
     if (score >= beta) {
+      statistics->quiencence_beta_cutoff_white++;
       delete_position(positions, position_index);
       return score;
     }
@@ -1055,9 +1079,11 @@ i32 quiesce_white(
         new_position_hash,
         ply + 1,
         -beta,
-        -alpha);
+        -alpha,
+        statistics);
 
     if (score >= beta) {
+      statistics->quiencence_beta_cutoff_white++;
       delete_position(positions, position_index);
       return score;
     }
@@ -1082,11 +1108,20 @@ pv_line quiesce_white_runner(board b) {
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
+  stats statistics = {0};
   int ply = 0;
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
-  i32 result =
-      quiesce_white(positions, &weights, s, b, position_hash, ply, alpha, beta);
+  i32 result = quiesce_white(
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      alpha,
+      beta,
+      &statistics);
   destroy_position_set(positions);
   return create_pv_line(false, result);
 }
@@ -1097,11 +1132,66 @@ pv_line quiesce_black_runner(board b) {
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
+  stats statistics = {0};
   int ply = 0;
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
-  i32 result =
-      quiesce_black(positions, &weights, s, b, position_hash, ply, alpha, beta);
+  i32 result = quiesce_black(
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      alpha,
+      beta,
+      &statistics);
+  destroy_position_set(positions);
+  return create_pv_line(true, result);
+}
+
+pv_line quiesce_white_runner_with_stats(board b, stats *statistics) {
+  clear_pv_memory();
+  u64 position_hash = hash_for_board(b, false);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  int ply = 0;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
+  i32 result = quiesce_white(
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      alpha,
+      beta,
+      statistics);
+  destroy_position_set(positions);
+  return create_pv_line(false, result);
+}
+
+pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
+  clear_pv_memory();
+  u64 position_hash = hash_for_board(b, true);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  int ply = 0;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
+  i32 result = quiesce_black(
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      alpha,
+      beta,
+      statistics);
   destroy_position_set(positions);
   return create_pv_line(true, result);
 }

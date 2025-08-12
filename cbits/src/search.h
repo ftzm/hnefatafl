@@ -18,8 +18,21 @@ struct pv_line {
   i32 score;
 } typedef pv_line;
 
+typedef struct stats {
+  int quiescence_positions_black;
+  int quiescence_positions_white;
+  int quiencence_beta_cutoff_black;
+  int quiencence_beta_cutoff_white;
+  int quiescence_limit_reached;
+  int repeat_moves_encountered;
+} stats;
+
 pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
+
+// Runner functions that also return statistics
+pv_line quiesce_white_runner_with_stats(board b, stats *statistics);
+pv_line quiesce_black_runner_with_stats(board b, stats *statistics);
 
 void destroy_pv_line(pv_line *line);
 
