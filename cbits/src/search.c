@@ -655,7 +655,6 @@ i32 quiesce_black(
   // ---------------------------------------------------------------------------
   // escape-in-2 blocking dests
   // TODO: if there are escape paths we should set
-  /*
   {
     layer corner_paths = EMPTY_LAYER;
     layer corner_paths_r = EMPTY_LAYER;
@@ -735,7 +734,6 @@ i32 quiesce_black(
     }
   }
 
-*/
   // ---------------------------------------------------------------------------
 
   // Stand pat. This is sort of like a null move score.

@@ -279,6 +279,81 @@ bool moves_to_ref(
   return false;
 }
 
+typedef struct line {
+} line;
+
+layer draw_line(bool vertical, int axis_index, int orig, int dest) {
+  layer l = EMPTY_LAYER;
+  if (vertical) {
+    draw_vertical(orig, axis_index, dest, &l);
+  } else {
+    draw_horizontal(axis_index, orig, dest, &l);
+  }
+  return l;
+}
+
+bool moves_to_ref2(
+    layer occ,
+    bool vertical,
+    int axis_index,
+    int orig,
+    int dest,
+    int left,
+    int right,
+    layer *paths,
+    layer *paths_r) {
+  layer stem = draw_line(vertical, axis_index, orig, dest);
+  if (IS_EMPTY(LAYER_AND(stem, occ))) {
+    if (NOT_EMPTY(LAYER_AND(stem, LAYER_OR(ADJACENTS, corners)))) {
+      return true;
+    }
+    int exits = 0;
+    layer left_branch = draw_line(!vertical, dest, axis_index, left);
+    if (IS_EMPTY(LAYER_AND(left_branch, occ))) {
+      exits++;
+    }
+    layer right_branch = draw_line(!vertical, dest, axis_index, right);
+    if (IS_EMPTY(LAYER_AND(right_branch, occ))) {
+      exits++;
+    }
+    if (exits == 1) {
+      int rank;
+      int file;
+      if (vertical) {
+        rank = dest;
+        file = axis_index;
+      } else {
+        rank = axis_index;
+        file = dest;
+      }
+      int index = (11 * rank) + file;
+      SET_INDEX_PTR(paths, index);
+    } else if (exits == 2) {
+      return true;
+    }
+  }
+  *paths_r = rotate_layer_right(*paths);
+  return false;
+}
+
+bool corner_moves_2_ref2(
+    const layer occ,
+    const int rank,
+    const int file,
+    layer *paths,
+    layer *paths_r) {
+  bool escape = false;
+  escape |= moves_to_ref2(occ, true, file, rank, 10, 1, 9, paths, paths_r);
+  escape |= moves_to_ref2(occ, true, file, rank, 9, 0, 10, paths, paths_r);
+  escape |= moves_to_ref2(occ, true, file, rank, 1, 0, 10, paths, paths_r);
+  escape |= moves_to_ref2(occ, true, file, rank, 0, 1, 9, paths, paths_r);
+  escape |= moves_to_ref2(occ, false, rank, file, 10, 1, 9, paths, paths_r);
+  escape |= moves_to_ref2(occ, false, rank, file, 9, 0, 10, paths, paths_r);
+  escape |= moves_to_ref2(occ, false, rank, file, 1, 0, 10, paths, paths_r);
+  escape |= moves_to_ref2(occ, false, rank, file, 0, 1, 9, paths, paths_r);
+  return escape;
+}
+
 /* A reference implementation of corner_moves_2 which is obviously correct but
  * very slow */
 bool corner_moves_2_ref(
@@ -330,7 +405,7 @@ corner_moves_2_cb(struct theft *t, void *env, void **instance) {
   int count = 0;
   bool x_escape =
       corner_moves_2(occ, occ_r, king_rank, king_file, dests, &count);
-  bool y_escape = corner_moves_2_ref(occ, king_rank, king_file, &y, &y_r);
+  bool y_escape = corner_moves_2_ref2(occ, king_rank, king_file, &y, &y_r);
 
   layer x = EMPTY_LAYER;
   for (int i = 0; i < count; i++) {

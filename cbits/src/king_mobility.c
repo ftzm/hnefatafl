@@ -1,29 +1,8 @@
 #include "constants.h"
-#include "io.h"
 #include "layer.h"
 #include "limits.h"
+#include "macro_util.h"
 #include "stdbool.h"
-#include <stdio.h>
-
-// -----------------------------------------------------------------------------
-// Generic macros
-
-#define _STR(_s) #_s
-#define STR(_s) _STR(_s)
-
-/* join tokens with an understore */
-#define JOIN(_a, _b) _a##_##_b
-#define JOIN3(_a, _b, _c) _a##_##_b##_##_c
-
-/* Inserts a macro expension phase between a function and its
-arguments, allowing those arguments to expand before being used inside
-of the body of the function. */
-#define APPLY(_func, _a) _func(_a)
-#define APPLY2(_func, _a, _b) _func(_a, _b)
-#define APPLY3(_func, _a, _b, _c) _func(_a, _b, _c)
-#define APPLY4(_func, _a, _b, _c, _d) _func(_a, _b, _c, _e)
-#define APPLY5(_func, _a, _b, _c, _d, _e) _func(_a, _b, _c, _d, _e)
-#define APPLY6(_func, _a, _b, _c, _d, _e, _f) _func(_a, _b, _c, _d, _e, _f)
 
 // -----------------------------------------------------------------------------
 // Semi generic macros
@@ -227,20 +206,6 @@ layer above_n_inc[11] = {
     above_8,
     above_9,
 };
-
-/*
-const layer below_0 = {0ULL, 0ULL};
-const layer below_1 = {2047ULL, 0ULL};
-const layer below_2 = {4194303ULL, 0ULL};
-const layer below_3 = {8589934591ULL, 0ULL};
-const layer below_4 = {17592186044415ULL, 0ULL};
-const layer below_5 = {36028797018963967ULL, 0ULL};
-const layer below_6 = {18446744073709551615ULL, 3ULL};
-const layer below_7 = {18446744073709551615ULL, 8191ULL};
-const layer below_8 = {18446744073709551615ULL, 16777215ULL};
-const layer below_9 = {18446744073709551615ULL, 34359738367ULL};
-const layer below_10 = {18446744073709551615ULL, 70368744177663ULL};
-*/
 
 // excludes index
 layer below_n[11] = {
@@ -726,8 +691,18 @@ axis _i should be interpreted as. _i is an int constant. */
     {                                                                          \
       const u16 left_mask = MASK_LEFTWARD_INC(ADJUST_AXIS_VAL(_axis));         \
       const u16 right_mask = MASK_RIGHTWARD_INC(ADJUST_AXIS_VAL(_axis));       \
-      if (!(row & left_mask) || !(row & right_mask)) {                         \
+      int exits = 0;                                                           \
+      if (!(row & left_mask)) {                                                \
+        exits++;                                                               \
+      }                                                                        \
+      if (!(row & right_mask)) {                                               \
+        exits++;                                                               \
+      }                                                                        \
+      if (exits == 1) {                                                        \
         ADD_MOVE(GET_POS(_axis, VERT_INDEX(_axis, _target)))                   \
+      }                                                                        \
+      if (exits == 2) {                                                        \
+        return true;                                                           \
       }                                                                        \
     }                                                                          \
   }
@@ -739,8 +714,18 @@ axis _i should be interpreted as. _i is an int constant. */
     {                                                                          \
       const u16 left_mask = MASK_LEFTWARD(ADJUST_AXIS_VAL(_axis));             \
       const u16 right_mask = MASK_RIGHTWARD(ADJUST_AXIS_VAL(_axis));           \
-      if (!(row & left_mask) || !(row & right_mask)) {                         \
+      int exits = 0;                                                           \
+      if (!(row & left_mask)) {                                                \
+        exits++;                                                               \
+      }                                                                        \
+      if (!(row & right_mask)) {                                               \
+        exits++;                                                               \
+      }                                                                        \
+      if (exits == 1) {                                                        \
         ADD_MOVE(GET_POS(_axis, _target))                                      \
+      }                                                                        \
+      if (exits == 2) {                                                        \
+        return true;                                                           \
       }                                                                        \
     }                                                                          \
   }
@@ -748,6 +733,8 @@ axis _i should be interpreted as. _i is an int constant. */
 // TODO: consider removing the single move checks from this function and using
 // it in conjuntion with the other function.
 // IMPORTANT: occ must not include the king
+// returns true when there exists a move which inevetably leads to escape,
+// either a single move directly to a corner or a fork.
 bool corner_moves_2(
     const layer occ,
     const layer occ_r,
