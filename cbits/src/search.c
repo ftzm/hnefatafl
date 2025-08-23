@@ -732,34 +732,101 @@ i32 quiesce_black(
         alpha = score;
       }
     }
+
+    // If we're still facing a king escape then we do a broader search to try to
+    // find more complex sequences that might avoid the escape.
+    // Potential optimization:
+    // - skip unless there is exactly one open branch. I can't block more than
+    // one branch with a 2-move sequence.
+    // - limit move generation to captures and destinations from which we can
+    // block the escape stem.
+    // TODO: integrate better with the capture generation below.
+    if (best_value < (MIN_SCORE + 100)) {
+      layer destinations = LAYER_NOT(LAYER_OR(throne, board_occ(b)));
+      layer destinations_r = LAYER_NOT(LAYER_OR(throne, board_occ_r(b)));
+
+      move ms[400] = {0};
+      layer ls[400] = {0};
+      layer ls_r[400] = {0};
+      int total = 0;
+      moves_to(
+          destinations,
+          destinations_r,
+          b.black,
+          b.black_r,
+          board_occ(b),
+          board_occ_r(b),
+          ms,
+          ls,
+          ls_r,
+          &total);
+
+      // iterate
+      for (int i = 0; i < total; i++) {
+        u8 orig = ms[i].orig;
+        u8 dest = ms[i].dest;
+        layer move = ls[i];
+        layer move_r = ls_r[i];
+
+        board new_b = apply_black_move(b, move, move_r);
+        u64 new_position_hash = next_hash_black(position_hash, orig, dest);
+        layer captures =
+            apply_captures_z_black(&new_b, &new_position_hash, dest);
+        score_state new_score_state = update_score_state_black_move_and_capture(
+            w,
+            s,
+            orig,
+            dest,
+            captures);
+        i32 score = -quiesce_white(
+            positions,
+            w,
+            new_score_state,
+            new_b,
+            new_position_hash,
+            ply + 1,
+            -beta,
+            -alpha,
+            statistics);
+
+        if (score >= beta) {
+          statistics->quiencence_beta_cutoff_black++;
+          delete_position(positions, position_index);
+          return score;
+        }
+        if (score > best_value) {
+          best_value = score;
+          update_pv(ply, ms[i]);
+        }
+        if (score > alpha) {
+          alpha = score;
+        }
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
 
   // Stand pat. This is sort of like a null move score.
   //
-  // It's important that this evaluation comes _after_ exploration of
-  // king blocking moves above. This is because what we're essentially
-  // asking here is "does white have access to another line that
-  // yields an equal or better score for white than the static
-  // evaluation score of this position?" If the answer is yes then way
-  // may as well stop now, because when black responds the score for
-  // this line will only get worse for white (assuming black is not in
-  // zugzwang). The problem with this logic in the context of
-  // following king escape sequences to their conclusion is that it
-  // wants every white move to result in a better static evaluation
-  // (indeed, it was devised in the context of chess quiescence in
-  // which material is typically being traded each iteration), but a
-  // move which puts the king within 1 or 2 moves of escape does not
-  // result in a better _static_ score; the move only pays off
-  // score-wise if the king manages to escape as a result of
-  // subsequent moves. So if this function is evaluating a position in
-  // which the king has advanced towards an escape, but we do
-  // stand-pat at the beginning, we'll more than likely bail out
-  // before we see if subsequent moves would result in an escape. By
-  // delaying stand-pat evaluation to after black responds to any
-  // escape threats, we ensure that escape-in-progress lines are
-  // explored.
+  // It's important that this evaluation comes _after_ exploration of king
+  // blocking moves above. This is because what we're essentially asking here is
+  // "does white have access to another line that yields an equal or better
+  // score for white than the static evaluation score of this position?" If the
+  // answer is yes then way may as well stop now, because when black responds
+  // the score for this line will only get worse for white (assuming black is
+  // not in zugzwang). The problem with this logic in the context of following
+  // king escape sequences to their conclusion is that it wants every white move
+  // to result in a better static evaluation (indeed, it was devised in the
+  // context of chess quiescence in which material is typically being traded
+  // each iteration), but a move which puts the king within 1 or 2 moves of
+  // escape does not result in a better _static_ score; the move only pays off
+  // score-wise if the king manages to escape as a result of subsequent
+  // moves. So if this function is evaluating a position in which the king has
+  // advanced towards an escape, but we do stand-pat at the beginning, we'll
+  // more than likely bail out before we see if subsequent moves would result in
+  // an escape. By delaying stand-pat evaluation to after black responds to any
+  // escape threats, we ensure that escape-in-progress lines are explored.
 
   if (best_value >= beta) {
     delete_position(positions, position_index);
@@ -964,6 +1031,68 @@ i32 quiesce_white(
     }
   }
 
+  // If we have any corner moves but we've not managed to secure an escape,
+  // generate all possible moves to see if there's a more complex sequence
+  // that can capitalize on the open escape path. Could be optimized similarly
+  // to the fallback all-move generation done to prevent 2-move escapes in black
+  // quiescence.
+  if (corner_move_count && best_value < (MAX_SCORE - 100)) {
+    layer destinations = LAYER_NOT(LAYER_OR(throne, board_occ(b)));
+    layer destinations_r = LAYER_NOT(LAYER_OR(throne, board_occ_r(b)));
+    move ms[400] = {0};
+    layer ls[400] = {0};
+    layer ls_r[400] = {0};
+    int total = 0;
+    moves_to(
+        destinations,
+        destinations_r,
+        b.white,
+        b.white_r,
+        board_occ(b),
+        board_occ_r(b),
+        ms,
+        ls,
+        ls_r,
+        &total);
+
+    // iterate
+    for (int i = 0; i < total; i++) {
+      u8 orig = ms[i].orig;
+      u8 dest = ms[i].dest;
+      layer move = ls[i];
+      layer move_r = ls_r[i];
+
+      board new_b = apply_white_move(b, move, move_r);
+      u64 new_position_hash = next_hash_white(position_hash, orig, dest);
+      layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+      score_state new_score_state =
+          update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+      i32 score = -quiesce_black(
+          positions,
+          w,
+          new_score_state,
+          new_b,
+          new_position_hash,
+          ply + 1,
+          -beta,
+          -alpha,
+          statistics);
+
+      if (score >= beta) {
+        statistics->quiencence_beta_cutoff_white++;
+        delete_position(positions, position_index);
+        return score;
+      }
+      if (score > best_value) {
+        best_value = score;
+        update_pv(ply, ms[i]);
+      }
+      if (score > alpha) {
+        alpha = score;
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // generate capture moves
   // TODO: remove throne from dests before finding pawn captures
@@ -1058,6 +1187,43 @@ i32 quiesce_white(
   assert(total < 100);
 
   // iterate
+  // iterate
+  for (int i = 0; i < total; i++) {
+    u8 orig = ms[i].orig;
+    u8 dest = ms[i].dest;
+    layer move = ls[i];
+    layer move_r = ls_r[i];
+
+    board new_b = apply_white_move(b, move, move_r);
+    u64 new_position_hash = next_hash_white(position_hash, orig, dest);
+    layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+    score_state new_score_state =
+        update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+    i32 score = -quiesce_black(
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        -beta,
+        -alpha,
+        statistics);
+
+    if (score >= beta) {
+      statistics->quiencence_beta_cutoff_white++;
+      delete_position(positions, position_index);
+      return score;
+    }
+    if (score > best_value) {
+      best_value = score;
+      update_pv(ply, ms[i]);
+    }
+    if (score > alpha) {
+      alpha = score;
+    }
+  }
+
   for (int i = 0; i < total; i++) {
     u8 orig = ms[i].orig;
     u8 dest = ms[i].dest;

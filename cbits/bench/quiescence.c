@@ -7,6 +7,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "ubench.h"
+#include "zobrist.h"
 
 // Forward declarations of original functions
 pv_line quiesce_white_runner(board b);
@@ -50,6 +51,19 @@ const char *tactical_position = " .  .  .  .  .  .  .  .  .  .  . "
                                 " .  .  .  .  .  .  .  .  .  .  . "
                                 " .  .  .  .  .  .  X  .  .  .  . "
                                 " .  .  .  .  X  .  .  .  .  .  . "
+                                " .  O  .  X  O  .  O  X  .  .  . "
+                                " .  .  .  .  X  #  X  .  .  .  . "
+                                " .  .  .  X  O  O  O  X  .  O  . "
+                                " .  .  .  .  .  .  X  .  .  .  . "
+                                " .  .  .  .  X  .  .  .  .  .  . "
+                                " .  .  .  .  .  .  .  .  .  .  . "
+                                " .  .  .  .  .  .  .  .  .  .  . ";
+
+// More tactical position with captures
+const char *tactical_solution = " .  .  .  .  .  .  .  .  .  .  . "
+                                " .  .  .  .  .  .  .  .  .  .  . "
+                                " .  .  .  .  .  .  X  .  .  .  . "
+                                " .  .  .  .  .  X  .  .  .  .  . "
                                 " .  O  .  X  O  .  O  X  .  .  . "
                                 " .  .  .  .  X  #  X  .  .  .  . "
                                 " .  .  .  X  O  O  O  X  .  O  . "
@@ -154,6 +168,27 @@ UBENCH_EX(quiescence_tactical, black) {
   }
 }
 
+UBENCH_EX(quiescence_tactical_solution, white) {
+  static bool quiescence_tactical_white_printed = false;
+  const board test_board = read_board(tactical_solution);
+
+  // Get stats for a single call
+  stats stats = {0};
+  pv_line single_result = quiesce_white_runner_with_stats(test_board, &stats);
+  destroy_pv_line(&single_result);
+
+  UBENCH_DO_BENCHMARK() {
+    pv_line result = quiesce_white_runner(test_board);
+    UBENCH_DO_NOTHING(&result.score);
+    destroy_pv_line(&result);
+  }
+
+  if (!quiescence_tactical_white_printed) {
+    print_quiescence_stats(&stats);
+    quiescence_tactical_white_printed = true;
+  }
+}
+
 UBENCH_EX(quiescence_escape, white) {
   static bool quiescence_escape_white_printed = false;
   const board test_board = read_board(escape_position);
@@ -201,5 +236,6 @@ UBENCH_STATE();
 
 int main() {
   init_move_globals();
+  init_hashes();
   return ubench_main(0, NULL);
 }

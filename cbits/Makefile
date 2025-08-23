@@ -61,6 +61,7 @@ $(DEP_DIR)/$(SRC_DIR) $(DEP_DIR)/$(TEST_DIR): | $(DEP_DIR)
 
 # Pattern rule for main library object files
 $(OBJ_DIR)/%.o : %.c | $(OBJ_DIR)/$(SRC_DIR) $(DEP_DIR)/$(SRC_DIR)
+	@echo "building $@"
 	@$(CC) $(CFLAGS) -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $(SRC_INCLUDES) -c -o $@ $<
 
 # Build the shared library from all library object files
@@ -72,6 +73,7 @@ $(LIB_TARGET): $(LIB_OBJS)
 
 # Pattern rule for test object files
 $(OBJ_DIR)/$(TEST_DIR)/%.o : $(TEST_DIR)/%.c | $(OBJ_DIR)/$(TEST_DIR) $(DEP_DIR)/$(TEST_DIR)
+	@echo "building $@"
 	@$(CC) $(CFLAGS) -MMD -MP -MT $@ -MF $(DEP_DIR)/$(TEST_DIR)/$*.d $(TEST_INCLUDES) -c -o $@ $<
 
 # ------------------------------------------------------------------------------

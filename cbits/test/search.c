@@ -52,6 +52,7 @@ void print_pv(board b, pv_line *pv) {
   for (int i = 0; i < pv->length; i++) {
     printf("move: %d\n", i);
     move m = pv->moves[i];
+    print_move(m.orig, m.dest);
     layer captures;
     u64 dummy_zobrist;
     if (is_black_turn) {
@@ -360,6 +361,25 @@ SUITE(quiesce_white_recursive) {
       // There aren't more moves because no black moves beyond this point can
       // prevent an escape, thus none can raise the best score.
       IGNORE_PV);
+
+  ASSERT_PV_QUIESCE_WHITE(
+      "white prevents escape from being blocked",
+      "     +---------------------------------+"
+      " 11  | .  .  X  O  .  .  .  .  .  .  . |"
+      " 10  | .  X  .  O  .  .  O  .  .  O  X |"
+      "  9  | X  .  .  O  .  .  O  .  .  O  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  #  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  O  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  O  O  O |"
+      "  4  | .  .  .  .  .  .  .  X  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      VICTORY,
+      IGNORE_PV);
   /*
    */
 }
@@ -473,9 +493,9 @@ SUITE(quiesce_black_shallow) {
       " 10  | .  X  .  .  .  O  .  .  O  .  . |"
       "  9  | X  .  .  .  .  O  .  .  O  O  X |"
       "  8  | .  .  .  .  .  .  #  .  .  .  . |"
-      "  7  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  7  | .  .  .  .  .  .  .  O  .  .  . |"
       "  6  | .  .  .  .  .  .  .  .  .  .  O |"
-      "  5  | .  .  .  .  .  .  .  .  .  X  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
       "  4  | .  .  .  .  .  .  .  .  .  .  . |"
       "  3  | X  .  .  .  .  .  .  .  .  .  X |"
       "  2  | .  X  .  .  .  .  .  .  .  X  . |"
@@ -531,8 +551,8 @@ SUITE(quiesce_black_recursive) {
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  .  .  .  .  .  . |"
       " 10  | .  X  .  X  .  #  .  X  .  X  . |"
-      "  9  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  8  | .  O  O  X  .  .  .  X  O  O  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  O  O  .  .  .  .  .  O  O  . |"
       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
       "  6  | .  .  .  .  .  .  .  .  .  .  . |"
       "  5  | .  .  .  .  .  .  .  .  .  .  . |"
@@ -543,7 +563,7 @@ SUITE(quiesce_black_recursive) {
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       MIDDLING,
-      h10h11);
+      IGNORE_PV);
 
   ASSERT_PV_QUIESCE_BLACK(
       "black doesn't perform a capture that will result in a king escape",
@@ -584,4 +604,23 @@ SUITE(quiesce_black_recursive) {
       // There aren't more moves because no black moves beyond this point can
       // prevent an escape, thus none can raise the best score.
       EMPTY_PV);
+
+  ASSERT_PV_QUIESCE_BLACK(
+      "black finds 2-move blocking move around obstacle",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  O  .  .  .  .  .  . |"
+      " 10  | .  X  .  .  O  .  O  .  .  .  X |"
+      "  9  | X  .  .  .  O  .  O  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  #  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  O  O  . |"
+      "  3  | X  .  .  .  O  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  O  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  O  .  X  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      MIDDLING,
+      IGNORE_PV);
 }
