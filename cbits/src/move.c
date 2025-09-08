@@ -234,7 +234,7 @@ leftward
 #define RIGHTWARD1_KING(_i, _r)                                                \
   {                                                                            \
     u64 blockers = occ##_r._[_i] | file_mask_10._[_i];                         \
-    u64 movers_ext = _pext_u64(movers##_r._[_i], 1 | blockers) >> 1;           \
+    u64 movers_ext = _pext_u64(movers##_r._[_i], blockers);                    \
     u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));               \
     u64 move_mask =                                                            \
         (movers##_r._[_i] - movers_dep) & HALF_MASK_##_i & targets##_r._[_i];  \
@@ -537,7 +537,43 @@ layer rightward_moves_layer(layer movers, layer occ) {
   {
 
     u64 blockers = occ._[0] | file_mask_10._[0];
-    u64 movers_ext = _pext_u64(movers._[0], 1 | blockers) >> 1;
+    u64 movers_ext = _pext_u64(movers._[0], blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
+    u64 move_mask = movers._[0] - movers_dep;
+    // I might be able to get away with not using LOWER_HALF_MASK here
+    output._[0] = move_mask;
+  }
+
+  // upper
+  {
+    u64 blockers = (occ._[1] | file_mask_10._[1]);
+    u64 movers_ext = _pext_u64(movers._[1], blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
+    u64 subtracted = movers._[1] - movers_dep;
+    output._[1] = subtracted & UPPER_HALF_MASK;
+  }
+
+  // center
+  {
+    u16 blockers = GET_CENTER_ROW(occ);
+    u16 movers_row = GET_CENTER_ROW(movers);
+    u16 movers_ext = _pext_u32(movers_row, blockers);
+    u16 movers_dep = _pdep_u32(movers_ext, 1 | (blockers << 1));
+    u16 move_mask = movers_row - movers_dep;
+    SET_CENTER_ROW(output, move_mask);
+  }
+
+  return output;
+}
+
+layer rightward_moves_layer_king(layer movers, layer occ) {
+  layer output = EMPTY_LAYER;
+
+  // lower
+  {
+
+    u64 blockers = occ._[0] | file_mask_10._[0];
+    u64 movers_ext = _pext_u64(movers._[0], blockers);
     u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
     u64 move_mask = movers._[0] - movers_dep;
     // I might be able to get away with not using LOWER_HALF_MASK here
@@ -566,23 +602,25 @@ layer rightward_moves_layer(layer movers, layer occ) {
   return output;
 }
 
+typedef struct {
+  u64 lower;
+  u64 upper;
+  u16 center;
+} move_bits;
+
 inline int rightward_moves_count(layer movers, layer occ) {
   int output = 0;
 
   {
     u64 blockers = occ._[0] | file_mask_10._[0];
-    // print_layer((layer){blockers, 0});
     // here I depend on the lower right corner being occupied to ensure that I
     // generate a ray towards it
     u64 movers_ext = _pext_u64(movers._[0], blockers) >> 1;
     u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));
-    // print_layer((layer){movers_dep, 0});
     // I use lower half mask here to prevent generating moves in the center
     // row
     u64 move_mask = (movers._[0] - movers_dep) & LOWER_HALF_MASK;
-    // print_layer((layer){move_mask, 0});
     output += __builtin_popcountll(move_mask);
-    // printf("output: %d\n", output);
   }
 
   // upper
@@ -629,9 +667,7 @@ inline int rightward_moves_count_king(layer movers, layer occ) {
   if (movers._[0] & LOWER_HALF_MASK) {
     u64 blockers = occ._[0] | file_mask_10._[0];
     // print_layer((layer){blockers, 0});
-    // here I depend on the lower right corner being occupied to ensure that I
-    // generate a ray towards it
-    u64 movers_ext = _pext_u64(movers._[0], 1 | blockers) >> 1;
+    u64 movers_ext = _pext_u64(movers._[0], blockers);
     u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
     // print_layer((layer){movers_dep, 0});
     // I use lower half mask here to prevent generating moves in the center
@@ -823,6 +859,3 @@ to set the state int to the number of the current switch state that we're in, so
 that when the function is called again we continue to pull moves from that u64.
 
 */
-
-
-
