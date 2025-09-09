@@ -1,6 +1,7 @@
 #include "move.h"
 #include "board.h"
 #include "capture.h"
+#include "constants.h"
 #include "io.h"
 #include "layer.h"
 #include "limits.h"
@@ -22,14 +23,6 @@ int cmp_moves(const move *a, const move *b) {
     return orig_cmp;
   }
 }
-
-// -----------------------------------------------------------------------------
-// Move map methods
-
-const layer file_mask_0 = {36046397799139329ULL, 70403120701444ULL};
-const layer file_mask_1 = {72092795598278658ULL, 140806241402888ULL};
-const layer file_mask_9 = {9011599449784832ULL, 36046397799139329ULL};
-const layer file_mask_10 = {18023198899569664ULL, 72092795598278658ULL};
 
 // -----------------------------------------------------------------------------
 // new move to destination
@@ -611,51 +604,26 @@ typedef struct {
 inline int rightward_moves_count(layer movers, layer occ) {
   int output = 0;
 
+  u64 carryover;
+  // upper
+  {
+    u64 blockers = (occ._[1] | file_mask_10._[1]);
+    u64 movers_ext = _pext_u64(movers._[1], blockers);
+    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
+    u64 move_mask = (movers._[1] - movers_dep);
+    output += __builtin_popcountll(move_mask);
+    carryover = (((move_mask | movers._[1]) & 1) << 63) & ~occ._[0];
+  }
+
   {
     u64 blockers = occ._[0] | file_mask_10._[0];
     // here I depend on the lower right corner being occupied to ensure that I
     // generate a ray towards it
-    u64 movers_ext = _pext_u64(movers._[0], blockers) >> 1;
+    u64 movers_ext =
+        _pext_u64(carryover | movers._[0], carryover | blockers) >> 1;
     u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));
-    // I use lower half mask here to prevent generating moves in the center
-    // row
-    u64 move_mask = (movers._[0] - movers_dep) & LOWER_HALF_MASK;
+    u64 move_mask = (movers._[0] - movers_dep) & (~throne._[0]);
     output += __builtin_popcountll(move_mask);
-  }
-
-  // upper
-  {
-    u64 blockers = (occ._[1] | file_mask_10._[1]);
-    u64 movers_ext = _pext_u64(movers._[1], blockers) >> 1;
-    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
-    // I use upper half mask here to prevent generating moves in the center
-    // row
-    u64 move_mask = (movers._[1] - movers_dep) & UPPER_HALF_MASK;
-    // print_layer((layer){0, move_mask});
-    output += __builtin_popcountll(move_mask);
-    // printf("output: %d\n", output);
-  }
-
-  // center
-  {
-    u16 blockers = GET_CENTER_ROW(occ);
-    // print_row(blockers);
-
-    // I can just remove the lowest bit because it by definition can't move
-    // anywhere
-    u16 movers_row = GET_CENTER_ROW(movers) & 0b11111111110;
-    // print_row(movers_row);
-
-    u16 tail = (blockers & 1) ^ 1;
-    // print_row(tail);
-
-    u16 movers_ext = _pext_u32(movers_row, tail | blockers) >> 1;
-    u16 movers_dep = _pdep_u32(movers_ext, tail | (blockers << 1));
-    // print_row(movers_dep);
-    u16 move_mask = (movers_row - movers_dep) & INVERTED_THRONE_MASK;
-    // print_row(move_mask);
-    output += __builtin_popcount(move_mask);
-    // printf("output: %d\n", output);
   }
 
   return output;
@@ -719,6 +687,7 @@ inline int rightward_moves_count_king(layer movers, layer occ) {
 inline int leftward_moves_count(layer movers, layer occ) {
   int output = 0;
 
+  u64 carryover;
   // lower
   {
     u64 blockers = occ._[0] | file_mask_0._[0];
@@ -726,29 +695,16 @@ inline int leftward_moves_count(layer movers, layer occ) {
     // a substraction, so that all we're left with are subtraction rays we &
     // LOWER_HALF_MASK to remove anything in the center row
     //
-    u64 dests = (blockers - ((movers._[0]) << 1)) & ~blockers & LOWER_HALF_MASK;
-    // print_layer((layer){dests, 0});
+    u64 dests = (blockers - ((movers._[0]) << 1)) & ~(blockers | throne._[0]);
     output += __builtin_popcountll(dests);
-    // printf("output: %d\n", output);
+    carryover = ((dests | movers._[0] & (((u64)1) << 63)) >> 63) & ~occ._[1];
   }
 
   // upper
   {
     u64 blockers = occ._[1] | file_mask_0._[1];
-    u64 dests = (blockers - ((movers._[1]) << 1)) & ~blockers & UPPER_HALF_MASK;
-    // print_layer((layer){0, dests});
+    u64 dests = (blockers - ((((movers._[1]) << 1)) | carryover)) & ~blockers;
     output += __builtin_popcountll(dests);
-    // printf("output: %d\n", output);
-  }
-
-  // center
-  {
-    u16 blockers = GET_CENTER_ROW(occ);
-    u64 dests = blockers - (GET_CENTER_ROW(movers) << 1) & ~blockers &
-                INVERTED_THRONE_MASK;
-    // print_row((u16)dests);
-    output += __builtin_popcount(dests);
-    // printf("output: %d\n", output);
   }
 
   return output;
