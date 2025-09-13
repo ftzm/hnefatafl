@@ -6,6 +6,7 @@
 #include "layer.h"
 #include "limits.h"
 #include "macro_util.h"
+#include "move_legacy.h"
 #include "stdbool.h"
 #include "stdio.h"
 #include "string.h"
@@ -436,88 +437,25 @@ void moves_to_king_impl(
   // printf("rightward total: %d\n", *total);
 }
 
-/*
-new plan for rightward moves:
-
-I can still do this king of thing:
-    u64 lefts = movers_r._[1] & ~(occ_r._[1] - targets_r._[1]);
-to isolate movers that can actually reach targets. But I do need another
-approach to extract moves.
-
-The current approach is just broken because I zero the mover bit after
-extracting just the closest target, which obviously isn't correct. Instead I
-need a way to re-use the mover bit.
-
-- I can't just start iterating up targets, because I don't have a way to isolate
-only targets I can arrive at, I have to iterate over the movers and find a way
-to locate targets relative to that. One idea:
-1. find lowest mover bit
-2. mask below that
-3. apply mask to occ
-4. find highest occ bit
-5. mask above that
-6. combine that with the mask below the mover to isolate the moving bits.
-
-this feels like kind of a lot though. Given 2 or three targets on a u64
-kogge-stone might actually be faster.
-
-with kogge stone we can can limit generation to movers that can reach targets.
-This means we won't need to exclude any target bits during extraction,
-simplifying things. That leaves two options for extraction:
-
-1. extract destinations bottom up, creating a mask below each bit, inverting
-that, applying that mask to movers, and doing a tzcnt.
-
-2. extract movers bottom up, creating a mask below each. for each mask, and it
-with destinations, and extract those bottom up, reusing the value for the
-
-One possibility would be to do a popcnt of the movers in play and select an
-implementation based on that :man thinking:
-
-
-*/
-
-/*
-kogge stone
-
-gen is movers, pro is unoccupied squares
-*/
-#define RIGHTWARD_MOVES(_block)                                                \
-  pro &= _block;                                                               \
-  gen |= pro & (gen >> 1);                                                     \
-  pro &= (pro >> 1);                                                           \
-  gen |= pro & (gen >> 2);                                                     \
-  pro &= (pro >> 2);                                                           \
-  gen |= pro & (gen >> 4);                                                     \
-  pro &= (pro >> 4);                                                           \
-  gen |= pro & (gen >> 8);
-
-layer rightward_moves_layer2(layer movers, layer occ) {
+inline layer leftward_moves_layer(layer movers, layer occ) {
   layer output = EMPTY_LAYER;
 
+  u64 carryover;
   // lower
   {
-    u64 gen = movers._[0] & LOWER_HALF_MASK;
-    u64 pro = ~occ._[0] & LOWER_HALF_MASK;
-    RIGHTWARD_MOVES(18428720874809981951ULL);
-    output._[0] = (gen ^ movers._[0]) & LOWER_HALF_MASK;
+    u64 blockers = occ._[0] | file_mask_0._[0];
+    // we & ~blockers to remove all blockers that haven't been bit flipped by
+    // a substraction, so that all we're left with are subtraction rays
+    u64 dests = (blockers - ((movers._[0]) << 1)) & ~(blockers | throne._[0]);
+    carryover = ((dests | movers._[0] & (((u64)1) << 63)) >> 63) & ~occ._[1];
+    output._[0] = dests;
   }
 
   // upper
   {
-    u64 gen = movers._[1] & UPPER_HALF_MASK;
-    u64 pro = ~occ._[1] & UPPER_HALF_MASK;
-    RIGHTWARD_MOVES(72022392477577213ULL);
-    output._[1] = (gen ^ movers._[1]) & UPPER_HALF_MASK;
-  }
-
-  // center
-  {
-    u16 center_movers = GET_CENTER_ROW(movers);
-    u16 gen = center_movers;
-    u16 pro = ~GET_CENTER_ROW(occ);
-    RIGHTWARD_MOVES(~0);
-    SET_CENTER_ROW(output, (gen ^ center_movers));
+    u64 blockers = occ._[1] | file_mask_0._[1];
+    u64 dests = (blockers - ((((movers._[1]) << 1)) | carryover)) & ~blockers;
+    output._[1] = dests;
   }
 
   return output;
@@ -534,7 +472,7 @@ inline layer rightward_moves_layer(layer movers, layer occ) {
     u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
     u64 move_mask = (movers._[1] - movers_dep);
     carryover = (((move_mask | movers._[1]) & 1) << 63) & ~occ._[0];
-    output._[0] = move_mask;
+    output._[1] = move_mask;
   }
 
   {
@@ -545,7 +483,7 @@ inline layer rightward_moves_layer(layer movers, layer occ) {
         _pext_u64(carryover | movers._[0], carryover | blockers) >> 1;
     u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));
     u64 move_mask = (movers._[0] - movers_dep) & (~throne._[0]);
-    output._[1] = move_mask;
+    output._[0] = move_mask;
   }
 
   return output;
@@ -593,121 +531,24 @@ typedef struct {
   u16 center;
 } move_bits;
 
-inline int rightward_moves_count(layer movers, layer occ) {
-  /*
-  int output = 0;
+/* The idea for this will be to generate the whole struct up front and provide
+ * it to search functions. These functions can then mask the portions they need,
+ * such as king captures or other tactical moves, and then extract moves from
+ * this sub-selection. We'll also calculate the remainder, so that follow-up
+ * functions don't revisit explored moves. This paradigm also supports a
+ * generator-style approach to extraction that allows stopping before all moves
+ * have been extracted, albiet requiring more storage than the existing
+ * implementation. */
+typedef struct {
+  layer leftward;
+  layer rightward;
+  layer leftward_r;
+  layer rightward_r;
+} move_layers;
 
-  u64 carryover;
-  // upper
-  {
-    u64 blockers = (occ._[1] | file_mask_10._[1]);
-    u64 movers_ext = _pext_u64(movers._[1], blockers);
-    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
-    u64 move_mask = (movers._[1] - movers_dep);
-    output += __builtin_popcountll(move_mask);
-    carryover = (((move_mask | movers._[1]) & 1) << 63) & ~occ._[0];
-  }
+// -----------------------------------------------------------------------------
+// Move count
 
-  {
-    u64 blockers = occ._[0] | file_mask_10._[0];
-    // here I depend on the lower right corner being occupied to ensure that I
-    // generate a ray towards it
-    u64 movers_ext =
-        _pext_u64(carryover | movers._[0], carryover | blockers) >> 1;
-    u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));
-    u64 move_mask = (movers._[0] - movers_dep) & (~throne._[0]);
-    output += __builtin_popcountll(move_mask);
-  }
-
-  return output;
-   */
-  return LAYER_POPCOUNT(rightward_moves_layer(movers, occ));
-}
-
-inline int rightward_moves_count_king(layer movers, layer occ) {
-  int output = 0;
-
-  if (movers._[0] & LOWER_HALF_MASK) {
-    u64 blockers = occ._[0] | file_mask_10._[0];
-    // print_layer((layer){blockers, 0});
-    u64 movers_ext = _pext_u64(movers._[0], blockers);
-    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
-    // print_layer((layer){movers_dep, 0});
-    // I use lower half mask here to prevent generating moves in the center
-    // row
-    u64 move_mask = (movers._[0] - movers_dep);
-    // print_layer((layer){move_mask, 0});
-    return __builtin_popcountll(move_mask);
-    // printf("output: %d\n", output);
-  }
-
-  // upper
-  if (movers._[1] & UPPER_HALF_MASK) {
-    u64 blockers = (occ._[1] | file_mask_10._[1]);
-    u64 movers_ext = _pext_u64(movers._[1], blockers) >> 1;
-    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
-    // I use upper half mask here to prevent generating moves in the center
-    // row
-    u64 move_mask = (movers._[1] - movers_dep) & UPPER_HALF_MASK;
-    // print_layer((layer){0, move_mask});
-    return __builtin_popcountll(move_mask);
-    // printf("output: %d\n", output);
-  }
-
-  // center
-  if (GET_CENTER_ROW(movers)) {
-    u16 blockers = GET_CENTER_ROW(occ);
-    // print_row(blockers);
-
-    // I can just remove the lowest bit because it by definition can't move
-    // anywhere
-    u16 movers_row = GET_CENTER_ROW(movers) & 0b11111111110;
-    // print_row(movers_row);
-
-    u16 tail = (blockers & 1) ^ 1;
-    // print_row(tail);
-
-    u16 movers_ext = _pext_u32(movers_row, tail | blockers) >> 1;
-    u16 movers_dep = _pdep_u32(movers_ext, tail | (blockers << 1));
-    // print_row(movers_dep);
-    u16 move_mask = (movers_row - movers_dep) & 0b11111111111;
-    // print_row(move_mask);
-    return __builtin_popcount(move_mask);
-    // printf("output: %d\n", output);
-  }
-
-  return output;
-}
-
-inline int leftward_moves_count(layer movers, layer occ) {
-  int output = 0;
-
-  u64 carryover;
-  // lower
-  {
-    u64 blockers = occ._[0] | file_mask_0._[0];
-    // we & ~blockers to remove all blockers that haven't been bit flipped by
-    // a substraction, so that all we're left with are subtraction rays we &
-    // LOWER_HALF_MASK to remove anything in the center row
-    //
-    u64 dests = (blockers - ((movers._[0]) << 1)) & ~(blockers | throne._[0]);
-    output += __builtin_popcountll(dests);
-    carryover = ((dests | movers._[0] & (((u64)1) << 63)) >> 63) & ~occ._[1];
-  }
-
-  // upper
-  {
-    u64 blockers = occ._[1] | file_mask_0._[1];
-    u64 dests = (blockers - ((((movers._[1]) << 1)) | carryover)) & ~blockers;
-    output += __builtin_popcountll(dests);
-  }
-
-  return output;
-}
-
-/* I think it may actually be more efficient to keep the specific center
- * calculation in the case of the king because of the early returns we're able
- * to do by isolating the calculation to one portion of the layer.*/
 inline int leftward_moves_count_king(layer movers, layer occ) {
   int output = 0;
 
@@ -746,10 +587,18 @@ inline int leftward_moves_count_king(layer movers, layer occ) {
   return output;
 }
 
+inline int leftward_moves_count(layer movers, layer occ) {
+  return LAYER_POPCOUNT(leftward_moves_layer(movers, occ));
+}
+
+inline int rightward_moves_count(layer movers, layer occ) {
+  return LAYER_POPCOUNT(rightward_moves_layer(movers, occ));
+}
+
 int black_moves_count(const board *b) {
   int total = 0;
-  layer occ = board_occ(*b);
-  layer occ_r = board_occ_r(*b);
+  const layer occ = board_occ(*b);
+  const layer occ_r = board_occ_r(*b);
   total += leftward_moves_count(b->black, occ);
   total += leftward_moves_count(b->black_r, occ_r);
   total += rightward_moves_count(b->black, occ);
@@ -759,18 +608,56 @@ int black_moves_count(const board *b) {
 
 int white_moves_count(const board *b) {
   int total = 0;
-  layer occ = board_occ(*b);
-  layer occ_r = board_occ_r(*b);
-  // printf("total: %d\n", total);
+  const layer occ = board_occ(*b);
+  const layer occ_r = board_occ_r(*b);
   total += leftward_moves_count(b->white, occ);
-  // printf("total: %d\n", total);
   total += leftward_moves_count(b->white_r, occ_r);
-  // printf("total: %d\n", total);
   total += rightward_moves_count(b->white, occ);
-  // printf("total: %d\n", total);
   total += rightward_moves_count(b->white_r, occ_r);
-  // printf("total: %d\n", total);
   return total;
+}
+
+inline int rightward_moves_count_king(layer movers, layer occ) {
+  int output = 0;
+
+  if (movers._[0] & LOWER_HALF_MASK) {
+    u64 blockers = occ._[0] | file_mask_10._[0];
+    u64 movers_ext = _pext_u64(movers._[0], blockers);
+    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
+    // I use lower half mask here to prevent generating moves in the center
+    // row
+    u64 move_mask = (movers._[0] - movers_dep);
+    return __builtin_popcountll(move_mask);
+  }
+
+  // upper
+  if (movers._[1] & UPPER_HALF_MASK) {
+    u64 blockers = (occ._[1] | file_mask_10._[1]);
+    u64 movers_ext = _pext_u64(movers._[1], blockers) >> 1;
+    u64 movers_dep = _pdep_u64(movers_ext, blockers << 1);
+    // I use upper half mask here to prevent generating moves in the center
+    // row
+    u64 move_mask = (movers._[1] - movers_dep) & UPPER_HALF_MASK;
+    return __builtin_popcountll(move_mask);
+  }
+
+  // center
+  if (GET_CENTER_ROW(movers)) {
+    u16 blockers = GET_CENTER_ROW(occ);
+    // print_row(blockers);
+
+    // I can just remove the lowest bit because it by definition can't move
+    // anywhere
+    u16 movers_row = GET_CENTER_ROW(movers) & 0b11111111110;
+    u16 tail = (blockers & 1) ^ 1;
+
+    u16 movers_ext = _pext_u32(movers_row, tail | blockers) >> 1;
+    u16 movers_dep = _pdep_u32(movers_ext, tail | (blockers << 1));
+    u16 move_mask = (movers_row - movers_dep) & 0b11111111111;
+    return __builtin_popcount(move_mask);
+  }
+
+  return output;
 }
 
 int king_moves_count(const board *b) {
@@ -784,34 +671,4 @@ int king_moves_count(const board *b) {
   return total;
 }
 
-/*
-  Idea for a move generator so we don't end up allocating so much memory for
-move lists:
-
-The general idea is to create new versions of the moves_to and the macros it
-uses to return one move at a time. This means that instead of using a while loop
-and looping over the dests as they're created, I split it up into stages, where
-I first generate dests, and then separetaly I check if the u64 of dests is empty
-and if not extract and return the next move.
-
-In order to return one move at a time and pick up where I left off each time
-I'll need a struct to hold onto state. It will contain a state int which tells
-where we are in the progress. Another struct member with a u64 of positions to
-extract. the movers, targets, occ, etc.
-
-I'll then need a function that takes a reference to this state struct and
-processes moves. It will consist mainly of a large switch statement. The switch
-branches will have alternating purposes: the first will generate dests for one
-direction for one layer portion (equivalent to say LEFTWARD(0, ) in moves_to,
-say). so it will produce a single u64 of dests. It will also need to set a
-pointer to the movers so that we have the information we need to extract moves.
-There will be no breaks in any of the branches; they will all fall through to
-the next. The next type of branch, which will come after each dest generating
-branch, is the one in which we will extract a move. the logic is largely the
-same as the existing, except when a move is found we return rather than adding
-it to a list of moves. To keep the initial implementation simple we'll only
-return a move as a move struct, not the layers. Before returning we'll also need
-to set the state int to the number of the current switch state that we're in, so
-that when the function is called again we continue to pull moves from that u64.
-
-*/
+// -----------------------------------------------------------------------------

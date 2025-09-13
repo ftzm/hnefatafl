@@ -3,7 +3,7 @@
 #include "constants.h"
 #include "move.h"
 #include "stdbool.h"
-#include "x86intrin.h"
+#include "x86intrin.h" // IWYU pragma: export
 
 u16 row_moves_table[2048][11];
 u16 center_row_moves_table[2048][11];
@@ -15,7 +15,7 @@ u16 center_row_moves_table[2048][11];
  * @param pos the index of the starting position of the moves.
  * @return a u16 wo.
  */
-u16 get_row_moves(const u16 occ, const u16 pos) {
+inline u16 get_row_moves(const u16 occ, const u16 pos) {
   static const unsigned short lowers[12] = {
       0b00000000000,
       0b00000000001,
@@ -2489,5 +2489,21 @@ int get_king_move_count(const board b) {
     // total += row_move_count_table[blockers][local_orig];
     total += __builtin_popcount(get_row_moves(blockers, local_orig));
   }
+  return total;
+}
+
+/* I feel like this should be faster than the newer paradigm one but it's
+ * somehow the same to slightly slower */
+int king_moves_count2(const board *b) {
+  int total = 0;
+  layer occ = king_board_occ(*b);
+  layer occ_r = king_board_occ_r(*b);
+  int king_pos = LOWEST_INDEX(b->king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
+  total +=
+      __builtin_popcount(get_row_moves(get_row(occ, king_rank), king_file));
+  total += __builtin_popcount(
+      get_row_moves(get_row(occ_r, king_file), 10 - king_rank));
   return total;
 }

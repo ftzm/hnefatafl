@@ -177,6 +177,7 @@ static const layer EDGES = {54069596698710015ULL, 144080055268552710ULL};
 #define UPPER_HALF_MASK ((u64)144115188075855868ULL)
 
 u16 dirty_get_row(layer l, int n);
+u16 get_row(layer l, int n);
 
 #define MAP_INDICES(_l, _f)                                                    \
   while (_l._[0]) {                                                            \

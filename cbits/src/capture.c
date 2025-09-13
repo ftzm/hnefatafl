@@ -5,7 +5,7 @@
 #include "layer.h"
 #include "stdbool.h"
 #include "stdio.h"
-#include "x86intrin.h"
+#include "x86intrin.h" // IWYU pragma: export
 #include "zobrist.h"
 
 layer foe_masks[120];

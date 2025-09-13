@@ -492,6 +492,14 @@ UBENCH_EX(move_count, king_moves_count) {
   }
 }
 
+UBENCH_EX(move_count, king_moves_count2) {
+  board b = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    int c = king_moves_count2(&b);
+    UBENCH_DO_NOTHING(&c);
+  }
+}
+
 UBENCH_EX(move_count, get_king_move_count) {
   board b = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
