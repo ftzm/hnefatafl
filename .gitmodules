@@ -1,9 +1,0 @@
-[submodule "cbits/vendor/greatest"]
-	path = cbits/vendor/greatest
-	url = https://github.com/silentbicycle/greatest.git
-[submodule "cbits/vendor/theft"]
-	path = cbits/vendor/theft
-	url = https://github.com/silentbicycle/theft.git
-[submodule "cbits/vendor/ubench.h"]
-	path = cbits/vendor/ubench.h
-	url = https://github.com/sheredom/ubench.h.git
