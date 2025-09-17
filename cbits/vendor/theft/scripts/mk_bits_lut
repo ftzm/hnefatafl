@@ -1,4 +1,4 @@
-#!/usr/bin/env awk -f
+#!/usr/bin/env -S awk -f
 
 # Check for bits being set by right shifting until the
 # desired bit is the first bit, and then checking mod 2.

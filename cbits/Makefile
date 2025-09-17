@@ -176,15 +176,11 @@ clean:
 
 .PHONY: deps
 deps:
-	@echo "Initializing dependencies..."
-	@if [ ! -d "vendor/theft/.git" ] || [ ! -d "vendor/greatest/.git" ]; then \
-		git submodule update --init --recursive; \
-	fi
+	@echo "Building dependencies..."
 	@if [ ! -f "vendor/theft/build/libtheft.a" ]; then \
 		echo "Building theft..."; \
-		cd vendor/theft && sed -i '1s|#!/usr/bin/awk -f|#!$(shell which awk) -f|' scripts/mk_bits_lut && make; \
+		cd vendor/theft && make; \
 	fi
-	@sed -i '1s%#!/usr/bin/awk -f%#!/usr/bin/env -S awk -f%' vendor/greatest/contrib/greenest
 
 # ------------------------------------------------------------------------------
 # All

@@ -1,4 +1,4 @@
-#!/usr/bin/env awk -f
+#!/usr/bin/env -S awk -f
 # Copyright (c) 2016 Scott Vokes <vokes.s@gmail.com>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
