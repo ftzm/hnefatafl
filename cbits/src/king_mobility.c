@@ -1,8 +1,10 @@
+#include "board.h"
 #include "constants.h"
 #include "layer.h"
 #include "limits.h"
 #include "macro_util.h"
 #include "stdbool.h"
+#include "x86intrin.h" // IWYU pragma: export
 
 // -----------------------------------------------------------------------------
 // Semi generic macros
@@ -480,6 +482,177 @@ void corner_paths_1(
     CASE(1, BOTH_SIDES(1, rank, occ_r, paths_r, paths));
     CASE(9, BOTH_SIDES(9, rank, occ_r, paths_r, paths));
     CASE(10, BOTH_SIDES(10, rank, occ_r, paths_r, paths));
+  }
+}
+
+void corner_paths_2_2(
+    const layer king,
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file,
+    layer *paths,
+    layer *paths_r) {
+
+  if (LAYERS_OVERLAP(middle, king)) {
+    {
+      u16 row = dirty_get_row(occ, rank);
+      u16 pos = 1 << file;
+      BOTH_SIDES_STEM_GEN(rank, 1);
+      BOTH_SIDES_STEM_GEN(rank, 9);
+      BOTH_SIDES_STEM_GEN(rank, 0);
+      BOTH_SIDES_STEM_GEN(rank, 10);
+    }
+
+    {
+      u16 row = dirty_get_row(occ_r, file);
+      u16 pos = 1 << (10 - rank);
+      BOTH_SIDES_STEM_GEN(file, 1);
+      BOTH_SIDES_STEM_GEN(file, 9);
+      BOTH_SIDES_STEM_GEN(file, 0);
+      BOTH_SIDES_STEM_GEN(file, 10);
+    }
+    return;
+  }
+
+  // on file 0 or 10 we should only do the file methods
+  if (file == 0) {
+    u16 row = dirty_get_row(occ, rank);
+    u16 pos = 1 << file;
+
+    BOTH_SIDES(0, rank, occ_r, paths_r, paths);
+    BOTH_SIDES_INC(1, rank, occ_r, paths_r, paths);
+    BOTH_SIDES_STEM_GEN(rank, 9);
+
+    // TODO: I think I can actually get rid of these fallback checks;
+    if (rank == 9) {
+      BOTH_SIDES(9, file, occ, paths, paths_r);
+    } else if (rank == 1) {
+      BOTH_SIDES(1, file, occ, paths, paths_r);
+    } else {
+      BOTH_SIDES_STEM_GEN(rank, 10);
+    }
+
+    return;
+  }
+
+  if (file == 10) {
+    u16 row = dirty_get_row(occ, rank);
+    u16 pos = 1 << file;
+
+    if (rank == 9) {
+      BOTH_SIDES(9, file, occ, paths, paths_r);
+    } else if (rank == 1) {
+      BOTH_SIDES(1, file, occ, paths, paths_r);
+    } else {
+      BOTH_SIDES_STEM_GEN(rank, 0);
+    }
+
+    BOTH_SIDES_STEM_GEN(rank, 1);
+    BOTH_SIDES_INC(9, rank, occ_r, paths_r, paths);
+    BOTH_SIDES(10, rank, occ_r, paths_r, paths);
+
+    return;
+  }
+
+  // on rank 0 or 10 we should only do the rank methods
+  if (rank == 0) {
+    u16 row = dirty_get_row(occ_r, file);
+    u16 pos = 1 << (10 - rank);
+    BOTH_SIDES(0, file, occ, paths, paths_r);
+    BOTH_SIDES_INC(1, file, occ, paths, paths_r);
+    BOTH_SIDES_STEM_GEN(file, 1);
+    if (file == 9) {
+      BOTH_SIDES(9, rank, occ_r, paths_r, paths);
+    } else if (file == 1) {
+      BOTH_SIDES(1, rank, occ_r, paths_r, paths);
+    } else {
+      BOTH_SIDES_STEM_GEN(file, 0);
+    }
+    return;
+  }
+
+  if (rank == 10) {
+    u16 row = dirty_get_row(occ_r, file);
+    u16 pos = 1 << (10 - rank);
+    BOTH_SIDES_INC(9, file, occ, paths, paths_r);
+    BOTH_SIDES(10, file, occ, paths, paths_r);
+    BOTH_SIDES_STEM_GEN(file, 9);
+    if (file == 9) {
+      BOTH_SIDES(9, rank, occ_r, paths_r, paths);
+    } else if (file == 1) {
+      BOTH_SIDES(1, rank, occ_r, paths_r, paths);
+    } else {
+      BOTH_SIDES_STEM_GEN(file, 10);
+    }
+    return;
+  }
+
+  // NOTE: on adjacent rank/file the BOTH_SIDES_STEM_GEN to the edge is redunant
+  // (for example, file 9 going all the way up to rank 10 and then across to
+  // file 1). It's enough to reach rank 10 from file 9, it's already a corner
+  // adjacent square with a guaranteed exit. Might be worth bench an
+  // implementation that just does BOTH_SIDES to the edge.
+
+  {
+    u16 row = dirty_get_row(occ, rank);
+    u16 pos = 1 << file;
+
+    switch (file) {
+    case 1: {
+      // inner
+      BOTH_SIDES(1, rank, occ_r, paths_r, paths);
+      BOTH_SIDES_STEM_GEN(rank, 9);
+
+      // outer
+      // An idea to avoid this check: add artifical blockers so that the stem
+      // check itself just fails
+      if (rank != 1 && rank != 9) {
+        BOTH_SIDES_INC(0, rank, occ_r, paths_r, paths);
+        BOTH_SIDES_STEM_GEN(rank, 10);
+      }
+    }; break;
+    case 9: {
+      // inner
+      BOTH_SIDES_STEM_GEN(rank, 1);
+      BOTH_SIDES(9, rank, occ_r, paths_r, paths);
+
+      // outer
+      if (rank != 1 && rank != 9) {
+        BOTH_SIDES_STEM_GEN(rank, 0);
+        BOTH_SIDES_INC(10, rank, occ_r, paths_r, paths);
+      }
+    }; break;
+    }
+  }
+
+  {
+    u16 row = dirty_get_row(occ_r, file);
+    u16 pos = 1 << (10 - rank);
+    switch (rank) {
+    case 1: {
+      // inner
+      BOTH_SIDES(1, file, occ, paths, paths_r);
+      BOTH_SIDES_STEM_GEN(file, 1);
+
+      // outer
+      if (file != 1 && file != 9) {
+        BOTH_SIDES_INC(0, file, occ, paths, paths_r);
+        BOTH_SIDES_STEM_GEN(file, 0);
+      }
+    }; break;
+    case 9: {
+      // inner
+      BOTH_SIDES(9, file, occ, paths, paths_r);
+      BOTH_SIDES_STEM_GEN(file, 9);
+
+      // outer
+      if (file != 1 && file != 9) {
+        BOTH_SIDES_INC(10, file, occ, paths, paths_r);
+        BOTH_SIDES_STEM_GEN(file, 10);
+      }
+    }; break;
+    }
   }
 }
 

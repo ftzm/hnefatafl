@@ -190,3 +190,5 @@ u16 get_row(layer l, int n);
     _f;                                                                        \
     _l._[1] = _blsr_u64(_l._[1]);                                              \
   }
+
+#define LAYERS_OVERLAP(_a, _b) (_a._[0] & _b._[0] || _a._[1] & _b._[1])

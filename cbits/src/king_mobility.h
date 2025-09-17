@@ -1,5 +1,6 @@
 #pragma once
 
+#include "board.h"
 #include "layer.h"
 #include "stdbool.h"
 
@@ -26,6 +27,15 @@ void corner_paths_1(
     layer *paths_r);
 
 void corner_paths_2(
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file,
+    layer *paths,
+    layer *paths_r);
+
+void corner_paths_2_2(
+    const layer king,
     const layer occ,
     const layer occ_r,
     const int rank,

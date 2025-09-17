@@ -140,6 +140,34 @@ int main() {
       "X  X  X  X  X  X  X  X  X  X  X",
       "edges");
 
+  print_layer_info(
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  X  X  X  X  X  X  X  X  X  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+      "inner");
+
+  print_layer_info(
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  X  X  X  X  X  X  X  .  ."
+      ".  .  X  X  X  X  X  X  X  .  ."
+      ".  .  X  X  X  X  X  X  X  .  ."
+      ".  .  X  X  X  X  X  X  X  .  ."
+      ".  .  X  X  X  X  X  X  X  .  ."
+      ".  .  X  X  X  X  X  X  X  .  ."
+      ".  .  X  X  X  X  X  X  X  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  .",
+      "middle");
+
   printf("\n");
 
   print_layer_info(

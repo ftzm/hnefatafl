@@ -1359,3 +1359,148 @@ pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
   destroy_position_set(positions);
   return create_pv_line(true, result);
 }
+
+/* We try moves in this order:
+- PV move
+- king escape blockers (1 or 2 moves?)
+- capture moves.
+- killer move (if legal)
+- remaining
+
+we use the is_pv flag to tell us if we're currently in the previously
+established principle variation. This is chiefly used to let us know if we can
+search the PV move for the current ply before generating other moves. When using
+a transposition table this flag isn't necessary; instead we can always try to
+pull a hash move, which should include the PV. Some engines will insert the PV
+into the TT between iterative deepening stages on the off chance it's been
+overwritten.
+*/
+i32 search_black(
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,   // distance from the root
+    int depth, // depth remaining
+    i32 alpha,
+    i32 beta,
+    stats *statistics,
+    bool is_pv) {
+
+  // Increment black position evaluation count
+  statistics->quiescence_positions_black++;
+
+  // We only need to check for a king escape because the previous move will
+  // have been white.
+  if (white_victory(&b)) {
+    return MIN_SCORE;
+  }
+
+  PV_LENGTH[ply] = ply;
+
+  // check for repetition
+  int position_index;
+  int collision = insert_position(positions, position_hash, &position_index);
+  if (collision) {
+    // we consider the position a draw, and thus score it 0
+    // return 0;
+    statistics->repeat_moves_encountered++;
+    delete_position(positions, position_index);
+    return MIN_SCORE;
+  }
+
+  if (depth <= 0) {
+    return quiesce_black(
+        positions,
+        w,
+        s,
+        b,
+        position_hash,
+        ply,
+        alpha,
+        beta,
+        statistics);
+  }
+
+  // TODO: null move pruning
+
+  // PV move
+  // if () {}
+
+  // ---------------------------------------------------------------------------
+  // pawn capture moves
+
+  {
+    //   // generate capture moves for pawns
+    //   layer capture_dests =
+    //       find_capture_destinations(b.black, b.white, board_occ(b));
+    //   layer capture_dests_r =
+    //       find_capture_destinations(b.black_r, b.white_r, board_occ_r(b));
+
+    //   move ms[100] = {0};
+    //   layer ls[100] = {0};
+    //   layer ls_r[100] = {0};
+    //   int total = 0;
+    //   moves_to(
+    //       capture_dests,
+    //       capture_dests_r,
+    //       b.black,
+    //       b.black_r,
+    //       board_occ(b),
+    //       board_occ_r(b),
+    //       ms,
+    //       ls,
+    //       ls_r,
+    //       &total);
+
+    //   // hacky bounds check
+    //   assert(total < 100);
+
+    //   // iterate
+    //   for (int i = 0; i < total; i++) {
+    //     u8 orig = ms[i].orig;
+    //     u8 dest = ms[i].dest;
+    //     layer move = ls[i];
+    //     layer move_r = ls_r[i];
+
+    //     board new_b = apply_black_move(b, move, move_r);
+    //     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
+    //     layer captures = apply_captures_z_black(&new_b, &new_position_hash,
+    //     dest); score_state new_score_state =
+    //         update_score_state_black_move_and_capture(w, s, orig, dest,
+    //         captures);
+    //     i32 score = -quiesce_white(
+    //         positions,
+    //         w,
+    //         new_score_state,
+    //         new_b,
+    //         new_position_hash,
+    //         ply + 1,
+    //         -beta,
+    //         -alpha,
+    //         statistics);
+
+    //     if (score >= beta) {
+    //       statistics->quiencence_beta_cutoff_black++;
+    //       delete_position(positions, position_index);
+    //       return score;
+    //     }
+    //     if (score > best_value) {
+    //       best_value = score;
+    //       update_pv(ply, ms[i]);
+    //     }
+    //     if (score > alpha) {
+    //       alpha = score;
+    //     }
+    //   }
+    // }
+
+    // ---------------------------------------------------------------------------
+
+    // remove the position from the set as we exit
+    delete_position(positions, position_index);
+    // return best_value;
+    return 0;
+  }
+}

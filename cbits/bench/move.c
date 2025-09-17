@@ -1,6 +1,7 @@
 #include "move.h"
 #include "assert.h"
 #include "board.h"
+#include "capture.h"
 #include "io.h"
 #include "king_mobility.h"
 #include "layer.h"
@@ -554,6 +555,19 @@ const char *corner_access_double2 = " .  .  X  .  X  .  .  O  .  .  . "
                                     " .  .  .  .  .  X  .  .  .  .  . "
                                     " .  .  X  .  X  X  X  X  .  .  . ";
 
+const char *corner_access_middle_no_escape =
+    " .  .  X  .  X  .  .  O  .  .  . "
+    " .  X  .  X  .  .  .  .  .  .  . "
+    " X  .  .  O  O  X  .  .  X  .  . "
+    " .  .  .  .  .  .  X  .  .  X  . "
+    " .  X  .  .  .  #  O  .  .  .  X "
+    " X  .  .  O  O  .  O  .  .  X  X "
+    " X  .  .  .  O  O  O  .  .  .  X "
+    " X  .  .  .  .  O  .  .  .  .  X "
+    " .  .  .  .  .  .  .  .  O  .  . "
+    " .  .  .  .  .  X  .  .  .  .  . "
+    " .  .  X  .  X  X  X  X  .  .  . ";
+
 UBENCH_EX(king_mobility, corner_paths_2) {
   board b = read_board(corner_access_double2);
 
@@ -576,6 +590,56 @@ UBENCH_EX(king_mobility, corner_paths_2) {
   }
 }
 
+UBENCH_EX(king_mobility, corner_paths_2_middle_no_escape) {
+  board b = read_board(corner_access_middle_no_escape);
+
+  // setup to generate layers
+  layer occ = LAYER_OR(b.black, b.white);
+  layer occ_r = LAYER_OR(b.black_r, b.white_r);
+
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
+
+  UBENCH_DO_BENCHMARK() {
+
+    layer paths = EMPTY_LAYER;
+    layer paths_r = EMPTY_LAYER;
+
+    corner_paths_2(occ, occ_r, king_rank, king_file, &paths, &paths_r);
+    UBENCH_DO_NOTHING(&paths);
+    UBENCH_DO_NOTHING(&paths_r);
+  }
+}
+
+UBENCH_EX(king_mobility, corner_paths_2_middle_no_escape_2) {
+  board b = read_board(corner_access_middle_no_escape);
+
+  // setup to generate layers
+  layer occ = LAYER_OR(b.black, b.white);
+  layer occ_r = LAYER_OR(b.black_r, b.white_r);
+
+  int king_pos = LOWEST_INDEX(b.king);
+  int king_rank = RANK(king_pos);
+  int king_file = FILE(king_pos);
+
+  UBENCH_DO_BENCHMARK() {
+
+    layer paths = EMPTY_LAYER;
+    layer paths_r = EMPTY_LAYER;
+
+    corner_paths_2_2(
+        b.king,
+        occ,
+        occ_r,
+        king_rank,
+        king_file,
+        &paths,
+        &paths_r);
+    UBENCH_DO_NOTHING(&paths);
+    UBENCH_DO_NOTHING(&paths_r);
+  }
+}
 int bench_king_capture_check(bool (*check)(const board *b)) {
   // this total is just to ensure that the code is not optimized away.
   int total = 0;
