@@ -28,7 +28,8 @@ BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 # Compiler and flags
 CC := gcc
 #CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -fsanitize=address -Wformat
-CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror
+CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror -Winline
+BENCH_CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror
 LDFLAGS := 
 DEP_FLAGS = -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d
 
@@ -146,7 +147,7 @@ test: update-test-suites $(TEST_BIN_DIR)/test vendor/greatest/contrib/greenest
 # in the bench directory.
 
 $(BENCH_BIN_DIR)/%: $(BENCH_DIR)/%.c $(LIB_TARGET) | $(BENCH_BIN_DIR)
-	@$(CC) $(CFLAGS) $(LDFLAGS) $(BENCH_INCLUDES) -o $@ $< $(BENCH_LIBS)
+	@$(CC) $(BENCH_CFLAGS) $(LDFLAGS) $(BENCH_INCLUDES) -o $@ $< $(BENCH_LIBS)
 
 .PRECIOUS: $(BENCH_BIN_DIR)/%
 
