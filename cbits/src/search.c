@@ -1360,6 +1360,19 @@ pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
   return create_pv_line(true, result);
 }
 
+i32 search_white(
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,   // distance from the root
+    int depth, // depth remaining
+    i32 alpha,
+    i32 beta,
+    stats *statistics,
+    bool is_pv);
+
 /* We try moves in this order:
 - PV move
 - king escape blockers (1 or 2 moves?)
@@ -1423,10 +1436,50 @@ i32 search_black(
         statistics);
   }
 
+  i32 best_value = MIN_SCORE;
+
   // TODO: null move pruning
 
   // PV move
-  // if () {}
+  if (is_pv) {
+    move m = PREV_PV[ply];
+    move m_r = ROTATE_MOVE(m);
+    u8 orig = m.orig;
+    u8 dest = m.dest;
+    layer move_layer = move_as_layer(m);
+    layer move_layer_r = move_as_layer(m_r);
+
+    board new_b = apply_black_move(b, move_layer, move_layer_r);
+    u64 new_position_hash = next_hash_black(position_hash, orig, dest);
+    layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
+    score_state new_score_state =
+        update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+
+    i32 score = -search_white(
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        depth - 1,
+        -beta,
+        -alpha,
+        statistics,
+        (is_pv && ply < PREV_PV_LENGTH));
+
+    if (score > best_value) {
+      best_value = score;
+    }
+    if (score > alpha) {
+      alpha = score;
+      update_pv(ply, m);
+    }
+    if (alpha > beta) {
+      delete_position(positions, position_index);
+      return best_value;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // pawn capture moves
@@ -1503,4 +1556,19 @@ i32 search_black(
     // return best_value;
     return 0;
   }
+}
+
+i32 search_white(
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,   // distance from the root
+    int depth, // depth remaining
+    i32 alpha,
+    i32 beta,
+    stats *statistics,
+    bool is_pv) {
+  return 0;
 }

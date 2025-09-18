@@ -39,6 +39,15 @@ typedef struct move {
   u8 dest;
 } move;
 
+#define ROTATE_MOVE(_m) ((move){rotate_right[m.orig], rotate_right[m.dest]})
+
+inline layer move_as_layer(move m) {
+  layer l = EMPTY_LAYER;
+  SET_INDEX(l, m.orig);
+  SET_INDEX(l, m.dest);
+  return l;
+}
+
 int cmp_moves(const move *a, const move *b);
 
 #define MOVES_EQUAL(a, b) (a.orig == b.orig && a.dest == b.dest)

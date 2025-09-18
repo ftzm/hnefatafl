@@ -19,6 +19,10 @@ struct pv_line {
 } typedef pv_line;
 
 typedef struct stats {
+  int search_positions_black;
+  int search_positions_white;
+  int search_beta_cutoff_black;
+  int search_beta_cutoff_white;
   int quiescence_positions_black;
   int quiescence_positions_white;
   int quiencence_beta_cutoff_black;
