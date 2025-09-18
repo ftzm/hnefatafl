@@ -12,7 +12,7 @@
 // -----------------------------------------------------------------------------
 // corner moves 2
 
-#define ADJACENTS ((layer){2099714ULL, 36204753239146496ULL})
+#define ADJACENTS ((layer){{2099714ULL, 36204753239146496ULL}})
 
 void draw_horizontal(int rank, int file, int dest_file, layer *l) {
   if (dest_file > file) {
@@ -85,7 +85,6 @@ void paths_to(
  * very slow */
 void corner_paths_2_ref(
     const layer occ,
-    const layer occ_r,
     const int rank,
     const int file,
     layer *paths,
@@ -124,6 +123,7 @@ struct layer_comparison {
 
 static enum theft_alloc_res
 corner_paths_2_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   // implementations intentionally ignore this case; the king has
@@ -147,7 +147,6 @@ corner_paths_2_cb(struct theft *t, void *env, void **instance) {
   corner_paths_2(occ, occ_r, king_rank, king_file, &x, &x_r);
   corner_paths_2_ref(
       board_occ(b),
-      board_occ_r(b),
       king_rank,
       king_file,
       &y,
@@ -163,6 +162,7 @@ corner_paths_2_cb(struct theft *t, void *env, void **instance) {
 };
 
 static enum theft_trial_res prop_layers_equal(struct theft *t, void *arg1) {
+  (void)t;
   struct layer_comparison *input = (struct layer_comparison *)arg1;
 
   if (LAYERS_EQUAL(input->x, input->y) &&
@@ -174,6 +174,7 @@ static enum theft_trial_res prop_layers_equal(struct theft *t, void *arg1) {
 }
 
 void layer_comparison_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct layer_comparison *d = (struct layer_comparison *)instance;
 
   // print board
@@ -388,6 +389,7 @@ struct moves_2_comparison {
 
 static enum theft_alloc_res
 corner_moves_2_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer y = EMPTY_LAYER;
@@ -401,8 +403,8 @@ corner_moves_2_cb(struct theft *t, void *env, void **instance) {
   layer occ_r = LAYER_OR(b.white_r, b.black_r);
 
   int dests[8] = {0};
-
   int count = 0;
+
   bool x_escape =
       corner_moves_2(occ, occ_r, king_rank, king_file, dests, &count);
   bool y_escape = corner_moves_2_ref2(occ, king_rank, king_file, &y, &y_r);
@@ -425,6 +427,7 @@ corner_moves_2_cb(struct theft *t, void *env, void **instance) {
 
 static enum theft_trial_res
 prop_moves_2_comparison_equal(struct theft *t, void *arg1) {
+  (void)t;
   struct moves_2_comparison *input = (struct moves_2_comparison *)arg1;
 
   if (input->x_escape != input->y_escape) {
@@ -441,6 +444,7 @@ prop_moves_2_comparison_equal(struct theft *t, void *arg1) {
 }
 
 void moves_2_comparison_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct moves_2_comparison *input = (struct moves_2_comparison *)instance;
 
   // print board
@@ -929,7 +933,6 @@ TEST test_corner_paths_1(const char *b, const char *e) {
   int king_rank = RANK(king_pos);
   int king_file = FILE(king_pos);
 
-  int count = 0;
   layer paths = EMPTY_LAYER;
   layer paths_r = EMPTY_LAYER;
 
@@ -1703,7 +1706,6 @@ TEST test_corner_paths_2(const char *b, const char *e) {
   int king_rank = RANK(king_pos);
   int king_file = FILE(king_pos);
 
-  int count = 0;
   layer paths = EMPTY_LAYER;
   layer paths_r = EMPTY_LAYER;
 
@@ -1741,8 +1743,8 @@ TEST test_corner_moves_2(const char *b, const char *e, bool should_escape) {
   int king_rank = RANK(king_pos);
   int king_file = FILE(king_pos);
 
-  int count = 0;
   int dests[8] = {0};
+  int count = 0;
 
   // generate layers
   bool escape = corner_moves_2(occ, occ_r, king_rank, king_file, dests, &count);

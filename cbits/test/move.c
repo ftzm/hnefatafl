@@ -69,7 +69,7 @@ void test_start_board_moves() {
 
   get_team_moves_black(start_board, &total, ms, bs);
 
-  for (int i; i < total; i++) {
+  for (int i = 0; i < total; i++) {
     /*
     char output[strlen(base) + 1];
     strcpy(output, base);
@@ -87,7 +87,7 @@ void test_start_board_moves() {
   total = 0;
   get_team_moves_white(start_board, &total, ms, bs);
 
-  for (int i; i < total; i++) {
+  for (int i = 0; i < total; i++) {
     /*
     char output[strlen(base) + 1];
     strcpy(output, base);
@@ -105,6 +105,7 @@ void test_start_board_moves() {
 
 static enum theft_alloc_res
 create_board_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board generated = theft_create_board(t);
   board *b = calloc(1, sizeof(*b));
   *b = generated;
@@ -113,6 +114,7 @@ create_board_cb(struct theft *t, void *env, void **instance) {
 };
 
 void board_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   board *b = (board *)instance;
   char output[strlen(base) + 1];
   strcpy(output, base);
@@ -131,6 +133,7 @@ static struct theft_type_info board_info = {
 };
 
 static enum theft_trial_res prop_board_printable(struct theft *t, void *arg1) {
+  (void)t;
   board *input = (board *)arg1;
   printf("\n");
   print_board(*input);
@@ -412,7 +415,7 @@ void test_start_board_moves_gen() {
 
   gen_reference_moves_black2(start_board, &total, ms, bs);
 
-  for (int i; i < total; i++) {
+  for (int i = 0; i < total; i++) {
     /*
     char output[strlen(base) + 1];
     strcpy(output, base);
@@ -431,7 +434,7 @@ void test_start_board_moves_gen() {
   total = 0;
   get_team_moves_white(start_board, &total, ms, cap_counts, bs);
 
-  for (int i; i < total; i++) {
+  for (int i = 0; i < total; i++) {
     char output[strlen(base) + 1];
     strcpy(output, base);
     fmt_board(bs[i], output);
@@ -454,15 +457,13 @@ void reference_dir_moves_black(
     int dir,
     struct move_set *ms,
     int *cnt) {
+  (void)r;
   (*cnt) = 0;
   int pos = i;
-  int rank;
-  int file;
   while (true) {
     pos += dir;
     if (pos == 60)
       continue;
-    int rank = pos / 11;
     int file = pos % 11;
     if (pos < 0 || pos > 120)
       break;
@@ -501,8 +502,6 @@ void reference_dir_moves_black(
 
 void gen_reference_move_breakdown_black(board b, move_breakdown r) {
   layer occ = board_occ(b);
-
-  int pos;
   for (int i = 0; i < 121; i++) {
 
     if (!CHECK_INDEX(b.black, i)) {
@@ -664,7 +663,6 @@ struct move_breakdown_diff get_move_breakdown_diff(
 };
 
 void get_move_breakdown(
-    board b,
     board bs[235],
     move ms[235],
     int total,
@@ -703,7 +701,7 @@ void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
   move ms[235];
   int total = 0;
   get_team_moves_black(b, &total, ms, bs);
-  get_move_breakdown(b, bs, ms, total, r);
+  get_move_breakdown(bs, ms, total, r);
 }
 
 bool move_breakdown_diff_empty(struct move_breakdown_diff d) {
@@ -719,6 +717,7 @@ bool move_breakdown_diff_empty(struct move_breakdown_diff d) {
 }
 
 static enum theft_trial_res prop_diff_empty(struct theft *t, void *arg1) {
+  (void)t;
   struct move_breakdown_diff *input = (struct move_breakdown_diff *)arg1;
   if (move_breakdown_diff_empty(*input)) {
     return THEFT_TRIAL_PASS;
@@ -729,6 +728,7 @@ static enum theft_trial_res prop_diff_empty(struct theft *t, void *arg1) {
 
 static enum theft_alloc_res
 create_get_team_moves_black_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   move_breakdown reference = {0};
@@ -745,6 +745,7 @@ create_get_team_moves_black_cb(struct theft *t, void *env, void **instance) {
 };
 
 void diff_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct move_breakdown_diff *d = (struct move_breakdown_diff *)instance;
 
   // print board
@@ -861,15 +862,13 @@ void reference_dir_moves_white(
     int dir,
     struct move_set *ms,
     int *cnt) {
+  (void)r;
   (*cnt) = 0;
   int pos = i;
-  int rank;
-  int file;
   while (true) {
     pos += dir;
     if (pos == 60)
       continue;
-    int rank = pos / 11;
     int file = pos % 11;
     if (pos < 0 || pos > 120)
       break;
@@ -908,8 +907,6 @@ void reference_dir_moves_white(
 
 void gen_reference_move_breakdown_white(board b, move_breakdown r) {
   layer occ = board_occ(b);
-
-  int pos;
   for (int i = 0; i < 121; i++) {
 
     if (!CHECK_INDEX(b.white, i)) {
@@ -986,6 +983,7 @@ void get_team_moves_white_move_breakdown(board b, move_breakdown r) {
 
 static enum theft_alloc_res
 create_get_team_moves_white_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   move_breakdown reference = {0};
@@ -1039,13 +1037,11 @@ void reference_dir_moves_king(
     int dir,
     struct move_set *ms,
     int *cnt) {
+  (void)r;
   (*cnt) = 0;
   int pos = i;
-  int rank;
-  int file;
   while (true) {
     pos += dir;
-    int rank = pos / 11;
     int file = pos % 11;
     if (pos < 0 || pos > 120)
       break;
@@ -1084,8 +1080,6 @@ void reference_dir_moves_king(
 
 void gen_reference_move_breakdown_king(board b, move_breakdown r) {
   layer occ = LAYER_XOR(board_occ(b), corners);
-
-  int pos;
   for (int i = 0; i < 121; i++) {
 
     if (!CHECK_INDEX(b.king, i)) {
@@ -1155,6 +1149,7 @@ void get_team_moves_king_move_breakdown(board b, move_breakdown r) {
 
 static enum theft_alloc_res
 create_get_team_moves_king_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   move_breakdown reference = {0};
@@ -1267,6 +1262,7 @@ struct moves_diffs compare_moves(
 }
 
 void moves_diffs_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct moves_diffs *d = (struct moves_diffs *)instance;
 
   char output[strlen(base) + 1];
@@ -1295,6 +1291,7 @@ void moves_diffs_print_cb(FILE *f, const void *instance, void *env) {
 
 static enum theft_trial_res
 prop_moves_diffs_empty(struct theft *t, void *arg1) {
+  (void)t;
   struct moves_diffs *input = (struct moves_diffs *)arg1;
   if (!input->a_excess_len && !input->b_excess_len) {
     return THEFT_TRIAL_PASS;
@@ -1310,6 +1307,7 @@ typedef int (*ConstCompareListElements)(const void *, const void *);
 
 static enum theft_alloc_res
 create_reference_moves_black_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   // orig
@@ -1367,6 +1365,7 @@ typedef int (*ConstCompareListElements)(const void *, const void *);
 
 static enum theft_alloc_res
 create_reference_moves_white_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   // orig
@@ -1422,12 +1421,14 @@ TEST test_reference_moves_white(void) {
 
 static enum theft_alloc_res
 create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   // orig
   board bs[235];
   move ms[235];
   dir ds[235];
+  (void)ds;
   int total = 0;
   get_team_moves_white(b, &total, ms, bs);
 
@@ -1488,12 +1489,14 @@ TEST test_mm_moves_white(void) {
 
 static enum theft_alloc_res
 create_mm_moves_black_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   // orig
   board bs[735];
   move ms[735];
   dir ds[735];
+  (void)ds;
   int total = 0;
   get_team_moves_black(b, &total, ms, bs);
 
@@ -1554,12 +1557,14 @@ TEST test_mm_moves_black(void) {
 
 static enum theft_alloc_res
 create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   // orig
   board bs[235];
   move ms[235];
   dir ds[235];
+  (void)ds;
   int total = 0;
   get_king_moves(b, &total, ms, bs);
 
@@ -1579,7 +1584,6 @@ create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
   gen_moves_from_mm_king(
       b,
       king_pos,
-      mms.king,
       mms.white,
       mms.black,
       ms2,
@@ -1631,6 +1635,7 @@ typedef int (*ConstCompareListElements)(const void *, const void *);
 
 static enum theft_alloc_res
 moves_to_black_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
@@ -1646,6 +1651,7 @@ moves_to_black_cb(struct theft *t, void *env, void **instance) {
   layer ls[335];
   layer ls_r[335];
   board bs2[335];
+  (void)bs2;
   move ms2[335];
   int total2 = 0;
   moves_to(
@@ -1702,6 +1708,7 @@ TEST test_moves_to_black(void) {
 
 static enum theft_alloc_res
 moves_to_white_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
@@ -1717,6 +1724,7 @@ moves_to_white_cb(struct theft *t, void *env, void **instance) {
   layer ls[235];
   layer ls_r[335];
   board bs2[335];
+  (void)bs2;
   move ms2[335];
   int total2 = 0;
   moves_to(
@@ -1773,6 +1781,7 @@ TEST test_moves_to_white(void) {
 
 static enum theft_alloc_res
 moves_to_king_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   // orig
@@ -1840,6 +1849,7 @@ struct move_to_entries {
 
 static enum theft_alloc_res
 test_moves_to_layers(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
@@ -1851,6 +1861,7 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
   layer ls[235] = {0};
   layer ls_r[335] = {0};
   board bs[335] = {0};
+  (void)bs;
   move ms[335] = {0};
   int total = 0;
 
@@ -1866,7 +1877,7 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
       ls_r,
       &total);
 
-  struct move_to_entries incorrect_entries = {{0}, 0};
+  struct move_to_entries incorrect_entries = {0};
   for (int i = 0; i < total; i++) {
     move m = ms[i];
     layer correct_layer = EMPTY_LAYER;
@@ -1879,7 +1890,7 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
           (struct move_to_entry){m, ls[i], ls_r[i]};
       incorrect_entries.len++;
     }
-  };
+  }
 
   struct move_to_entries *e = calloc(1, sizeof(*e));
   *e = incorrect_entries;
@@ -1889,6 +1900,7 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
 }
 
 static enum theft_trial_res move_to_entries_empty(struct theft *t, void *arg1) {
+  (void)t;
   struct move_to_entries *input = (struct move_to_entries *)arg1;
   if (!input->len) {
     return THEFT_TRIAL_PASS;
@@ -1898,6 +1910,7 @@ static enum theft_trial_res move_to_entries_empty(struct theft *t, void *arg1) {
 }
 
 void move_to_entries_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct move_to_entries *input = (struct move_to_entries *)instance;
 
   for (int i = 0; i < input->len; i++) {
@@ -1947,6 +1960,7 @@ struct move_counts {
 
 static enum theft_alloc_res
 white_moves_count_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
@@ -1970,6 +1984,7 @@ white_moves_count_cb(struct theft *t, void *env, void **instance) {
 
 static enum theft_trial_res
 prop_move_counts_equal(struct theft *t, void *arg1) {
+  (void)t;
   struct move_counts *input = (struct move_counts *)arg1;
 
   if (input->from_move_func == input->from_move_count) {
@@ -1980,6 +1995,7 @@ prop_move_counts_equal(struct theft *t, void *arg1) {
 }
 
 void move_counts_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct move_counts *input = (struct move_counts *)instance;
 
   // print board
@@ -2021,6 +2037,7 @@ TEST test_white_moves_count(void) {
 
 static enum theft_alloc_res
 black_moves_count_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
@@ -2071,6 +2088,7 @@ TEST test_black_moves_count(void) {
 
 static enum theft_alloc_res
 king_moves_count_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   moves_to_t r = moves_to_king(
@@ -2158,6 +2176,15 @@ SUITE(move_suite) {
 
   init_move_globals();
 
+  RUN_TEST(test_board_printable);
+  RUN_TEST(test_get_team_moves_black);
+  RUN_TEST(test_get_team_moves_white);
+  RUN_TEST(test_get_team_moves_king);
+  RUN_TEST(test_reference_moves_black);
+  RUN_TEST(test_reference_moves_white);
+  RUN_TEST(test_mm_moves_white);
+  RUN_TEST(test_mm_moves_black);
+  RUN_TEST(test_mm_moves_king);
   RUN_TEST(test_moves_to_white);
   RUN_TEST(test_moves_to_black);
   RUN_TEST(test_moves_to_king);

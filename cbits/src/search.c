@@ -1570,5 +1570,16 @@ i32 search_white(
     i32 beta,
     stats *statistics,
     bool is_pv) {
+  (void)positions;
+  (void)w;
+  (void)s;
+  (void)b;
+  (void)position_hash;
+  (void)ply;
+  (void)depth;
+  (void)alpha;
+  (void)beta;
+  (void)statistics;
+  (void)is_pv;
   return 0;
 }

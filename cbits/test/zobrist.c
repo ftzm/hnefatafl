@@ -36,7 +36,9 @@ TEST test_black_zobrist() {
 
     board_string_t b2_str =
         to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.white, b2.white));
-    ASSERT_EQm(b2_str._, re_hash, incremental_hash);
+    static char msg_buf[1000];
+    strcpy(msg_buf, b2_str._);
+    ASSERT_EQm(msg_buf, re_hash, incremental_hash);
   }
 
   PASS();
@@ -62,7 +64,9 @@ TEST test_white_zobrist() {
 
     board_string_t b2_str =
         to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.black, b2.black));
-    ASSERT_EQm(b2_str._, re_hash, incremental_hash);
+    static char msg_buf[1000];
+    strcpy(msg_buf, b2_str._);
+    ASSERT_EQm(msg_buf, re_hash, incremental_hash);
   }
 
   PASS();
@@ -88,7 +92,9 @@ TEST test_king_zobrist() {
 
     board_string_t b2_str =
         to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.black, b2.black));
-    ASSERT_EQm(b2_str._, re_hash, incremental_hash);
+    static char msg_buf[1000];
+    strcpy(msg_buf, b2_str._);
+    ASSERT_EQm(msg_buf, re_hash, incremental_hash);
   }
 
   PASS();

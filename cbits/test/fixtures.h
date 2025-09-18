@@ -4,12 +4,13 @@
 #include "constants.h"
 #include "board.h"
 
-u64
-inline theft_random_choice_between(struct theft *t, u64 floor, u64 ceil) {
+inline u64 theft_random_choice_between(struct theft *t, u64 floor, u64 ceil) {
+  (void)t;
   return random() % ceil + floor;
 }
 
 inline u64 my_random_choice(struct theft *t, int limit) {
+  (void)t;
   return random() % limit;
 }
 

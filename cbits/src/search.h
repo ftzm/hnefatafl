@@ -11,12 +11,12 @@
 #define MAX_SCORE 2147483646
 #define MIN_SCORE -2147483646
 
-struct pv_line {
+typedef struct pv_line {
   bool is_black_turn;
   move *moves;
   int length;
   i32 score;
-} typedef pv_line;
+} pv_line;
 
 typedef struct stats {
   int search_positions_black;

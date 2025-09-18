@@ -37,7 +37,7 @@ bool king_capture_check(const board *b) {
   const layer surround_mask = layer_shift(SURROUND_MASK, mask_shift);
 
   // The throne also participates in king captures.
-  const layer attackers = {b->black._[0] | THRONE_MASK_0, b->black._[1]};
+  const layer attackers = {{b->black._[0] | THRONE_MASK_0, b->black._[1]}};
 
   // Get a layer of the occupied positions.
   const layer present = LAYER_AND(attackers, surround_mask);

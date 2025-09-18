@@ -2,7 +2,6 @@
 #include "stddef.h"
 #include "util.h"
 
-static inline u64 fastrange64(u64 word, u64 p);
 
 typedef struct position_set {
   size_t size;

@@ -99,7 +99,7 @@ UBENCH_EX(position_set_insert, load_10_percent) {
   
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (int i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i < ps->size; i++) {
       ps->elements[i] = 0;
     }
     
@@ -123,7 +123,7 @@ UBENCH_EX(position_set_insert, load_25_percent) {
   
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (int i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i < ps->size; i++) {
       ps->elements[i] = 0;
     }
     
@@ -147,7 +147,7 @@ UBENCH_EX(position_set_insert, load_50_percent) {
   
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (int i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i < ps->size; i++) {
       ps->elements[i] = 0;
     }
     
@@ -171,7 +171,7 @@ UBENCH_EX(position_set_insert, load_75_percent) {
   
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (int i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i < ps->size; i++) {
       ps->elements[i] = 0;
     }
     
@@ -195,7 +195,7 @@ UBENCH_EX(position_set_insert, load_90_percent) {
   
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (int i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i < ps->size; i++) {
       ps->elements[i] = 0;
     }
     

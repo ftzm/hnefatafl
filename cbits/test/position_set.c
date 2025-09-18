@@ -13,7 +13,7 @@ TEST test_add_and_remove_nullifies() {
 
   // 70 elements exist
   int pre_elem_count = 0;
-  for (int i = 0; i < ps->size; i++) {
+  for (size_t i = 0; i < ps->size; i++) {
     if (ps->elements[i]) {
       pre_elem_count++;
     }
@@ -25,7 +25,7 @@ TEST test_add_and_remove_nullifies() {
 
   // 0 elements exist
   int post_elem_count = 0;
-  for (int i = 0; i < ps->size; i++) {
+  for (size_t i = 0; i < ps->size; i++) {
     if (ps->elements[i]) {
       post_elem_count++;
     }

@@ -79,10 +79,8 @@ u16 dirty_get_row(layer l, int n) {
     return DIRTY_GET_ROW_9(l);
   case 10:
     return DIRTY_GET_ROW_10(l);
-    // default:
-    //   // return 0;;
-    //   fprintf(stderr, "invalid row accessed");
-    //   abort();
+  default:
+    __builtin_unreachable();
   }
 }
 

@@ -13,7 +13,7 @@ const u8 rank_mod[121] = {
     88,  88,  88,  99,  99,  99,  99,  99,  99, 99, 99, 99, 99, 99, 110, 110,
     110, 110, 110, 110, 110, 110, 110, 110, 110};
 
-void gen_king_mm(board b, layer occ, int orig, move_map mm) {
+void gen_king_mm(layer occ, int orig, move_map mm) {
   int dest;
 
   // north
@@ -442,7 +442,6 @@ void gen_moves_from_mm_white(
     board *bs,
     int *total) {
   *total = 0;
-  layer occ = board_occ(b);
 
   u64 remaining = dests._[0];
   int dest = 0;
@@ -519,7 +518,6 @@ void gen_moves_from_mm_white_capture(
     board *bs,
     int *total) {
   *total = 0;
-  layer occ = board_occ(b);
 
   u64 remaining = dests._[0];
   int dest = 0;
@@ -600,7 +598,6 @@ void gen_moves_from_mm_black(
     board *bs,
     int *total) {
   *total = 0;
-  layer occ = board_occ(b);
 
   u64 remaining = dests._[0];
   int dest = 0;
@@ -677,7 +674,6 @@ void gen_moves_from_mm_black_capture(
     board *bs,
     int *total) {
   *total = 0;
-  layer occ = board_occ(b);
 
   u64 remaining = dests._[0];
   int dest = 0;
@@ -752,7 +748,6 @@ process:
 void gen_moves_from_mm_king(
     const board b,
     const int orig,
-    const move_map allies,
     const move_map them1,
     const move_map them2,
     move *ms,
@@ -823,7 +818,6 @@ void gen_moves_from_mm_king(
 void gen_moves_from_mm_king_capture(
     const board b,
     const int orig,
-    const move_map allies,
     const move_map them1,
     const move_map them2,
     move *ms,

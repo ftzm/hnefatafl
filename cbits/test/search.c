@@ -104,7 +104,7 @@ TEST assert_pv(
     skip_line = true;
   }
 
-  pv_line expected_pv = {is_black_turn, moves, length};
+  pv_line expected_pv = {is_black_turn, moves, length, 0};
 
   // Compute PV using provided function
   pv_line computed_pv = f(b);

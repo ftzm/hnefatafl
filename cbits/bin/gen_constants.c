@@ -29,7 +29,7 @@ layer read_layer(const char *string, u8 symbol) {
 void print_layer_info(char *layer_str, char *name_str) {
   layer l = read_layer(layer_str, 'X');
   printf(
-      "static const layer %s = {%juULL, %juULL};\n",
+      "static const layer %s = {{%juULL, %juULL}};\n",
       name_str,
       l._[0],
       l._[1]);
@@ -39,12 +39,12 @@ void print_layer_defines(char *layer_str, char *name_str) {
   layer l = read_layer(layer_str, 'X');
   printf("#define %s_0 %juULL\n", name_str, l._[0]);
   printf("#define %s_1 %juULL\n", name_str, l._[1]);
-  printf("#define %s ((layer){%juULL, %juULL})\n", name_str, l._[0], l._[1]);
+  printf("#define %s ((layer){{%juULL, %juULL}})\n", name_str, l._[0], l._[1]);
 };
 
 void print_layer_direct(layer l, char *name_str) {
   printf(
-      "static const layer %s = {%juULL, %juULL};\n",
+      "static const layer %s = {{%juULL, %juULL}};\n",
       name_str,
       l._[0],
       l._[1]);

@@ -1376,9 +1376,9 @@ layer find_capture_destinations(
   layer west = LAYER_SHIFTL_SHORT(
       LAYER_AND(LAYER_SHIFTL_SHORT(LAYER_AND(allies, drop_2_west), 1), foes),
       1);
-  return (layer){
+  return (layer){{
       (north._[0] | south._[0] | east._[0] | west._[0]) & (~occ._[0]),
-      (north._[1] | south._[1] | east._[1] | west._[1]) & (~occ._[1])};
+      (north._[1] | south._[1] | east._[1] | west._[1]) & (~occ._[1])}};
 }
 
 /*[[[cog
@@ -1886,9 +1886,9 @@ void get_king_moves(
     int *total,
     move *moves,
     board *boards) {
-  const layer occ = {
+  const layer occ = {{
       current.white._[0] | current.black._[0] | current.king._[0],
-      current.white._[1] | current.black._[1] | current.king._[1]};
+      current.white._[1] | current.black._[1] | current.king._[1]}};
 
   // const layer capture_dests = find_capture_destinations_op(current.white,
   // current.black);
@@ -1993,9 +1993,9 @@ void get_king_moves(
     }
   }
 
-  const layer occ_r = {
+  const layer occ_r = {{
       current.white_r._[0] | current.black_r._[0] | current.king_r._[0],
-      current.white_r._[1] | current.black_r._[1] | current.king_r._[1]};
+      current.white_r._[1] | current.black_r._[1] | current.king_r._[1]}};
 
   u8 orig_r = rotate_right[orig];
 

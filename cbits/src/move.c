@@ -63,7 +63,7 @@ leftward
   u8 dest = _tzcnt_u64(dest_bit);                                              \
   OFFSET(dest, _i);                                                            \
   u8 orig = 63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & leftward_occ##_r._[_i]);   \
-  u64 orig_bit = (u64)1 << orig;                                               \
+  __attribute__((unused)) u64 orig_bit = (u64)1 << orig;                       \
   OFFSET(orig, _i);
 
 #define EXTRACT_CENTER_LEFTWARD(_l)                                            \
@@ -339,8 +339,6 @@ void moves_to(
   u16 center_movers_r = GET_CENTER_ROW(movers_r);
   layer leftward_occ = LAYER_OR(occ, file_mask_0);
   layer leftward_occ_r = LAYER_OR(occ_r, file_mask_0);
-  layer rightward_occ = LAYER_OR(occ, file_mask_10);
-  layer rightward_occ_r = LAYER_OR(occ_r, file_mask_10);
   // I thought these might be necessary but maybe not...
   // rightward_occ._[1] |= 2;
   // rightward_occ_r._[1] |= 2;
@@ -397,8 +395,6 @@ void moves_to_king_impl(
   u16 center_movers_r = GET_CENTER_ROW(movers_r);
   layer leftward_occ = LAYER_OR(occ, file_mask_0);
   layer leftward_occ_r = LAYER_OR(occ_r, file_mask_0);
-  layer rightward_occ = LAYER_OR(occ, file_mask_10);
-  layer rightward_occ_r = LAYER_OR(occ_r, file_mask_10);
   // I thought these might be necessary but maybe not...
   // rightward_occ._[1] |= 2;
   // rightward_occ_r._[1] |= 2;
@@ -437,7 +433,7 @@ void moves_to_king_impl(
   // printf("rightward total: %d\n", *total);
 }
 
-inline layer leftward_moves_layer(layer movers, layer occ) {
+static inline layer leftward_moves_layer(layer movers, layer occ) {
   layer output = EMPTY_LAYER;
 
   u64 carryover;
@@ -447,7 +443,7 @@ inline layer leftward_moves_layer(layer movers, layer occ) {
     // we & ~blockers to remove all blockers that haven't been bit flipped by
     // a substraction, so that all we're left with are subtraction rays
     u64 dests = (blockers - ((movers._[0]) << 1)) & ~(blockers | throne._[0]);
-    carryover = ((dests | movers._[0] & (((u64)1) << 63)) >> 63) & ~occ._[1];
+    carryover = ((dests | (movers._[0] & (((u64)1) << 63))) >> 63) & ~occ._[1];
     output._[0] = dests;
   }
 
@@ -461,7 +457,7 @@ inline layer leftward_moves_layer(layer movers, layer occ) {
   return output;
 }
 
-inline layer rightward_moves_layer(layer movers, layer occ) {
+static inline layer rightward_moves_layer(layer movers, layer occ) {
   layer output = EMPTY_LAYER;
 
   u64 carryover;
@@ -549,7 +545,7 @@ typedef struct {
 // -----------------------------------------------------------------------------
 // Move count
 
-inline int leftward_moves_count_king(layer movers, layer occ) {
+static inline int leftward_moves_count_king(layer movers, layer occ) {
   int output = 0;
 
   // lower
@@ -578,7 +574,7 @@ inline int leftward_moves_count_king(layer movers, layer occ) {
   if (GET_CENTER_ROW(movers)) {
     u16 blockers = GET_CENTER_ROW(occ);
     u64 dests =
-        blockers - (GET_CENTER_ROW(movers) << 1) & ~blockers & 0b11111111111;
+        (blockers - (GET_CENTER_ROW(movers) << 1)) & ~blockers & 0b11111111111;
     // print_row((u16)dests);
     return __builtin_popcount(dests);
     // printf("output: %d\n", output);
@@ -587,11 +583,11 @@ inline int leftward_moves_count_king(layer movers, layer occ) {
   return output;
 }
 
-inline int leftward_moves_count(layer movers, layer occ) {
+static inline int leftward_moves_count(layer movers, layer occ) {
   return LAYER_POPCOUNT(leftward_moves_layer(movers, occ));
 }
 
-inline int rightward_moves_count(layer movers, layer occ) {
+static inline int rightward_moves_count(layer movers, layer occ) {
   return LAYER_POPCOUNT(rightward_moves_layer(movers, occ));
 }
 
@@ -617,7 +613,7 @@ int white_moves_count(const board *b) {
   return total;
 }
 
-inline int rightward_moves_count_king(layer movers, layer occ) {
+static inline int rightward_moves_count_king(layer movers, layer occ) {
   int output = 0;
 
   if (movers._[0] & LOWER_HALF_MASK) {

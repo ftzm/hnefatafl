@@ -323,6 +323,7 @@ bool next_move(move_generator *gen, move *result) {
     switch (gen->state) {
     case GEN_LEFTWARD_0:
       gen->dests = GEN_LEFTWARD_DESTS(0, , gen);
+      /* fallthrough */
 
     case GEN_LEFTWARD_0_EXTRACT:
       if (gen->dests) {
@@ -330,9 +331,11 @@ bool next_move(move_generator *gen, move *result) {
         gen->state = GEN_LEFTWARD_0_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_LEFTWARD_1:
       gen->dests = GEN_LEFTWARD_DESTS(1, , gen);
+      /* fallthrough */
 
     case GEN_LEFTWARD_1_EXTRACT:
       if (gen->dests) {
@@ -340,9 +343,11 @@ bool next_move(move_generator *gen, move *result) {
         gen->state = GEN_LEFTWARD_1_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_LEFTWARD_CENTER:
       gen->dests = GEN_LEFTWARD_CENTER_DESTS(, gen);
+      /* fallthrough */
 
     case GEN_LEFTWARD_CENTER_EXTRACT:
       if (gen->dests) {
@@ -350,9 +355,11 @@ bool next_move(move_generator *gen, move *result) {
         gen->state = GEN_LEFTWARD_CENTER_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_LEFTWARD_0_R:
       gen->dests = GEN_LEFTWARD_DESTS(0, _r, gen);
+      /* fallthrough */
 
     case GEN_LEFTWARD_0_R_EXTRACT:
       if (gen->dests) {
@@ -360,9 +367,11 @@ bool next_move(move_generator *gen, move *result) {
         gen->state = GEN_LEFTWARD_0_R_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_LEFTWARD_1_R:
       gen->dests = GEN_LEFTWARD_DESTS(1, _r, gen);
+      /* fallthrough */
 
     case GEN_LEFTWARD_1_R_EXTRACT:
       if (gen->dests) {
@@ -370,9 +379,11 @@ bool next_move(move_generator *gen, move *result) {
         gen->state = GEN_LEFTWARD_1_R_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_LEFTWARD_CENTER_R:
       gen->dests = GEN_LEFTWARD_CENTER_DESTS(_r, gen);
+      /* fallthrough */
 
     case GEN_LEFTWARD_CENTER_R_EXTRACT:
       if (gen->dests) {
@@ -380,11 +391,13 @@ bool next_move(move_generator *gen, move *result) {
         gen->state = GEN_LEFTWARD_CENTER_R_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     // Rightward moves
     case GEN_RIGHTWARD_0:
       INIT_RIGHTWARD_MOVES(0, , gen);
       gen->state = GEN_RIGHTWARD_0_EXTRACT;
+      /* fallthrough */
 
     case GEN_RIGHTWARD_0_EXTRACT:
       if (gen->dests == 0) {
@@ -403,6 +416,7 @@ bool next_move(move_generator *gen, move *result) {
     case GEN_RIGHTWARD_1:
       INIT_RIGHTWARD_MOVES(1, , gen);
       gen->state = GEN_RIGHTWARD_1_EXTRACT;
+      /* fallthrough */
 
     case GEN_RIGHTWARD_1_EXTRACT:
       if (gen->dests == 0) {
@@ -421,6 +435,7 @@ bool next_move(move_generator *gen, move *result) {
     case GEN_RIGHTWARD_CENTER:
       INIT_RIGHTWARD_CENTER_MOVES(, gen);
       gen->state = GEN_RIGHTWARD_CENTER_EXTRACT;
+      /* fallthrough */
 
     case GEN_RIGHTWARD_CENTER_EXTRACT:
       if (gen->dests == 0) {
@@ -439,6 +454,7 @@ bool next_move(move_generator *gen, move *result) {
     case GEN_RIGHTWARD_0_R:
       INIT_RIGHTWARD_MOVES(0, _r, gen);
       gen->state = GEN_RIGHTWARD_0_R_EXTRACT;
+      /* fallthrough */
 
     case GEN_RIGHTWARD_0_R_EXTRACT:
       if (gen->dests == 0) {
@@ -457,6 +473,7 @@ bool next_move(move_generator *gen, move *result) {
     case GEN_RIGHTWARD_1_R:
       INIT_RIGHTWARD_MOVES(1, _r, gen);
       gen->state = GEN_RIGHTWARD_1_R_EXTRACT;
+      /* fallthrough */
 
     case GEN_RIGHTWARD_1_R_EXTRACT:
       if (gen->dests == 0) {
@@ -475,6 +492,7 @@ bool next_move(move_generator *gen, move *result) {
     case GEN_RIGHTWARD_CENTER_R:
       INIT_RIGHTWARD_CENTER_MOVES(_r, gen);
       gen->state = GEN_RIGHTWARD_CENTER_R_EXTRACT;
+      /* fallthrough */
 
     case GEN_RIGHTWARD_CENTER_R_EXTRACT:
       if (gen->dests == 0) {
@@ -505,6 +523,7 @@ bool next_move_king(move_generator *gen, move *result) {
     switch (gen->state) {
     case GEN_KING_LEFTWARD_0:
       gen->dests = GEN_LEFTWARD_DESTS(0, , gen);
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_0_EXTRACT:
       if (gen->dests) {
@@ -512,9 +531,11 @@ bool next_move_king(move_generator *gen, move *result) {
         gen->state = GEN_KING_LEFTWARD_0_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_1:
       gen->dests = GEN_LEFTWARD_DESTS(1, , gen);
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_1_EXTRACT:
       if (gen->dests) {
@@ -522,9 +543,11 @@ bool next_move_king(move_generator *gen, move *result) {
         gen->state = GEN_KING_LEFTWARD_1_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_CENTER:
       gen->dests = GEN_LEFTWARD_CENTER_DESTS(, gen);
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_CENTER_EXTRACT:
       if (gen->dests) {
@@ -532,9 +555,11 @@ bool next_move_king(move_generator *gen, move *result) {
         gen->state = GEN_KING_LEFTWARD_CENTER_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_0_R:
       gen->dests = GEN_LEFTWARD_DESTS(0, _r, gen);
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_0_R_EXTRACT:
       if (gen->dests) {
@@ -542,9 +567,11 @@ bool next_move_king(move_generator *gen, move *result) {
         gen->state = GEN_KING_LEFTWARD_0_R_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_1_R:
       gen->dests = GEN_LEFTWARD_DESTS(1, _r, gen);
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_1_R_EXTRACT:
       if (gen->dests) {
@@ -552,9 +579,11 @@ bool next_move_king(move_generator *gen, move *result) {
         gen->state = GEN_KING_LEFTWARD_1_R_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_CENTER_R:
       gen->dests = GEN_LEFTWARD_CENTER_DESTS(_r, gen);
+      /* fallthrough */
 
     case GEN_KING_LEFTWARD_CENTER_R_EXTRACT:
       if (gen->dests) {
@@ -562,11 +591,13 @@ bool next_move_king(move_generator *gen, move *result) {
         gen->state = GEN_KING_LEFTWARD_CENTER_R_EXTRACT;
         return true;
       }
+      /* fallthrough */
 
     // Rightward moves (king-specific for lower half)
     case GEN_KING_RIGHTWARD_0:
       INIT_RIGHTWARD_MOVES_KING(0, , gen);
       gen->state = GEN_KING_RIGHTWARD_0_EXTRACT;
+      /* fallthrough */
 
     case GEN_KING_RIGHTWARD_0_EXTRACT:
       if (gen->dests == 0) {
@@ -585,6 +616,7 @@ bool next_move_king(move_generator *gen, move *result) {
     case GEN_KING_RIGHTWARD_1:
       INIT_RIGHTWARD_MOVES(1, , gen);
       gen->state = GEN_KING_RIGHTWARD_1_EXTRACT;
+      /* fallthrough */
 
     case GEN_KING_RIGHTWARD_1_EXTRACT:
       if (gen->dests == 0) {
@@ -603,6 +635,7 @@ bool next_move_king(move_generator *gen, move *result) {
     case GEN_KING_RIGHTWARD_CENTER:
       INIT_RIGHTWARD_CENTER_MOVES(, gen);
       gen->state = GEN_KING_RIGHTWARD_CENTER_EXTRACT;
+      /* fallthrough */
 
     case GEN_KING_RIGHTWARD_CENTER_EXTRACT:
       if (gen->dests == 0) {
@@ -621,6 +654,7 @@ bool next_move_king(move_generator *gen, move *result) {
     case GEN_KING_RIGHTWARD_0_R:
       INIT_RIGHTWARD_MOVES_KING(0, _r, gen);
       gen->state = GEN_KING_RIGHTWARD_0_R_EXTRACT;
+      /* fallthrough */
 
     case GEN_KING_RIGHTWARD_0_R_EXTRACT:
       if (gen->dests == 0) {
@@ -639,6 +673,7 @@ bool next_move_king(move_generator *gen, move *result) {
     case GEN_KING_RIGHTWARD_1_R:
       INIT_RIGHTWARD_MOVES(1, _r, gen);
       gen->state = GEN_KING_RIGHTWARD_1_R_EXTRACT;
+      /* fallthrough */
 
     case GEN_KING_RIGHTWARD_1_R_EXTRACT:
       if (gen->dests == 0) {
@@ -657,6 +692,7 @@ bool next_move_king(move_generator *gen, move *result) {
     case GEN_KING_RIGHTWARD_CENTER_R:
       INIT_RIGHTWARD_CENTER_MOVES(_r, gen);
       gen->state = GEN_KING_RIGHTWARD_CENTER_R_EXTRACT;
+      /* fallthrough */
 
     case GEN_KING_RIGHTWARD_CENTER_R_EXTRACT:
       if (gen->dests == 0) {

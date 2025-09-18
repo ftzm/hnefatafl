@@ -49,7 +49,7 @@ void apply_westward_move(
     move_map foes,
     move_map king);
 
-void gen_king_mm(board b, layer occ, int orig, move_map mm);
+void gen_king_mm(layer occ, int orig, move_map mm);
 
 struct move_maps build_mms(board b);
 
@@ -74,7 +74,6 @@ void gen_moves_from_mm_black(
 void gen_moves_from_mm_king(
     const board b,
     const int orig,
-    const move_map allies,
     const move_map them1,
     const move_map them2,
     move *ms,
@@ -103,7 +102,6 @@ void gen_moves_from_mm_black_capture(
 void gen_moves_from_mm_king_capture(
     const board b,
     const int orig,
-    const move_map allies,
     const move_map them1,
     const move_map them2,
     move *ms,

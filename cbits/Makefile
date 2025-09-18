@@ -28,7 +28,7 @@ BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 # Compiler and flags
 CC := gcc
 #CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -fsanitize=address -Wformat
-CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g
+CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror
 LDFLAGS := 
 DEP_FLAGS = -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d
 
@@ -124,7 +124,7 @@ update-test-suites:
 # Running `make test` will run all tests.
 
 $(TEST_BIN_DIR)/%: $(OBJ_DIR)/$(TEST_DIR)/%.o $(LIB_TARGET) | $(TEST_BIN_DIR)
-	@$(CC) $(LDFLAGS) -o $@ $< $(TEST_LIBS)
+	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(TEST_LIBS)
 
 .PRECIOUS: $(TEST_BIN_DIR)/%
 

@@ -48,9 +48,10 @@ typedef struct score_evaluations {
 
 static enum theft_trial_res
 score_evaluations_equal(struct theft *t, void *arg1) {
+  (void)t;
   struct score_evaluations *input = (struct score_evaluations *)arg1;
 
-  for (int i; i < input->total; i++) {
+  for (int i = 0; i < input->total; i++) {
     if (!score_states_equal(
             &input->full_score_states[i],
             &input->incremental_score_states[i])) {
@@ -61,6 +62,7 @@ score_evaluations_equal(struct theft *t, void *arg1) {
 }
 
 void score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct score_evaluations *input = (struct score_evaluations *)instance;
 
   // print board
@@ -69,7 +71,7 @@ void score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
   fmt_board(input->b, output);
   fprintf(f, "%s", output);
 
-  for (int i; i < input->total; i++) {
+  for (int i = 0; i < input->total; i++) {
     if (!score_states_equal(
             &input->full_score_states[i],
             &input->incremental_score_states[i])) {
@@ -126,6 +128,7 @@ inline layer non_capture_king_r(board *b, const layer *captures) {
 
 static enum theft_alloc_res
 white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   score_weights w = {3, 3, 3, 3, 3, 3, 3, init_default_psts()};
@@ -145,7 +148,7 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
   moves_to_t moves = moves_to_white(b, non_capture_dests, non_capture_dests_r);
 
   score_evaluations results = {.b = b, .total = moves.total};
-  for (int i; i < moves.total; i++) {
+  for (int i = 0; i < moves.total; i++) {
     move m = moves.ms[i];
 
     results.moves[i] = m;
@@ -200,6 +203,7 @@ TEST prop_white_scores_no_capture_inc_correct(void) {
 
 static enum theft_alloc_res
 white_scores_capture_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   score_weights w = {1, 1, 1, 1, 1, 1, 1, init_default_psts()};
@@ -214,7 +218,7 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
   moves_to_t moves = moves_to_white(b, capture_dests, capture_dests_r);
 
   score_evaluations results = {.b = b, .total = moves.total};
-  for (int i; i < moves.total; i++) {
+  for (int i = 0; i < moves.total; i++) {
     move m = moves.ms[i];
 
     results.moves[i] = m;

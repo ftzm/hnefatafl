@@ -25,31 +25,31 @@ int boards_equal(board a, board b) {
 
 // todo: take reference
 inline layer board_occ(board b) {
-  return (layer){// We can't put the throne in here becase it shouldn't function
+  return (layer){{// We can't put the throne in here becase it shouldn't function
                  // as a blocker
                  b.black._[0] | b.white._[0] | b.king._[0] | corners._[0],
-                 b.black._[1] | b.white._[1] | b.king._[1] | corners._[1]};
+                 b.black._[1] | b.white._[1] | b.king._[1] | corners._[1]}};
 }
 
 // todo: take reference
 inline layer board_occ_r(board b) {
-  return (layer){
+  return (layer){{
       // We can't put the throne in here becase it shouldn't function as a
       // blocker
       b.black_r._[0] | b.white_r._[0] | b.king_r._[0] | corners._[0],
-      b.black_r._[1] | b.white_r._[1] | b.king_r._[1] | corners._[1]};
+      b.black_r._[1] | b.white_r._[1] | b.king_r._[1] | corners._[1]}};
 }
 
 inline layer king_board_occ(board b) {
-  return (layer){
+  return (layer){{
       b.black._[0] | b.white._[0] | b.king._[0],
-      b.black._[1] | b.white._[1] | b.king._[1]};
+      b.black._[1] | b.white._[1] | b.king._[1]}};
 }
 
 inline layer king_board_occ_r(board b) {
-  return (layer){
+  return (layer){{
       b.black_r._[0] | b.white_r._[0] | b.king_r._[0],
-      b.black_r._[1] | b.white_r._[1] | b.king_r._[1]};
+      b.black_r._[1] | b.white_r._[1] | b.king_r._[1]}};
 }
 
 board rotate_board_right(board b) {

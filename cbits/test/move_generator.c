@@ -35,6 +35,7 @@ typedef int (*ConstCompareListElements)(const void *, const void *);
 
 static enum theft_alloc_res
 move_generator_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer throne_mask = EMPTY_LAYER;
@@ -120,6 +121,7 @@ move_generator_cb(struct theft *t, void *env, void **instance) {
 
 static enum theft_trial_res
 prop_generator_comparison_empty(struct theft *t, void *arg1) {
+  (void)t;
   struct generator_comparison *input = (struct generator_comparison *)arg1;
   if (input->extra_count == 0 && input->missing_count == 0) {
     return THEFT_TRIAL_PASS;
@@ -129,6 +131,7 @@ prop_generator_comparison_empty(struct theft *t, void *arg1) {
 }
 
 void generator_comparison_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
   struct generator_comparison *comp = (struct generator_comparison *)instance;
 
   // Print board
@@ -187,6 +190,7 @@ TEST test_move_generator(void) {
 
 static enum theft_alloc_res
 king_move_generator_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
   board b = theft_create_board(t);
 
   layer targets = LAYER_NEG(king_board_occ(b));

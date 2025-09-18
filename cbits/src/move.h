@@ -13,24 +13,6 @@ typedef enum dir {
   west,
 } dir;
 
-static const char *dir_str(enum dir d) {
-  const char *dir_strs[] = {
-      [north] = "north",
-      [south] = "south",
-      [east] = "east",
-      [west] = "west",
-  };
-  return dir_strs[d];
-}
-
-static enum dir other_dir(enum dir d) {
-  enum dir others[4];
-  others[north] = south;
-  others[south] = north;
-  others[east] = west;
-  others[west] = east;
-  return others[d];
-}
 
 // -----------------------------------------------------------------------------
 
@@ -85,7 +67,7 @@ typedef struct moves_to {
 
 static inline moves_to_t
 moves_to_black(board b, layer targets, layer targets_r) {
-  moves_to_t results = {{0}};
+  moves_to_t results = {0};
   results.total = 0;
   moves_to(
       targets,
@@ -103,7 +85,7 @@ moves_to_black(board b, layer targets, layer targets_r) {
 
 static inline moves_to_t
 moves_to_white(board b, layer targets, layer targets_r) {
-  moves_to_t results = {{0}};
+  moves_to_t results = {0};
   results.total = 0;
   moves_to(
       targets,
@@ -121,7 +103,7 @@ moves_to_white(board b, layer targets, layer targets_r) {
 
 static inline moves_to_t
 moves_to_king(board b, layer targets, layer targets_r) {
-  moves_to_t results = {{0}};
+  moves_to_t results = {0};
   results.total = 0;
   moves_to_king_impl(
       targets,
