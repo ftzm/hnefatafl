@@ -40,7 +40,7 @@ move_generator_cb(struct theft *t, void *env, void **instance) {
 
   layer throne_mask = EMPTY_LAYER;
   OP_LAYER_BIT(throne_mask, 60, |=);
-  layer targets = LAYER_NEG(LAYER_OR(throne_mask, board_occ(b)));
+  layer targets = pawn_destinations(b);
   layer targets_r = LAYER_NEG(LAYER_OR(throne_mask, board_occ_r(b)));
 
   // Get moves using existing function
@@ -193,8 +193,8 @@ king_move_generator_cb(struct theft *t, void *env, void **instance) {
   (void)env;
   board b = theft_create_board(t);
 
-  layer targets = LAYER_NEG(king_board_occ(b));
-  layer targets_r = LAYER_NEG(king_board_occ_r(b));
+  layer targets = king_destinations(b);
+  layer targets_r = king_destinations_r(b);
 
   // Get moves using existing moves_to_king_impl function
   layer ls[335];

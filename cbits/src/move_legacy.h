@@ -2,7 +2,6 @@
 
 #include "board.h"
 #include "move.h"
-#include "x86intrin.h"
 
 int get_king_move_count(const board b);
 
@@ -25,11 +24,6 @@ void get_king_moves(
     board *boards);
 
 void init_move_globals();
-
-layer find_capture_destinations(
-    const layer allies,
-    const layer foes,
-    const layer occ);
 
 void gen_reference_moves_black3(const board b, int *total, move *ms, board *bs);
 

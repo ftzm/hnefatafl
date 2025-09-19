@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.h"
 #include "layer.h"
 
 typedef struct board {
@@ -47,3 +48,30 @@ inline board apply_king_move(board b, layer l, layer l_r) {
 }
 
 board rotate_board_right(board b);
+
+/* create a layer representing empty squares both white and black pawns are
+ * allowed to enter */
+static inline layer pawn_destinations(board b) {
+  return LAYER_NOT(LAYER_OR(throne, board_occ(b)));
+}
+
+/* create a layer representing empty squares both white and black pawns are
+ * allowed to enter on a rotated board */
+static inline layer pawn_destinations_r(board b) {
+  return LAYER_NOT(LAYER_OR(throne, board_occ_r(b)));
+}
+
+/* create a layer representing empty squares the king is allowed to enter */
+static inline layer king_destinations(board b) { return LAYER_NOT(king_board_occ(b)); }
+
+/* create a layer representing empty squares the king is allowed to enter on a
+ * rotated board*/
+static inline layer king_destinations_r(board b) {
+  return LAYER_NOT(king_board_occ_r(b));
+}
+
+/* find destinations where allies can move to capture foes */
+layer find_capture_destinations(
+    const layer allies,
+    const layer foes,
+    const layer occ);

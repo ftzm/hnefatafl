@@ -40,4 +40,3 @@ pv_line quiesce_black_runner_with_stats(board b, stats *statistics);
 
 void destroy_pv_line(pv_line *line);
 
-void clear_pv_memory();

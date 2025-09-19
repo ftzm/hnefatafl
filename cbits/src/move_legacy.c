@@ -1363,23 +1363,6 @@ the position to each of those in parallel. u8 to_blocker = _tzcnt_u64(occ);
 }
 */
 
-layer find_capture_destinations(
-    const layer allies,
-    const layer foes,
-    const layer occ) {
-  layer north =
-      LAYER_SHIFTL_SHORT(LAYER_AND(LAYER_SHIFTL_SHORT(allies, 11), foes), 11);
-  layer south = LAYER_SHIFTR(LAYER_AND(LAYER_SHIFTR(allies, 11), foes), 11);
-  layer east = LAYER_SHIFTR(
-      LAYER_AND(LAYER_SHIFTR(LAYER_AND(allies, drop_2_east), 1), foes),
-      1);
-  layer west = LAYER_SHIFTL_SHORT(
-      LAYER_AND(LAYER_SHIFTL_SHORT(LAYER_AND(allies, drop_2_west), 1), foes),
-      1);
-  return (layer){{
-      (north._[0] | south._[0] | east._[0] | west._[0]) & (~occ._[0]),
-      (north._[1] | south._[1] | east._[1] | west._[1]) & (~occ._[1])}};
-}
 
 /*[[[cog
 import cog

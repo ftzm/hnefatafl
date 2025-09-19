@@ -125,7 +125,7 @@ UBENCH_EX(move, mm_black) {
   build_mm(b.king, board_occ(b), mm3);
   layer throne_mask = EMPTY_LAYER;
   OP_LAYER_BIT(throne_mask, 60, |=);
-  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
+  layer free = pawn_destinations(b);
   free._[1] &= 144115188075855871;
   UBENCH_DO_BENCHMARK() {
     apply_southward_move(66, 11, mm2, mm2, mm3);
@@ -154,7 +154,7 @@ UBENCH_EX(move, mm_white) {
   build_mm(b.king, board_occ(b), mm3);
   layer throne_mask = EMPTY_LAYER;
   OP_LAYER_BIT(throne_mask, 60, |=);
-  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
+  layer free = pawn_destinations(b);
   free._[1] &= 144115188075855871;
   UBENCH_DO_BENCHMARK() {
     apply_southward_move(66, 11, mm2, mm2, mm3);
@@ -260,7 +260,7 @@ UBENCH_EX(triple_nested, mm_white) {
 
     layer throne_mask = EMPTY_LAYER;
     OP_LAYER_BIT(throne_mask, 60, |=);
-    layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
+    layer free = pawn_destinations(b);
     free._[1] &= 144115188075855871;
 
     gen_moves_from_mm_white(b, free, mm_white, ms, ds, bs, &total);
@@ -292,7 +292,7 @@ UBENCH_EX(triple_nested, mm_white) {
 
       layer throne_mask = EMPTY_LAYER;
       OP_LAYER_BIT(throne_mask, 60, |=);
-      layer free = LAYER_NEG(LAYER_OR(board_occ(bs[i]), throne_mask));
+      layer free = pawn_destinations(bs[i]);
       free._[1] &= 144115188075855871;
 
       gen_moves_from_mm_white(bs[i], free, mm_white2, ms2, ds2, bs2, &total2);
@@ -325,7 +325,7 @@ UBENCH_EX(triple_nested, mm_white) {
 
         layer throne_mask = EMPTY_LAYER;
         OP_LAYER_BIT(throne_mask, 60, |=);
-        layer free = LAYER_NEG(LAYER_OR(board_occ(bs2[j]), throne_mask));
+        layer free = pawn_destinations(bs2[j]);
         free._[1] &= 144115188075855871;
 
         gen_moves_from_mm_white(
@@ -388,7 +388,7 @@ UBENCH_EX(triple_nested, mm_black) {
 
     layer throne_mask = EMPTY_LAYER;
     OP_LAYER_BIT(throne_mask, 60, |=);
-    layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
+    layer free = pawn_destinations(b);
     free._[1] &= 144115188075855871;
 
     gen_moves_from_mm_black(b, free, mm_black, ms, ds, bs, &total);
@@ -420,7 +420,7 @@ UBENCH_EX(triple_nested, mm_black) {
 
       layer throne_mask = EMPTY_LAYER;
       OP_LAYER_BIT(throne_mask, 60, |=);
-      layer free = LAYER_NEG(LAYER_OR(board_occ(bs[i]), throne_mask));
+      layer free = pawn_destinations(bs[i]);
       free._[1] &= 144115188075855871;
 
       gen_moves_from_mm_black(bs[i], free, mm_black2, ms2, ds2, bs2, &total2);
@@ -453,7 +453,7 @@ UBENCH_EX(triple_nested, mm_black) {
 
         layer throne_mask = EMPTY_LAYER;
         OP_LAYER_BIT(throne_mask, 60, |=);
-        layer free = LAYER_NEG(LAYER_OR(board_occ(bs2[j]), throne_mask));
+        layer free = pawn_destinations(bs2[j]);
         free._[1] &= 144115188075855871;
 
         gen_moves_from_mm_black(

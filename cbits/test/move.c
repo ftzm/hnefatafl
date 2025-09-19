@@ -1443,7 +1443,7 @@ create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
   build_mm(b.white, board_occ(b), mm);
   layer throne_mask = EMPTY_LAYER;
   OP_LAYER_BIT(throne_mask, 60, |=);
-  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
+  layer free = pawn_destinations(b);
   free._[1] &= 144115188075855871;
   gen_moves_from_mm_white(b, free, mm, ms2, ds2, bs2, &total2);
 
@@ -1511,7 +1511,7 @@ create_mm_moves_black_cb(struct theft *t, void *env, void **instance) {
   build_mm(b.black, board_occ(b), mm);
   layer throne_mask = EMPTY_LAYER;
   OP_LAYER_BIT(throne_mask, 60, |=);
-  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
+  layer free = pawn_destinations(b);
   free._[1] &= 144115188075855871;
   gen_moves_from_mm_black(b, free, mm, ms2, ds2, bs2, &total2);
 
@@ -1793,8 +1793,8 @@ moves_to_king_cb(struct theft *t, void *env, void **instance) {
   // to test
   moves_to_t r = moves_to_king(
       b,
-      LAYER_NEG(king_board_occ(b)),
-      LAYER_NEG(king_board_occ_r(b)));
+      king_destinations(b),
+      king_destinations_r(b));
 
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
   qsort(r.ms, r.total, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -1854,7 +1854,7 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
 
   layer throne_mask = EMPTY_LAYER;
   OP_LAYER_BIT(throne_mask, 60, |=);
-  layer free = LAYER_NEG(LAYER_OR(board_occ(b), throne_mask));
+  layer free = pawn_destinations(b);
   free._[1] &= 144115188075855871;
   layer free_r = rotate_layer_right(free);
 
@@ -1968,7 +1968,7 @@ white_moves_count_cb(struct theft *t, void *env, void **instance) {
 
   moves_to_t r = moves_to_white(
       b,
-      LAYER_NEG(LAYER_OR(throne_mask, board_occ(b))),
+      pawn_destinations(b),
       LAYER_NEG(LAYER_OR(throne_mask, board_occ_r(b))));
 
   int move_count = white_moves_count(&b);
@@ -2045,7 +2045,7 @@ black_moves_count_cb(struct theft *t, void *env, void **instance) {
 
   moves_to_t r = moves_to_black(
       b,
-      LAYER_NEG(LAYER_OR(throne_mask, board_occ(b))),
+      pawn_destinations(b),
       LAYER_NEG(LAYER_OR(throne_mask, board_occ_r(b))));
 
   int move_count = black_moves_count(&b);
@@ -2093,8 +2093,8 @@ king_moves_count_cb(struct theft *t, void *env, void **instance) {
 
   moves_to_t r = moves_to_king(
       b,
-      LAYER_NEG(king_board_occ(b)),
-      LAYER_NEG(king_board_occ_r(b)));
+      king_destinations(b),
+      king_destinations_r(b));
 
   int move_count = king_moves_count(&b);
 

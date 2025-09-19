@@ -624,3 +624,10 @@ SUITE(quiesce_black_recursive) {
       MIDDLING,
       IGNORE_PV);
 }
+
+SUITE(search_black) {
+  // detects white victory
+  // detects repetition
+  // calls quiescence when depth is 0
+  // returns pv move (when over beta)
+}

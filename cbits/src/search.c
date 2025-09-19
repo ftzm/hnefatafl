@@ -7,7 +7,6 @@
 #include "layer.h"
 #include "limits.h"
 #include "move.h"
-#include "move_legacy.h"
 #include "position_set.h"
 #include "score.h"
 #include "stdlib.h"
@@ -47,7 +46,7 @@
 //     const score_state ss,
 //     const bool allow_null_move,
 //     const struct ai_settings &ai_settings) {
-//   PV_LENGTH[ply] = ply;
+//   pv_data->pv_length[ply] = ply;
 //
 //   /*
 //   if (ply > 31) {
@@ -439,41 +438,37 @@
 // }
 
 #define MAX_DEPTH 32
-int PV_LENGTH[MAX_DEPTH];
-move PV_TABLE[MAX_DEPTH][MAX_DEPTH];
-board PV_TABLE_BOARDS[MAX_DEPTH][MAX_DEPTH];
-move PREV_PV[MAX_DEPTH];
-int PREV_PV_LENGTH;
 
-inline void update_pv(int ply, move m) {
-  PV_TABLE[ply][ply] = m;
+typedef struct pv {
+  int pv_length[MAX_DEPTH];
+  move pv_table[MAX_DEPTH][MAX_DEPTH];
+  move prev_pv[MAX_DEPTH];
+  int prev_pv_length;
+} pv;
+
+inline void update_pv(pv *pv_data, int ply, move m) {
+  pv_data->pv_table[ply][ply] = m;
 
   // copy up moves discovered at lower depths
-  for (int next_ply = ply + 1; next_ply < PV_LENGTH[ply + 1]; next_ply++) {
-    PV_TABLE[ply][next_ply] = PV_TABLE[ply + 1][next_ply];
+  for (int next_ply = ply + 1; next_ply < pv_data->pv_length[ply + 1]; next_ply++) {
+    pv_data->pv_table[ply][next_ply] = pv_data->pv_table[ply + 1][next_ply];
   }
 
   // adjust pv length
-  PV_LENGTH[ply] = PV_LENGTH[ply + 1];
+  pv_data->pv_length[ply] = pv_data->pv_length[ply + 1];
 }
 
-pv_line create_pv_line(bool is_black_turn, i32 result) {
-  move *moves = malloc(sizeof(move) * PV_LENGTH[0]);
-  memcpy(moves, PV_TABLE[0], sizeof(move) * PV_LENGTH[0]);
-  return (pv_line){is_black_turn, moves, PV_LENGTH[0], result};
+pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
+  move *moves = malloc(sizeof(move) * pv_data->pv_length[0]);
+  memcpy(moves, pv_data->pv_table[0], sizeof(move) * pv_data->pv_length[0]);
+  return (pv_line){is_black_turn, moves, pv_data->pv_length[0], result};
 }
 
 void destroy_pv_line(pv_line *line) { free(line->moves); }
 
-void clear_pv_memory() {
-  memset(PV_LENGTH, 0, MAX_DEPTH * sizeof(int));
-  memset(PV_TABLE, 0, MAX_DEPTH * MAX_DEPTH * sizeof(move));
-  memset(PV_TABLE_BOARDS, 0, MAX_DEPTH * MAX_DEPTH * sizeof(board));
-  memset(PREV_PV, 0, MAX_DEPTH * sizeof(move));
-  PREV_PV_LENGTH = 0;
-}
 
 i32 quiesce_white(
+    pv *pv_data,
     position_set *positions,
     score_weights *w,
     score_state s,
@@ -491,6 +486,7 @@ i32 quiesce_white(
   out early.
 */
 i32 quiesce_black(
+    pv *pv_data,
     position_set *positions,
     score_weights *w,
     score_state s,
@@ -518,7 +514,7 @@ i32 quiesce_black(
     return 0;
   }
 
-  PV_LENGTH[ply] = ply;
+  pv_data->pv_length[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -623,6 +619,7 @@ i32 quiesce_black(
             captures);
 
         i32 score = -quiesce_white(
+            pv_data,
             positions,
             w,
             new_score_state,
@@ -640,7 +637,7 @@ i32 quiesce_black(
         }
         if (score > best_value) {
           best_value = score;
-          update_pv(ply, ms[i]);
+          update_pv(pv_data, ply, ms[i]);
         }
         if (score > alpha) {
           alpha = score;
@@ -709,6 +706,7 @@ i32 quiesce_black(
       score_state new_score_state =
           update_score_state_black_move_and_capture(w, s, orig, dest, captures);
       i32 score = -quiesce_white(
+          pv_data,
           positions,
           w,
           new_score_state,
@@ -726,7 +724,7 @@ i32 quiesce_black(
       }
       if (score > best_value) {
         best_value = score;
-        update_pv(ply, ms[i]);
+        update_pv(pv_data, ply, ms[i]);
       }
       if (score > alpha) {
         alpha = score;
@@ -742,8 +740,8 @@ i32 quiesce_black(
     // block the escape stem.
     // TODO: integrate better with the capture generation below.
     if (best_value < (MIN_SCORE + 100)) {
-      layer destinations = LAYER_NOT(LAYER_OR(throne, board_occ(b)));
-      layer destinations_r = LAYER_NOT(LAYER_OR(throne, board_occ_r(b)));
+      layer destinations = pawn_destinations(b);
+      layer destinations_r = pawn_destinations_r(b);
 
       move ms[400] = {0};
       layer ls[400] = {0};
@@ -779,6 +777,7 @@ i32 quiesce_black(
             dest,
             captures);
         i32 score = -quiesce_white(
+            pv_data,
             positions,
             w,
             new_score_state,
@@ -796,7 +795,7 @@ i32 quiesce_black(
         }
         if (score > best_value) {
           best_value = score;
-          update_pv(ply, ms[i]);
+          update_pv(pv_data, ply, ms[i]);
         }
         if (score > alpha) {
           alpha = score;
@@ -878,6 +877,7 @@ i32 quiesce_black(
       score_state new_score_state =
           update_score_state_black_move_and_capture(w, s, orig, dest, captures);
       i32 score = -quiesce_white(
+          pv_data,
           positions,
           w,
           new_score_state,
@@ -895,7 +895,7 @@ i32 quiesce_black(
       }
       if (score > best_value) {
         best_value = score;
-        update_pv(ply, ms[i]);
+        update_pv(pv_data, ply, ms[i]);
       }
       if (score > alpha) {
         alpha = score;
@@ -915,6 +915,7 @@ i32 quiesce_black(
   - short circuit in quiet positions earlier
 */
 i32 quiesce_white(
+    pv *pv_data,
     position_set *positions,
     score_weights *w,
     score_state s,
@@ -941,7 +942,7 @@ i32 quiesce_white(
     return 0;
   }
 
-  PV_LENGTH[ply] = ply;
+  pv_data->pv_length[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -1007,6 +1008,7 @@ i32 quiesce_white(
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
     i32 score = -quiesce_black(
+        pv_data,
         positions,
         w,
         new_score_state,
@@ -1024,7 +1026,7 @@ i32 quiesce_white(
     }
     if (score > best_value) {
       best_value = score;
-      update_pv(ply, m);
+      update_pv(pv_data, ply, m);
     }
     if (score > alpha) {
       alpha = score;
@@ -1037,8 +1039,8 @@ i32 quiesce_white(
   // to the fallback all-move generation done to prevent 2-move escapes in black
   // quiescence.
   if (corner_move_count && best_value < (MAX_SCORE - 100)) {
-    layer destinations = LAYER_NOT(LAYER_OR(throne, board_occ(b)));
-    layer destinations_r = LAYER_NOT(LAYER_OR(throne, board_occ_r(b)));
+    layer destinations = pawn_destinations(b);
+    layer destinations_r = pawn_destinations_r(b);
     move ms[400] = {0};
     layer ls[400] = {0};
     layer ls_r[400] = {0};
@@ -1068,6 +1070,7 @@ i32 quiesce_white(
       score_state new_score_state =
           update_score_state_white_move_and_capture(w, s, orig, dest, captures);
       i32 score = -quiesce_black(
+          pv_data,
           positions,
           w,
           new_score_state,
@@ -1085,7 +1088,7 @@ i32 quiesce_white(
       }
       if (score > best_value) {
         best_value = score;
-        update_pv(ply, ms[i]);
+        update_pv(pv_data, ply, ms[i]);
       }
       if (score > alpha) {
         alpha = score;
@@ -1143,6 +1146,7 @@ i32 quiesce_white(
         update_score_state_king_move_and_capture(w, s, orig, dest, captures);
 
     i32 score = -quiesce_black(
+        pv_data,
         positions,
         w,
         new_score_state,
@@ -1160,7 +1164,7 @@ i32 quiesce_white(
     }
     if (score > best_value) {
       best_value = score;
-      update_pv(ply, ms[i]);
+      update_pv(pv_data, ply, ms[i]);
     }
     if (score > alpha) {
       alpha = score;
@@ -1200,6 +1204,7 @@ i32 quiesce_white(
     score_state new_score_state =
         update_score_state_white_move_and_capture(w, s, orig, dest, captures);
     i32 score = -quiesce_black(
+        pv_data,
         positions,
         w,
         new_score_state,
@@ -1217,7 +1222,7 @@ i32 quiesce_white(
     }
     if (score > best_value) {
       best_value = score;
-      update_pv(ply, ms[i]);
+      update_pv(pv_data, ply, ms[i]);
     }
     if (score > alpha) {
       alpha = score;
@@ -1236,6 +1241,7 @@ i32 quiesce_white(
     score_state new_score_state =
         update_score_state_white_move_and_capture(w, s, orig, dest, captures);
     i32 score = -quiesce_black(
+        pv_data,
         positions,
         w,
         new_score_state,
@@ -1253,7 +1259,7 @@ i32 quiesce_white(
     }
     if (score > best_value) {
       best_value = score;
-      update_pv(ply, ms[i]);
+      update_pv(pv_data, ply, ms[i]);
     }
     if (score > alpha) {
       alpha = score;
@@ -1267,7 +1273,7 @@ i32 quiesce_white(
 }
 
 pv_line quiesce_white_runner(board b) {
-  clear_pv_memory();
+  pv pv_data = {0};
   u64 position_hash = hash_for_board(b, false);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
@@ -1277,6 +1283,7 @@ pv_line quiesce_white_runner(board b) {
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
   i32 result = quiesce_white(
+      &pv_data,
       positions,
       &weights,
       s,
@@ -1287,11 +1294,11 @@ pv_line quiesce_white_runner(board b) {
       beta,
       &statistics);
   destroy_position_set(positions);
-  return create_pv_line(false, result);
+  return create_pv_line(&pv_data, false, result);
 }
 
 pv_line quiesce_black_runner(board b) {
-  clear_pv_memory();
+  pv pv_data = {0};
   u64 position_hash = hash_for_board(b, true);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
@@ -1301,6 +1308,7 @@ pv_line quiesce_black_runner(board b) {
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
   i32 result = quiesce_black(
+      &pv_data,
       positions,
       &weights,
       s,
@@ -1311,11 +1319,11 @@ pv_line quiesce_black_runner(board b) {
       beta,
       &statistics);
   destroy_position_set(positions);
-  return create_pv_line(true, result);
+  return create_pv_line(&pv_data, true, result);
 }
 
 pv_line quiesce_white_runner_with_stats(board b, stats *statistics) {
-  clear_pv_memory();
+  pv pv_data = {0};
   u64 position_hash = hash_for_board(b, false);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
@@ -1324,6 +1332,7 @@ pv_line quiesce_white_runner_with_stats(board b, stats *statistics) {
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
   i32 result = quiesce_white(
+      &pv_data,
       positions,
       &weights,
       s,
@@ -1334,11 +1343,11 @@ pv_line quiesce_white_runner_with_stats(board b, stats *statistics) {
       beta,
       statistics);
   destroy_position_set(positions);
-  return create_pv_line(false, result);
+  return create_pv_line(&pv_data, false, result);
 }
 
 pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
-  clear_pv_memory();
+  pv pv_data = {0};
   u64 position_hash = hash_for_board(b, true);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
@@ -1347,6 +1356,7 @@ pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
   i32 result = quiesce_black(
+      &pv_data,
       positions,
       &weights,
       s,
@@ -1357,10 +1367,11 @@ pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
       beta,
       statistics);
   destroy_position_set(positions);
-  return create_pv_line(true, result);
+  return create_pv_line(&pv_data, true, result);
 }
 
 i32 search_white(
+    pv *pv_data,
     position_set *positions,
     score_weights *w,
     score_state s,
@@ -1389,6 +1400,7 @@ into the TT between iterative deepening stages on the off chance it's been
 overwritten.
 */
 i32 search_black(
+    pv *pv_data,
     position_set *positions,
     score_weights *w,
     score_state s,
@@ -1402,7 +1414,7 @@ i32 search_black(
     bool is_pv) {
 
   // Increment black position evaluation count
-  statistics->quiescence_positions_black++;
+  statistics->search_positions_black++;
 
   // We only need to check for a king escape because the previous move will
   // have been white.
@@ -1410,7 +1422,7 @@ i32 search_black(
     return MIN_SCORE;
   }
 
-  PV_LENGTH[ply] = ply;
+  pv_data->pv_length[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -1424,7 +1436,9 @@ i32 search_black(
   }
 
   if (depth <= 0) {
+    delete_position(positions, position_index);
     return quiesce_black(
+        pv_data,
         positions,
         w,
         s,
@@ -1442,7 +1456,7 @@ i32 search_black(
 
   // PV move
   if (is_pv) {
-    move m = PREV_PV[ply];
+    move m = pv_data->prev_pv[ply];
     move m_r = ROTATE_MOVE(m);
     u8 orig = m.orig;
     u8 dest = m.dest;
@@ -1456,6 +1470,7 @@ i32 search_black(
         update_score_state_black_move_and_capture(w, s, orig, dest, captures);
 
     i32 score = -search_white(
+        pv_data,
         positions,
         w,
         new_score_state,
@@ -1466,99 +1481,170 @@ i32 search_black(
         -beta,
         -alpha,
         statistics,
-        (is_pv && ply < PREV_PV_LENGTH));
+        (is_pv && ply < pv_data->prev_pv_length));
 
     if (score > best_value) {
       best_value = score;
     }
     if (score > alpha) {
       alpha = score;
-      update_pv(ply, m);
+      update_pv(pv_data, ply, m);
     }
     if (alpha > beta) {
+      statistics->search_beta_cutoff_black++;
       delete_position(positions, position_index);
       return best_value;
     }
   }
 
   // ---------------------------------------------------------------------------
-  // pawn capture moves
+  // Destinations
+
+  layer remaining_destinations = pawn_destinations(b);
+  layer remaining_destinations_r = pawn_destinations_r(b);
+
+  // ---------------------------------------------------------------------------
+  // capture moves
+
+  // generate capture moves for pawns
+  layer capture_dests =
+      find_capture_destinations(b.black, b.white, board_occ(b));
+  layer capture_dests_r =
+      find_capture_destinations(b.black_r, b.white_r, board_occ_r(b));
 
   {
-    //   // generate capture moves for pawns
-    //   layer capture_dests =
-    //       find_capture_destinations(b.black, b.white, board_occ(b));
-    //   layer capture_dests_r =
-    //       find_capture_destinations(b.black_r, b.white_r, board_occ_r(b));
+    move ms[100] = {0};
+    layer ls[100] = {0};
+    layer ls_r[100] = {0};
+    int total = 0;
+    moves_to(
+        capture_dests,
+        capture_dests_r,
+        b.black,
+        b.black_r,
+        board_occ(b),
+        board_occ_r(b),
+        ms,
+        ls,
+        ls_r,
+        &total);
 
-    //   move ms[100] = {0};
-    //   layer ls[100] = {0};
-    //   layer ls_r[100] = {0};
-    //   int total = 0;
-    //   moves_to(
-    //       capture_dests,
-    //       capture_dests_r,
-    //       b.black,
-    //       b.black_r,
-    //       board_occ(b),
-    //       board_occ_r(b),
-    //       ms,
-    //       ls,
-    //       ls_r,
-    //       &total);
+    // hacky bounds check
+    assert(total < 100);
 
-    //   // hacky bounds check
-    //   assert(total < 100);
+    // iterate
+    for (int i = 0; i < total; i++) {
+      u8 orig = ms[i].orig;
+      u8 dest = ms[i].dest;
+      layer move = ls[i];
+      layer move_r = ls_r[i];
 
-    //   // iterate
-    //   for (int i = 0; i < total; i++) {
-    //     u8 orig = ms[i].orig;
-    //     u8 dest = ms[i].dest;
-    //     layer move = ls[i];
-    //     layer move_r = ls_r[i];
+      board new_b = apply_black_move(b, move, move_r);
+      u64 new_position_hash = next_hash_black(position_hash, orig, dest);
+      layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
+      score_state new_score_state =
+          update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+      i32 score = -search_white(
+          pv_data,
+          positions,
+          w,
+          new_score_state,
+          new_b,
+          new_position_hash,
+          ply + 1,
+          depth - 1,
+          -beta,
+          -alpha,
+          statistics,
+          (is_pv && ply < pv_data->prev_pv_length));
 
-    //     board new_b = apply_black_move(b, move, move_r);
-    //     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
-    //     layer captures = apply_captures_z_black(&new_b, &new_position_hash,
-    //     dest); score_state new_score_state =
-    //         update_score_state_black_move_and_capture(w, s, orig, dest,
-    //         captures);
-    //     i32 score = -quiesce_white(
-    //         positions,
-    //         w,
-    //         new_score_state,
-    //         new_b,
-    //         new_position_hash,
-    //         ply + 1,
-    //         -beta,
-    //         -alpha,
-    //         statistics);
-
-    //     if (score >= beta) {
-    //       statistics->quiencence_beta_cutoff_black++;
-    //       delete_position(positions, position_index);
-    //       return score;
-    //     }
-    //     if (score > best_value) {
-    //       best_value = score;
-    //       update_pv(ply, ms[i]);
-    //     }
-    //     if (score > alpha) {
-    //       alpha = score;
-    //     }
-    //   }
-    // }
-
-    // ---------------------------------------------------------------------------
-
-    // remove the position from the set as we exit
-    delete_position(positions, position_index);
-    // return best_value;
-    return 0;
+      if (score >= beta) {
+        statistics->search_beta_cutoff_black++;
+        delete_position(positions, position_index);
+        return score;
+      }
+      if (score > best_value) {
+        best_value = score;
+        update_pv(pv_data, ply, ms[i]);
+      }
+      if (score > alpha) {
+        alpha = score;
+      }
+    }
   }
+
+  // clear the capture destinations for the remaining destinations
+  LAYER_XOR_ASSG(remaining_destinations, capture_dests);
+  LAYER_XOR_ASSG(remaining_destinations_r, capture_dests_r);
+
+  // ---------------------------------------------------------------------------
+  // Remaining
+
+  move ms[100] = {0};
+  layer ls[100] = {0};
+  layer ls_r[100] = {0};
+  int total = 0;
+  moves_to(
+      remaining_destinations,
+      remaining_destinations_r,
+      b.black,
+      b.black_r,
+      board_occ(b),
+      board_occ_r(b),
+      ms,
+      ls,
+      ls_r,
+      &total);
+
+  // hacky bounds check
+  assert(total < 100);
+
+  // iterate
+  for (int i = 0; i < total; i++) {
+    u8 orig = ms[i].orig;
+    u8 dest = ms[i].dest;
+    layer move = ls[i];
+    layer move_r = ls_r[i];
+
+    board new_b = apply_black_move(b, move, move_r);
+    u64 new_position_hash = next_hash_black(position_hash, orig, dest);
+    layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
+    score_state new_score_state =
+        update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+    i32 score = -search_white(
+        pv_data,
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        depth - 1,
+        -beta,
+        -alpha,
+        statistics,
+        (is_pv && ply < pv_data->prev_pv_length));
+
+    if (score >= beta) {
+      statistics->search_beta_cutoff_black++;
+      delete_position(positions, position_index);
+      return score;
+    }
+    if (score > best_value) {
+      best_value = score;
+      update_pv(pv_data, ply, ms[i]);
+    }
+    if (score > alpha) {
+      alpha = score;
+    }
+  }
+
+  delete_position(positions, position_index);
+  return best_value;
 }
 
 i32 search_white(
+    pv *pv_data,
     position_set *positions,
     score_weights *w,
     score_state s,
@@ -1581,5 +1667,43 @@ i32 search_white(
   (void)beta;
   (void)statistics;
   (void)is_pv;
+
+  // Increment black position evaluation count
+  statistics->search_positions_white++;
+
+  // We only need to check for a king escape because the previous move will
+  // have been white.
+  if (black_victory(&b)) {
+    return MIN_SCORE;
+  }
+
+  pv_data->pv_length[ply] = ply;
+
+  // check for repetition
+  int position_index;
+  int collision = insert_position(positions, position_hash, &position_index);
+  if (collision) {
+    // we consider the position a draw, and thus score it 0
+    // return 0;
+    statistics->repeat_moves_encountered++;
+    delete_position(positions, position_index);
+    return MIN_SCORE;
+  }
+
+  if (depth <= 0) {
+    delete_position(positions, position_index);
+    return quiesce_white(
+        pv_data,
+        positions,
+        w,
+        s,
+        b,
+        position_hash,
+        ply,
+        alpha,
+        beta,
+        statistics);
+  }
+
   return 0;
 }
