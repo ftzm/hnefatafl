@@ -1707,3 +1707,55 @@ i32 search_white(
 
   return 0;
 }
+
+pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *statistics) {
+  pv pv_data = {0};
+  u64 position_hash = hash_for_board(b, true);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  int ply = 0;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
+  i32 result = search_black(
+      &pv_data,
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      depth,
+      alpha,
+      beta,
+      statistics,
+      is_pv);
+  destroy_position_set(positions);
+  return create_pv_line(&pv_data, true, result);
+}
+
+pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *statistics) {
+  pv pv_data = {0};
+  u64 position_hash = hash_for_board(b, false);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  int ply = 0;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
+  i32 result = search_white(
+      &pv_data,
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      depth,
+      alpha,
+      beta,
+      statistics,
+      is_pv);
+  destroy_position_set(positions);
+  return create_pv_line(&pv_data, false, result);
+}

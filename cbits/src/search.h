@@ -38,5 +38,9 @@ pv_line quiesce_black_runner(board b);
 pv_line quiesce_white_runner_with_stats(board b, stats *statistics);
 pv_line quiesce_black_runner_with_stats(board b, stats *statistics);
 
+// Search runner functions that also return statistics
+pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *statistics);
+pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *statistics);
+
 void destroy_pv_line(pv_line *line);
 

@@ -16,7 +16,7 @@ SUITE_EXTERN(quiesce_white_only);
 SUITE_EXTERN(quiesce_white_recursive);
 SUITE_EXTERN(quiesce_white_shallow);
 SUITE_EXTERN(score_suite);
-SUITE_EXTERN(search_black);
+SUITE_EXTERN(search_black_suite);
 SUITE_EXTERN(victory_suite);
 SUITE_EXTERN(zobrist_suite);
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
   RUN_SUITE(quiesce_white_recursive);
   RUN_SUITE(quiesce_white_shallow);
   RUN_SUITE(score_suite);
-  RUN_SUITE(search_black);
+  RUN_SUITE(search_black_suite);
   RUN_SUITE(victory_suite);
   RUN_SUITE(zobrist_suite);
   GREATEST_MAIN_END();
