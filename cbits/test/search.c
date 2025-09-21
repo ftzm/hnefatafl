@@ -7,7 +7,19 @@
 #include "position_set.h"
 #include "score.h"
 #include "stdbool.h"
-#include "zobrist.h"
+#include "zobrist.h" // IWYU pragma: export
+
+#define POSITION_SET(...)                                                      \
+  ({                                                                           \
+    u64 hashes[] = {FOR_EACH_PAIR(CREATE_POSITION, __VA_ARGS__)};              \
+    size_t count = sizeof(hashes) / sizeof(hashes[0]);                         \
+    position_set *set = create_position_set(count);                            \
+    int deletion_index;                                                        \
+    for (size_t i = 0; i < count; i++) {                                       \
+      insert_position(set, hashes[i], &deletion_index);                        \
+    }                                                                          \
+    set;                                                                       \
+  })
 
 typedef enum result_score {
   VICTORY,
@@ -37,6 +49,16 @@ static const pv_assertion EMPTY_PV = {
       .move_strings = (char *[]){FOR_EACH(STR, __VA_ARGS__)},                  \
       .length =                                                                \
           sizeof((char *[]){FOR_EACH(STR, __VA_ARGS__)}) / sizeof(char *)})
+
+// Helper macro to convert string to move
+#define READ_MOVE(move_str) read_move(STR(move_str))
+
+// Macro to create a prev_pv struct from a list of moves
+#define PREV_PV(...)                                                           \
+  (&(prev_pv){                                                                 \
+      .moves = (move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)},                     \
+      .length =                                                                \
+          sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)}) / sizeof(move)})
 
 bool pvs_equal(pv_line *a, pv_line *b) {
   if (a->length != b->length) {
@@ -178,9 +200,11 @@ pv_line quiesce_white_runner_adapter(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    position_set *positions) {
+    position_set *positions,
+    prev_pv *previous_pv) {
   (void)depth;
-  (void)is_pv; // Ignore these parameters for quiesce
+  (void)is_pv;       // Ignore these parameters for quiesce
+  (void)previous_pv; // Ignore prev_pv for quiesce
   return quiesce_white_runner_with_stats(b, alpha, beta, statistics, positions);
 }
 
@@ -191,14 +215,17 @@ pv_line quiesce_black_runner_adapter(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    position_set *positions) {
+    position_set *positions,
+    prev_pv *previous_pv) {
   (void)depth;
-  (void)is_pv; // Ignore these parameters for quiesce
+  (void)is_pv;       // Ignore these parameters for quiesce
+  (void)previous_pv; // Ignore prev_pv for quiesce
   return quiesce_black_runner_with_stats(b, alpha, beta, statistics, positions);
 }
 
 TEST assert_pv(
-    pv_line (*f)(board, int, bool, i32, i32, stats *, position_set *),
+    pv_line (
+        *f)(board, int, bool, i32, i32, stats *, position_set *, prev_pv *),
     bool is_black_turn,
     char *board_string,
     result_score result_score,
@@ -209,7 +236,8 @@ TEST assert_pv(
     bool is_pv,
     i32 alpha,
     i32 beta,
-    position_set *positions) {
+    position_set *positions,
+    prev_pv *previous_pv) {
   board b = read_board(board_string);
 
   score_weights w = init_default_weights();
@@ -235,7 +263,8 @@ TEST assert_pv(
 
   // Compute PV using provided function
   stats statistics = {0};
-  pv_line computed_pv = f(b, depth, is_pv, alpha, beta, &statistics, positions);
+  pv_line computed_pv =
+      f(b, depth, is_pv, alpha, beta, &statistics, positions, previous_pv);
 
   bool equal = true;
   if (!skip_line && !pvs_equal(&expected_pv, &computed_pv)) {
@@ -364,6 +393,7 @@ TEST assert_pv(
       position_set *positions;                                                 \
       i32 alpha;                                                               \
       i32 beta;                                                                \
+      prev_pv *previous_pv;                                                    \
     } args = {                                                                 \
         .score = ANY,                                                          \
         .pv = IGNORE_PV,                                                       \
@@ -373,6 +403,7 @@ TEST assert_pv(
         .positions = NULL,                                                     \
         .alpha = -INFINITY,                                                    \
         .beta = INFINITY,                                                      \
+        .previous_pv = NULL,                                                   \
         __VA_ARGS__};                                                          \
     _Pragma("GCC diagnostic pop") greatest_set_test_suffix(test_name);         \
     int num_stats_assertions = 0;                                              \
@@ -395,7 +426,8 @@ TEST assert_pv(
         args.is_pv,                                                            \
         args.alpha,                                                            \
         args.beta,                                                             \
-        args.positions);                                                       \
+        args.positions,                                                        \
+        args.previous_pv);                                                     \
   } while (0)
 
 #define ASSERT_PV_QUIESCE_WHITE(...)                                           \
@@ -938,5 +970,32 @@ SUITE(search_black_suite) {
           QUIESCENCE_POSITIONS_BLACK(GT, 0),
       });
 
-  // returns pv move (when over beta)
+  // Example of using PREV_PV macro for testing with previous PV
+  ASSERT_PV_SEARCH_BLACK(
+      "gets a beta cutoff from a PV move when possible",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  O  .  .  .  .  .  . |"
+      " 10  | .  X  .  .  O  .  O  .  .  .  X |"
+      "  9  | X  .  .  .  O  .  O  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  #  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  O  O  . |"
+      "  3  | X  .  .  .  O  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  O  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  O  .  X  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .beta = MIN_SCORE,
+      .is_pv = true,
+      .previous_pv = PREV_PV(f7f1),
+      // With depth 1 and a PV move return after 1 position examined through to
+      // white quiescence
+      .stats_assertions = {
+          SEARCH_POSITIONS_BLACK(EQ, 1),
+          SEARCH_POSITIONS_WHITE(EQ, 1),
+          QUIESCENCE_POSITIONS_WHITE(EQ, 1),
+          SEARCH_BETA_CUTOFF_BLACK(EQ, 1),
+      });
 }

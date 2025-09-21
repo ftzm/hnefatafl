@@ -1735,8 +1735,13 @@ pv_line search_black_runner_with_stats(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    position_set *positions) {
+    position_set *positions,
+    prev_pv *previous_pv) {
   pv pv_data = {0};
+  if (previous_pv != NULL && previous_pv->moves != NULL && previous_pv->length > 0) {
+    pv_data.prev_pv_length = previous_pv->length;
+    memcpy(pv_data.prev_pv, previous_pv->moves, sizeof(move) * previous_pv->length);
+  }
   u64 position_hash = hash_for_board(b, true);
   position_set *local_positions = positions;
   bool created_positions = false;
@@ -1773,8 +1778,13 @@ pv_line search_white_runner_with_stats(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    position_set *positions) {
+    position_set *positions,
+    prev_pv *previous_pv) {
   pv pv_data = {0};
+  if (previous_pv != NULL && previous_pv->moves != NULL && previous_pv->length > 0) {
+    pv_data.prev_pv_length = previous_pv->length;
+    memcpy(pv_data.prev_pv, previous_pv->moves, sizeof(move) * previous_pv->length);
+  }
   u64 position_hash = hash_for_board(b, false);
   position_set *local_positions = positions;
   bool created_positions = false;

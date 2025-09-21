@@ -37,23 +37,11 @@ of the body of the function. */
 #define FOR_EACH(ACTN, ...)                                                    \
   CONC(FOR_EACH_, NARGS(__VA_ARGS__))(ACTN, __VA_ARGS__)
 
-#define CREATE_POSITION(board_str, is_black) \
+#define CREATE_POSITION(board_str, is_black)                                   \
   hash_for_board(read_board(board_str), is_black)
 
-#define FOR_EACH_PAIR_IMPL(ACTN, A, B, ...) \
-  ACTN(A, B) \
+#define FOR_EACH_PAIR_IMPL(ACTN, A, B, ...)                                    \
+  ACTN(A, B)                                                                   \
   __VA_OPT__(, FOR_EACH_PAIR_IMPL(ACTN, __VA_ARGS__))
 
 #define FOR_EACH_PAIR(ACTN, ...) FOR_EACH_PAIR_IMPL(ACTN, __VA_ARGS__)
-
-#define POSITION_SET(...) \
-  ({ \
-    u64 hashes[] = { FOR_EACH_PAIR(CREATE_POSITION, __VA_ARGS__) }; \
-    size_t count = sizeof(hashes) / sizeof(hashes[0]); \
-    position_set *set = create_position_set(count); \
-    int deletion_index; \
-    for (size_t i = 0; i < count; i++) { \
-      insert_position(set, hashes[i], &deletion_index); \
-    } \
-    set; \
-  })

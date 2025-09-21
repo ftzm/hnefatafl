@@ -1,7 +1,5 @@
-#include "stdint.h"
 #include "stddef.h"
 #include "util.h"
-
 
 typedef struct position_set {
   size_t size;

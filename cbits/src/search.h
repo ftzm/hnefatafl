@@ -20,6 +20,11 @@ typedef struct pv_line {
   i32 score;
 } pv_line;
 
+typedef struct prev_pv {
+  move *moves;
+  int length;
+} prev_pv;
+
 typedef struct stats {
   int search_positions_black;
   int search_positions_white;
@@ -41,8 +46,8 @@ pv_line quiesce_white_runner_with_stats(board b, i32 alpha, i32 beta, stats *sta
 pv_line quiesce_black_runner_with_stats(board b, i32 alpha, i32 beta, stats *statistics, position_set *positions);
 
 // Search runner functions that also return statistics
-pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions);
-pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions);
+pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions, prev_pv *previous_pv);
+pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions, prev_pv *previous_pv);
 
 void destroy_pv_line(pv_line *line);
 
