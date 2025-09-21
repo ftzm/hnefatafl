@@ -450,7 +450,8 @@ inline void update_pv(pv *pv_data, int ply, move m) {
   pv_data->pv_table[ply][ply] = m;
 
   // copy up moves discovered at lower depths
-  for (int next_ply = ply + 1; next_ply < pv_data->pv_length[ply + 1]; next_ply++) {
+  for (int next_ply = ply + 1; next_ply < pv_data->pv_length[ply + 1];
+       next_ply++) {
     pv_data->pv_table[ply][next_ply] = pv_data->pv_table[ply + 1][next_ply];
   }
 
@@ -465,7 +466,6 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
 }
 
 void destroy_pv_line(pv_line *line) { free(line->moves); }
-
 
 i32 quiesce_white(
     pv *pv_data,
@@ -1322,10 +1322,18 @@ pv_line quiesce_black_runner(board b) {
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line quiesce_white_runner_with_stats(board b, stats *statistics) {
+pv_line quiesce_white_runner_with_stats(
+    board b,
+    stats *statistics,
+    position_set *positions) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, false);
-  position_set *positions = create_position_set(100);
+  position_set *local_positions = positions;
+  bool created_positions = false;
+  if (local_positions == NULL) {
+    local_positions = create_position_set(100);
+    created_positions = true;
+  }
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
@@ -1333,7 +1341,7 @@ pv_line quiesce_white_runner_with_stats(board b, stats *statistics) {
   i32 beta = INFINITY;
   i32 result = quiesce_white(
       &pv_data,
-      positions,
+      local_positions,
       &weights,
       s,
       b,
@@ -1342,14 +1350,24 @@ pv_line quiesce_white_runner_with_stats(board b, stats *statistics) {
       alpha,
       beta,
       statistics);
-  destroy_position_set(positions);
+  if (created_positions) {
+    destroy_position_set(local_positions);
+  }
   return create_pv_line(&pv_data, false, result);
 }
 
-pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
+pv_line quiesce_black_runner_with_stats(
+    board b,
+    stats *statistics,
+    position_set *positions) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, true);
-  position_set *positions = create_position_set(100);
+  position_set *local_positions = positions;
+  bool created_positions = false;
+  if (local_positions == NULL) {
+    local_positions = create_position_set(100);
+    created_positions = true;
+  }
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
@@ -1357,7 +1375,7 @@ pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
   i32 beta = INFINITY;
   i32 result = quiesce_black(
       &pv_data,
-      positions,
+      local_positions,
       &weights,
       s,
       b,
@@ -1366,7 +1384,9 @@ pv_line quiesce_black_runner_with_stats(board b, stats *statistics) {
       alpha,
       beta,
       statistics);
-  destroy_position_set(positions);
+  if (created_positions) {
+    destroy_position_set(local_positions);
+  }
   return create_pv_line(&pv_data, true, result);
 }
 
@@ -1513,9 +1533,9 @@ i32 search_black(
       find_capture_destinations(b.black_r, b.white_r, board_occ_r(b));
 
   {
-    move ms[100] = {0};
-    layer ls[100] = {0};
-    layer ls_r[100] = {0};
+    move ms[400] = {0};
+    layer ls[400] = {0};
+    layer ls_r[400] = {0};
     int total = 0;
     moves_to(
         capture_dests,
@@ -1530,7 +1550,7 @@ i32 search_black(
         &total);
 
     // hacky bounds check
-    assert(total < 100);
+    assert(total < 400);
 
     // iterate
     for (int i = 0; i < total; i++) {
@@ -1580,9 +1600,9 @@ i32 search_black(
   // ---------------------------------------------------------------------------
   // Remaining
 
-  move ms[100] = {0};
-  layer ls[100] = {0};
-  layer ls_r[100] = {0};
+  move ms[400] = {0};
+  layer ls[400] = {0};
+  layer ls_r[400] = {0};
   int total = 0;
   moves_to(
       remaining_destinations,
@@ -1597,7 +1617,7 @@ i32 search_black(
       &total);
 
   // hacky bounds check
-  assert(total < 100);
+  assert(total < 400);
 
   // iterate
   for (int i = 0; i < total; i++) {
@@ -1708,10 +1728,20 @@ i32 search_white(
   return 0;
 }
 
-pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *statistics) {
+pv_line search_black_runner_with_stats(
+    board b,
+    int depth,
+    bool is_pv,
+    stats *statistics,
+    position_set *positions) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, true);
-  position_set *positions = create_position_set(100);
+  position_set *local_positions = positions;
+  bool created_positions = false;
+  if (local_positions == NULL) {
+    local_positions = create_position_set(100);
+    created_positions = true;
+  }
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
@@ -1719,7 +1749,7 @@ pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *st
   i32 beta = INFINITY;
   i32 result = search_black(
       &pv_data,
-      positions,
+      local_positions,
       &weights,
       s,
       b,
@@ -1730,14 +1760,26 @@ pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *st
       beta,
       statistics,
       is_pv);
-  destroy_position_set(positions);
+  if (created_positions) {
+    destroy_position_set(local_positions);
+  }
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *statistics) {
+pv_line search_white_runner_with_stats(
+    board b,
+    int depth,
+    bool is_pv,
+    stats *statistics,
+    position_set *positions) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, false);
-  position_set *positions = create_position_set(100);
+  position_set *local_positions = positions;
+  bool created_positions = false;
+  if (local_positions == NULL) {
+    local_positions = create_position_set(100);
+    created_positions = true;
+  }
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
@@ -1745,7 +1787,7 @@ pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *st
   i32 beta = INFINITY;
   i32 result = search_white(
       &pv_data,
-      positions,
+      local_positions,
       &weights,
       s,
       b,
@@ -1756,6 +1798,8 @@ pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *st
       beta,
       statistics,
       is_pv);
-  destroy_position_set(positions);
+  if (created_positions) {
+    destroy_position_set(local_positions);
+  }
   return create_pv_line(&pv_data, false, result);
 }

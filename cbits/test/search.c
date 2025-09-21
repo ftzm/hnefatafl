@@ -4,8 +4,10 @@
 #include "io.h"
 #include "limits.h"
 #include "macro_util.h"
+#include "position_set.h"
 #include "score.h"
 #include "stdbool.h"
+#include "zobrist.h"
 
 typedef enum result_score {
   VICTORY,
@@ -173,24 +175,26 @@ pv_line quiesce_white_runner_adapter(
     board b,
     int depth,
     bool is_pv,
-    stats *statistics) {
+    stats *statistics,
+    position_set *positions) {
   (void)depth;
   (void)is_pv; // Ignore these parameters for quiesce
-  return quiesce_white_runner_with_stats(b, statistics);
+  return quiesce_white_runner_with_stats(b, statistics, positions);
 }
 
 pv_line quiesce_black_runner_adapter(
     board b,
     int depth,
     bool is_pv,
-    stats *statistics) {
+    stats *statistics,
+    position_set *positions) {
   (void)depth;
   (void)is_pv; // Ignore these parameters for quiesce
-  return quiesce_black_runner_with_stats(b, statistics);
+  return quiesce_black_runner_with_stats(b, statistics, positions);
 }
 
 TEST assert_pv(
-    pv_line (*f)(board, int, bool, stats *),
+    pv_line (*f)(board, int, bool, stats *, position_set *),
     bool is_black_turn,
     char *board_string,
     result_score result_score,
@@ -198,7 +202,8 @@ TEST assert_pv(
     stats_assertion *stats_assertions,
     int num_stats_assertions,
     int depth,
-    bool is_pv) {
+    bool is_pv,
+    position_set *positions) {
   board b = read_board(board_string);
 
   score_weights w = init_default_weights();
@@ -224,7 +229,7 @@ TEST assert_pv(
 
   // Compute PV using provided function
   stats statistics = {0};
-  pv_line computed_pv = f(b, depth, is_pv, &statistics);
+  pv_line computed_pv = f(b, depth, is_pv, &statistics, positions);
 
   bool equal = true;
   if (!skip_line && !pvs_equal(&expected_pv, &computed_pv)) {
@@ -333,7 +338,7 @@ TEST assert_pv(
 
 #define ASSERT_PV(_f, _t, _n, _b, _s, _pv_assert)                              \
   greatest_set_test_suffix(_n);                                                \
-  RUN_TESTp(assert_pv, _f, _t, _b, _s, _pv_assert, NULL, 0, 1, false)
+  RUN_TESTp(assert_pv, _f, _t, _b, _s, _pv_assert, NULL, 0, 1, false, NULL)
 
 #define ASSERT_PV_QUIESCE_GENERIC(                                             \
     runner,                                                                    \
@@ -350,12 +355,14 @@ TEST assert_pv(
       stats_assertion stats_assertions[32];                                    \
       int depth;                                                               \
       bool is_pv;                                                              \
+      position_set *positions;                                                 \
     } args = {                                                                 \
         .score = ANY,                                                          \
         .pv = IGNORE_PV,                                                       \
         .stats_assertions = {{0}},                                             \
         .depth = 1,                                                            \
         .is_pv = false,                                                        \
+        .positions = NULL,                                                     \
         __VA_ARGS__};                                                          \
     _Pragma("GCC diagnostic pop") greatest_set_test_suffix(test_name);         \
     int num_stats_assertions = 0;                                              \
@@ -375,7 +382,8 @@ TEST assert_pv(
         num_stats_assertions > 0 ? args.stats_assertions : NULL,               \
         num_stats_assertions,                                                  \
         args.depth,                                                            \
-        args.is_pv);                                                           \
+        args.is_pv,                                                            \
+        args.positions);                                                       \
   } while (0)
 
 #define ASSERT_PV_QUIESCE_WHITE(...)                                           \
@@ -873,24 +881,28 @@ SUITE(search_black_suite) {
       .score = LOSS,
       .stats_assertions = {SEARCH_POSITIONS_BLACK(GT, 0)});
 
-  ASSERT_PV_SEARCH_BLACK(
-      "detects repetition",
-      "     +---------------------------------+"
-      " 11  | .  .  X  .  O  .  .  .  .  .  . |"
-      " 10  | .  X  .  .  O  .  O  .  .  .  X |"
-      "  9  | X  .  .  .  O  .  O  .  .  .  X |"
-      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  6  | .  .  .  .  .  X  .  .  .  .  . |"
-      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  4  | .  .  .  .  .  .  .  .  O  O  . |"
-      "  3  | X  .  .  .  O  .  .  .  .  .  X |"
-      "  2  | .  X  .  .  O  .  .  .  .  X  . |"
-      "  1  | .  .  X  .  O  .  X  .  X  .  . |"
-      "     +---------------------------------+"
-      "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .stats_assertions = {REPEAT_MOVES_ENCOUNTERED(EQ, 1)});
-  // detects repetition
+  {
+    char pos[] = "     +---------------------------------+"
+                 " 11  | .  .  X  .  O  .  .  .  .  .  . |"
+                 " 10  | .  X  .  .  O  .  O  .  .  .  X |"
+                 "  9  | X  .  .  .  O  .  O  .  .  .  X |"
+                 "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+                 "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+                 "  6  | .  .  .  .  .  #  .  .  .  .  . |"
+                 "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+                 "  4  | .  .  .  .  .  .  .  .  O  O  . |"
+                 "  3  | X  .  .  .  O  .  .  .  .  .  X |"
+                 "  2  | .  X  .  .  O  .  .  .  .  X  . |"
+                 "  1  | .  .  X  .  O  .  X  .  X  .  . |"
+                 "     +---------------------------------+"
+                 "       a  b  c  d  e  f  g  h  i  j  k  ";
+    ASSERT_PV_SEARCH_BLACK(
+        "detects repetition",
+        pos,
+        .positions = POSITION_SET(pos, true),
+        .stats_assertions = {REPEAT_MOVES_ENCOUNTERED(EQ, 1)});
+  }
+
   // calls quiescence when depth is 0
   // returns pv move (when over beta)
 }

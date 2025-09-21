@@ -1,6 +1,8 @@
 #include "move.h"
 #include "stdbool.h"
 
+typedef struct position_set position_set;
+
 // INT_MIN == -2147483648, and -INT_MIN == INT_MIN due to integer overflow, so
 // it's important that we define this value that can safely be negated without
 #define INFINITY 2147483647
@@ -35,12 +37,12 @@ pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
 
 // Runner functions that also return statistics
-pv_line quiesce_white_runner_with_stats(board b, stats *statistics);
-pv_line quiesce_black_runner_with_stats(board b, stats *statistics);
+pv_line quiesce_white_runner_with_stats(board b, stats *statistics, position_set *positions);
+pv_line quiesce_black_runner_with_stats(board b, stats *statistics, position_set *positions);
 
 // Search runner functions that also return statistics
-pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *statistics);
-pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *statistics);
+pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *statistics, position_set *positions);
+pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *statistics, position_set *positions);
 
 void destroy_pv_line(pv_line *line);
 

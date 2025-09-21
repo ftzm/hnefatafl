@@ -1,7 +1,6 @@
 #include "zobrist.h"
 #include "board.h"
 #include "stdbool.h"
-#include "stdint.h"
 #include "x86intrin.h"
 
 /*
