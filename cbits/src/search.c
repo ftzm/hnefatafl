@@ -1324,6 +1324,8 @@ pv_line quiesce_black_runner(board b) {
 
 pv_line quiesce_white_runner_with_stats(
     board b,
+    i32 alpha,
+    i32 beta,
     stats *statistics,
     position_set *positions) {
   pv pv_data = {0};
@@ -1337,8 +1339,6 @@ pv_line quiesce_white_runner_with_stats(
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
-  i32 alpha = -INFINITY;
-  i32 beta = INFINITY;
   i32 result = quiesce_white(
       &pv_data,
       local_positions,
@@ -1358,6 +1358,8 @@ pv_line quiesce_white_runner_with_stats(
 
 pv_line quiesce_black_runner_with_stats(
     board b,
+    i32 alpha,
+    i32 beta,
     stats *statistics,
     position_set *positions) {
   pv pv_data = {0};
@@ -1371,8 +1373,6 @@ pv_line quiesce_black_runner_with_stats(
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
-  i32 alpha = -INFINITY;
-  i32 beta = INFINITY;
   i32 result = quiesce_black(
       &pv_data,
       local_positions,
@@ -1732,6 +1732,8 @@ pv_line search_black_runner_with_stats(
     board b,
     int depth,
     bool is_pv,
+    i32 alpha,
+    i32 beta,
     stats *statistics,
     position_set *positions) {
   pv pv_data = {0};
@@ -1745,8 +1747,6 @@ pv_line search_black_runner_with_stats(
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
-  i32 alpha = -INFINITY;
-  i32 beta = INFINITY;
   i32 result = search_black(
       &pv_data,
       local_positions,
@@ -1770,6 +1770,8 @@ pv_line search_white_runner_with_stats(
     board b,
     int depth,
     bool is_pv,
+    i32 alpha,
+    i32 beta,
     stats *statistics,
     position_set *positions) {
   pv pv_data = {0};
@@ -1783,8 +1785,6 @@ pv_line search_white_runner_with_stats(
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
-  i32 alpha = -INFINITY;
-  i32 beta = INFINITY;
   i32 result = search_white(
       &pv_data,
       local_positions,

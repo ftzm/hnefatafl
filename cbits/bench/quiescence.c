@@ -12,8 +12,8 @@
 // Forward declarations of original functions
 pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
-pv_line quiesce_white_runner_with_stats(board b, stats *statistics);
-pv_line quiesce_black_runner_with_stats(board b, stats *statistics);
+pv_line quiesce_white_runner_with_stats(board b, i32 alpha, i32 beta, stats *statistics, position_set *positions);
+pv_line quiesce_black_runner_with_stats(board b, i32 alpha, i32 beta, stats *statistics, position_set *positions);
 void destroy_pv_line(pv_line *line);
 
 // Function to output all statistics
@@ -91,7 +91,7 @@ UBENCH_EX(test_position_1, white) {
 
   // Get stats for a single call
   stats stats = {0};
-  pv_line single_result = quiesce_white_runner_with_stats(test_board, &stats);
+  pv_line single_result = quiesce_white_runner_with_stats(test_board, MIN_SCORE, MAX_SCORE, &stats, NULL);
   destroy_pv_line(&single_result);
 
   UBENCH_DO_BENCHMARK() {
@@ -111,7 +111,7 @@ UBENCH_EX(test_position_1, black) {
 
   // Get stats for a single call
   stats stats = {0};
-  pv_line single_result = quiesce_black_runner_with_stats(test_board, &stats);
+  pv_line single_result = quiesce_black_runner_with_stats(test_board, MIN_SCORE, MAX_SCORE, &stats, NULL);
   destroy_pv_line(&single_result);
 
   UBENCH_DO_BENCHMARK() {
@@ -132,7 +132,7 @@ UBENCH_EX(quiescence_tactical, white) {
 
   // Get stats for a single call
   stats stats = {0};
-  pv_line single_result = quiesce_white_runner_with_stats(test_board, &stats);
+  pv_line single_result = quiesce_white_runner_with_stats(test_board, MIN_SCORE, MAX_SCORE, &stats, NULL);
   destroy_pv_line(&single_result);
 
   UBENCH_DO_BENCHMARK() {
@@ -153,7 +153,7 @@ UBENCH_EX(quiescence_tactical, black) {
 
   // Get stats for a single call
   stats stats = {0};
-  pv_line single_result = quiesce_black_runner_with_stats(test_board, &stats);
+  pv_line single_result = quiesce_black_runner_with_stats(test_board, MIN_SCORE, MAX_SCORE, &stats, NULL);
   destroy_pv_line(&single_result);
 
   UBENCH_DO_BENCHMARK() {
@@ -174,7 +174,7 @@ UBENCH_EX(quiescence_tactical_solution, white) {
 
   // Get stats for a single call
   stats stats = {0};
-  pv_line single_result = quiesce_white_runner_with_stats(test_board, &stats);
+  pv_line single_result = quiesce_white_runner_with_stats(test_board, MIN_SCORE, MAX_SCORE, &stats, NULL);
   destroy_pv_line(&single_result);
 
   UBENCH_DO_BENCHMARK() {
@@ -195,7 +195,7 @@ UBENCH_EX(quiescence_escape, white) {
 
   // Get stats for a single call
   stats stats = {0};
-  pv_line single_result = quiesce_white_runner_with_stats(test_board, &stats);
+  pv_line single_result = quiesce_white_runner_with_stats(test_board, MIN_SCORE, MAX_SCORE, &stats, NULL);
   destroy_pv_line(&single_result);
 
   UBENCH_DO_BENCHMARK() {
@@ -216,7 +216,7 @@ UBENCH_EX(quiescence_escape, black) {
 
   // Get stats for a single call
   stats stats = {0};
-  pv_line single_result = quiesce_black_runner_with_stats(test_board, &stats);
+  pv_line single_result = quiesce_black_runner_with_stats(test_board, MIN_SCORE, MAX_SCORE, &stats, NULL);
   destroy_pv_line(&single_result);
 
   UBENCH_DO_BENCHMARK() {

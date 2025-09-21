@@ -37,12 +37,12 @@ pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
 
 // Runner functions that also return statistics
-pv_line quiesce_white_runner_with_stats(board b, stats *statistics, position_set *positions);
-pv_line quiesce_black_runner_with_stats(board b, stats *statistics, position_set *positions);
+pv_line quiesce_white_runner_with_stats(board b, i32 alpha, i32 beta, stats *statistics, position_set *positions);
+pv_line quiesce_black_runner_with_stats(board b, i32 alpha, i32 beta, stats *statistics, position_set *positions);
 
 // Search runner functions that also return statistics
-pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, stats *statistics, position_set *positions);
-pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, stats *statistics, position_set *positions);
+pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions);
+pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions);
 
 void destroy_pv_line(pv_line *line);
 
