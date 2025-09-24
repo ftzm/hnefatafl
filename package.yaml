@@ -8,10 +8,10 @@ verbatim:
 language: GHC2021
 
 include-dirs:
-  - "/home/ftzm/dev/hnefatafl/cpp/"
+  - "/home/ftzm/dev/hnefatafl/"
 
 extra-lib-dirs:
-  - "/home/ftzm/dev/hnefatafl/cpp/"
+  - "/home/ftzm/dev/hnefatafl/"
 
 default-extensions:
   - TemplateHaskell
@@ -37,8 +37,7 @@ ghc-options:
   - -O2
   # Below is a magical incantation that allows linking against archive library ".a" files
   # https://stackoverflow.com/questions/36040366/haskell-cabal-include-static-library
-  - -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-
+  - -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
 
 dependencies:
   - name: base

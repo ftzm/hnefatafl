@@ -11,6 +11,7 @@ build-type:         Simple
 library
     exposed-modules:
         Ffi
+        UIUpdate
     other-modules:
         Paths_hnefatafl
     autogen-modules:
@@ -70,11 +71,11 @@ library
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     default-language: GHC2021
 
 executable hnefatafl
@@ -139,11 +140,11 @@ executable hnefatafl
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     default-language: GHC2021
 
 test-suite test
@@ -164,11 +165,11 @@ test-suite test
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     build-depends:
         QuickCheck,
         aeson,
@@ -236,11 +237,11 @@ benchmark board
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-llib" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/cpp/
+        /home/ftzm/dev/hnefatafl/
     build-depends:
         aeson,
         array,

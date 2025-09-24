@@ -23,6 +23,7 @@ TEST_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(TEST_SRCS))
 
 # Targets
 LIB_TARGET := $(OBJ_DIR)/lib.so
+STATIC_LIB_TARGET := ../libhnefatafl.a
 BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 
 # Compiler and flags
@@ -68,6 +69,11 @@ $(OBJ_DIR)/%.o : %.c | $(OBJ_DIR)/$(SRC_DIR) $(DEP_DIR)/$(SRC_DIR)
 # Build the shared library from all library object files
 $(LIB_TARGET): $(LIB_OBJS)
 	@$(CC) $(LDFLAGS) -o $@ $^ -shared
+
+# Build the static library from all library object files
+$(STATIC_LIB_TARGET): $(LIB_OBJS)
+	@echo "building static library $@"
+	@ar rcs $@ $^
 
 # ------------------------------------------------------------------------------
 # Test object files compilation
@@ -171,6 +177,7 @@ clean:
 	@rm -rf $(BENCH_BIN_DIR)
 	@rm -rf $(DEP_DIR)
 	@rm -f gen_constants
+	@rm -f $(STATIC_LIB_TARGET)
 
 # ------------------------------------------------------------------------------
 # Dependencies
@@ -188,6 +195,9 @@ deps:
 
 .PHONY: all
 all: deps $(LIB_TARGET) $(TEST_BIN_DIR)/test $(BENCH_BINS)
+
+.PHONY: static
+static: $(STATIC_LIB_TARGET)
 
 # ------------------------------------------------------------------------------
 # Bear

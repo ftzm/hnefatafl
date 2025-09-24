@@ -1,4 +1,5 @@
 #include "move.h"
+#include "score.h"
 #include "stdbool.h"
 
 typedef struct position_set position_set;
@@ -20,10 +21,14 @@ typedef struct pv_line {
   i32 score;
 } pv_line;
 
-typedef struct prev_pv {
-  move *moves;
-  int length;
-} prev_pv;
+#define MAX_DEPTH 32
+
+typedef struct pv {
+  int pv_length[MAX_DEPTH];
+  move pv_table[MAX_DEPTH][MAX_DEPTH];
+  move prev_pv[MAX_DEPTH];
+  int prev_pv_length;
+} pv;
 
 typedef struct stats {
   int search_positions_black;
@@ -38,16 +43,67 @@ typedef struct stats {
   int repeat_moves_encountered;
 } stats;
 
+i32 quiesce_black(
+    pv *pv_data,
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,
+    i32 alpha,
+    i32 beta,
+    stats *statistics);
+
+i32 quiesce_white(
+    pv *pv_data,
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,
+    i32 alpha,
+    i32 beta,
+    stats *statistics);
+
 pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
 
-// Runner functions that also return statistics
-pv_line quiesce_white_runner_with_stats(board b, i32 alpha, i32 beta, stats *statistics, position_set *positions);
-pv_line quiesce_black_runner_with_stats(board b, i32 alpha, i32 beta, stats *statistics, position_set *positions);
-
-// Search runner functions that also return statistics
-pv_line search_white_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions, prev_pv *previous_pv);
-pv_line search_black_runner_with_stats(board b, int depth, bool is_pv, i32 alpha, i32 beta, stats *statistics, position_set *positions, prev_pv *previous_pv);
-
 void destroy_pv_line(pv_line *line);
 
+// Helper macro to create an empty pv struct
+#define CREATE_EMPTY_PV()                                                      \
+  (&(pv){                                                                      \
+      .pv_length = {0},                                                        \
+      .pv_table = {{0}},                                                       \
+      .prev_pv = {0},                                                          \
+      .prev_pv_length = 0})
+
+i32 search_black(
+    pv *pv_data,
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,   // distance from the root
+    int depth, // depth remaining
+    i32 alpha,
+    i32 beta,
+    stats *statistics,
+    bool is_pv);
+
+i32 search_white(
+    pv *pv_data,
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,   // distance from the root
+    int depth, // depth remaining
+    i32 alpha,
+    i32 beta,
+    stats *statistics,
+    bool is_pv);

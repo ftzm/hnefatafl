@@ -9,17 +9,29 @@
 #include "stdbool.h"
 #include "zobrist.h" // IWYU pragma: export
 
+#ifdef __GNUC__
+#ifndef __clang__
+#define DO_PRAGMA(x) _Pragma(#x)
+#else
+#define DO_PRAGMA(x)
+#endif
+#else
+#define DO_PRAGMA(x)
+#endif
+
 #define POSITION_SET(...)                                                      \
   ({                                                                           \
     u64 hashes[] = {FOR_EACH_PAIR(CREATE_POSITION, __VA_ARGS__)};              \
-    size_t count = sizeof(hashes) / sizeof(hashes[0]);                         \
-    position_set *set = create_position_set(count);                            \
+    size_t count = sizeof(hashes) / sizeof(u64);                               \
+    position_set *set = create_position_set(100);                              \
     int deletion_index;                                                        \
     for (size_t i = 0; i < count; i++) {                                       \
       insert_position(set, hashes[i], &deletion_index);                        \
     }                                                                          \
     set;                                                                       \
   })
+
+#define EMPTY_POSITION_SET create_position_set(100)
 
 typedef enum result_score {
   VICTORY,
@@ -53,12 +65,14 @@ static const pv_assertion EMPTY_PV = {
 // Helper macro to convert string to move
 #define READ_MOVE(move_str) read_move(STR(move_str))
 
-// Macro to create a prev_pv struct from a list of moves
+// Macro to create a pv struct from a list of moves
 #define PREV_PV(...)                                                           \
-  (&(prev_pv){                                                                 \
-      .moves = (move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)},                     \
-      .length =                                                                \
-          sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)}) / sizeof(move)})
+  (&(pv){                                                                      \
+      .pv_length = {0},                                                        \
+      .pv_table = {0},                                                         \
+      .prev_pv_length =                                                        \
+          sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)}) / sizeof(move),   \
+      .prev_pv = {FOR_EACH(READ_MOVE, __VA_ARGS__)}})
 
 bool pvs_equal(pv_line *a, pv_line *b) {
   if (a->length != b->length) {
@@ -131,6 +145,17 @@ typedef struct {
   int value;
 } stats_assertion;
 
+typedef struct {
+  stats_assertion *assertions;
+  int length;
+} stats_assertions;
+
+#define STATS(...)                                                             \
+  ((stats_assertions){                                                         \
+      .assertions = (stats_assertion[]){__VA_ARGS__},                          \
+      .length =                                                                \
+          sizeof((stats_assertion[]){__VA_ARGS__}) / sizeof(stats_assertion)})
+
 const char *stats_field_name(stats_field field) {
   switch (field) {
   case STAT_SEARCH_POSITIONS_BLACK:
@@ -192,79 +217,84 @@ const char *comparison_name(comparison comp) {
 #define REPEAT_MOVES_ENCOUNTERED(comp, val)                                    \
   { STAT_REPEAT_MOVES_ENCOUNTERED, comp, val }
 
-// Wrapper functions to adapt quiesce runners to the search signature
-pv_line quiesce_white_runner_adapter(
-    board b,
-    int depth,
-    bool is_pv,
-    i32 alpha,
-    i32 beta,
-    stats *statistics,
-    position_set *positions,
-    prev_pv *previous_pv) {
-  (void)depth;
-  (void)is_pv;       // Ignore these parameters for quiesce
-  (void)previous_pv; // Ignore prev_pv for quiesce
-  return quiesce_white_runner_with_stats(b, alpha, beta, statistics, positions);
+typedef struct {
+  int score;
+  pv_assertion pv;
+  stats_assertions stats_assertions;
+  int depth;
+  bool is_pv;
+  position_set *positions;
+  i32 alpha;
+  i32 beta;
+  pv *pv_data;
+  score_weights score_weights;
+  score_state score_state;
+} search_args;
+
+pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
+  move *moves = malloc(sizeof(move) * pv_data->pv_length[0]);
+  memcpy(moves, pv_data->pv_table[0], sizeof(move) * pv_data->pv_length[0]);
+  return (pv_line){is_black_turn, moves, pv_data->pv_length[0], result};
 }
 
-pv_line quiesce_black_runner_adapter(
-    board b,
-    int depth,
-    bool is_pv,
-    i32 alpha,
-    i32 beta,
-    stats *statistics,
-    position_set *positions,
-    prev_pv *previous_pv) {
-  (void)depth;
-  (void)is_pv;       // Ignore these parameters for quiesce
-  (void)previous_pv; // Ignore prev_pv for quiesce
-  return quiesce_black_runner_with_stats(b, alpha, beta, statistics, positions);
+pv_line quiesce_black_adapter(board b, search_args args, stats *statistics) {
+  i32 result = quiesce_black(
+      args.pv_data,
+      args.positions,
+      &args.score_weights,
+      args.score_state,
+      b,
+      hash_for_board(b, false),
+      0,
+      args.alpha,
+      args.beta,
+      statistics);
+  return create_pv_line(args.pv_data, true, result);
+}
+
+pv_line quiesce_white_adapter(board b, search_args args, stats *statistics) {
+  i32 result = quiesce_white(
+      args.pv_data,
+      args.positions,
+      &args.score_weights,
+      args.score_state,
+      b,
+      hash_for_board(b, false),
+      0,
+      args.alpha,
+      args.beta,
+      statistics);
+  return create_pv_line(args.pv_data, true, result);
 }
 
 TEST assert_pv(
-    pv_line (
-        *f)(board, int, bool, i32, i32, stats *, position_set *, prev_pv *),
+    pv_line (*f)(board, search_args, stats *),
     bool is_black_turn,
-    char *board_string,
-    result_score result_score,
-    pv_assertion pv_assert,
-    stats_assertion *stats_assertions,
-    int num_stats_assertions,
-    int depth,
-    bool is_pv,
-    i32 alpha,
-    i32 beta,
-    position_set *positions,
-    prev_pv *previous_pv) {
-  board b = read_board(board_string);
+    board b,
+    search_args args) {
 
-  score_weights w = init_default_weights();
-  score_state s = init_score_state(&w, &b);
   i32 static_eval;
   if (is_black_turn) {
-    static_eval = black_score(&w, &s, &b);
+    static_eval = black_score(&args.score_weights, &args.score_state, &b);
   } else {
-    static_eval = white_score(&w, &s, &b);
+    static_eval = white_score(&args.score_weights, &args.score_state, &b);
   }
 
   // Build expected PV from assertion
-  bool skip_line = (pv_assert.tag == PV_IGNORE);
+  bool skip_line = (args.pv.tag == PV_IGNORE);
   pv_line expected_pv = {0};
 
-  if (pv_assert.tag == PV_EXPECT) {
-    move *moves = malloc(sizeof(move) * pv_assert.length);
-    for (int i = 0; i < pv_assert.length; i++) {
-      moves[i] = read_move(pv_assert.move_strings[i]);
+  if (args.pv.tag == PV_EXPECT) {
+    move *moves = malloc(sizeof(move) * args.pv.length);
+    for (int i = 0; i < args.pv.length; i++) {
+      moves[i] = read_move(args.pv.move_strings[i]);
     }
-    expected_pv = (pv_line){is_black_turn, moves, pv_assert.length, 0};
+    expected_pv = (pv_line){is_black_turn, moves, args.pv.length, 0};
   }
 
   // Compute PV using provided function
   stats statistics = {0};
-  pv_line computed_pv =
-      f(b, depth, is_pv, alpha, beta, &statistics, positions, previous_pv);
+  pv_line computed_pv = f(b, args, &statistics);
 
   bool equal = true;
   if (!skip_line && !pvs_equal(&expected_pv, &computed_pv)) {
@@ -276,106 +306,97 @@ TEST assert_pv(
     print_pv(b, &expected_pv);
     printf("\ncomputed PV:\n\n");
     print_pv(b, &computed_pv);
-    if (pv_assert.tag == PV_EXPECT) {
+    if (args.pv.tag == PV_EXPECT) {
       destroy_pv_line(&expected_pv);
     }
     destroy_pv_line(&computed_pv);
     FAILm("PVs unequal");
   } else {
-    if (pv_assert.tag == PV_EXPECT) {
+    if (args.pv.tag == PV_EXPECT) {
       destroy_pv_line(&expected_pv);
     }
     destroy_pv_line(&computed_pv);
   }
 
-  if (result_score == VICTORY) {
+  if (args.score == VICTORY) {
     ASSERT_EQ_FMTm("returns victory score", MAX_SCORE, computed_pv.score, "%d");
-  } else if (result_score == LOSS) {
+  } else if (args.score == LOSS) {
     ASSERT_EQ_FMTm("returns loss score", MIN_SCORE, computed_pv.score, "%d");
-  } else if (result_score == INCREASE) {
+  } else if (args.score == INCREASE) {
     ASSERT_GTm("returns score increase", computed_pv.score, static_eval);
-  } else if (result_score == DECREASE) {
+  } else if (args.score == DECREASE) {
     ASSERT_LTm("returns score decrease", computed_pv.score, static_eval);
-  } else if (result_score == MIDDLING) {
+  } else if (args.score == MIDDLING) {
     ASSERT_GTm("not losing", computed_pv.score, MIN_SCORE + 100);
     ASSERT_LTm("not winning", computed_pv.score, MAX_SCORE - 100);
-  } else if (result_score == ANY) {
+  } else if (args.score == ANY) {
   } else {
     printf("you've added a new element you fool");
     exit(1);
   }
 
-  if (stats_assertions != NULL && num_stats_assertions > 0) {
-    // Use the statistics already collected from the main function call above
-    // (statistics variable from line 227)
-
-    for (int i = 0; i < num_stats_assertions; i++) {
-      stats_assertion assertion = stats_assertions[i];
-      int actual_value = 0;
-      switch (assertion.field) {
-      case STAT_SEARCH_POSITIONS_BLACK:
-        actual_value = statistics.search_positions_black;
-        break;
-      case STAT_SEARCH_POSITIONS_WHITE:
-        actual_value = statistics.search_positions_white;
-        break;
-      case STAT_SEARCH_BETA_CUTOFF_BLACK:
-        actual_value = statistics.search_beta_cutoff_black;
-        break;
-      case STAT_SEARCH_BETA_CUTOFF_WHITE:
-        actual_value = statistics.search_beta_cutoff_white;
-        break;
-      case STAT_QUIESCENCE_POSITIONS_BLACK:
-        actual_value = statistics.quiescence_positions_black;
-        break;
-      case STAT_QUIESCENCE_POSITIONS_WHITE:
-        actual_value = statistics.quiescence_positions_white;
-        break;
-      case STAT_QUIESCENCE_BETA_CUTOFF_BLACK:
-        actual_value = statistics.quiencence_beta_cutoff_black;
-        break;
-      case STAT_QUIESCENCE_BETA_CUTOFF_WHITE:
-        actual_value = statistics.quiencence_beta_cutoff_white;
-        break;
-      case STAT_QUIESCENCE_LIMIT_REACHED:
-        actual_value = statistics.quiescence_limit_reached;
-        break;
-      case STAT_REPEAT_MOVES_ENCOUNTERED:
-        actual_value = statistics.repeat_moves_encountered;
-        break;
-      }
-      switch (assertion.comp) {
-      case EQ:
-        ASSERT_EQ_FMTm(
-            stats_field_name(assertion.field),
-            assertion.value,
-            actual_value,
-            "%d");
-        break;
-      case GT:
-        ASSERT_GTm(
-            stats_field_name(assertion.field),
-            actual_value,
-            assertion.value);
-        break;
-      case LT:
-        ASSERT_LTm(
-            stats_field_name(assertion.field),
-            actual_value,
-            assertion.value);
-        break;
-      }
+  for (int i = 0; i < args.stats_assertions.length; i++) {
+    stats_assertion assertion = args.stats_assertions.assertions[i];
+    int actual_value = 0;
+    switch (assertion.field) {
+    case STAT_SEARCH_POSITIONS_BLACK:
+      actual_value = statistics.search_positions_black;
+      break;
+    case STAT_SEARCH_POSITIONS_WHITE:
+      actual_value = statistics.search_positions_white;
+      break;
+    case STAT_SEARCH_BETA_CUTOFF_BLACK:
+      actual_value = statistics.search_beta_cutoff_black;
+      break;
+    case STAT_SEARCH_BETA_CUTOFF_WHITE:
+      actual_value = statistics.search_beta_cutoff_white;
+      break;
+    case STAT_QUIESCENCE_POSITIONS_BLACK:
+      actual_value = statistics.quiescence_positions_black;
+      break;
+    case STAT_QUIESCENCE_POSITIONS_WHITE:
+      actual_value = statistics.quiescence_positions_white;
+      break;
+    case STAT_QUIESCENCE_BETA_CUTOFF_BLACK:
+      actual_value = statistics.quiencence_beta_cutoff_black;
+      break;
+    case STAT_QUIESCENCE_BETA_CUTOFF_WHITE:
+      actual_value = statistics.quiencence_beta_cutoff_white;
+      break;
+    case STAT_QUIESCENCE_LIMIT_REACHED:
+      actual_value = statistics.quiescence_limit_reached;
+      break;
+    case STAT_REPEAT_MOVES_ENCOUNTERED:
+      actual_value = statistics.repeat_moves_encountered;
+      break;
+    }
+    switch (assertion.comp) {
+    case EQ:
+      ASSERT_EQ_FMTm(
+          stats_field_name(assertion.field),
+          assertion.value,
+          actual_value,
+          "%d");
+      break;
+    case GT:
+      ASSERT_GTm(
+          stats_field_name(assertion.field),
+          actual_value,
+          assertion.value);
+      break;
+    case LT:
+      ASSERT_LTm(
+          stats_field_name(assertion.field),
+          actual_value,
+          assertion.value);
+      break;
     }
   }
 
   PASS();
 }
 
-#define ASSERT_PV(_f, _t, _n, _b, _s, _pv_assert)                              \
-  greatest_set_test_suffix(_n);                                                \
-  RUN_TESTp(assert_pv, _f, _t, _b, _s, _pv_assert, NULL, 0, 1, false, NULL)
-
-#define ASSERT_PV_QUIESCE_GENERIC(                                             \
+#define ASSERT_QUIESCE_GENERIC(                                                \
     runner,                                                                    \
     is_black_turn,                                                             \
     test_name,                                                                 \
@@ -384,67 +405,87 @@ TEST assert_pv(
   do {                                                                         \
     _Pragma("GCC diagnostic push");                                            \
     _Pragma("GCC diagnostic ignored \"-Woverride-init\"");                     \
-    struct {                                                                   \
-      int score;                                                               \
-      pv_assertion pv;                                                         \
-      stats_assertion stats_assertions[32];                                    \
-      int depth;                                                               \
-      bool is_pv;                                                              \
-      position_set *positions;                                                 \
-      i32 alpha;                                                               \
-      i32 beta;                                                                \
-      prev_pv *previous_pv;                                                    \
-    } args = {                                                                 \
+    _Pragma("GCC diagnostic ignored \"-Wmissing-field-initializers\"");        \
+    /* for some reason it insists the pv is missing braces but I can't see     \
+     * how*/                                                                   \
+    _Pragma("GCC diagnostic ignored \"-Wmissing-braces\"");                    \
+    DO_PRAGMA(GCC diagnostic ignored "-Woverride-init-side-effects")           \
+    search_args args = {                                                       \
         .score = ANY,                                                          \
         .pv = IGNORE_PV,                                                       \
-        .stats_assertions = {{0}},                                             \
+        .stats_assertions =                                                    \
+            (stats_assertions){.assertions = NULL, .length = 0},               \
         .depth = 1,                                                            \
         .is_pv = false,                                                        \
-        .positions = NULL,                                                     \
+        .positions = EMPTY_POSITION_SET,                                       \
         .alpha = -INFINITY,                                                    \
         .beta = INFINITY,                                                      \
-        .previous_pv = NULL,                                                   \
+        .pv_data =                                                             \
+            &(pv){                                                             \
+                .pv_length = {0},                                              \
+                .pv_table = {{0}},                                             \
+                .prev_pv = {0},                                                \
+                .prev_pv_length = 0},                                          \
+        .score_weights = init_default_weights(),                               \
         __VA_ARGS__};                                                          \
     _Pragma("GCC diagnostic pop") greatest_set_test_suffix(test_name);         \
-    int num_stats_assertions = 0;                                              \
-    while (num_stats_assertions < 32 &&                                        \
-           (args.stats_assertions[num_stats_assertions].field != 0 ||          \
-            args.stats_assertions[num_stats_assertions].comp != 0 ||           \
-            args.stats_assertions[num_stats_assertions].value != 0)) {         \
-      num_stats_assertions++;                                                  \
-    }                                                                          \
-    RUN_TESTp(                                                                 \
-        assert_pv,                                                             \
-        runner,                                                                \
-        is_black_turn,                                                         \
-        board_string,                                                          \
-        args.score,                                                            \
-        args.pv,                                                               \
-        num_stats_assertions > 0 ? args.stats_assertions : NULL,               \
-        num_stats_assertions,                                                  \
-        args.depth,                                                            \
-        args.is_pv,                                                            \
-        args.alpha,                                                            \
-        args.beta,                                                             \
-        args.positions,                                                        \
-        args.previous_pv);                                                     \
+    board b = read_board(board_string);                                        \
+    args.score_state = init_score_state(&args.score_weights, &b);              \
+    RUN_TESTp(assert_pv, runner, is_black_turn, b, args);                      \
+    destroy_position_set(args.positions);                                      \
   } while (0)
 
-#define ASSERT_PV_QUIESCE_WHITE(...)                                           \
-  ASSERT_PV_QUIESCE_GENERIC(quiesce_white_runner_adapter, false, __VA_ARGS__)
+pv_line
+search_black_runner_with_stats(board b, search_args args, stats *statistics) {
+  i32 result = search_black(
+      args.pv_data,
+      args.positions,
+      &args.score_weights,
+      args.score_state,
+      b,
+      hash_for_board(b, true),
+      0,
+      args.depth,
+      args.alpha,
+      args.beta,
+      statistics,
+      args.is_pv);
+  return create_pv_line(args.pv_data, true, result);
+}
 
-#define ASSERT_PV_QUIESCE_BLACK(...)                                           \
-  ASSERT_PV_QUIESCE_GENERIC(quiesce_black_runner_adapter, true, __VA_ARGS__)
+pv_line
+search_white_runner_with_stats(board b, search_args args, stats *statistics) {
+  i32 result = search_white(
+      args.pv_data,
+      args.positions,
+      &args.score_weights,
+      args.score_state,
+      b,
+      hash_for_board(b, false),
+      0,
+      args.depth,
+      args.alpha,
+      args.beta,
+      statistics,
+      args.is_pv);
+  return create_pv_line(args.pv_data, false, result);
+}
 
-#define ASSERT_PV_SEARCH_WHITE(...)                                            \
-  ASSERT_PV_QUIESCE_GENERIC(search_white_runner_with_stats, false, __VA_ARGS__)
+#define ASSERT_QUIESCE_WHITE(...)                                              \
+  ASSERT_QUIESCE_GENERIC(quiesce_white_adapter, false, __VA_ARGS__)
 
-#define ASSERT_PV_SEARCH_BLACK(...)                                            \
-  ASSERT_PV_QUIESCE_GENERIC(search_black_runner_with_stats, true, __VA_ARGS__)
+#define ASSERT_QUIESCE_BLACK(...)                                              \
+  ASSERT_QUIESCE_GENERIC(quiesce_black_adapter, true, __VA_ARGS__)
+
+#define ASSERT_SEARCH_WHITE(...)                                               \
+  ASSERT_QUIESCE_GENERIC(search_white_runner_with_stats, false, __VA_ARGS__)
+
+#define ASSERT_SEARCH_BLACK(...)                                               \
+  ASSERT_QUIESCE_GENERIC(search_black_runner_with_stats, true, __VA_ARGS__)
 
 /* Tests for quiesce_white which don't rely on black quiescence logic */
 SUITE(quiesce_white_only) {
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "king escape is victory",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  X  .  . |"
@@ -462,9 +503,9 @@ SUITE(quiesce_white_only) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .score = VICTORY,
       .pv = EMPTY_PV,
-      .stats_assertions = {QUIESCENCE_POSITIONS_WHITE(EQ, 1)});
+      .stats_assertions = STATS(QUIESCENCE_POSITIONS_WHITE(EQ, 1)));
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "white captures black",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  O  .  X  .  . |"
@@ -483,7 +524,7 @@ SUITE(quiesce_white_only) {
       .score = INCREASE,
       .pv = PV(f9g9));
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "test king will escape in 1 rather than capture",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  X  .  . |"
@@ -506,7 +547,7 @@ SUITE(quiesce_white_only) {
 /* Tests for quiesce_white which don't rely on black quiescence logic beyond
  * static evaluation. */
 SUITE(quiesce_white_shallow) {
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "king captures black",
       "     +---------------------------------+"
       " 11  | .  .  X  .  O  X  .  .  X  .  . |"
@@ -525,7 +566,7 @@ SUITE(quiesce_white_shallow) {
       .score = INCREASE,
       .pv = PV(g9g11));
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "king will capture against the corner",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  X  .  . |"
@@ -544,7 +585,7 @@ SUITE(quiesce_white_shallow) {
       .score = VICTORY,
       .pv = PV(g1i1));
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "white captures black",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  X  .  . |"
@@ -563,7 +604,7 @@ SUITE(quiesce_white_shallow) {
       .score = INCREASE,
       .pv = PV(e4e1));
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "white captures against corner",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  X  .  . |"
@@ -584,7 +625,7 @@ SUITE(quiesce_white_shallow) {
 }
 /* Tests for quiesce_white which rely on full black quiescence logic */
 SUITE(quiesce_white_recursive) {
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "king pursues escape in 2 rather than capturing",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  .  .  . |"
@@ -603,7 +644,7 @@ SUITE(quiesce_white_recursive) {
       .score = VICTORY,
       .pv = PV(g8g11));
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "white does the tricky corner move",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  #  X  . |"
@@ -624,7 +665,7 @@ SUITE(quiesce_white_recursive) {
       // prevent an escape, thus none can raise the best score.
   );
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "white finds the tricky corner move",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  .  .  . |"
@@ -645,7 +686,7 @@ SUITE(quiesce_white_recursive) {
       // prevent an escape, thus none can raise the best score.
   );
 
-  ASSERT_PV_QUIESCE_WHITE(
+  ASSERT_QUIESCE_WHITE(
       "white prevents escape from being blocked",
       "     +---------------------------------+"
       " 11  | .  .  X  O  .  .  .  .  .  .  . |"
@@ -669,7 +710,7 @@ SUITE(quiesce_white_recursive) {
 /* Tests for quiesce_black which don't rely on white quiescence logic beyond
  * static evaluation. */
 SUITE(quiesce_black_only) {
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black loss when can't block 1-move king escape",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  #  .  . |"
@@ -692,7 +733,7 @@ SUITE(quiesce_black_only) {
 /* Tests for quiesce_black which don't rely on white quiescence logic beyond
  * static evaluation. */
 SUITE(quiesce_black_shallow) {
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black performs obvious capture",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  X  .  . |"
@@ -711,7 +752,7 @@ SUITE(quiesce_black_shallow) {
       .score = INCREASE,
       .pv = PV(f4f1));
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black prevents escape in 1",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  #  .  .  .  .  . |"
@@ -730,7 +771,7 @@ SUITE(quiesce_black_shallow) {
       .score = ANY,
       .pv = PV(h8h11));
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black prevents escape in 2",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  .  .  . |"
@@ -749,7 +790,7 @@ SUITE(quiesce_black_shallow) {
       .score = ANY,
       .pv = PV(c11f11));
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black loss when can't block 1 move king escape",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  #  .  .  .  . |"
@@ -768,7 +809,7 @@ SUITE(quiesce_black_shallow) {
       .score = LOSS,
       .pv = EMPTY_PV);
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black loss when can't block 2 move king escape",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  O  .  .  .  .  . |"
@@ -790,7 +831,7 @@ SUITE(quiesce_black_shallow) {
 
 /* Tests for quiesce_white which rely on full white quiescence logic */
 SUITE(quiesce_black_recursive) {
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "test black loss when can only block 1 of 2 1 move escapes",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  #  .  .  .  .  . |"
@@ -809,7 +850,7 @@ SUITE(quiesce_black_recursive) {
       .score = LOSS,
       .pv = EMPTY_PV);
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black loss when can only block 1 of 2 2 move escapes",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  .  .  .  .  .  . |"
@@ -828,7 +869,7 @@ SUITE(quiesce_black_recursive) {
       .score = LOSS,
       .pv = EMPTY_PV);
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black survives when can block both 2 move escapes",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  .  .  .  .  .  . |"
@@ -846,7 +887,7 @@ SUITE(quiesce_black_recursive) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .score = MIDDLING);
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black doesn't perform a capture that will result in a king escape",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  #  .  .  X  .  . |"
@@ -865,7 +906,7 @@ SUITE(quiesce_black_recursive) {
       .score = INCREASE,
       .pv = PV(c10c11));
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "test tricky corner causes loss for black",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  #  .  . |"
@@ -886,7 +927,7 @@ SUITE(quiesce_black_recursive) {
       // prevent an escape, thus none can raise the best score.
       .pv = EMPTY_PV);
 
-  ASSERT_PV_QUIESCE_BLACK(
+  ASSERT_QUIESCE_BLACK(
       "black finds 2-move blocking move around obstacle",
       "     +---------------------------------+"
       " 11  | .  .  X  .  O  .  .  .  .  .  . |"
@@ -905,8 +946,8 @@ SUITE(quiesce_black_recursive) {
       .score = MIDDLING);
 }
 
-SUITE(search_black_suite) {
-  ASSERT_PV_SEARCH_BLACK(
+SUITE(search_black_shallow) {
+  ASSERT_SEARCH_BLACK(
       "detects white victory",
       "     +---------------------------------+"
       " 11  | .  .  X  .  O  .  .  .  .  .  # |"
@@ -923,7 +964,7 @@ SUITE(search_black_suite) {
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .score = LOSS,
-      .stats_assertions = {SEARCH_POSITIONS_BLACK(GT, 0)});
+      .stats_assertions = STATS(SEARCH_POSITIONS_BLACK(GT, 0)));
 
   {
     char pos[] = "     +---------------------------------+"
@@ -940,14 +981,14 @@ SUITE(search_black_suite) {
                  "  1  | .  .  X  .  O  .  X  .  X  .  . |"
                  "     +---------------------------------+"
                  "       a  b  c  d  e  f  g  h  i  j  k  ";
-    ASSERT_PV_SEARCH_BLACK(
+    ASSERT_SEARCH_BLACK(
         "detects repetition",
         pos,
         .positions = POSITION_SET(pos, true),
-        .stats_assertions = {REPEAT_MOVES_ENCOUNTERED(EQ, 1)});
+        .stats_assertions = STATS(REPEAT_MOVES_ENCOUNTERED(EQ, 1)));
   }
 
-  ASSERT_PV_SEARCH_BLACK(
+  ASSERT_SEARCH_BLACK(
       "calls quiescence when depth is 0",
       "     +---------------------------------+"
       " 11  | .  .  X  .  O  .  .  .  .  .  . |"
@@ -965,13 +1006,12 @@ SUITE(search_black_suite) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .depth = 0,
       .score = MIDDLING,
-      .stats_assertions = {
+      .stats_assertions = STATS(
           SEARCH_POSITIONS_BLACK(EQ, 1),
-          QUIESCENCE_POSITIONS_BLACK(GT, 0),
-      });
+          QUIESCENCE_POSITIONS_BLACK(GT, 0), ));
 
   // Example of using PREV_PV macro for testing with previous PV
-  ASSERT_PV_SEARCH_BLACK(
+  ASSERT_SEARCH_BLACK(
       "gets a beta cutoff from a PV move when possible",
       "     +---------------------------------+"
       " 11  | .  .  X  .  O  .  .  .  .  .  . |"
@@ -989,13 +1029,60 @@ SUITE(search_black_suite) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .beta = MIN_SCORE,
       .is_pv = true,
-      .previous_pv = PREV_PV(f7f1),
-      // With depth 1 and a PV move return after 1 position examined through to
-      // white quiescence
-      .stats_assertions = {
+      .pv_data = PREV_PV(f7f1),
+      // With depth 1 and a PV move return after 1 position examined through
+      // to white quiescence
+      .stats_assertions = STATS(
           SEARCH_POSITIONS_BLACK(EQ, 1),
           SEARCH_POSITIONS_WHITE(EQ, 1),
           QUIESCENCE_POSITIONS_WHITE(EQ, 1),
-          SEARCH_BETA_CUTOFF_BLACK(EQ, 1),
-      });
+          SEARCH_BETA_CUTOFF_BLACK(EQ, 1), ));
+
+  // makes obvious capture
+
+  ASSERT_SEARCH_BLACK(
+      "makes obvious capture",
+      "     +---------------------------------+"
+      " 11  | .  X  .  .  .  .  .  .  .  .  . |"
+      " 10  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  9  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  .  O  X  .  .  .  .  O  O  . |"
+      "  7  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  6  | .  .  .  .  O  #  O  .  .  .  . |"
+      "  5  | .  X  .  .  .  O  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .pv = PV(b5b8));
+
+  ASSERT_SEARCH_BLACK(
+      "takes corner guard position",
+      "     +---------------------------------+"
+      " 11  | .  X  .  .  .  .  .  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  .  X |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  O  O  .  .  .  .  .  O  O  . |"
+      "  7  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  6  | .  .  .  .  O  #  O  .  .  .  . |"
+      "  5  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .pv = PV(b11c11));
+
+  // takes trade that results in better position
+  //
+}
+SUITE(search_white_shallow) {
+  // white pv beta cutoff
+  // king pv beta cutoff
+  // king makes a capture
+  // king takes a position with greater mobility.
+  // white makes a capture
 }

@@ -437,15 +437,6 @@
 //   return {result_move, result_board, res, new_r};
 // }
 
-#define MAX_DEPTH 32
-
-typedef struct pv {
-  int pv_length[MAX_DEPTH];
-  move pv_table[MAX_DEPTH][MAX_DEPTH];
-  move prev_pv[MAX_DEPTH];
-  int prev_pv_length;
-} pv;
-
 inline void update_pv(pv *pv_data, int ply, move m) {
   pv_data->pv_table[ply][ply] = m;
 
@@ -466,19 +457,6 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
 }
 
 void destroy_pv_line(pv_line *line) { free(line->moves); }
-
-i32 quiesce_white(
-    pv *pv_data,
-    position_set *positions,
-    score_weights *w,
-    score_state s,
-    board b,
-    u64 position_hash,
-    int ply,
-    i32 alpha,
-    i32 beta,
-    stats *statistics);
-
 /*
   Potential areas of improvement:
   - short circuit in quiet positions earlier
@@ -1322,88 +1300,6 @@ pv_line quiesce_black_runner(board b) {
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line quiesce_white_runner_with_stats(
-    board b,
-    i32 alpha,
-    i32 beta,
-    stats *statistics,
-    position_set *positions) {
-  pv pv_data = {0};
-  u64 position_hash = hash_for_board(b, false);
-  position_set *local_positions = positions;
-  bool created_positions = false;
-  if (local_positions == NULL) {
-    local_positions = create_position_set(100);
-    created_positions = true;
-  }
-  score_weights weights = init_default_weights();
-  score_state s = init_score_state(&weights, &b);
-  int ply = 0;
-  i32 result = quiesce_white(
-      &pv_data,
-      local_positions,
-      &weights,
-      s,
-      b,
-      position_hash,
-      ply,
-      alpha,
-      beta,
-      statistics);
-  if (created_positions) {
-    destroy_position_set(local_positions);
-  }
-  return create_pv_line(&pv_data, false, result);
-}
-
-pv_line quiesce_black_runner_with_stats(
-    board b,
-    i32 alpha,
-    i32 beta,
-    stats *statistics,
-    position_set *positions) {
-  pv pv_data = {0};
-  u64 position_hash = hash_for_board(b, true);
-  position_set *local_positions = positions;
-  bool created_positions = false;
-  if (local_positions == NULL) {
-    local_positions = create_position_set(100);
-    created_positions = true;
-  }
-  score_weights weights = init_default_weights();
-  score_state s = init_score_state(&weights, &b);
-  int ply = 0;
-  i32 result = quiesce_black(
-      &pv_data,
-      local_positions,
-      &weights,
-      s,
-      b,
-      position_hash,
-      ply,
-      alpha,
-      beta,
-      statistics);
-  if (created_positions) {
-    destroy_position_set(local_positions);
-  }
-  return create_pv_line(&pv_data, true, result);
-}
-
-i32 search_white(
-    pv *pv_data,
-    position_set *positions,
-    score_weights *w,
-    score_state s,
-    board b,
-    u64 position_hash,
-    int ply,   // distance from the root
-    int depth, // depth remaining
-    i32 alpha,
-    i32 beta,
-    stats *statistics,
-    bool is_pv);
-
 /* We try moves in this order:
 - PV move
 - king escape blockers (1 or 2 moves?)
@@ -1522,6 +1418,12 @@ i32 search_black(
 
   layer remaining_destinations = pawn_destinations(b);
   layer remaining_destinations_r = pawn_destinations_r(b);
+
+  // ---------------------------------------------------------------------------
+  // TODO (maybe) king escape in 1 blockers
+  // ---------------------------------------------------------------------------
+  // TODO (maybe) king escape in 2 blockers. Maybe combine with above. Bench.
+  // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
   // capture moves
@@ -1688,7 +1590,7 @@ i32 search_white(
   (void)statistics;
   (void)is_pv;
 
-  // Increment black position evaluation count
+  // Increment white position evaluation count
   statistics->search_positions_white++;
 
   // We only need to check for a king escape because the previous move will
@@ -1725,91 +1627,82 @@ i32 search_white(
         statistics);
   }
 
+  i32 best_value = MIN_SCORE;
+
+  // TODO: null move pruning
+
+  int king_pos = LOWEST_INDEX(b.king);
+  // int king_rank = RANK(king_pos);
+  // int king_file = FILE(king_pos);
+
+  // PV move
+  if (is_pv) {
+    move m = pv_data->prev_pv[ply];
+    move m_r = ROTATE_MOVE(m);
+    u8 orig = m.orig;
+    u8 dest = m.dest;
+    layer move_layer = move_as_layer(m);
+    layer move_layer_r = move_as_layer(m_r);
+
+    board new_b;
+    u64 new_position_hash;
+    layer captures;
+    score_state new_score_state;
+
+    if (orig == king_pos) {
+      new_b = apply_king_move(b, move_layer, move_layer_r);
+      new_position_hash = next_hash_king(position_hash, orig, dest);
+      captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+      new_score_state =
+          update_score_state_king_move_and_capture(w, s, orig, dest, captures);
+    } else {
+      new_b = apply_white_move(b, move_layer, move_layer_r);
+      new_position_hash = next_hash_white(position_hash, orig, dest);
+      captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+      new_score_state =
+          update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+    }
+
+    i32 score = -search_black(
+        pv_data,
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        depth - 1,
+        -beta,
+        -alpha,
+        statistics,
+        (is_pv && ply < pv_data->prev_pv_length));
+
+    if (score > best_value) {
+      best_value = score;
+    }
+    if (score > alpha) {
+      alpha = score;
+      update_pv(pv_data, ply, m);
+    }
+    if (alpha > beta) {
+      statistics->search_beta_cutoff_white++;
+      delete_position(positions, position_index);
+      return best_value;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // King destinations
+  // We start by making all king moves first. We may want to limit this to king
+  // captures later, or even try all captures and then do king moves, but first
+  // let's try it like this.
+
+  // ---------------------------------------------------------------------------
+  // Pawn destinations
+  // First captures, then remainder
+
+  // layer remaining_destinations = pawn_destinations(b);
+  // layer remaining_destinations_r = pawn_destinations_r(b);
+
   return 0;
-}
-
-pv_line search_black_runner_with_stats(
-    board b,
-    int depth,
-    bool is_pv,
-    i32 alpha,
-    i32 beta,
-    stats *statistics,
-    position_set *positions,
-    prev_pv *previous_pv) {
-  pv pv_data = {0};
-  if (previous_pv != NULL && previous_pv->moves != NULL && previous_pv->length > 0) {
-    pv_data.prev_pv_length = previous_pv->length;
-    memcpy(pv_data.prev_pv, previous_pv->moves, sizeof(move) * previous_pv->length);
-  }
-  u64 position_hash = hash_for_board(b, true);
-  position_set *local_positions = positions;
-  bool created_positions = false;
-  if (local_positions == NULL) {
-    local_positions = create_position_set(100);
-    created_positions = true;
-  }
-  score_weights weights = init_default_weights();
-  score_state s = init_score_state(&weights, &b);
-  int ply = 0;
-  i32 result = search_black(
-      &pv_data,
-      local_positions,
-      &weights,
-      s,
-      b,
-      position_hash,
-      ply,
-      depth,
-      alpha,
-      beta,
-      statistics,
-      is_pv);
-  if (created_positions) {
-    destroy_position_set(local_positions);
-  }
-  return create_pv_line(&pv_data, true, result);
-}
-
-pv_line search_white_runner_with_stats(
-    board b,
-    int depth,
-    bool is_pv,
-    i32 alpha,
-    i32 beta,
-    stats *statistics,
-    position_set *positions,
-    prev_pv *previous_pv) {
-  pv pv_data = {0};
-  if (previous_pv != NULL && previous_pv->moves != NULL && previous_pv->length > 0) {
-    pv_data.prev_pv_length = previous_pv->length;
-    memcpy(pv_data.prev_pv, previous_pv->moves, sizeof(move) * previous_pv->length);
-  }
-  u64 position_hash = hash_for_board(b, false);
-  position_set *local_positions = positions;
-  bool created_positions = false;
-  if (local_positions == NULL) {
-    local_positions = create_position_set(100);
-    created_positions = true;
-  }
-  score_weights weights = init_default_weights();
-  score_state s = init_score_state(&weights, &b);
-  int ply = 0;
-  i32 result = search_white(
-      &pv_data,
-      local_positions,
-      &weights,
-      s,
-      b,
-      position_hash,
-      ply,
-      depth,
-      alpha,
-      beta,
-      statistics,
-      is_pv);
-  if (created_positions) {
-    destroy_position_set(local_positions);
-  }
-  return create_pv_line(&pv_data, false, result);
 }

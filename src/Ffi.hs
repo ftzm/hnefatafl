@@ -2,10 +2,10 @@
 {-# OPTIONS_GHC -fplugin-opt=Foreign.Storable.Generic.Plugin:-v1 #-}
 {-# OPTIONS_GHC -fplugin=Foreign.Storable.Generic.Plugin #-}
 
-module Ffi (startBoard, boardToCode) where
+module Ffi (startBoard) where
 
 import Foreign
-import Foreign.C (CChar, peekCAStringLen)
+-- import Foreign.C (CChar, peekCAStringLen)
 import Foreign.Storable.Generic
 
 data Layer = Layer {lower :: Int64, upper :: Int64}
@@ -23,12 +23,12 @@ startBoard = alloca $ \ptr -> do
   start_board_extern ptr
   peek ptr
 
-foreign import ccall unsafe "board_to_code"
-  board_to_code :: Ptr CChar -> Ptr ExternBoard -> IO ()
-
-boardToCode :: ExternBoard -> IO String
-boardToCode b = allocaBytes 44 $ \str_ptr ->
-  alloca $ \brd_ptr -> do
-    poke brd_ptr b
-    board_to_code str_ptr brd_ptr
-    peekCAStringLen (str_ptr, 44)
+-- foreign import ccall unsafe "board_to_code"
+--   board_to_code :: Ptr CChar -> Ptr ExternBoard -> IO ()
+--
+-- boardToCode :: ExternBoard -> IO String
+-- boardToCode b = allocaBytes 44 $ \str_ptr ->
+--   alloca $ \brd_ptr -> do
+--     poke brd_ptr b
+--     board_to_code str_ptr brd_ptr
+--     peekCAStringLen (str_ptr, 44)

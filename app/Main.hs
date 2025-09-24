@@ -6,6 +6,3 @@ main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
   print =<< startBoard
-  print =<< boardToCode =<< startBoard
-
--- runApp
