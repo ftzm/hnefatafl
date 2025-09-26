@@ -435,21 +435,21 @@ def build_f(color, direction, portion):
 
     return f"""
 void shield_wall_{color}_{direction}_{portion}(board *b, int pos) {{
-     u64 sub_allies = b->{allies}{sub};
-     u64 *sub_foes = &b->{foes}{sub};
-     layer *foes_r = &b->{foes_r};
-     {when(is_rotated, "pos = rotate_right[pos];")}
-     {when(is_upper, "pos -= 110;")}
-     {when(is_black, "(*sub_foes) |= b->king" + aligned + sub + ";")}
-     u64 captures = 0;
-     {half}_{portion}_shield_captures(sub_allies, *sub_foes, pos, &captures);
-     (*sub_foes) -= captures;
-     {when(is_black, "(*sub_foes) &= ~(b->" + "king" +  sub + ");")}
-     while (captures) {{
-       u8 r = rotate_{rotate_dir}[{offset}_tzcnt_u64(captures)];
-       OP_LAYER_BIT_PTR(foes_r, r, ^=);
-       captures = _blsr_u64(captures);
-     }}
+  u64 sub_allies = b->{allies}{sub};
+  u64 *sub_foes = &b->{foes}{sub};
+  layer *foes_r = &b->{foes_r};
+  {when(is_rotated, "pos = rotate_right[pos];")}
+  {when(is_upper, "pos -= 110;")}
+  {when(is_black, "(*sub_foes) |= b->king" + aligned + sub + ";")}
+  u64 captures = 0;
+  {half}_{portion}_shield_captures(sub_allies, *sub_foes, pos, &captures);
+  (*sub_foes) -= captures;
+  {when(is_black, "(*sub_foes) &= ~(b->" + "king" +  sub + ");")}
+  while (captures) {{
+    u8 r = rotate_{rotate_dir}[{offset}_tzcnt_u64(captures)];
+    OP_LAYER_BIT_PTR(foes_r, r, ^=);
+    captures = _blsr_u64(captures);
+  }}
 }}
     """.lstrip("\n")
 
@@ -910,7 +910,9 @@ black_map = build_map("black")
 cog.outl("void shield_wall_black(board *b, uint pos) {\n  switch (pos) {")
 for f, indices in black_map:
     for i in indices:
-        cog.outl("  case " + str(i) + ": " + f + "(b, pos); break;")
+        cog.outl("  case " + str(i) + ":")
+        cog.outl("    " + f + "(b, pos);")
+        cog.outl("    break;")
 cog.outl("  }\n}")
 
 cog.outl("")
@@ -919,7 +921,9 @@ white_map = build_map("white")
 cog.outl("void shield_wall_white(board *b, uint pos) {\n  switch (pos) {")
 for f, indices in white_map:
     for i in indices:
-        cog.outl("  case " + str(i) + ": " + f + "(b, pos); break;")
+        cog.outl("  case " + str(i) + ":")
+        cog.outl("    " + f + "(b, pos);")
+        cog.outl("    break;")
 cog.outl("  }\n}")
 
 ]]]*/
@@ -1226,25 +1230,24 @@ void shield_wall_gen(
   }
 }
 
+// clang-format off
 /*[[[cog
 import cog
 
-
 def build_map(is_black):
-    return [
-        (f"shield_wall_gen({is_black}, false, 0, LEFT, b, pos)", [1,2]),
-        (f"shield_wall_gen({is_black}, false, 0, MIDDLE, b, pos)", [3,4,5,6,7]),
-        (f"shield_wall_gen({is_black}, false, 0, RIGHT, b, pos)", [8,9]),
-        (f"shield_wall_gen({is_black}, false, 1, LEFT, b, pos)", [111,112]),
-        (f"shield_wall_gen({is_black}, false, 1, MIDDLE, b, pos)",
-[113,114,115,116,117]), (f"shield_wall_gen({is_black}, false, 1, RIGHT, b,
-pos)", [118,119]), (f"shield_wall_gen({is_black}, true,  0, LEFT, b, pos)",
-[11,22]), (f"shield_wall_gen({is_black}, true,  0, MIDDLE, b, pos)",
-[33,44,55,66,77]), (f"shield_wall_gen({is_black}, true,  0, RIGHT, b, pos)",
-[88,99]), (f"shield_wall_gen({is_black}, true,  1, LEFT, b, pos)", [21,32]),
-        (f"shield_wall_gen({is_black}, true,  1, MIDDLE, b, pos)",
-[43,54,65,76,87]), (f"shield_wall_gen({is_black}, true,  1, RIGHT, b, pos)",
-[98,109]),
+  return [
+    (f"shield_wall_gen({is_black}, false, 0, LEFT, b, pos)", [1,2]),
+    (f"shield_wall_gen({is_black}, false, 0, MIDDLE, b, pos)", [3,4,5,6,7]),
+    (f"shield_wall_gen({is_black}, false, 0, RIGHT, b, pos)", [8,9]),
+    (f"shield_wall_gen({is_black}, false, 1, LEFT, b, pos)", [111,112]),
+    (f"shield_wall_gen({is_black}, false, 1, MIDDLE, b, pos)", [113,114,115,116,117]),
+    (f"shield_wall_gen({is_black}, false, 1, RIGHT, b, pos)", [118,119]),
+    (f"shield_wall_gen({is_black}, true, 0, LEFT, b, pos)", [11,22]),
+    (f"shield_wall_gen({is_black}, true, 0, MIDDLE, b, pos)", [33,44,55,66,77]),
+    (f"shield_wall_gen({is_black}, true, 0, RIGHT, b, pos)", [88,99]),
+    (f"shield_wall_gen({is_black}, true, 1, LEFT, b, pos)", [21,32]),
+    (f"shield_wall_gen({is_black}, true, 1, MIDDLE, b, pos)", [43,54,65,76,87]),
+    (f"shield_wall_gen({is_black}, true, 1, RIGHT, b, pos)", [98,109]),
     ]
 
 
@@ -1252,7 +1255,9 @@ black_map = build_map("true")
 cog.outl("void shield_wall_black_gen(board *b, uint pos) {\n  switch (pos) {")
 for f, indices in black_map:
     for i in indices:
-        cog.outl("  case " + str(i) + ": " + f + ";  break;")
+        cog.outl("  case " + str(i) + ":")
+        cog.outl("    " + f + ";")
+        cog.outl("    break;")
 cog.outl("  }\n}")
 
 cog.outl("")
@@ -1261,11 +1266,12 @@ white_map = build_map("false")
 cog.outl("void shield_wall_white_gen(board *b, uint pos) {\n  switch (pos) {")
 for f, indices in white_map:
     for i in indices:
-        cog.outl("  case " + str(i) + ": " + f + "; break;")
+        cog.outl("  case " + str(i) + ":")
+        cog.outl("    " + f + ";")
+        cog.outl("    break;")
 cog.outl("  }\n}")
 
 ]]]*/
-
 void shield_wall_black_gen(board *b, uint pos) {
   switch (pos) {
   case 1:
