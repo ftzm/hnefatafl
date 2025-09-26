@@ -1,10 +1,8 @@
 #include "assert.h"
 #include "board.h"
 #include "constants.h"
-#include "io.h"
 #include "layer.h"
 #include "stdbool.h"
-#include "stdio.h"
 #include "x86intrin.h" // IWYU pragma: export
 #include "zobrist.h"
 

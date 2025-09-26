@@ -1,5 +1,5 @@
 {
-  description = "Simple haskell nix flake";
+  description = "Haskell backend for hnefatafl game";
 
   nixConfig.bash-prompt = "[nix]\\e[38;5;172mλ \\e[m";
 
@@ -46,22 +46,7 @@
           hpack
           pkgs.zlib
           pkgs.libz
-          pkgs.gdb
           pkgs.sqlite
-
-          # C
-          pkgs.clang-tools
-          pkgs.clang
-          pkgs.libclang
-          #pkgs.ccls
-          pkgs.bear
-          pkgs.cmake
-          pkgs.clangStdenv
-          pkgs.just
-          pkgs.ripgrep
-          pkgs.valgrind
-
-          pkgs.python312Packages.cogapp
         ];
 
         withHoogle = true;
