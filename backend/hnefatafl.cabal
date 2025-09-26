@@ -8,14 +8,29 @@ name:               hnefatafl
 version:            0.0.0.2
 build-type:         Simple
 
-library
+library bindings
     exposed-modules:
-        Ffi
-        UIUpdate
+        Hnefatafl.Bindings
     other-modules:
         Paths_hnefatafl
     autogen-modules:
         Paths_hnefatafl
+    hs-source-dirs:
+        bindings
+    default-extensions:
+        TemplateHaskell
+        OverloadedStrings
+        OverloadedRecordDot
+        OverloadedLabels
+        DuplicateRecordFields
+        LambdaCase
+        DerivingVia
+        ImportQualifiedPost
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+    include-dirs:
+        /home/ftzm/dev/hnefatafl/backend/
+    extra-lib-dirs:
+        /home/ftzm/dev/hnefatafl/backend/
     build-depends:
         aeson,
         array,
@@ -60,102 +75,18 @@ library
     mixins:
         base hiding (Prelude),
         relude (Relude as Prelude)
-    hs-source-dirs:
-        src
-    default-extensions:
-        TemplateHaskell
-        OverloadedStrings
-        OverloadedRecordDot
-        OverloadedLabels
-        DuplicateRecordFields
-        LambdaCase
-        DerivingVia
-        ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-    include-dirs:
-        /home/ftzm/dev/hnefatafl/
-    extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/
     default-language: GHC2021
 
-executable hnefatafl
-    main-is: Main.hs
-    other-modules:
-        Paths_hnefatafl
-    autogen-modules:
-        Paths_hnefatafl
-    build-depends:
-        aeson,
-        array,
-        async,
-        base,
-        containers,
-        deepseq,
-        derive-storable,
-        derive-storable-plugin,
-        generic-lens,
-        hnefatafl,
-        http-media,
-        http-types,
-        lens,
-        lucid2,
-        mtl,
-        parallel,
-        random,
-        raw-strings-qq,
-        relude,
-        resourcet,
-        servant,
-        servant-client,
-        servant-server,
-        servant-websockets,
-        split,
-        sqlite-simple,
-        stm,
-        storable-record,
-        storable-tuple,
-        template-haskell,
-        text,
-        time,
-        unagi-chan,
-        uuid,
-        vector,
-        vector-hashtables,
-        wai,
-        wai-websockets,
-        warp,
-        websockets,
-        wide-word
-    mixins:
-        base hiding (Prelude),
-        relude (Relude as Prelude)
-    hs-source-dirs:
-        app
-    default-extensions:
-        TemplateHaskell
-        OverloadedStrings
-        OverloadedRecordDot
-        OverloadedLabels
-        DuplicateRecordFields
-        LambdaCase
-        DerivingVia
-        ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-    include-dirs:
-        /home/ftzm/dev/hnefatafl/
-    extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/
-    default-language: GHC2021
-
-test-suite test
+test-suite bindings-test
     type: exitcode-stdio-1.0
-    main-is: Main.hs
+    main-is: Driver.hs
     other-modules:
+        MoveList
         Paths_hnefatafl
     autogen-modules:
         Paths_hnefatafl
     hs-source-dirs:
-        test
+        bindings-test
     default-extensions:
         TemplateHaskell
         OverloadedStrings
@@ -167,28 +98,28 @@ test-suite test
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        /home/ftzm/dev/hnefatafl/
+        /home/ftzm/dev/hnefatafl/backend/
     extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/
+        /home/ftzm/dev/hnefatafl/backend/
+    build-tool-depends:
+        tasty-discover:tasty-discover
     build-depends:
-        QuickCheck,
         aeson,
         array,
         async,
         base,
+        bindings,
         containers,
         deepseq,
         derive-storable,
         derive-storable-plugin,
         generic-lens,
-        hnefatafl,
         http-media,
         http-types,
         lens,
         lucid2,
         mtl,
         parallel,
-        quickcheck-instances,
         random,
         raw-strings-qq,
         relude,
@@ -202,6 +133,9 @@ test-suite test
         stm,
         storable-record,
         storable-tuple,
+        tasty,
+        tasty-discover,
+        tasty-hunit,
         template-haskell,
         text,
         time,
@@ -239,9 +173,9 @@ benchmark board
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
     include-dirs:
-        /home/ftzm/dev/hnefatafl/
+        /home/ftzm/dev/hnefatafl/backend/
     extra-lib-dirs:
-        /home/ftzm/dev/hnefatafl/
+        /home/ftzm/dev/hnefatafl/backend/
     build-depends:
         aeson,
         array,

@@ -1,6 +1,7 @@
 #include "greatest.h"
 #include "zobrist.h"
 
+SUITE_EXTERN(base64_suite);
 SUITE_EXTERN(capture_suite);
 SUITE_EXTERN(corner_moves_1_suite);
 SUITE_EXTERN(corner_moves_2_suite);
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
   init_hashes();
 
   GREATEST_MAIN_BEGIN();
+  RUN_SUITE(base64_suite);
   RUN_SUITE(capture_suite);
   RUN_SUITE(corner_moves_1_suite);
   RUN_SUITE(corner_moves_2_suite);

@@ -23,7 +23,7 @@ TEST_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(TEST_SRCS))
 
 # Targets
 LIB_TARGET := $(OBJ_DIR)/lib.so
-STATIC_LIB_TARGET := ../libhnefatafl.a
+STATIC_LIB_TARGET := ../backend/libhnefatafl.a
 BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 
 # Compiler and flags

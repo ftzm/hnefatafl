@@ -8,10 +8,10 @@ verbatim:
 language: GHC2021
 
 include-dirs:
-  - "/home/ftzm/dev/hnefatafl/"
+  - "/home/ftzm/dev/hnefatafl/backend/"
 
 extra-lib-dirs:
-  - "/home/ftzm/dev/hnefatafl/"
+  - "/home/ftzm/dev/hnefatafl/backend/"
 
 default-extensions:
   - TemplateHaskell
@@ -110,35 +110,39 @@ dependencies:
   # - servant-lucid
   # - some
 
-library:
-  source-dirs: src
-  language: GHC2021
-
-executables:
-  hnefatafl:
-    main: "Main.hs"
-    source-dirs: app
-    dependencies:
-      - hnefatafl
+# executables:
+#   app:
+#     main: "Main.hs"
+#     source-dirs: app
+#     dependencies:
+#       - hnefatafl
+      
+internal-libraries:
+  bindings:
+    source-dirs: bindings
+    build-tools:
+        tasty-discover:tasty-discover
 
 tests:
-  test:
-    main: "Main.hs"
-    source-dirs: test
+  bindings-test:
+    main: "Driver.hs"
+    source-dirs: bindings-test
+    build-tools:
+        tasty-discover:tasty-discover
     dependencies:
-      - hnefatafl
+      - bindings
+      - tasty
+      - tasty-hunit
+      - tasty-discover
 #       - hspec
 #       - hspec-contrib
 #       - hspec-core
 #       - hspec-wai
 #       - HUnit
-#       - tasty
-#       - tasty-discover
 #       - tasty-hspec
-#       - tasty-hunit
 #       - tasty-quickcheck
-      - quickcheck-instances
-      - QuickCheck
+#      - quickcheck-instances
+#      - QuickCheck
 
 benchmarks:
   board:
