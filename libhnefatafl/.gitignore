@@ -1,0 +1,14 @@
+*.o
+*.d
+*.a
+*.so
+*.out*
+**/test_capture
+**.cache
+compile_commands.json
+.ccls-cache/
+.obj/
+.test_bin/
+.bench_bin/
+.deps/
+gen_constants

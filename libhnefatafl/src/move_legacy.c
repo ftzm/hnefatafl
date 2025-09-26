@@ -2082,6 +2082,10 @@ void get_king_moves(
 /* Generate a layer of locations which, when landed upon, _may_
 trigger a shield wall capture.
 
+Specifically, this generates a layer of open squares at the edge which
+are adjacent to foe pieces , which themselves are adjacent to an
+opposing pieces in the inner row.
+
 The idea is not to be perfectly accurate, but rather to rule out a
 majority of ineligible edge positions via a relatively cheap "bulk"
 computation, so that not every move to an edge position need do a full
