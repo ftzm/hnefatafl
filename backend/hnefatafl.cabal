@@ -1,6 +1,6 @@
 cabal-version: 2.4
 
--- This file has been generated from package.yaml by hpack version 0.36.0.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -31,6 +31,8 @@ library bindings
         /home/ftzm/dev/hnefatafl/backend/
     extra-lib-dirs:
         /home/ftzm/dev/hnefatafl/backend/
+    build-tool-depends:
+        tasty-discover:tasty-discover
     build-depends:
         aeson,
         array,
@@ -96,7 +98,7 @@ test-suite bindings-test
         LambdaCase
         DerivingVia
         ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
     include-dirs:
         /home/ftzm/dev/hnefatafl/backend/
     extra-lib-dirs:
@@ -114,6 +116,8 @@ test-suite bindings-test
         derive-storable,
         derive-storable-plugin,
         generic-lens,
+        hspec,
+        hspec-expectations-pretty-diff,
         http-media,
         http-types,
         lens,
@@ -135,6 +139,7 @@ test-suite bindings-test
         storable-tuple,
         tasty,
         tasty-discover,
+        tasty-hspec,
         tasty-hunit,
         template-haskell,
         text,

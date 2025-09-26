@@ -22,10 +22,10 @@
       overlays = [];
       pkgs = import nixpkgs {inherit config overlays system;};
     in rec {
-      devShell = pkgs.haskell.packages.ghc945.shellFor rec {
+      devShell = pkgs.haskell.packages.ghc910.shellFor rec {
         packages = p: [];
 
-        buildInputs = with pkgs.haskell.packages.ghc945; [
+        buildInputs = with pkgs.haskell.packages.ghc910; [
           # first and foremost: a tolerable shell
           pkgs.bashInteractive
 

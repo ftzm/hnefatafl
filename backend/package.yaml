@@ -126,13 +126,18 @@ internal-libraries:
 tests:
   bindings-test:
     main: "Driver.hs"
+    ghc-options: 
+      - -Wno-missing-export-lists
     source-dirs: bindings-test
     build-tools:
         tasty-discover:tasty-discover
     dependencies:
       - bindings
+      - hspec
+      - hspec-expectations-pretty-diff
       - tasty
       - tasty-hunit
+      - tasty-hspec
       - tasty-discover
 #       - hspec
 #       - hspec-contrib
