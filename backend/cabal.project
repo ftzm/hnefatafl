@@ -1,0 +1,2 @@
+packages: hnefatafl.cabal
+allow-newer: derive-storable-plugin:ghc, derive-storable-plugin:ghci

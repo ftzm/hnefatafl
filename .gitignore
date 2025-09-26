@@ -49,3 +49,6 @@ cmake
 .ccls-cache/
 
 .test_bin
+.bench_bin
+
+.claude
