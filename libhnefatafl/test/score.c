@@ -1,12 +1,12 @@
 #include "score.h"
 #include "board.h"
 #include "capture.h"
+#include "constants.h"
 #include "fixtures.h"
 #include "greatest.h"
 #include "io.h"
 #include "layer.h"
 #include "move.h"
-#include "move_legacy.h"
 #include "theft.h"
 #include "theft_types.h"
 #include <stdio.h>
@@ -75,6 +75,7 @@ void score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
     if (!score_states_equal(
             &input->full_score_states[i],
             &input->incremental_score_states[i])) {
+      print_move(input->moves[i].orig, input->moves[i].dest);
       print_board_move(
           input->results_boards[i],
           input->moves[i].orig,
@@ -134,14 +135,10 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
   score_weights w = {3, 3, 3, 3, 3, 3, 3, init_default_psts()};
   score_state ss = init_score_state(&w, &b);
 
-  const layer capture_dests =
-      find_capture_destinations(b.white, b.black, board_occ(b));
-  const layer non_capture_dests =  non_capture(&b, &capture_dests);
+  const layer capture_dests = white_capture_destinations(&b);
+  const layer non_capture_dests = non_capture(&b, &capture_dests);
 
-    
-
-  const layer capture_dests_r =
-      find_capture_destinations(b.white_r, b.black_r, board_occ_r(b));
+  const layer capture_dests_r = white_capture_destinations_r(&b);
 
   const layer non_capture_dests_r = non_capture_r(&b, &capture_dests_r);
 
@@ -160,8 +157,8 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
     results.results_boards[i] = result_board;
 
     score_state updated_score_state = ss;
-    updated_score_state = update_score_state_white_move(
-        &w, updated_score_state, m.orig, m.dest);
+    updated_score_state =
+        update_score_state_white_move(&w, updated_score_state, m.orig, m.dest);
     results.incremental_score_states[i] = updated_score_state;
 
     score_state recalculated_score_state = init_score_state(&w, &result_board);
@@ -210,10 +207,10 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
   score_state ss = init_score_state(&w, &b);
 
   const layer capture_dests =
-      find_capture_destinations(b.white, b.black, board_occ(b));
+      LAYER_AND(LAYER_NOT(throne), white_capture_destinations(&b));
 
   const layer capture_dests_r =
-      find_capture_destinations(b.white_r, b.black_r, board_occ_r(b));
+      LAYER_AND(LAYER_NOT(throne), white_capture_destinations_r(&b));
 
   moves_to_t moves = moves_to_white(b, capture_dests, capture_dests_r);
 
@@ -226,7 +223,10 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
     LAYER_XOR_ASSG(result_board.white, moves.ls[i]);
     LAYER_XOR_ASSG(result_board.white_r, moves.ls_r[i]);
     apply_captures_niave(
-        result_board.white, &result_board.black, &result_board.black_r, m.dest);
+        LAYER_OR(result_board.white, result_board.king),
+        &result_board.black,
+        &result_board.black_r,
+        m.dest);
     results.results_boards[i] = result_board;
     layer captures = LAYER_XOR(b.black, result_board.black);
     // print_layer(b.black);
@@ -235,7 +235,11 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
 
     score_state updated_score_state = ss;
     updated_score_state = update_score_state_white_move_and_capture(
-        &w, updated_score_state, m.orig, m.dest, captures);
+        &w,
+        updated_score_state,
+        m.orig,
+        m.dest,
+        captures);
     results.incremental_score_states[i] = updated_score_state;
 
     score_state recalculated_score_state = init_score_state(&w, &result_board);

@@ -5,10 +5,14 @@
 extern layer surround_masks[120];
 extern layer surround_masks_r[120];
 
-layer find_capture_destinations(
+layer simple_capture_destinations(
     const layer allies,
     const layer foes,
     const layer occ);
+layer black_capture_destinations(const board *b);
+layer white_capture_destinations(const board *b);
+layer black_capture_destinations_r(const board *b);
+layer white_capture_destinations_r(const board *b);
 
 u8 apply_captures_niave(
     const layer friends,

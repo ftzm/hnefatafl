@@ -6,18 +6,15 @@
 #include "fixtures.h"
 #include "greatest.h"
 #include "io.h"
-#include "king_mobility.h"
 #include "layer.h"
 #include "move_legacy.h"
 #include "move_legacy_mm.h"
 #include "stdbool.h"
-#include "stdint.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 #include "theft.h"
 #include "theft_types.h"
-#include "x86intrin.h"
 
 u64 rightward_moves_lower(u64 gen, u64 pro) {
   u64 orig = gen;
@@ -194,7 +191,7 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
   *total = 0;
   layer occ = board_occ(b);
 
-  const layer capture_dests = find_capture_destinations(b.black, b.white, occ);
+  const layer capture_dests = black_capture_destinations(&b);
 
   int dest;
   int orig = 0;
@@ -295,7 +292,7 @@ void gen_reference_moves_black2(board b, int *total, move *ms, board *bs) {
   *total = 0;
   layer occ = board_occ(b);
 
-  const layer capture_dests = find_capture_destinations(b.black, b.white, occ);
+  const layer capture_dests = black_capture_destinations(&b);
 
   int dest;
 
@@ -1791,10 +1788,7 @@ moves_to_king_cb(struct theft *t, void *env, void **instance) {
   get_king_moves(b, &total, ms, bs);
 
   // to test
-  moves_to_t r = moves_to_king(
-      b,
-      king_destinations(b),
-      king_destinations_r(b));
+  moves_to_t r = moves_to_king(b, king_destinations(b), king_destinations_r(b));
 
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
   qsort(r.ms, r.total, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -2091,10 +2085,7 @@ king_moves_count_cb(struct theft *t, void *env, void **instance) {
   (void)env;
   board b = theft_create_board(t);
 
-  moves_to_t r = moves_to_king(
-      b,
-      king_destinations(b),
-      king_destinations_r(b));
+  moves_to_t r = moves_to_king(b, king_destinations(b), king_destinations_r(b));
 
   int move_count = king_moves_count(&b);
 
@@ -2170,7 +2161,6 @@ TEST king_hopover() {
   }
   PASS();
 }
-
 
 SUITE(move_suite) {
 

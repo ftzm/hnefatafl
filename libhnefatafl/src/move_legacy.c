@@ -1409,11 +1409,9 @@ void get_team_moves_{color}(
   layer foes = current.{"white" if color == "black" else "black"};
   layer foes_r = current.{"white" if color == "black" else "black"}_r;
 
-  const layer capture_dests =
-    find_capture_destinations(allies, foes, occ);
+  const layer capture_dests = {color}_capture_destinations(&current);
 
-  const layer capture_dests_r =
-    find_capture_destinations(allies_r, foes_r, occ_r);
+  const layer capture_dests_r = {color}_capture_destinations_r(&current);
 """
     for r in ["", "_r"]:
         for (sub, offset) in [(0, 0), (0, 11), (0, 22), (0, 33), (0, 44),
@@ -1467,14 +1465,10 @@ void get_team_moves_white(
   const layer occ_r = board_occ_r(current);
   layer allies = LAYER_OR(current.white, corners);
   allies = LAYER_OR(allies, current.king);
-  layer allies_r = LAYER_OR(current.white_r, corners);
-  layer foes = current.black;
-  layer foes_r = current.black_r;
 
-  const layer capture_dests = find_capture_destinations(allies, foes, occ);
+  const layer capture_dests = white_capture_destinations(&current);
 
-  const layer capture_dests_r =
-      find_capture_destinations(allies_r, foes_r, occ_r);
+  const layer capture_dests_r = white_capture_destinations_r(&current);
 
   get_next_row_boards_white_0(
       boards,
@@ -1680,16 +1674,10 @@ void get_team_moves_black(
     board *boards) {
   const layer occ = board_occ(current);
   const layer occ_r = board_occ_r(current);
-  layer allies = LAYER_OR(current.black, corners);
 
-  layer allies_r = LAYER_OR(current.black_r, corners);
-  layer foes = current.white;
-  layer foes_r = current.white_r;
+  const layer capture_dests = black_capture_destinations(&current);
 
-  const layer capture_dests = find_capture_destinations(allies, foes, occ);
-
-  const layer capture_dests_r =
-      find_capture_destinations(allies_r, foes_r, occ_r);
+  const layer capture_dests_r = black_capture_destinations_r(&current);
 
   get_next_row_boards_black_0(
       boards,
@@ -2117,7 +2105,7 @@ void gen_reference_moves_black3(
   *total = 0;
   layer occ = board_occ(b);
 
-  const layer capture_dests = find_capture_destinations(b.black, b.white, occ);
+  const layer capture_dests = black_capture_destinations(&b);
 
   int dest;
 
@@ -2247,7 +2235,7 @@ void gen_reference_moves_white3(
   *total = 0;
   layer occ = board_occ(b);
 
-  const layer capture_dests = find_capture_destinations(b.white, b.black, occ);
+  const layer capture_dests = white_capture_destinations(&b);
 
   int dest;
 

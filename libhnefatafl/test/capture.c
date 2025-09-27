@@ -1,5 +1,6 @@
 #include "capture.h"
 #include "assert.h"
+#include "board.h"
 #include "greatest.h"
 #include "io.h"
 #include "stdbool.h"
@@ -47,6 +48,11 @@ TEST test(
 
   board white = read_board(input);
   board black = reverse_teams(white);
+
+  // Test that the pos which triggers a shield wall capture is detected in our
+  // capture destinations function
+  // layer capture_dests_white = white_capture_destinations(&white);
+  // layer capture_dests_black = black_capture_destinations(&black);
 
   // bool is_black = true;
   // u64 z = hash_for_board(read_board(board_str), is_black);

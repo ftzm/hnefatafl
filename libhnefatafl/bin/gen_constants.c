@@ -138,7 +138,7 @@ int main() {
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
       ".  X  X  X  X  X  X  X  X  X  .",
-      "edges");
+      "EDGES");
 
   print_layer_info(
       ".  .  .  .  .  .  .  .  .  .  ."

@@ -366,24 +366,45 @@ layer gen_shield_wall_triggers(
   }
 
   // only at the end do we apply the edge mask.
-  triggers = LAYER_AND(triggers, edges);
+  triggers = LAYER_AND(triggers, EDGES);
 
   return triggers;
 }
 
-layer find_capture_destinations(
-    const layer allies,
-    const layer foes,
-    const layer occ) {
-  /*
-  layer t = gen_shield_wall_triggers(allies, foes, occ);
-  if (NOT_EMPTY(t)) {
-    print_layer(t);
-  }
-  */
+layer black_capture_destinations(const board *b) {
+  layer occ = board_occ(*b);
+  layer allies = LAYER_OR(b->black, corners);
   return LAYER_OR(
-      simple_capture_destinations(allies, foes, occ),
-      gen_shield_wall_triggers(allies, foes, occ));
+      simple_capture_destinations(allies, b->white, occ),
+      gen_shield_wall_triggers(allies, b->white, occ));
+}
+
+/* This includes the throne so it can be used with the king; pawns must remove
+ * it before calculating destinations */
+layer white_capture_destinations(const board *b) {
+  layer occ = LAYER_OR(corners, king_board_occ(*b));
+  layer allies = LAYER_OR(LAYER_OR(b->white, b->king), corners);
+  return LAYER_OR(
+      simple_capture_destinations(allies, b->black, occ),
+      gen_shield_wall_triggers(allies, b->black, occ));
+}
+
+layer black_capture_destinations_r(const board *b) {
+  layer occ = board_occ_r(*b);
+  layer allies = LAYER_OR(b->black_r, corners);
+  return LAYER_OR(
+      simple_capture_destinations(allies, b->white_r, occ),
+      gen_shield_wall_triggers(allies, b->white_r, occ));
+}
+
+/* This includes the throne so it can be used with the king; pawns must remove
+ * it before calculating destinations */
+layer white_capture_destinations_r(const board *b) {
+  layer occ = LAYER_OR(corners, king_board_occ_r(*b));
+  layer allies = LAYER_OR(LAYER_OR(b->white_r, b->king_r), corners);
+  return LAYER_OR(
+      simple_capture_destinations(allies, b->black_r, occ),
+      gen_shield_wall_triggers(allies, b->black_r, occ));
 }
 
 //******************************************************************************
