@@ -7,6 +7,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "zobrist.h"
 
 void assert_boards_equal(board a, board b, int line, const char *func) {
   if (!boards_equal(a, b)) {
@@ -49,20 +50,48 @@ TEST test(
   board white = read_board(input);
   board black = reverse_teams(white);
 
+  // Calculate zobrist hashes for initial board states
+  u64 white_zobrist = hash_for_board(white, false);
+  u64 black_zobrist = hash_for_board(black, true);
+
   // Test that the pos which triggers a shield wall capture is detected in our
   // capture destinations function
-  // layer capture_dests_white = white_capture_destinations(&white);
-  // layer capture_dests_black = black_capture_destinations(&black);
+  layer pos_layer = EMPTY_LAYER;
+  SET_INDEX(pos_layer, pos);
+  layer capture_dests_white = white_capture_destinations(&white);
+  if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_white))) {
+    printf("capture_dests_white");
+    print_layer(pos_layer);
+    print_layer(capture_dests_white);
+    FAIL();
+  }
+  layer capture_dests_black = black_capture_destinations(&black);
+  if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_black))) {
+    printf("capture_dests_black");
+    print_layer(pos_layer);
+    print_layer(capture_dests_black);
+    FAIL();
+  }
 
   // bool is_black = true;
   // u64 z = hash_for_board(read_board(board_str), is_black);
-  u64 z = 0;
 
-  shield_wall_white(&white, &z, pos);
+  shield_wall_white(&white, &white_zobrist, pos);
   assert_boards_equal(exp, white, line, func);
 
-  shield_wall_black(&black, &z, pos);
+  shield_wall_black(&black, &black_zobrist, pos);
   assert_boards_equal(reverse_teams(exp), black, line, func);
+
+  u64 white_zobrist_recalculated = hash_for_board(white, false);
+  if (white_zobrist_recalculated != white_zobrist) {
+    printf("white zobrist unequal\n");
+    FAIL();
+  }
+  u64 black_zobrist_recalculated = hash_for_board(black, true);
+  if (black_zobrist_recalculated != black_zobrist) {
+    printf("black zobrist unequal\n");
+    FAIL();
+  }
 
   PASS();
 }

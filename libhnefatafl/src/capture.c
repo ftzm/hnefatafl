@@ -541,7 +541,7 @@ cog.outl("")
 
 def when(cond, a): return a if cond else ""
 
-def choose_layer(is_black, is_rotated):
+def choose_layer(is_black, is_rotated=False):
     return ("black" if is_black else "white") + ("_r" if is_rotated else "")
 
 dir_rot = {"north": False, "south": False, "east": True, "west": True}
@@ -576,7 +576,7 @@ layer shield_wall_{color}_{direction}_{portion}(board *b, u64 *z, int pos) {{
   while (captures) {{
     int index = {offset}_tzcnt_u64(captures);
     u8 r = rotate_{rotate_dir}[index];
-    *z ^= {color}_hashes[{"r" if is_rotated else "index"}];
+    *z ^= {choose_layer(not is_black)}_hashes[{"r" if is_rotated else "index"}];
     SET_INDEX(output, {"r" if is_rotated else "index"});
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -610,7 +610,7 @@ layer shield_wall_black_north_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= black_hashes[index];
+    *z ^= white_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -633,7 +633,7 @@ layer shield_wall_black_north_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= black_hashes[index];
+    *z ^= white_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -656,7 +656,7 @@ layer shield_wall_black_north_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= black_hashes[index];
+    *z ^= white_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -679,7 +679,7 @@ layer shield_wall_black_east_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= black_hashes[r];
+    *z ^= white_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -702,7 +702,7 @@ layer shield_wall_black_east_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= black_hashes[r];
+    *z ^= white_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -725,7 +725,7 @@ layer shield_wall_black_east_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= black_hashes[r];
+    *z ^= white_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -747,7 +747,7 @@ layer shield_wall_black_south_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= black_hashes[index];
+    *z ^= white_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -769,7 +769,7 @@ layer shield_wall_black_south_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= black_hashes[index];
+    *z ^= white_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -791,7 +791,7 @@ layer shield_wall_black_south_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= black_hashes[index];
+    *z ^= white_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -814,7 +814,7 @@ layer shield_wall_black_west_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= black_hashes[r];
+    *z ^= white_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -837,7 +837,7 @@ layer shield_wall_black_west_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= black_hashes[r];
+    *z ^= white_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -860,7 +860,7 @@ layer shield_wall_black_west_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= black_hashes[r];
+    *z ^= white_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -883,7 +883,7 @@ layer shield_wall_white_north_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= white_hashes[index];
+    *z ^= black_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -906,7 +906,7 @@ layer shield_wall_white_north_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= white_hashes[index];
+    *z ^= black_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -929,7 +929,7 @@ layer shield_wall_white_north_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= white_hashes[index];
+    *z ^= black_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -951,7 +951,7 @@ layer shield_wall_white_east_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= white_hashes[r];
+    *z ^= black_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -973,7 +973,7 @@ layer shield_wall_white_east_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= white_hashes[r];
+    *z ^= black_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -995,7 +995,7 @@ layer shield_wall_white_east_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= white_hashes[r];
+    *z ^= black_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -1016,7 +1016,7 @@ layer shield_wall_white_south_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= white_hashes[index];
+    *z ^= black_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -1037,7 +1037,7 @@ layer shield_wall_white_south_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= white_hashes[index];
+    *z ^= black_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -1058,7 +1058,7 @@ layer shield_wall_white_south_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = _tzcnt_u64(captures);
     u8 r = rotate_right[index];
-    *z ^= white_hashes[index];
+    *z ^= black_hashes[index];
     SET_INDEX(output, index);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -1081,7 +1081,7 @@ layer shield_wall_white_west_left(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= white_hashes[r];
+    *z ^= black_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -1104,7 +1104,7 @@ layer shield_wall_white_west_middle(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= white_hashes[r];
+    *z ^= black_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
@@ -1127,7 +1127,7 @@ layer shield_wall_white_west_right(board *b, u64 *z, int pos) {
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
     u8 r = rotate_left[index];
-    *z ^= white_hashes[r];
+    *z ^= black_hashes[r];
     SET_INDEX(output, r);
     OP_LAYER_BIT_PTR(foes_r, r, ^=);
     captures = _blsr_u64(captures);
