@@ -817,12 +817,8 @@ i32 quiesce_black(
 
   {
     // generate capture moves for pawns
-    // layer capture_dests = black_capture_destinations(&b);
-    // layer capture_dests_r = black_capture_destinations_r(&b);
-    layer capture_dests =
-        simple_capture_destinations(b.black, b.white, board_occ(b));
-    layer capture_dests_r =
-        simple_capture_destinations(b.black_r, b.white_r, board_occ_r(b));
+    layer capture_dests = black_capture_destinations(&b);
+    layer capture_dests_r = black_capture_destinations_r(&b);
 
     move ms[100] = {0};
     layer ls[100] = {0};
@@ -1079,16 +1075,8 @@ i32 quiesce_white(
   // generate capture moves
   // TODO: remove throne from dests before finding pawn captures
   // actually maybe not necessary, it's covered by the blockers in moves_to
-  // layer capture_dests = white_capture_destinations(&b);
-  // layer capture_dests_r = white_capture_destinations_r(&b);
-  layer capture_dests = simple_capture_destinations(
-      LAYER_OR(LAYER_OR(b.white, b.king), corners),
-      b.black,
-      king_board_occ(b));
-  layer capture_dests_r = simple_capture_destinations(
-      LAYER_OR(LAYER_OR(b.white_r, b.king_r), corners),
-      b.black_r,
-      king_board_occ_r(b));
+  layer capture_dests = white_capture_destinations(&b);
+  layer capture_dests_r = white_capture_destinations_r(&b);
 
   // ---------------------------------------------------------------------------
   // king capture moves
@@ -1431,12 +1419,8 @@ i32 search_black(
   // capture moves
 
   // generate capture moves for pawns
-  // layer capture_dests = black_capture_destinations(&b);
-  // layer capture_dests_r = black_capture_destinations_r(&b);
-  layer capture_dests =
-      simple_capture_destinations(b.black, b.white, board_occ(b));
-  layer capture_dests_r =
-      simple_capture_destinations(b.black_r, b.white_r, board_occ_r(b));
+  layer capture_dests = black_capture_destinations(&b);
+  layer capture_dests_r = black_capture_destinations_r(&b);
 
   {
     move ms[400] = {0};
