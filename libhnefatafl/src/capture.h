@@ -1,7 +1,6 @@
 #pragma once
 
 #include "board.h"
-#include "sys/types.h"
 
 extern layer surround_masks[120];
 extern layer surround_masks_r[120];
@@ -15,11 +14,15 @@ u8 apply_captures_niave(
 layer apply_captures_z_black(board *b, u64 *z, u8 dest);
 layer apply_captures_z_white(board *b, u64 *z, u8 dest);
 
-void shield_wall_black(board *b, uint pos);
-void shield_wall_white(board *b, uint pos);
+layer shield_wall_black(board *b, u64 *z, u8 pos);
+layer shield_wall_white(board *b, u64 *z, u8 pos);
 
-void shield_wall_black_gen(board *b, uint pos);
-void shield_wall_white_gen(board *b, uint pos);
+// Micro-benchmarks indicated that these are significantly slower than the above
+// versions, but there's also a significant code-size difference, so we'll need
+// to do realistic search benchmarks before we get a conclusive answer regarding
+// which to use.
+void shield_wall_black_gen(board *b, u8 pos);
+void shield_wall_white_gen(board *b, u8 pos);
 
 void gen_foe_masks();
 void gen_ally_masks();

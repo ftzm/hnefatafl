@@ -56,23 +56,22 @@ static const pv_assertion EMPTY_PV = {
     .move_strings = NULL,
     .length = 0};
 #define PV(...)                                                                \
-  ((pv_assertion){                                                             \
-      .tag = PV_EXPECT,                                                        \
-      .move_strings = (char *[]){FOR_EACH(STR, __VA_ARGS__)},                  \
-      .length =                                                                \
-          sizeof((char *[]){FOR_EACH(STR, __VA_ARGS__)}) / sizeof(char *)})
+  ((pv_assertion){.tag = PV_EXPECT,                                            \
+                  .move_strings = (char *[]){FOR_EACH(STR, __VA_ARGS__)},      \
+                  .length = sizeof((char *[]){FOR_EACH(STR, __VA_ARGS__)}) /   \
+                            sizeof(char *)})
 
 // Helper macro to convert string to move
 #define READ_MOVE(move_str) read_move(STR(move_str))
 
 // Macro to create a pv struct from a list of moves
 #define PREV_PV(...)                                                           \
-  (&(pv){                                                                      \
-      .pv_length = {0},                                                        \
-      .pv_table = {0},                                                         \
-      .prev_pv_length =                                                        \
-          sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)}) / sizeof(move),   \
-      .prev_pv = {FOR_EACH(READ_MOVE, __VA_ARGS__)}})
+  (&(pv){.pv_length = {0},                                                     \
+         .pv_table = {0},                                                      \
+         .prev_pv_length =                                                     \
+             sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)}) /              \
+             sizeof(move),                                                     \
+         .prev_pv = {FOR_EACH(READ_MOVE, __VA_ARGS__)}})
 
 bool pvs_equal(pv_line *a, pv_line *b) {
   if (a->length != b->length) {
@@ -151,10 +150,9 @@ typedef struct {
 } stats_assertions;
 
 #define STATS(...)                                                             \
-  ((stats_assertions){                                                         \
-      .assertions = (stats_assertion[]){__VA_ARGS__},                          \
-      .length =                                                                \
-          sizeof((stats_assertion[]){__VA_ARGS__}) / sizeof(stats_assertion)})
+  ((stats_assertions){.assertions = (stats_assertion[]){__VA_ARGS__},          \
+                      .length = sizeof((stats_assertion[]){__VA_ARGS__}) /     \
+                                sizeof(stats_assertion)})
 
 const char *stats_field_name(stats_field field) {
   switch (field) {
@@ -197,25 +195,25 @@ const char *comparison_name(comparison comp) {
 }
 
 #define SEARCH_POSITIONS_BLACK(comp, val)                                      \
-  { STAT_SEARCH_POSITIONS_BLACK, comp, val }
+  {STAT_SEARCH_POSITIONS_BLACK, comp, val}
 #define SEARCH_POSITIONS_WHITE(comp, val)                                      \
-  { STAT_SEARCH_POSITIONS_WHITE, comp, val }
+  {STAT_SEARCH_POSITIONS_WHITE, comp, val}
 #define SEARCH_BETA_CUTOFF_BLACK(comp, val)                                    \
-  { STAT_SEARCH_BETA_CUTOFF_BLACK, comp, val }
+  {STAT_SEARCH_BETA_CUTOFF_BLACK, comp, val}
 #define SEARCH_BETA_CUTOFF_WHITE(comp, val)                                    \
-  { STAT_SEARCH_BETA_CUTOFF_WHITE, comp, val }
+  {STAT_SEARCH_BETA_CUTOFF_WHITE, comp, val}
 #define QUIESCENCE_POSITIONS_BLACK(comp, val)                                  \
-  { STAT_QUIESCENCE_POSITIONS_BLACK, comp, val }
+  {STAT_QUIESCENCE_POSITIONS_BLACK, comp, val}
 #define QUIESCENCE_POSITIONS_WHITE(comp, val)                                  \
-  { STAT_QUIESCENCE_POSITIONS_WHITE, comp, val }
+  {STAT_QUIESCENCE_POSITIONS_WHITE, comp, val}
 #define QUIESCENCE_BETA_CUTOFF_BLACK(comp, val)                                \
-  { STAT_QUIESCENCE_BETA_CUTOFF_BLACK, comp, val }
+  {STAT_QUIESCENCE_BETA_CUTOFF_BLACK, comp, val}
 #define QUIESCENCE_BETA_CUTOFF_WHITE(comp, val)                                \
-  { STAT_QUIESCENCE_BETA_CUTOFF_WHITE, comp, val }
+  {STAT_QUIESCENCE_BETA_CUTOFF_WHITE, comp, val}
 #define QUIESCENCE_LIMIT_REACHED(comp, val)                                    \
-  { STAT_QUIESCENCE_LIMIT_REACHED, comp, val }
+  {STAT_QUIESCENCE_LIMIT_REACHED, comp, val}
 #define REPEAT_MOVES_ENCOUNTERED(comp, val)                                    \
-  { STAT_REPEAT_MOVES_ENCOUNTERED, comp, val }
+  {STAT_REPEAT_MOVES_ENCOUNTERED, comp, val}
 
 typedef struct {
   int score;
@@ -302,6 +300,7 @@ TEST assert_pv(
   }
 
   if (!equal) {
+    print_board(b);
     printf("expected PV:\n\n");
     print_pv(b, &expected_pv);
     printf("\ncomputed PV:\n\n");
@@ -420,12 +419,10 @@ TEST assert_pv(
         .positions = EMPTY_POSITION_SET,                                       \
         .alpha = -INFINITY,                                                    \
         .beta = INFINITY,                                                      \
-        .pv_data =                                                             \
-            &(pv){                                                             \
-                .pv_length = {0},                                              \
-                .pv_table = {{0}},                                             \
-                .prev_pv = {0},                                                \
-                .prev_pv_length = 0},                                          \
+        .pv_data = &(pv){.pv_length = {0},                                     \
+                         .pv_table = {{0}},                                    \
+                         .prev_pv = {0},                                       \
+                         .prev_pv_length = 0},                                 \
         .score_weights = init_default_weights(),                               \
         __VA_ARGS__};                                                          \
     _Pragma("GCC diagnostic pop") greatest_set_test_suffix(test_name);         \

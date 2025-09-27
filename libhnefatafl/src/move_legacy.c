@@ -407,7 +407,9 @@ void process_move_{color}{rotation}_{level}(
         {"true" if rotation else "false"});
   }}
 
-  shield_wall_{color}(&b, dest);
+  u64 z = 0;
+
+  shield_wall_{color}(&b, &z, dest);
 
   moves[*total] = (struct move){{orig{rotation}, dest{rotation}}};
   boards[*total] = b;
@@ -451,7 +453,9 @@ void process_move_black_lower(
     apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
 
-  shield_wall_black(&b, dest);
+  u64 z = 0;
+
+  shield_wall_black(&b, &z, dest);
 
   moves[*total] = (struct move){orig, dest};
   boards[*total] = b;
@@ -490,7 +494,9 @@ void process_move_black_middle(
     apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
 
-  shield_wall_black(&b, dest);
+  u64 z = 0;
+
+  shield_wall_black(&b, &z, dest);
 
   moves[*total] = (struct move){orig, dest};
   boards[*total] = b;
@@ -532,7 +538,9 @@ void process_move_black_upper(
     apply_captures_niave(friends, &b.white, &b.white_r, false);
   }
 
-  shield_wall_black(&b, dest);
+  u64 z = 0;
+
+  shield_wall_black(&b, &z, dest);
 
   moves[*total] = (struct move){orig, dest};
   boards[*total] = b;
@@ -569,7 +577,9 @@ void process_move_black_r_lower(
     apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
 
-  shield_wall_black(&b, dest);
+  u64 z = 0;
+
+  shield_wall_black(&b, &z, dest);
 
   moves[*total] = (struct move){orig_r, dest_r};
   boards[*total] = b;
@@ -608,7 +618,9 @@ void process_move_black_r_middle(
     apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
 
-  shield_wall_black(&b, dest);
+  u64 z = 0;
+
+  shield_wall_black(&b, &z, dest);
 
   moves[*total] = (struct move){orig_r, dest_r};
   boards[*total] = b;
@@ -650,7 +662,9 @@ void process_move_black_r_upper(
     apply_captures_niave(friends, &b.white_r, &b.white, true);
   }
 
-  shield_wall_black(&b, dest);
+  u64 z = 0;
+
+  shield_wall_black(&b, &z, dest);
 
   moves[*total] = (struct move){orig_r, dest_r};
   boards[*total] = b;
@@ -687,7 +701,9 @@ void process_move_white_lower(
     apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
 
-  shield_wall_white(&b, dest);
+  u64 z = 0;
+
+  shield_wall_white(&b, &z, dest);
 
   moves[*total] = (struct move){orig, dest};
   boards[*total] = b;
@@ -726,7 +742,9 @@ void process_move_white_middle(
     apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
 
-  shield_wall_white(&b, dest);
+  u64 z = 0;
+
+  shield_wall_white(&b, &z, dest);
 
   moves[*total] = (struct move){orig, dest};
   boards[*total] = b;
@@ -768,7 +786,9 @@ void process_move_white_upper(
     apply_captures_niave(friends, &b.black, &b.black_r, false);
   }
 
-  shield_wall_white(&b, dest);
+  u64 z = 0;
+
+  shield_wall_white(&b, &z, dest);
 
   moves[*total] = (struct move){orig, dest};
   boards[*total] = b;
@@ -805,7 +825,9 @@ void process_move_white_r_lower(
     apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
 
-  shield_wall_white(&b, dest);
+  u64 z = 0;
+
+  shield_wall_white(&b, &z, dest);
 
   moves[*total] = (struct move){orig_r, dest_r};
   boards[*total] = b;
@@ -844,7 +866,9 @@ void process_move_white_r_middle(
     apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
 
-  shield_wall_white(&b, dest);
+  u64 z = 0;
+
+  shield_wall_white(&b, &z, dest);
 
   moves[*total] = (struct move){orig_r, dest_r};
   boards[*total] = b;
@@ -886,7 +910,9 @@ void process_move_white_r_upper(
     apply_captures_niave(friends, &b.black_r, &b.black, true);
   }
 
-  shield_wall_white(&b, dest);
+  u64 z = 0;
+
+  shield_wall_white(&b, &z, dest);
 
   moves[*total] = (struct move){orig_r, dest_r};
   boards[*total] = b;
@@ -1362,7 +1388,6 @@ the position to each of those in parallel. u8 to_blocker = _tzcnt_u64(occ);
   }
 }
 */
-
 
 /*[[[cog
 import cog
@@ -1869,9 +1894,9 @@ void get_king_moves(
     int *total,
     move *moves,
     board *boards) {
-  const layer occ = {{
-      current.white._[0] | current.black._[0] | current.king._[0],
-      current.white._[1] | current.black._[1] | current.king._[1]}};
+  const layer occ = {
+      {current.white._[0] | current.black._[0] | current.king._[0],
+       current.white._[1] | current.black._[1] | current.king._[1]}};
 
   // const layer capture_dests = find_capture_destinations_op(current.white,
   // current.black);
@@ -1904,7 +1929,8 @@ void get_king_moves(
           &new_board.black_r,
           dest);
       // }
-      shield_wall_white(&new_board, dest);
+      u64 z = 0;
+      shield_wall_white(&new_board, &z, dest);
       // bookkeep
       boards[*total] = new_board;
       (*total)++;
@@ -1934,7 +1960,8 @@ void get_king_moves(
           &new_board.black,
           &new_board.black_r,
           dest);
-      shield_wall_white(&new_board, dest);
+      u64 z = 0;
+      shield_wall_white(&new_board, &z, dest);
       // bookkeep
       boards[*total] = new_board;
       (*total)++;
@@ -1968,7 +1995,8 @@ void get_king_moves(
           &new_board.black_r,
           dest);
       // }
-      shield_wall_white(&new_board, dest);
+      u64 z = 0;
+      shield_wall_white(&new_board, &z, dest);
       // bookkeep
       boards[*total] = new_board;
       (*total)++;
@@ -1976,9 +2004,9 @@ void get_king_moves(
     }
   }
 
-  const layer occ_r = {{
-      current.white_r._[0] | current.black_r._[0] | current.king_r._[0],
-      current.white_r._[1] | current.black_r._[1] | current.king_r._[1]}};
+  const layer occ_r = {
+      {current.white_r._[0] | current.black_r._[0] | current.king_r._[0],
+       current.white_r._[1] | current.black_r._[1] | current.king_r._[1]}};
 
   u8 orig_r = rotate_right[orig];
 
@@ -2007,7 +2035,8 @@ void get_king_moves(
           &new_board.black_r,
           dest);
       // }
-      shield_wall_white(&new_board, dest);
+      u64 z = 0;
+      shield_wall_white(&new_board, &z, dest);
       // APPLY_CAPTURES_king;
       // bookkeep
       boards[*total] = new_board;
@@ -2038,7 +2067,8 @@ void get_king_moves(
           &new_board.black,
           &new_board.black_r,
           dest);
-      shield_wall_white(&new_board, dest);
+      u64 z = 0;
+      shield_wall_white(&new_board, &z, dest);
       // bookkeep
       boards[*total] = new_board;
       (*total)++;
@@ -2070,7 +2100,8 @@ void get_king_moves(
           &new_board.black,
           &new_board.black_r,
           dest);
-      shield_wall_white(&new_board, dest);
+      u64 z = 0;
+      shield_wall_white(&new_board, &z, dest);
       // bookkeep
       boards[*total] = new_board;
       (*total)++;
@@ -2179,8 +2210,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_black(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_black(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2206,8 +2239,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_black(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_black(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2234,8 +2269,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_black(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_black(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2261,8 +2298,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_black(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_black(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2322,8 +2361,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_white(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_white(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2349,8 +2390,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_white(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_white(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2377,8 +2420,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_white(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_white(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2404,8 +2449,10 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest))
-        shield_wall_white(&b2, dest);
+      if (CHECK_INDEX(shield_dests, dest)) {
+        u64 z = 0;
+        shield_wall_white(&b2, &z, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};

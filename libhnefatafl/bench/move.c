@@ -468,6 +468,7 @@ UBENCH_EX(triple_nested, mm_black) {
 }
   */
 
+/*
 UBENCH_EX(move_count, white_orig) {
   const board b = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
@@ -476,6 +477,7 @@ UBENCH_EX(move_count, white_orig) {
     UBENCH_DO_NOTHING(&c);
   }
 }
+  */
 
 UBENCH_EX(move_count, white_new) {
   board b = read_board(sanity_capture_king_string);

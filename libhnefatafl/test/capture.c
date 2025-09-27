@@ -18,8 +18,12 @@ void assert_boards_equal(board a, board b, int line, const char *func) {
     strcpy(b_str, base);
     fmt_board(b, b_str);
 
-    printf("Boards not equal in function %s at line %d:\n%s%s", func, line,
-           a_str, b_str);
+    printf(
+        "Boards not equal in function %s at line %d:\n%s%s",
+        func,
+        line,
+        a_str,
+        b_str);
     exit(1);
   }
 }
@@ -33,17 +37,25 @@ board reverse_teams(board b) {
                  .king_r = b.king_r};
 }
 
-TEST test(const char *input, const char *expected, unsigned char pos, int line,
-          const char *func) {
+TEST test(
+    const char *input,
+    const char *expected,
+    unsigned char pos,
+    int line,
+    const char *func) {
   const board exp = read_board(expected);
 
   board white = read_board(input);
   board black = reverse_teams(white);
 
-  shield_wall_white_gen(&white, pos);
+  // bool is_black = true;
+  // u64 z = hash_for_board(read_board(board_str), is_black);
+  u64 z = 0;
+
+  shield_wall_white(&white, &z, pos);
   assert_boards_equal(exp, white, line, func);
 
-  shield_wall_black_gen(&black, pos);
+  shield_wall_black(&black, &z, pos);
   assert_boards_equal(reverse_teams(exp), black, line, func);
 
   PASS();
@@ -51,17 +63,24 @@ TEST test(const char *input, const char *expected, unsigned char pos, int line,
 
 #define TEST_SHIELD_WALL(a, b, p) test(a, b, p, __LINE__, __FUNCTION__)
 
-TEST test_team(bool is_black, const char *input, const char *expected,
-               unsigned char pos, int line, const char *func) {
+TEST test_team(
+    bool is_black,
+    const char *input,
+    const char *expected,
+    unsigned char pos,
+    int line,
+    const char *func) {
   const board exp = read_board(expected);
 
   board got = read_board(input);
 
+  u64 z = 0;
+
   if (is_black) {
-    shield_wall_black(&got, pos);
+    shield_wall_black(&got, &z, pos);
     assert_boards_equal(exp, got, line, func);
   } else {
-    shield_wall_white(&got, pos);
+    shield_wall_white(&got, &z, pos);
     assert_boards_equal(exp, got, line, func);
   }
 
