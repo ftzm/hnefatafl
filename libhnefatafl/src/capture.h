@@ -5,6 +5,11 @@
 extern layer surround_masks[120];
 extern layer surround_masks_r[120];
 
+layer find_capture_destinations(
+    const layer allies,
+    const layer foes,
+    const layer occ);
+
 u8 apply_captures_niave(
     const layer friends,
     layer *foes,

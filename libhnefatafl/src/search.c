@@ -501,7 +501,6 @@ i32 quiesce_black(
     // we consider the position a draw, and thus score it 0
     // return 0;
     statistics->repeat_moves_encountered++;
-    delete_position(positions, position_index);
     return MIN_SCORE;
   }
 
@@ -1096,8 +1095,8 @@ i32 quiesce_white(
   layer ls_r[100] = {0};
   int total = 0;
   moves_to_king_impl(
-      capture_dests,
-      capture_dests_r,
+      LAYER_AND(capture_dests, LAYER_NOT(corners)),
+      LAYER_AND(capture_dests_r, LAYER_NOT(corners)),
       b.king,
       b.king_r,
       king_board_occ(b),
@@ -1347,7 +1346,6 @@ i32 search_black(
     // we consider the position a draw, and thus score it 0
     // return 0;
     statistics->repeat_moves_encountered++;
-    delete_position(positions, position_index);
     return MIN_SCORE;
   }
 
@@ -1608,7 +1606,6 @@ i32 search_white(
     // we consider the position a draw, and thus score it 0
     // return 0;
     statistics->repeat_moves_encountered++;
-    delete_position(positions, position_index);
     return MIN_SCORE;
   }
 

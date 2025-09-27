@@ -704,12 +704,12 @@ void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
   get_move_breakdown(bs, ms, total, r);
 }
 
-bool move_breakdown_diff_empty(struct move_breakdown_diff d) {
+bool move_breakdown_diff_empty(const struct move_breakdown_diff *d) {
   for (int i = 0; i < 121; i++) {
-    int totals = d.extra[i].north_count + d.extra[i].east_count +
-                 d.extra[i].south_count + d.extra[i].west_count +
-                 d.missing[i].north_count + d.missing[i].east_count +
-                 d.missing[i].south_count + d.missing[i].west_count;
+    int totals = d->extra[i].north_count + d->extra[i].east_count +
+                 d->extra[i].south_count + d->extra[i].west_count +
+                 d->missing[i].north_count + d->missing[i].east_count +
+                 d->missing[i].south_count + d->missing[i].west_count;
     if (totals)
       return false;
   }
@@ -719,7 +719,7 @@ bool move_breakdown_diff_empty(struct move_breakdown_diff d) {
 static enum theft_trial_res prop_diff_empty(struct theft *t, void *arg1) {
   (void)t;
   struct move_breakdown_diff *input = (struct move_breakdown_diff *)arg1;
-  if (move_breakdown_diff_empty(*input)) {
+  if (move_breakdown_diff_empty(input)) {
     return THEFT_TRIAL_PASS;
   } else {
     return THEFT_TRIAL_FAIL;

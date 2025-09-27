@@ -275,7 +275,6 @@ layer apply_captures_z_black(board *b, u64 *z, u8 dest) {
   // function.
   layer shield_wall_captures = shield_wall_black(b, z, dest);
   return LAYER_OR(captures, shield_wall_captures);
-  ;
 }
 
 layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
@@ -289,6 +288,102 @@ layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
 
   layer shield_wall_captures = shield_wall_white(b, z, dest);
   return LAYER_OR(captures, shield_wall_captures);
+}
+
+//******************************************************************************
+
+/* Generate a layer representing squares which, when arrived at, will definitely
+ * trigger simple captures.*/
+layer simple_capture_destinations(
+    const layer allies,
+    const layer foes,
+    const layer occ) {
+  layer north =
+      LAYER_SHIFTL_SHORT(LAYER_AND(LAYER_SHIFTL_SHORT(allies, 11), foes), 11);
+  layer south = LAYER_SHIFTR(LAYER_AND(LAYER_SHIFTR(allies, 11), foes), 11);
+  layer east = LAYER_SHIFTR(
+      LAYER_AND(LAYER_SHIFTR(LAYER_AND(allies, drop_2_east), 1), foes),
+      1);
+  layer west = LAYER_SHIFTL_SHORT(
+      LAYER_AND(LAYER_SHIFTL_SHORT(LAYER_AND(allies, drop_2_west), 1), foes),
+      1);
+  return (layer){
+      {(north._[0] | south._[0] | east._[0] | west._[0]) & (~occ._[0]),
+       (north._[1] | south._[1] | east._[1] | west._[1]) & (~occ._[1])}};
+}
+
+/* Generate a layer of locations which, when landed upon, _may_
+trigger shield wall captures.
+
+Specifically, this generates a layer of open squares at the edge which
+are adjacent to foe pieces , which themselves are adjacent to an
+opposing pieces in the inner row.
+
+The idea is not to be perfectly accurate, but rather to rule out a
+majority of ineligible edge positions via a relatively cheap "bulk"
+computation, so that not every move to an edge position need do a full
+shield wall check. As such, the resulting layer may contain false
+positives, but may not contain false negatives, as the latter would
+never be checked and thus go undiscovered.
+*/
+layer gen_shield_wall_triggers(
+    const layer allies,
+    const layer foes,
+    const layer occ) {
+  layer triggers = EMPTY_LAYER;
+  layer open = LAYER_NOT(occ);
+
+  // north
+  {
+    u64 edges = foes._[1] & (allies._[1] << 11);
+    u64 left = open._[1] & (edges << 1);
+    u64 right = open._[1] & (edges >> 1);
+    triggers._[1] |= left | right;
+  }
+
+  // south
+  {
+    u64 edges = foes._[0] & (allies._[0] >> 11);
+    u64 left = open._[0] & (edges << 1);
+    u64 right = open._[0] & (edges >> 1);
+    triggers._[0] |= left | right;
+  }
+
+  // east
+  {
+    layer edges = LAYER_AND(foes, LAYER_SHIFTR(allies, 1));
+    layer up = LAYER_AND(open, LAYER_SHIFTL_SHORT(edges, 11));
+    layer down = LAYER_AND(open, LAYER_SHIFTR(edges, 11));
+    triggers = LAYER_OR(triggers, LAYER_OR(up, down));
+  }
+
+  // west
+  {
+    layer edges = LAYER_AND(foes, LAYER_SHIFTL_SHORT(allies, 1));
+    layer up = LAYER_AND(open, LAYER_SHIFTL_SHORT(edges, 11));
+    layer down = LAYER_AND(open, LAYER_SHIFTR(edges, 11));
+    triggers = LAYER_OR(triggers, LAYER_OR(up, down));
+  }
+
+  // only at the end do we apply the edge mask.
+  triggers = LAYER_AND(triggers, edges);
+
+  return triggers;
+}
+
+layer find_capture_destinations(
+    const layer allies,
+    const layer foes,
+    const layer occ) {
+  /*
+  layer t = gen_shield_wall_triggers(allies, foes, occ);
+  if (NOT_EMPTY(t)) {
+    print_layer(t);
+  }
+  */
+  return LAYER_OR(
+      simple_capture_destinations(allies, foes, occ),
+      gen_shield_wall_triggers(allies, foes, occ));
 }
 
 //******************************************************************************

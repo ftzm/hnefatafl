@@ -7,9 +7,7 @@ typedef struct layer {
 } layer;
 
 #define EMPTY_LAYER                                                            \
-  (layer) {                                                                    \
-    ._ = { 0, 0 }                                                              \
-  }
+  (layer) { ._ = {0, 0} }
 
 // extern const u8 sub_layer[121];
 
@@ -53,8 +51,7 @@ extern const u8 rotate_left[121];
 #define OP_LAYER_BIT_PTR(l, b, op)                                             \
   (l->_[SUB_LAYER(b)] op((u64)1 << sub_layer_offset_direct[b]))
 
-#define LAYER_BIN_OP(a, b, op)                                                 \
-  ((layer){{a._[0] op b._[0], a._[1] op b._[1]}})
+#define LAYER_BIN_OP(a, b, op) ((layer){{a._[0] op b._[0], a._[1] op b._[1]}})
 
 // #define layer_or(a, b) ((layer) {._ = {a._[0] | b._[0], a._[1] | b._[1]}})
 #define LAYER_OR(_a, _b) LAYER_BIN_OP(_a, _b, |)
@@ -135,8 +132,6 @@ extern const u8 rank_table[121];
 extern const u8 file_table[121];
 
 #define FILE(_a) (file_table[_a])
-
-static const layer EDGES = {{54069596698710015ULL, 144080055268552710ULL}};
 
 #define LAYER_OR_ASSG(_x, _y)                                                  \
   _x._[0] |= _y._[0];                                                          \

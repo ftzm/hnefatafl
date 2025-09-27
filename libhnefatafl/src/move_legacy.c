@@ -2109,65 +2109,6 @@ void get_king_moves(
     }
   }
 }
-
-/* Generate a layer of locations which, when landed upon, _may_
-trigger a shield wall capture.
-
-Specifically, this generates a layer of open squares at the edge which
-are adjacent to foe pieces , which themselves are adjacent to an
-opposing pieces in the inner row.
-
-The idea is not to be perfectly accurate, but rather to rule out a
-majority of ineligible edge positions via a relatively cheap "bulk"
-computation, so that not every move to an edge position need do a full
-shield wall check. As such, the resulting layer may contain false
-positives, but may not contain false negatives, as the latter would
-never be checked and thus go undiscovered.
-*/
-layer gen_shield_wall_triggers(
-    const layer allies,
-    const layer foes,
-    const layer occ) {
-  layer triggers = EMPTY_LAYER;
-
-  // north
-  {
-    u64 edges = foes._[1] & (allies._[1] << 11);
-    u64 left = occ._[1] & (edges << 1);
-    u64 right = occ._[1] & (edges >> 1);
-    triggers._[1] |= left | right;
-  }
-
-  // south
-  {
-    u64 edges = foes._[0] & (allies._[0] >> 11);
-    u64 left = occ._[0] & (edges << 1);
-    u64 right = occ._[0] & (edges >> 1);
-    triggers._[0] |= left | right;
-  }
-
-  // east
-  {
-    layer edges = LAYER_AND(foes, LAYER_SHIFTR(allies, 1));
-    layer up = LAYER_AND(occ, LAYER_SHIFTL_SHORT(edges, 11));
-    layer down = LAYER_AND(occ, LAYER_SHIFTR(edges, 11));
-    triggers = LAYER_OR(triggers, LAYER_OR(up, down));
-  }
-
-  // west
-  {
-    layer edges = LAYER_AND(foes, LAYER_SHIFTL_SHORT(allies, 1));
-    layer up = LAYER_AND(occ, LAYER_SHIFTL_SHORT(edges, 11));
-    layer down = LAYER_AND(occ, LAYER_SHIFTR(edges, 11));
-    triggers = LAYER_OR(triggers, LAYER_OR(up, down));
-  }
-
-  // only at the end do we apply the edge mask.
-  triggers = LAYER_AND(triggers, EDGES);
-
-  return triggers;
-}
-
 void gen_reference_moves_black3(
     const board b,
     int *total,
@@ -2177,7 +2118,6 @@ void gen_reference_moves_black3(
   layer occ = board_occ(b);
 
   const layer capture_dests = find_capture_destinations(b.black, b.white, occ);
-  const layer shield_dests = gen_shield_wall_triggers(b.black, b.white, occ);
 
   int dest;
 
@@ -2210,11 +2150,6 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_black(&b2, &z, dest);
-      }
-
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
       (*total)++;
@@ -2238,11 +2173,6 @@ process:
 
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
-
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_black(&b2, &z, dest);
-      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2269,11 +2199,6 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_black(&b2, &z, dest);
-      }
-
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
       (*total)++;
@@ -2297,11 +2222,6 @@ process:
 
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
-
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_black(&b2, &z, dest);
-      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2328,7 +2248,6 @@ void gen_reference_moves_white3(
   layer occ = board_occ(b);
 
   const layer capture_dests = find_capture_destinations(b.white, b.black, occ);
-  const layer shield_dests = gen_shield_wall_triggers(b.white, b.black, occ);
 
   int dest;
 
@@ -2361,11 +2280,6 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_white(&b2, &z, dest);
-      }
-
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
       (*total)++;
@@ -2389,11 +2303,6 @@ process:
 
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
-
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_white(&b2, &z, dest);
-      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -2420,11 +2329,6 @@ process:
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
 
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_white(&b2, &z, dest);
-      }
-
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
       (*total)++;
@@ -2448,11 +2352,6 @@ process:
 
       if (CHECK_INDEX(capture_dests, dest))
         apply_captures_niave(b2.white, &b2.black, &b2.black_r, dest);
-
-      if (CHECK_INDEX(shield_dests, dest)) {
-        u64 z = 0;
-        shield_wall_white(&b2, &z, dest);
-      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};

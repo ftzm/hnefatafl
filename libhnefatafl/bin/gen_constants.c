@@ -127,7 +127,7 @@ int main() {
   printf("\n");
 
   print_layer_info(
-      "X  X  X  X  X  X  X  X  X  X  X"
+      ".  X  X  X  X  X  X  X  X  X  ."
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
@@ -137,7 +137,7 @@ int main() {
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
-      "X  X  X  X  X  X  X  X  X  X  X",
+      ".  X  X  X  X  X  X  X  X  X  .",
       "edges");
 
   print_layer_info(
