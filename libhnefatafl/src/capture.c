@@ -336,36 +336,37 @@ layer gen_shield_wall_triggers(
   // north
   {
     u64 edges = foes._[1] & (allies._[1] << 11);
-    u64 left = open._[1] & (edges << 1);
-    u64 right = open._[1] & (edges >> 1);
+    u64 left = (edges << 1);
+    u64 right = (edges >> 1);
     triggers._[1] |= left | right;
   }
 
   // south
   {
     u64 edges = foes._[0] & (allies._[0] >> 11);
-    u64 left = open._[0] & (edges << 1);
-    u64 right = open._[0] & (edges >> 1);
+    u64 left = (edges << 1);
+    u64 right = (edges >> 1);
     triggers._[0] |= left | right;
   }
 
   // east
   {
     layer edges = LAYER_AND(foes, LAYER_SHIFTR(allies, 1));
-    layer up = LAYER_AND(open, LAYER_SHIFTL_SHORT(edges, 11));
-    layer down = LAYER_AND(open, LAYER_SHIFTR(edges, 11));
+    layer up = LAYER_SHIFTL_SHORT(edges, 11);
+    layer down = LAYER_SHIFTR(edges, 11);
     triggers = LAYER_OR(triggers, LAYER_OR(up, down));
   }
 
   // west
   {
     layer edges = LAYER_AND(foes, LAYER_SHIFTL_SHORT(allies, 1));
-    layer up = LAYER_AND(open, LAYER_SHIFTL_SHORT(edges, 11));
-    layer down = LAYER_AND(open, LAYER_SHIFTR(edges, 11));
+    layer up = LAYER_SHIFTL_SHORT(edges, 11);
+    layer down = LAYER_SHIFTR(edges, 11);
     triggers = LAYER_OR(triggers, LAYER_OR(up, down));
   }
 
-  // only at the end do we apply the edge mask.
+  // limit to open squares at the edge.
+  triggers = LAYER_AND(triggers, open);
   triggers = LAYER_AND(triggers, EDGES);
 
   return triggers;
