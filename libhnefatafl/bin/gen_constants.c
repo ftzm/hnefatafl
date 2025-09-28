@@ -934,7 +934,6 @@ int main() {
 
   print_layer_defines(
       ".  X  X  X  X  X  X  X  X  X  ."
-      "X  X  .  .  .  .  .  .  .  X  X"
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
@@ -942,7 +941,8 @@ int main() {
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  .  .  .  .  .  .  .  .  .  X"
-      "X  X  .  .  .  .  .  .  .  X  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
+      "X  .  .  .  .  .  .  .  .  .  X"
       ".  X  X  X  X  X  X  X  X  X  .",
       "EDGE_POSITIONS");
 

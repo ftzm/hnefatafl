@@ -76,6 +76,16 @@ bool king_captured(const board *b) {
   return LAYERS_EQUAL(surround_mask, present);
 }
 
+/* TODO:
+   - calculate the lowest ply for the fastest possible surrounding, and delay
+     evaluation to that ply.
+   - think of some more refutations that are cheaper to calculate that this.
+     Maybe generating rays from the edge and finding overlap with white piece
+     rays or something to that effect.
+   - though actually, if we delay this by enough turns, by that time the white
+     pieces may be sufficiently spread out close to the edge that this will
+     become reasonably performant
+*/
 bool surrounded(const board *b) {
   layer white = LAYER_OR(b->white, b->king);
   layer open = LAYER_NOT(board_occ(*b));
@@ -111,6 +121,9 @@ bool exit_fort(const board *b) {
     int king_rank = RANK(king_pos);
     int king_file = FILE(king_pos);
     if (king_rank == 0) {
+      // rather than shift each of the exit fort shapes into the position of the
+      // king (5 shifts), we shift the white and black pieces down to the
+      // position of the exit fort shapes (2 shifts).
       int adjust = king_file - 2;
       u64 white_adjusted = b->white._[0] >> adjust;
       u64 black_adjusted = b->black._[0] >> adjust;
