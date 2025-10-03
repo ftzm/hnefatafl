@@ -1,44 +1,8 @@
 #include "zobrist.h"
+#include "zobrist_constants.h"
 #include "board.h"
 #include "stdbool.h"
 #include "x86intrin.h"
-
-/*
-pseudo random number generation
-https://jonkagstrom.com/mx3/mx3_rev2.html
-
-These have really nice distribution over the whole integer, making it
-appropriate for use with e.g. fastrange
-*/
-u64 mix(u64 x) {
-  x ^= x >> 32;
-  x *= 0xbea225f9eb34556d;
-  x ^= x >> 29;
-  x *= 0xbea225f9eb34556d;
-  x ^= x >> 32;
-  x *= 0xbea225f9eb34556d;
-  x ^= x >> 29;
-  return x;
-}
-
-u64 black_hashes[121];
-u64 white_hashes[121];
-u64 king_hashes[121];
-u64 is_black_hash;
-
-void init_hashes() {
-  int seed = 0;
-  for (int i = 0; i < 121; i++) {
-    black_hashes[i] = mix(seed++);
-  }
-  for (int i = 0; i < 121; i++) {
-    white_hashes[i] = mix(seed++);
-  }
-  for (int i = 0; i < 121; i++) {
-    king_hashes[i] = mix(seed++);
-  }
-  is_black_hash = mix(seed);
-}
 
 u64 hash_for_board(board b, bool is_black_turn) {
   u64 hash = 0;

@@ -2,12 +2,30 @@
 {-# OPTIONS_GHC -fplugin-opt=Foreign.Storable.Generic.Plugin:-v1 #-}
 {-# OPTIONS_GHC -fplugin=Foreign.Storable.Generic.Plugin #-}
 
-module Hnefatafl.Bindings (startBoard, moveListToBase64, moveListFromBase64, Move (..)) where
+module Hnefatafl.Bindings
+  ( startBoard,
+    moveListToBase64,
+    moveListFromBase64,
+    startBlackMoves,
+    getPossibleMoves,
+    Move (..),
+  )
+where
 
 import Foreign
-import Foreign.C.String
-import Foreign.C.Types
-import Foreign.Storable.Generic
+  ( Ptr,
+    Storable (peek),
+    alloca,
+    allocaBytes,
+    free,
+    nullPtr,
+    peekArray,
+    withArray,
+    withArrayLen,
+  )
+import Foreign.C.String (CString, peekCString, withCString)
+import Foreign.C.Types (CInt (..))
+import Foreign.Storable.Generic (GStorable)
 import System.IO.Unsafe (unsafePerformIO)
 
 data Layer = Layer {lower :: Int64, upper :: Int64}
@@ -65,3 +83,26 @@ moveListFromBase64 base64Str =
             moves <- peekArray (fromIntegral count) movesPtr
             free movesPtr -- Free C-allocated memory
             return moves
+
+foreign import ccall unsafe "&start_black_moves"
+  c_start_black_moves :: Ptr Move
+
+startBlackMoves :: NonEmpty Move
+startBlackMoves = fromList $ unsafePerformIO $ peekArray 116 c_start_black_moves
+
+foreign import ccall unsafe "get_possible_moves"
+  c_get_possible_moves :: Ptr Move -> CInt -> Ptr CInt -> IO (Ptr Move)
+
+getPossibleMoves :: NonEmpty Move -> [Move]
+getPossibleMoves moveHistory = unsafePerformIO $
+  withArrayLen (toList moveHistory) $ \historyLen -> \historyPtr ->
+    alloca $ \moveCountPtr -> do
+      resultPtr <-
+        c_get_possible_moves historyPtr (fromIntegral historyLen) moveCountPtr
+      if resultPtr == nullPtr
+        then return []
+        else do
+          count <- peek moveCountPtr
+          moves <- peekArray (fromIntegral count) resultPtr
+          free resultPtr
+          return moves

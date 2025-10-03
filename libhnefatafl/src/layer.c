@@ -1,7 +1,5 @@
 #include "layer.h"
-#include "stdint.h"
-#include "stdlib.h"
-#include "x86intrin.h"
+#include "x86intrin.h" // IWYU pragma: export
 
 /* A handy index guide:
 120 119 118 117 116 115 114 113 112 111 110

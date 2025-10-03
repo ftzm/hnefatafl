@@ -1,7 +1,12 @@
+#include "board.h"
+#include "capture.h"
 #include "move.h"
-#include "util.h"
-#include <stdlib.h>
-#include <string.h>
+#include "position_set.h"
+#include "stdbool.h"
+#include "stdlib.h"
+#include "string.h"
+#include "x86intrin.h" // IWYU pragma: export
+#include "zobrist.h"
 
 // Move list functions now use separate variables instead of struct
 
@@ -136,4 +141,55 @@ move *move_list_from_base64(const char *base64_string, int *count) {
   // Set the actual count
   *count = decoded_size / sizeof(move);
   return moves;
+}
+
+typedef struct {
+  board b;
+  position_set *ps;
+  bool is_black_turn;
+} board_state;
+
+/* return failure code on invalid moves*/
+int board_state_from_move_list(
+    const move *moves,
+    int count,
+    board **b_ptr,
+    position_set **ps_ptr,
+    bool *is_black_turn) {
+
+  *is_black_turn = true;
+
+  board b = start_board;
+  position_set *ps = create_position_set(count);
+  u64 board_hash = hash_for_board(b, is_black_turn);
+
+  for (int i = 0; i < count; i++) {
+    move m = moves[i];
+    if (is_black_turn) {
+      board_hash = next_hash_black(board_hash, m.orig, m.dest);
+      int index;
+      insert_position(ps, board_hash, &index);
+      b = apply_black_move_m(b, m.orig, m.dest);
+      apply_captures_z_black(&b, &board_hash, m.dest);
+    } else if (LOWEST_INDEX(b.king) == m.orig) {
+      board_hash = next_hash_king(board_hash, m.orig, m.dest);
+      int index;
+      insert_position(ps, board_hash, &index);
+      b = apply_king_move_m(b, m.orig, m.dest);
+      apply_captures_z_white(&b, &board_hash, m.dest);
+    } else {
+      board_hash = next_hash_white(board_hash, m.orig, m.dest);
+      int index;
+      insert_position(ps, board_hash, &index);
+      b = apply_white_move_m(b, m.orig, m.dest);
+      apply_captures_z_white(&b, &board_hash, m.dest);
+    }
+
+    *is_black_turn = !*is_black_turn;
+  }
+
+  *b_ptr = malloc(sizeof(board));
+  **b_ptr = b;
+  *ps_ptr = ps;
+  return 0;
 }

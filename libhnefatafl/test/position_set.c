@@ -1,5 +1,5 @@
 #include "greatest.h"
-#include "zobrist.h"
+#include "mix.h"
 #include "position_set.h"
 
 TEST test_add_and_remove_nullifies() {

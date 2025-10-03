@@ -1,5 +1,5 @@
 #include "position_set.h"
-#include "zobrist.h"
+#include "mix.h"
 #include "ubench.h"
 #include "stdio.h"
 #include "stdlib.h"

@@ -12,6 +12,28 @@
 #include "string.h"
 #include "x86intrin.h" // IWYU pragma: export
 
+const move start_black_moves[116] = {
+    {7, 8},     {7, 9},     {16, 17},   {16, 18},   {16, 19},   {16, 20},
+    {16, 21},   {33, 34},   {33, 35},   {33, 36},   {33, 37},   {44, 45},
+    {44, 46},   {44, 47},   {66, 67},   {66, 68},   {66, 69},   {77, 78},
+    {77, 79},   {77, 80},   {77, 81},   {104, 105}, {104, 106}, {104, 107},
+    {104, 108}, {104, 109}, {117, 118}, {117, 119}, {56, 57},   {33, 22},
+    {33, 11},   {56, 45},   {56, 34},   {56, 23},   {56, 12},   {56, 1},
+    {113, 102}, {113, 91},  {113, 80},  {113, 69},  {114, 103}, {114, 92},
+    {114, 81},  {116, 105}, {116, 94},  {116, 83},  {117, 106}, {117, 95},
+    {117, 84},  {117, 73},  {64, 53},   {64, 42},   {64, 31},   {64, 20},
+    {64, 9},    {43, 32},   {43, 21},   {104, 93},  {3, 1},     {3, 2},
+    {16, 11},   {16, 12},   {16, 13},   {16, 14},   {16, 15},   {43, 39},
+    {43, 40},   {43, 41},   {43, 42},   {54, 51},   {54, 52},   {54, 53},
+    {76, 73},   {76, 74},   {76, 75},   {87, 83},   {87, 84},   {87, 85},
+    {87, 86},   {104, 99},  {104, 100}, {104, 101}, {104, 102}, {104, 103},
+    {113, 111}, {113, 112}, {64, 63},   {77, 99},   {77, 88},   {56, 111},
+    {56, 100},  {56, 89},   {56, 78},   {56, 67},   {3, 47},    {3, 36},
+    {3, 25},    {3, 14},    {4, 37},    {4, 26},    {4, 15},    {6, 39},
+    {6, 28},    {6, 17},    {7, 51},    {7, 40},    {7, 29},    {7, 18},
+    {64, 119},  {64, 108},  {64, 97},   {64, 86},   {64, 75},   {87, 109},
+    {87, 98},   {16, 27}};
+
 #define ADJUST_AXIS_VAL_file(_i) _i
 #define ADJUST_AXIS_VAL_rank(_i) (10 - _i)
 #define ADJUST_AXIS_VAL(_axis) JOIN(ADJUST_AXIS_VAL, _axis)(_axis)
@@ -139,15 +161,15 @@ leftward
 #define RIGHTWARD_DESTS(_i, _r)                                                \
   u64 below = orig_bit - 1;                                                    \
   u64 above_highest_occ_mask =                                                 \
-      ~((u64)-1 >> _lzcnt_u64(rightward_occ##_r._[_i] & below));               \
+      ~((u64) - 1 >> _lzcnt_u64(rightward_occ##_r._[_i] & below));             \
   u64 dests = targets##_r._[_i] & below & above_highest_occ_mask;
 
 #define RIGHTWARD_DESTS_CENTER(_r)                                             \
   u16 below = orig_bit - 1;                                                    \
   u16 above_highest_occ_mask =                                                 \
       (center_occ##_r & below)                                                 \
-          ? ((u16)-1 << (16 - __lzcnt16(center_occ##_r & below)))              \
-          : (u16)-1;                                                           \
+          ? ((u16) - 1 << (16 - __lzcnt16(center_occ##_r & below)))            \
+          : (u16) - 1;                                                         \
   u16 dests = GET_CENTER_ROW(targets##_r) & below & above_highest_occ_mask;
 
 #define RIGHTWARD(_i, _r)                                                      \
@@ -668,3 +690,117 @@ int king_moves_count(const board *b) {
 }
 
 // -----------------------------------------------------------------------------
+
+/* all black moves, with any illegal repetitions removed */
+move *all_black_moves(board b, position_set *ps, int *total) {
+  u64 board_hash = hash_for_board(b, false);
+  moves_to_t results = {0};
+  layer occ = board_occ(b);
+  layer occ_r = board_occ_r(b);
+  layer targets = LAYER_NOT(occ);
+  layer targets_r = LAYER_NOT(occ_r);
+  results.total = 0;
+  moves_to(
+      targets,
+      targets_r,
+      b.black,
+      b.black_r,
+      occ,
+      occ_r,
+      results.ms,
+      results.ls,
+      results.ls_r,
+      &results.total);
+
+  move *output = malloc(sizeof(move) * results.total);
+  int j = 0;
+  for (int i = 0; i < results.total; i++) {
+    move m = results.ms[i];
+    u64 hash = next_hash_black(board_hash, m.orig, m.dest);
+    apply_captures_z_black(&b, &hash, m.dest);
+    if (check_position(ps, hash)) {
+      continue;
+    }
+    output[j] = m;
+    j++;
+  }
+
+  *total = j;
+  return output;
+}
+
+/* all white moves, with any illegal repetitions removed */
+move *all_white_moves(board b, position_set *ps, int *total) {
+  u64 board_hash = hash_for_board(b, false);
+  moves_to_t results = {0};
+  layer occ = board_occ(b);
+  layer occ_r = board_occ_r(b);
+  layer targets = LAYER_NOT(occ);
+  layer targets_r = LAYER_NOT(occ_r);
+  results.total = 0;
+  moves_to(
+      targets,
+      targets_r,
+      b.white,
+      b.white_r,
+      occ,
+      occ_r,
+      results.ms,
+      results.ls,
+      results.ls_r,
+      &results.total);
+
+  move *output = malloc(sizeof(move) * results.total);
+  int j = 0;
+  for (int i = 0; i < results.total; i++) {
+    move m = results.ms[i];
+    u64 hash = next_hash_white(board_hash, m.orig, m.dest);
+    apply_captures_z_white(&b, &hash, m.dest);
+    if (check_position(ps, hash)) {
+      continue;
+    }
+    output[j] = m;
+    j++;
+  }
+
+  *total = j;
+  return output;
+}
+
+/* all king moves, with any illegal repetitions removed */
+move *all_king_moves(board b, position_set *ps, int *total) {
+  u64 board_hash = hash_for_board(b, false);
+  moves_to_t results = {0};
+  layer occ = king_board_occ(b);
+  layer occ_r = king_board_occ_r(b);
+  layer targets = LAYER_NOT(occ);
+  layer targets_r = LAYER_NOT(occ_r);
+  results.total = 0;
+  moves_to_king_impl(
+      targets,
+      targets_r,
+      b.king,
+      b.king_r,
+      occ,
+      occ_r,
+      results.ms,
+      results.ls,
+      results.ls_r,
+      &results.total);
+
+  move *output = malloc(sizeof(move) * results.total);
+  int j = 0;
+  for (int i = 0; i < results.total; i++) {
+    move m = results.ms[i];
+    u64 hash = next_hash_king(board_hash, m.orig, m.dest);
+    apply_captures_z_white(&b, &hash, m.dest);
+    if (check_position(ps, hash)) {
+      continue;
+    }
+    output[j] = m;
+    j++;
+  }
+
+  *total = j;
+  return output;
+}

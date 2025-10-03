@@ -58,7 +58,6 @@ TEST board_rotation_correct(board b) {
 }
 
 void test_start_board_moves() {
-  const board start_board = read_board(start_board_string);
 
   board bs[235];
   move ms[235];
@@ -404,8 +403,6 @@ process:
 }
 
 void test_start_board_moves_gen() {
-  const board start_board = read_board(start_board_string);
-
   board bs[235];
   move ms[235];
   int total = 0;

@@ -7,6 +7,7 @@ SUITE_EXTERN(corner_moves_1_suite);
 SUITE_EXTERN(corner_moves_2_suite);
 SUITE_EXTERN(corner_paths_1_suite);
 SUITE_EXTERN(corner_paths_2_suite);
+SUITE_EXTERN(lib_suite);
 SUITE_EXTERN(move_generator_suite);
 SUITE_EXTERN(move_suite);
 SUITE_EXTERN(position_set_suite);
@@ -25,7 +26,7 @@ SUITE_EXTERN(zobrist_suite);
 GREATEST_MAIN_DEFS();
 
 int main(int argc, char **argv) {
-  init_hashes();
+  
 
   GREATEST_MAIN_BEGIN();
   RUN_SUITE(base64_suite);
@@ -34,6 +35,7 @@ int main(int argc, char **argv) {
   RUN_SUITE(corner_moves_2_suite);
   RUN_SUITE(corner_paths_1_suite);
   RUN_SUITE(corner_paths_2_suite);
+  RUN_SUITE(lib_suite);
   RUN_SUITE(move_generator_suite);
   RUN_SUITE(move_suite);
   RUN_SUITE(position_set_suite);

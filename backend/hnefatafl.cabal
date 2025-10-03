@@ -27,8 +27,6 @@ library bindings
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-    include-dirs:
-        /home/ftzm/dev/hnefatafl/backend/
     extra-lib-dirs:
         /home/ftzm/dev/hnefatafl/backend/
     build-tool-depends:
@@ -99,8 +97,6 @@ test-suite bindings-test
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
-    include-dirs:
-        /home/ftzm/dev/hnefatafl/backend/
     extra-lib-dirs:
         /home/ftzm/dev/hnefatafl/backend/
     build-tool-depends:
@@ -177,8 +173,6 @@ benchmark board
         DerivingVia
         ImportQualifiedPost
     ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-    include-dirs:
-        /home/ftzm/dev/hnefatafl/backend/
     extra-lib-dirs:
         /home/ftzm/dev/hnefatafl/backend/
     build-depends:

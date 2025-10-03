@@ -34,12 +34,9 @@ static inline u64 fastrange64(u64 word, u64 p) {
 
 position_set *create_position_set(size_t max_elems) {
   // TODO: document why 1.3 times expected size is a good capacity
-  size_t size = max_elems * 1.3;
+  size_t size = MAX(max_elems + 1, max_elems * 1.3);
   position_set *set = malloc(sizeof(position_set));
-  *set = (position_set) {
-    .size = size,
-    .elements = calloc(size, sizeof(u64))
-  };
+  *set = (position_set){.size = size, .elements = calloc(size, sizeof(u64))};
   return set;
 }
 
@@ -73,6 +70,26 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
   return 0;
 }
 
-void delete_position(position_set *set, u64 index) {
-  set->elements[index] = 0;
+int check_position(position_set *set, u64 position) {
+  u64 index = fastrange64(position, set->size);
+
+  // iterate until we find an empty cell
+  while (set->elements[index]) {
+
+    // if a cell has the value we're looking for we return an error.
+    if (set->elements[index] == position) {
+      return 1;
+    }
+
+    if (index < (set->size - 1)) {
+      index++;
+    } else {
+      index = 0;
+    }
+  }
+
+  // If we hit this point we've not encountered our value
+  return 0;
 }
+
+void delete_position(position_set *set, u64 index) { set->elements[index] = 0; }

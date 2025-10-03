@@ -7,8 +7,8 @@ verbatim:
 
 language: GHC2021
 
-include-dirs:
-  - "/home/ftzm/dev/hnefatafl/backend/"
+# include-dirs:
+#   - "/home/ftzm/dev/hnefatafl/backend/"
 
 extra-lib-dirs:
   - "/home/ftzm/dev/hnefatafl/backend/"

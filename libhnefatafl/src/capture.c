@@ -5,7 +5,7 @@
 #include "layer.h"
 #include "stdbool.h"
 #include "x86intrin.h" // IWYU pragma: export
-#include "zobrist.h"
+#include "zobrist_constants.h"
 
 layer foe_masks[120];
 layer foe_masks_r[120];
@@ -202,7 +202,7 @@ layer apply_captures_niave_z(
     layer *foes,
     layer *foes_r,
     u64 *z,
-    u64 hash_table[121],
+    const u64 hash_table[121],
     int dest) {
   layer output = EMPTY_LAYER;
 
@@ -289,6 +289,8 @@ layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
   layer shield_wall_captures = shield_wall_white(b, z, dest);
   return LAYER_OR(captures, shield_wall_captures);
 }
+
+#define apply_captures_z_king apply_captures_z_white
 
 //******************************************************************************
 

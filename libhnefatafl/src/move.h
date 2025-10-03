@@ -1,7 +1,11 @@
 #pragma once
 
 #include "board.h"
-#include <stdio.h>
+#include "capture.h"
+#include "position_set.h"
+#include "stdio.h"
+#include "zobrist.h"
+#include <stdlib.h>
 
 // -----------------------------------------------------------------------------
 // dir
@@ -12,7 +16,6 @@ typedef enum dir {
   east,
   west,
 } dir;
-
 
 // -----------------------------------------------------------------------------
 
@@ -144,3 +147,14 @@ inline move read_move(char *s) {
   // print_move(orig, dest);
   return (move){orig, dest};
 }
+
+/* all black moves, with any illegal repetitions removed */
+move *all_black_moves(board b, position_set *ps, int *total);
+
+/* all white moves, with any illegal repetitions removed */
+move *all_white_moves(board b, position_set *ps, int *total);
+
+/* all king moves, with any illegal repetitions removed */
+move *all_king_moves(board b, position_set *ps, int *total);
+
+extern const move start_black_moves[116];

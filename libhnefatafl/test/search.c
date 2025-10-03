@@ -85,12 +85,12 @@ bool pvs_equal(pv_line *a, pv_line *b) {
   return true;
 }
 
-void apply_black_move_m(board *b, move m) {
+void apply_black_move_m_(board *b, move m) {
   CLEAR_INDEX(b->black, m.orig);
   SET_INDEX(b->black, m.dest);
 }
 
-void apply_white_move_m(board *b, move m) {
+void apply_white_move_m_(board *b, move m) {
   if (CHECK_INDEX(b->white, m.orig)) {
     CLEAR_INDEX(b->white, m.orig);
     SET_INDEX(b->white, m.dest);
@@ -112,10 +112,10 @@ void print_pv(board b, pv_line *pv) {
     layer captures;
     u64 dummy_zobrist;
     if (is_black_turn) {
-      apply_black_move_m(&b, m);
+      apply_black_move_m_(&b, m);
       captures = apply_captures_z_black(&b, &dummy_zobrist, m.dest);
     } else {
-      apply_white_move_m(&b, m);
+      apply_white_move_m_(&b, m);
       captures = apply_captures_z_white(&b, &dummy_zobrist, m.dest);
     }
     print_board_move(b, m.orig, m.dest, captures);

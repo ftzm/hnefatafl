@@ -13,7 +13,13 @@ typedef struct board {
   layer king_r;
 } board;
 
-extern const char *start_board_string;
+static const board start_board = {
+    .black = start_black,
+    .black_r = start_black_r,
+    .white = start_white,
+    .white_r = start_white_r,
+    .king = start_king,
+    .king_r = start_king_r};
 
 int boards_equal(board a, board b);
 
@@ -29,21 +35,45 @@ int black_pawn_count(const board *b);
 
 int white_pawn_count(const board *b);
 
-inline board apply_black_move(board b, layer l, layer l_r) {
+static inline board apply_black_move(board b, layer l, layer l_r) {
   LAYER_XOR_ASSG(b.black, l);
   LAYER_XOR_ASSG(b.black_r, l_r);
   return b;
 }
 
-inline board apply_white_move(board b, layer l, layer l_r) {
+static inline board apply_white_move(board b, layer l, layer l_r) {
   LAYER_XOR_ASSG(b.white, l);
   LAYER_XOR_ASSG(b.white_r, l_r);
   return b;
 }
 
-inline board apply_king_move(board b, layer l, layer l_r) {
+static inline board apply_king_move(board b, layer l, layer l_r) {
   LAYER_XOR_ASSG(b.king, l);
   LAYER_XOR_ASSG(b.king_r, l_r);
+  return b;
+}
+
+static inline board apply_black_move_m(board b, u8 orig, u8 dest) {
+  CLEAR_INDEX(b.black, orig);
+  SET_INDEX(b.black, dest);
+  CLEAR_INDEX(b.black_r, rotate_right[orig]);
+  SET_INDEX(b.black_r, rotate_right[dest]);
+  return b;
+}
+
+static inline board apply_white_move_m(board b, u8 orig, u8 dest) {
+  CLEAR_INDEX(b.white, orig);
+  SET_INDEX(b.white, dest);
+  CLEAR_INDEX(b.white_r, rotate_right[orig]);
+  SET_INDEX(b.white_r, rotate_right[dest]);
+  return b;
+}
+
+static inline board apply_king_move_m(board b, u8 orig, u8 dest) {
+  CLEAR_INDEX(b.king, orig);
+  SET_INDEX(b.king, dest);
+  CLEAR_INDEX(b.king_r, rotate_right[orig]);
+  SET_INDEX(b.king_r, rotate_right[dest]);
   return b;
 }
 

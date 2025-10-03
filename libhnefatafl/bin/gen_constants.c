@@ -50,6 +50,24 @@ void print_layer_direct(layer l, char *name_str) {
       l._[1]);
 };
 
+void print_board_constant(const char *board_string, const char *name_str) {
+  layer black = read_layer(board_string, 'X');
+  layer white = read_layer(board_string, 'O');
+  layer king = read_layer(board_string, '#');
+  layer black_r = rotate_layer_right(black);
+  layer white_r = rotate_layer_right(white);
+  layer king_r = rotate_layer_right(king);
+
+  printf("static const board %s = {\n", name_str);
+  printf("  .black = {{%juULL, %juULL}},\n", black._[0], black._[1]);
+  printf("  .black_r = {{%juULL, %juULL}},\n", black_r._[0], black_r._[1]);
+  printf("  .white = {{%juULL, %juULL}},\n", white._[0], white._[1]);
+  printf("  .white_r = {{%juULL, %juULL}},\n", white_r._[0], white_r._[1]);
+  printf("  .king = {{%juULL, %juULL}},\n", king._[0], king._[1]);
+  printf("  .king_r = {{%juULL, %juULL}}\n", king_r._[0], king_r._[1]);
+  printf("};\n");
+};
+
 #define PRINT_LAYER_DIRECT(name) print_layer_direct(name, #name);
 
 // -----------------------------------------------------------------------------
@@ -833,6 +851,34 @@ int main() {
       "X  .  .  .  .  .  .  .  .  .  X"
       "X  X  .  .  .  .  .  .  .  X  X",
       "CORNERS_AND_ADJACENTS");
+
+  printf("\n");
+
+  const char *start_board_string = " .  .  .  X  X  X  X  X  .  .  . "
+                                   " .  .  .  .  .  X  .  .  .  .  . "
+                                   " .  .  .  .  .  .  .  .  .  .  . "
+                                   " X  .  .  .  .  O  .  .  .  .  X "
+                                   " X  .  .  .  O  O  O  .  .  .  X "
+                                   " X  X  .  O  O  #  O  O  .  X  X "
+                                   " X  .  .  .  O  O  O  .  .  .  X "
+                                   " X  .  .  .  .  O  .  .  .  .  X "
+                                   " .  .  .  .  .  .  .  .  .  .  . "
+                                   " .  .  .  .  .  X  .  .  .  .  . "
+                                   " .  .  .  X  X  X  X  X  .  .  . ";
+  
+  layer start_black = read_layer(start_board_string, 'X');
+  layer start_white = read_layer(start_board_string, 'O');
+  layer start_king = read_layer(start_board_string, '#');
+  layer start_black_r = rotate_layer_right(start_black);
+  layer start_white_r = rotate_layer_right(start_white);
+  layer start_king_r = rotate_layer_right(start_king);
+
+  print_layer_direct(start_black, "start_black");
+  print_layer_direct(start_white, "start_white");  
+  print_layer_direct(start_king, "start_king");
+  print_layer_direct(start_black_r, "start_black_r");
+  print_layer_direct(start_white_r, "start_white_r");
+  print_layer_direct(start_king_r, "start_king_r");
 
   printf("\n");
 

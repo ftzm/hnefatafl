@@ -231,6 +231,5 @@ UBENCH_STATE();
 
 int main() {
   init_move_globals();
-  init_hashes();
   return ubench_main(0, NULL);
 }

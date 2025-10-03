@@ -1,3 +1,5 @@
+#pragma once
+
 #include "stddef.h"
 #include "util.h"
 
@@ -13,3 +15,5 @@ void destroy_position_set(position_set *set);
 int insert_position(position_set *set, u64 position, int *deletion_index);
 
 void delete_position(position_set *set, u64 index);
+
+int check_position(position_set *set, u64 position);

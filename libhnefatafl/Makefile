@@ -107,7 +107,7 @@ include $(wildcard $(DEP_FILES))
 update-test-suites:
 	@echo "Scanning for test suites..."
 	@SUITES=$$(grep -h '^SUITE(' $(TEST_DIR)/*.c | sed 's/SUITE(\([^)]*\)).*/\1/' | sort); \
-	CUSTOM_INITIALIZATION="init_hashes();"; \
+	CUSTOM_INITIALIZATION=""; \
 	{ \
 		echo '#include "greatest.h"'; \
 		echo '#include "zobrist.h"'; \
@@ -167,6 +167,18 @@ gen_constants: $(BIN_DIR)/gen_constants.c
 	@$(CC) $(CFLAGS) $(SRC_INCLUDES) -o gen_constants $(BIN_DIR)/gen_constants.c -lm
 	@./gen_constants > $(SRC_DIR)/constants.h || (rm -f gen_constants $(SRC_DIR)/constants.h; exit 1)
 
+.PHONY: gen_zobrist
+gen_zobrist: $(BIN_DIR)/gen_zobrist.c
+	@$(CC) $(CFLAGS) $(SRC_INCLUDES) -o gen_zobrist $(BIN_DIR)/gen_zobrist.c
+	@./gen_zobrist > $(SRC_DIR)/zobrist_constants.h || (rm -f gen_zobrist $(SRC_DIR)/zobrist_constants.h; exit 1)
+
+.PHONY: gen_black_moves
+gen_black_moves: $(BIN_DIR)/gen_black_moves.c $(LIB_TARGET)
+	@echo "Compiling gen_black_moves..."
+	$(CC) $(CFLAGS) $(SRC_INCLUDES) -o gen_black_moves $(BIN_DIR)/gen_black_moves.c $(BENCH_LIBS)
+	@echo "Running gen_black_moves..."
+	$(RUN_ENV) ./gen_black_moves
+
 # ------------------------------------------------------------------------------
 # Clean
 
@@ -177,6 +189,8 @@ clean:
 	@rm -rf $(BENCH_BIN_DIR)
 	@rm -rf $(DEP_DIR)
 	@rm -f gen_constants
+	@rm -f gen_zobrist
+	@rm -f gen_black_moves
 	@rm -f $(STATIC_LIB_TARGET)
 
 # ------------------------------------------------------------------------------
