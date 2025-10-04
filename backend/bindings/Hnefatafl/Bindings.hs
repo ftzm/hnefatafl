@@ -14,9 +14,10 @@ where
 
 import Foreign (
   Ptr,
-  Storable (peek),
+  Storable (alignment, peek, poke, sizeOf),
   alloca,
   allocaBytes,
+  castPtr,
   free,
   nullPtr,
   peekArray,
@@ -24,7 +25,7 @@ import Foreign (
   withArrayLen,
  )
 import Foreign.C.String (CString, peekCString, withCString)
-import Foreign.C.Types (CInt (..))
+import Foreign.C.Types (CInt (..), CUChar (..))
 import Foreign.Storable.Generic (GStorable)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -47,7 +48,7 @@ data GameStatus
   | KingEscaped -- white victory
   | ExitFort -- white victory
   | NoBlackMoves -- white victory
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Generic, GStorable)
 
 foreign import ccall unsafe "start_board_extern"
   start_board_extern :: Ptr ExternBoard -> IO ()
