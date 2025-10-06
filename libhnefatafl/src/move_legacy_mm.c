@@ -1,5 +1,7 @@
 #include "move_legacy_mm.h"
+#include "board.h"
 #include "capture.h"
+#include "layer.h"
 #include "stdbool.h"
 #include "string.h"
 

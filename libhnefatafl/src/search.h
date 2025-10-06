@@ -1,4 +1,4 @@
-#include "move.h"
+#include "types.h"
 #include "score.h"
 #include "stdbool.h"
 

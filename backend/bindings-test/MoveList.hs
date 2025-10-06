@@ -28,9 +28,10 @@ spec_startBlackMoves =
   it "should contain 116 moves" $ do
     length startBlackMoves `shouldBe` 116
 
-spec_getPossibleMoves :: Spec
-spec_getPossibleMoves =
+spec_nextGameState :: Spec
+spec_nextGameState =
   it "should return moves for white after first black move" $ do
     let firstBlackMove = head startBlackMoves
-        possibleMoves = getPossibleMoves (firstBlackMove :| [])
+        (status, possibleMoves) = nextGameState (firstBlackMove :| [])
+    status `shouldBe` Ongoing
     length possibleMoves `shouldSatisfy` (> 0)

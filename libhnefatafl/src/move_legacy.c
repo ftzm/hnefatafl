@@ -1,7 +1,7 @@
 #include "board.h"
 #include "capture.h"
 #include "constants.h"
-#include "move.h"
+#include "layer.h"
 #include "stdbool.h"
 #include "x86intrin.h" // IWYU pragma: export
 
@@ -320,9 +320,6 @@ u16 get_team_move_count(
 //[[[end]]]
 
 void init_move_globals() {
-  gen_foe_masks();
-  gen_ally_masks();
-  gen_surround_masks();
   gen_row_moves();
   gen_center_row_moves();
   gen_row_move_counts();

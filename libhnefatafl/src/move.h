@@ -7,23 +7,6 @@
 #include "zobrist.h"
 #include <stdlib.h>
 
-// -----------------------------------------------------------------------------
-// dir
-
-typedef enum dir {
-  north,
-  south,
-  east,
-  west,
-} dir;
-
-// -----------------------------------------------------------------------------
-
-typedef struct move {
-  u8 orig;
-  u8 dest;
-} move;
-
 #define ROTATE_MOVE(_m) ((move){rotate_right[m.orig], rotate_right[m.dest]})
 
 inline layer move_as_layer(move m) {

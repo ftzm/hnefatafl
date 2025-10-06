@@ -1,6 +1,6 @@
 #pragma once
 
-#include "board.h"
+#include "types.h"
 #include "stdbool.h"
 
 bool king_captured(const board *b);

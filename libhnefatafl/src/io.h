@@ -1,7 +1,7 @@
 #pragma once
 
 #include "util.h"
-#include "board.h"
+#include "types.h"
 
 layer read_layer(const char *string, u8 symbol);
 

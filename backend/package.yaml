@@ -7,12 +7,6 @@ verbatim:
 
 language: GHC2021
 
-# include-dirs:
-#   - "/home/ftzm/dev/hnefatafl/backend/"
-
-extra-lib-dirs:
-  - "/home/ftzm/dev/hnefatafl/backend/"
-
 default-extensions:
   - TemplateHaskell
   - OverloadedStrings
@@ -50,42 +44,42 @@ dependencies:
       - (Relude as Prelude)
 
   # old
-  - aeson
-  - array
-  - async
-  - containers
-  - deepseq
-  - generic-lens
-  - http-media
-  - http-types
-  - lucid2
-  - mtl
-  - parallel
-  - random
-  - raw-strings-qq
-  - servant
-  - servant-client
-  - servant-server
-  - servant-websockets
-  - split
-  - sqlite-simple
-  - stm
-  - storable-tuple
-  - template-haskell
-  - text
-  - time
-  - unagi-chan
-  - uuid
-  - vector
-  - vector-hashtables
-  - wai
-  - warp
-  - websockets
-  - wide-word
-  - wai-websockets
-  - resourcet
-  - lens
-  - storable-record
+  # - aeson
+  # - array
+  # - async
+  # - containers
+  # - deepseq
+  # - generic-lens
+  # - http-media
+  # - http-types
+  # - lucid2
+  # - mtl
+  # - parallel
+  # - random
+  # - raw-strings-qq
+  # - servant
+  # - servant-client
+  # - servant-server
+  # - servant-websockets
+  # - split
+  # - sqlite-simple
+  # - stm
+  # - storable-tuple
+  # - template-haskell
+  # - text
+  # - time
+  # - unagi-chan
+  # - uuid
+  # - vector
+  # - vector-hashtables
+  # - wai
+  # - warp
+  # - websockets
+  # - wide-word
+  # - wai-websockets
+  # - resourcet
+  # - lens
+  # - storable-record
 
   # new
   - derive-storable

@@ -28,11 +28,11 @@ typedef struct move {
 } move;
 
 typedef enum game_status {
-  ongoing,
-  king_captured,
-  white_surrounded,
-  no_white_moves,
-  king_escaped,
-  exit_fort,
-  no_black_moves,
+  status_ongoing,
+  status_king_captured,
+  status_white_surrounded,
+  status_no_white_moves,
+  status_king_escaped,
+  status_exit_fort,
+  status_no_black_moves,
 } game_status;

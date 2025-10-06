@@ -5,6 +5,7 @@
 #include "stdbool.h"
 #include "stdlib.h"
 #include "string.h"
+#include "victory.h"
 #include "x86intrin.h" // IWYU pragma: export
 #include "zobrist.h"
 
@@ -94,6 +95,28 @@ int base64_decode(const char *encoded, char *output, int max_output_len) {
   return j; // Return number of bytes decoded
 }
 
+game_status white_victory_check(const board *b) {
+  if (black_moves_count(b) == 0) {
+    return status_no_black_moves;
+  } else if (king_escaped(b)) {
+    return status_king_escaped;
+  } else if (exit_fort(b)) {
+    return status_exit_fort;
+  }
+  return status_ongoing;
+}
+
+game_status black_victory_check(const board *b) {
+  if (white_moves_count(b) == 0) {
+    return status_no_white_moves;
+  } else if (king_captured(b)) {
+    return status_king_captured;
+  } else if (surrounded(b)) {
+    return status_white_surrounded;
+  }
+  return status_ongoing;
+}
+
 // Convert move array to base64 string
 void move_list_to_base64(const move *moves, int count, char *output) {
   if (!moves || count == 0) {
@@ -155,7 +178,8 @@ int board_state_from_move_list(
     int count,
     board **b_ptr,
     position_set **ps_ptr,
-    bool *is_black_turn) {
+    bool *is_black_turn,
+    game_status *gs) {
 
   *is_black_turn = true;
 
@@ -186,6 +210,12 @@ int board_state_from_move_list(
     }
 
     *is_black_turn = !*is_black_turn;
+  }
+
+  if (*is_black_turn) {
+    *gs = white_victory_check(&b);
+  } else {
+    *gs = black_victory_check(&b);
   }
 
   *b_ptr = malloc(sizeof(board));

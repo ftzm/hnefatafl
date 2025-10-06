@@ -1,7 +1,6 @@
 #pragma once
 
-#include "board.h"
-#include "layer.h"
+#include "types.h"
 #include "stdbool.h"
 
 bool corner_moves_1(

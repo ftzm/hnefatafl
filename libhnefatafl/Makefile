@@ -179,6 +179,13 @@ gen_black_moves: $(BIN_DIR)/gen_black_moves.c $(LIB_TARGET)
 	@echo "Running gen_black_moves..."
 	$(RUN_ENV) ./gen_black_moves
 
+.PHONY: gen_masks
+gen_masks: $(BIN_DIR)/gen_masks.c $(LIB_TARGET)
+	@echo "Compiling gen_masks..."
+	$(CC) $(CFLAGS) $(SRC_INCLUDES) -o gen_masks $(BIN_DIR)/gen_masks.c $(BENCH_LIBS)
+	@echo "Running gen_masks..."
+	$(RUN_ENV) ./gen_masks > $(SRC_DIR)/mask_constants.h || (rm -f gen_masks $(SRC_DIR)/mask_constants.h; exit 1)
+
 # ------------------------------------------------------------------------------
 # Clean
 
@@ -191,6 +198,7 @@ clean:
 	@rm -f gen_constants
 	@rm -f gen_zobrist
 	@rm -f gen_black_moves
+	@rm -f gen_masks
 	@rm -f $(STATIC_LIB_TARGET)
 
 # ------------------------------------------------------------------------------

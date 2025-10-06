@@ -2,13 +2,15 @@
 {-# OPTIONS_GHC -fplugin-opt=Foreign.Storable.Generic.Plugin:-v1 #-}
 {-# OPTIONS_GHC -fplugin=Foreign.Storable.Generic.Plugin #-}
 
+-- oioi
 module Hnefatafl.Bindings (
   startBoard,
   moveListToBase64,
   moveListFromBase64,
   startBlackMoves,
-  getPossibleMoves,
+  nextGameState,
   Move (..),
+  GameStatus (..),
 )
 where
 
@@ -19,13 +21,12 @@ import Foreign (
   allocaBytes,
   castPtr,
   free,
-  nullPtr,
   peekArray,
   withArray,
   withArrayLen,
  )
 import Foreign.C.String (CString, peekCString, withCString)
-import Foreign.C.Types (CInt (..), CUChar (..))
+import Foreign.C.Types (CInt (..))
 import Foreign.Storable.Generic (GStorable)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -48,7 +49,15 @@ data GameStatus
   | KingEscaped -- white victory
   | ExitFort -- white victory
   | NoBlackMoves -- white victory
-  deriving (Show, Read, Eq, Generic, GStorable)
+  deriving (Show, Read, Eq, Enum)
+
+instance Storable GameStatus where
+  sizeOf _ = sizeOf (0 :: CInt)
+  alignment _ = alignment (0 :: CInt)
+  peek ptr = do
+    val <- peek (castPtr ptr :: Ptr CInt)
+    return $ toEnum (fromIntegral val)
+  poke ptr val = poke (castPtr ptr :: Ptr CInt) (fromIntegral $ fromEnum val)
 
 foreign import ccall unsafe "start_board_extern"
   start_board_extern :: Ptr ExternBoard -> IO ()
@@ -100,19 +109,28 @@ foreign import ccall unsafe "&start_black_moves"
 startBlackMoves :: NonEmpty Move
 startBlackMoves = fromList $ unsafePerformIO $ peekArray 116 c_start_black_moves
 
-foreign import ccall unsafe "get_possible_moves"
-  c_get_possible_moves :: Ptr Move -> CInt -> Ptr CInt -> IO (Ptr Move)
+foreign import ccall unsafe "next_game_state"
+  c_get_possible_moves ::
+    Ptr Move -> CInt -> Ptr CInt -> Ptr GameStatus -> IO (Ptr Move)
 
-getPossibleMoves :: NonEmpty Move -> [Move]
-getPossibleMoves moveHistory = unsafePerformIO $
+nextGameState :: NonEmpty Move -> (GameStatus, [Move])
+nextGameState moveHistory = unsafePerformIO $
   withArrayLen (toList moveHistory) $ \historyLen -> \historyPtr ->
-    alloca $ \moveCountPtr -> do
-      resultPtr <-
-        c_get_possible_moves historyPtr (fromIntegral historyLen) moveCountPtr
-      if resultPtr == nullPtr
-        then return []
-        else do
-          count <- peek moveCountPtr
-          moves <- peekArray (fromIntegral count) resultPtr
-          free resultPtr
-          return moves
+    alloca $ \moveCountPtr ->
+      alloca $ \gameStatusPtr -> do
+        movesPtr <-
+          c_get_possible_moves
+            historyPtr
+            (fromIntegral historyLen)
+            moveCountPtr
+            gameStatusPtr
+        status <- peek gameStatusPtr
+        moves <-
+          if status == Ongoing
+            then do
+              count <- peek moveCountPtr
+              moves <- peekArray (fromIntegral count) movesPtr
+              free movesPtr
+              return moves
+            else return $ [] ++ []
+        return (status, moves)

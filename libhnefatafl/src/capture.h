@@ -1,9 +1,13 @@
 #pragma once
 
-#include "board.h"
+#include "types.h"
 
-extern layer surround_masks[120];
-extern layer surround_masks_r[120];
+extern const layer foe_masks[120];
+extern const layer foe_masks_r[120];
+extern const layer ally_masks[120];
+extern const layer ally_masks_r[120];
+extern const layer surround_masks[120];
+extern const layer surround_masks_r[120];
 
 layer simple_capture_destinations(
     const layer allies,
@@ -33,6 +37,3 @@ layer shield_wall_white(board *b, u64 *z, u8 pos);
 void shield_wall_black_gen(board *b, u8 pos);
 void shield_wall_white_gen(board *b, u8 pos);
 
-void gen_foe_masks();
-void gen_ally_masks();
-void gen_surround_masks();

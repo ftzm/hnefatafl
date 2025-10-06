@@ -2,6 +2,7 @@
 #include "greatest.h"
 #include "move.h"
 #include "stdio.h"
+#include "types.h"
 
 TEST test_get_possible_moves() {
 
@@ -11,9 +12,10 @@ TEST test_get_possible_moves() {
   // Create move history with just one move
   move history[1] = {first_move};
 
-  // Call get_possible_moves
+  // Call next_game_state
   int move_count = 0;
-  move *possible_moves = get_possible_moves(history, 1, &move_count);
+  game_status gs;
+  move *possible_moves = next_game_state(history, 1, &move_count, &gs);
 
   if (possible_moves == NULL) {
     printf("ERROR: get_possible_moves returned NULL\n");

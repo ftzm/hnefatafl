@@ -3,16 +3,6 @@
 #include "constants.h"
 #include "layer.h"
 
-typedef struct board {
-  layer black;
-  layer black_r;
-  layer white;
-  layer white_r;
-  // king can maybe also just be a char
-  layer king;
-  layer king_r;
-} board;
-
 static const board start_board = {
     .black = start_black,
     .black_r = start_black_r,

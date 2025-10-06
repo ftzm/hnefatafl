@@ -1,7 +1,6 @@
 #pragma once
 
-#include "board.h"
-#include "move.h"
+#include "types.h"
 #include "x86intrin.h" // IWYU pragma: export
 
 struct sources {

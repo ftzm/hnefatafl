@@ -1,7 +1,6 @@
 #pragma once
 
-#include "board.h"
-#include "move.h"
+#include "types.h"
 
 int get_king_move_count(const board b);
 

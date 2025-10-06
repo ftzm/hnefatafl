@@ -4,6 +4,7 @@
 #include "io.h"
 #include "limits.h"
 #include "macro_util.h"
+#include "move.h"
 #include "position_set.h"
 #include "score.h"
 #include "stdbool.h"

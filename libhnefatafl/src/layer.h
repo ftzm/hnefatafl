@@ -1,10 +1,7 @@
 #pragma once
 
+#include "types.h"
 #include "util.h"
-
-typedef struct layer {
-  u64 _[2];
-} layer;
 
 #define EMPTY_LAYER                                                            \
   (layer) { ._ = {0, 0} }

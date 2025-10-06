@@ -1,4 +1,4 @@
-#include "board.h"
+#include "types.h"
 #include "stdbool.h"
 
 bool king_capture_check_ref(const board *b);

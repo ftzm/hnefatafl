@@ -67,15 +67,18 @@ move *all_white_and_king_moves(board b, position_set *ps, int *total) {
   return combined_moves;
 }
 
-/* Get possible moves for the current player given a move history.
- * Returns dynamically allocated array of moves and sets move_count.
- * Caller must free the returned array.
- * Returns NULL on error.
+/* Get the next game state based on the previously played moves. If the game is
+ * ongoing we return an "ongoing" status and the available moves for the
+ * position. If the last move trigger a victory then we indicate the nature of
+ * the victory in the status type. Returns dynamically allocated array of moves
+ * and sets move_count. Caller must free the returned array. Returns NULL on
+ * error.
  */
-move *get_possible_moves(
+move *next_game_state(
     const move *move_history,
     int history_count,
-    int *move_count) {
+    int *move_count,
+    game_status *gs) {
 
   board *b;
   position_set *ps;
@@ -87,7 +90,8 @@ move *get_possible_moves(
           history_count,
           &b,
           &ps,
-          &is_black_turn) != 0) {
+          &is_black_turn,
+          gs) != 0) {
     return NULL;
   }
 

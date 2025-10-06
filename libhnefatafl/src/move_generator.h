@@ -1,8 +1,6 @@
 #pragma once
 
-#include "board.h"
-#include "layer.h"
-#include "move.h"
+#include "types.h"
 #include "stdbool.h"
 
 // Generator state constants
