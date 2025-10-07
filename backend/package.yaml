@@ -114,8 +114,6 @@ dependencies:
 internal-libraries:
   bindings:
     source-dirs: bindings
-    build-tools:
-        tasty-discover:tasty-discover
 
 tests:
   bindings-test:
@@ -143,10 +141,10 @@ tests:
 #      - quickcheck-instances
 #      - QuickCheck
 
-benchmarks:
-  board:
-    main: "Main.hs"
-    source-dirs: bench
-    dependencies:
-      - hnefatafl
-      - criterion
+# benchmarks:
+#   board:
+#     main: "Main.hs"
+#     source-dirs: bench
+#     dependencies:
+#       - hnefatafl
+#       - criterion

@@ -4,107 +4,74 @@ cabal-version: 2.4
 --
 -- see: https://github.com/sol/hpack
 
-name:               hnefatafl
-version:            0.0.0.2
-build-type:         Simple
+name:           hnefatafl
+version:        0.0.0.2
+build-type:     Simple
 
 library bindings
-    exposed-modules:
-        Hnefatafl.Bindings
-    other-modules:
-        Paths_hnefatafl
-    autogen-modules:
-        Paths_hnefatafl
-    hs-source-dirs:
-        bindings
-    default-extensions:
-        TemplateHaskell
-        OverloadedStrings
-        OverloadedRecordDot
-        OverloadedLabels
-        DuplicateRecordFields
-        LambdaCase
-        DerivingVia
-        ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-    build-tool-depends:
-        tasty-discover:tasty-discover
-    build-depends:
-        base,
-        derive-storable,
-        derive-storable-plugin,
-        relude
-    mixins:
-        base hiding (Prelude),
-        relude (Relude as Prelude)
-    default-language: GHC2021
+  exposed-modules:
+      Hnefatafl.Bindings
+  other-modules:
+      Paths_hnefatafl
+  autogen-modules:
+      Paths_hnefatafl
+  hs-source-dirs:
+      bindings
+  default-extensions:
+      TemplateHaskell
+      OverloadedStrings
+      OverloadedRecordDot
+      OverloadedLabels
+      DuplicateRecordFields
+      LambdaCase
+      DerivingVia
+      ImportQualifiedPost
+  ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  build-depends:
+      base
+    , derive-storable
+    , derive-storable-plugin
+    , relude
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude)
+  default-language: GHC2021
 
 test-suite bindings-test
-    type: exitcode-stdio-1.0
-    main-is: Driver.hs
-    other-modules:
-        MoveList
-        Paths_hnefatafl
-    autogen-modules:
-        Paths_hnefatafl
-    hs-source-dirs:
-        bindings-test
-    default-extensions:
-        TemplateHaskell
-        OverloadedStrings
-        OverloadedRecordDot
-        OverloadedLabels
-        DuplicateRecordFields
-        LambdaCase
-        DerivingVia
-        ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
-    build-tool-depends:
-        tasty-discover:tasty-discover
-    build-depends:
-        base,
-        bindings,
-        derive-storable,
-        derive-storable-plugin,
-        hspec,
-        hspec-expectations-pretty-diff,
-        relude,
-        tasty,
-        tasty-discover,
-        tasty-hspec,
-        tasty-hunit
-    mixins:
-        base hiding (Prelude),
-        relude (Relude as Prelude)
-    default-language: GHC2021
-
-benchmark board
-    type: exitcode-stdio-1.0
-    main-is: Main.hs
-    other-modules:
-        Paths_hnefatafl
-    autogen-modules:
-        Paths_hnefatafl
-    hs-source-dirs:
-        bench
-    default-extensions:
-        TemplateHaskell
-        OverloadedStrings
-        OverloadedRecordDot
-        OverloadedLabels
-        DuplicateRecordFields
-        LambdaCase
-        DerivingVia
-        ImportQualifiedPost
-    ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-    build-depends:
-        base,
-        criterion,
-        derive-storable,
-        derive-storable-plugin,
-        hnefatafl,
-        relude
-    mixins:
-        base hiding (Prelude),
-        relude (Relude as Prelude)
-    default-language: GHC2021
+  type: exitcode-stdio-1.0
+  main-is: Driver.hs
+  other-modules:
+      MoveList
+      Paths_hnefatafl
+  autogen-modules:
+      Paths_hnefatafl
+  hs-source-dirs:
+      bindings-test
+  default-extensions:
+      TemplateHaskell
+      OverloadedStrings
+      OverloadedRecordDot
+      OverloadedLabels
+      DuplicateRecordFields
+      LambdaCase
+      DerivingVia
+      ImportQualifiedPost
+  ghc-options: -Wunused-imports -Wall -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
+  build-tool-depends:
+      tasty-discover:tasty-discover
+  build-depends:
+      base
+    , bindings
+    , derive-storable
+    , derive-storable-plugin
+    , hspec
+    , hspec-expectations-pretty-diff
+    , relude
+    , tasty
+    , tasty-discover
+    , tasty-hspec
+    , tasty-hunit
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude)
+  default-language: GHC2021
