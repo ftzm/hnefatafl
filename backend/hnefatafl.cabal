@@ -31,7 +31,6 @@ library bindings
       base
     , derive-storable
     , derive-storable-plugin
-    , envparse
     , relude
   mixins:
       base hiding (Prelude)
@@ -65,7 +64,6 @@ test-suite bindings-test
     , bindings
     , derive-storable
     , derive-storable-plugin
-    , envparse
     , hspec
     , hspec-expectations-pretty-diff
     , relude

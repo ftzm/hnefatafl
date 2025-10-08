@@ -93,20 +93,21 @@
             libhnefatafl = libhnefatafl;
           };
           apps = {
-            update-all-materialized = {
+            update-materialized = {
               type = "app";
               program =
                 (
                   pkgs.writeShellScript "update-all-materialized-${system}" ''
                     set -eEuo pipefail
-                    mkdir -p materialized
                     echo "Updating project materialization" >&2
                     current_sha=$(${pkgs.backend.plan-nix.passthru.calculateMaterializedSha})
                     echo "saved sha:"
                     echo "${materializedSha}"
                     echo "current sha:"
                     echo "$current_sha"
-                    # ${pkgs.backend.plan-nix.passthru.updateMaterialized} materialized
+                    rm -rf materialized
+                    cp -r ${pkgs.backend.plan-nix} materialized
+                    chmod -R +w materialized
                   ''
                 )
                 .outPath;
@@ -133,7 +134,6 @@
               ];
               shellHook = ''
                 export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH"
-
               '';
             };
             backend = let
@@ -141,7 +141,7 @@
             in
               pkgs.backend.shellFor {
                 inherit shellHook;
-                buildInputs = enabledPackages;
+                buildInputs = enabledPackages ++ [pkgs.pre-commit];
               };
           };
           # Run the hooks in a sandbox with `nix flake check`.
@@ -153,8 +153,9 @@
                 materialization = {
                   enable = true;
                   name = "materialization";
-                  entry = "${apps.update-all-materialized.program}";
-                  files = "flake.nix";
+                  entry = "${apps.update-materialized.program}";
+                  pass_filenames = false;
+                  always_run = true;
                 };
               };
             };
