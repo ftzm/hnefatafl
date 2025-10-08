@@ -2,8 +2,6 @@
   description = "Hnefatafl game implementation with C library";
 
   nixConfig = {
-    bash-prompt = "[nix]\\e[38;5;172mλ \\e[m";
-
     # Binary Cache for haskell.nix
     extra-trusted-public-keys = [
       "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
@@ -11,12 +9,14 @@
     extra-substituters = [
       "https://cache.iog.io"
     ];
+    allow-import-from-derivation = "true";
   };
 
   inputs = {
     haskellNix.url = "github:input-output-hk/haskell.nix";
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    git-hooks.url = "github:cachix/git-hooks.nix";
   };
 
   outputs = {
@@ -24,6 +24,7 @@
     nixpkgs,
     flake-utils,
     haskellNix,
+    git-hooks,
   }:
     flake-utils.lib.eachSystem ["x86_64-linux"] (
       system: let
@@ -38,7 +39,10 @@
             backend = final.haskell-nix.project' {
               inherit index-state;
               src = ./backend/.;
+              # evalSystem = "x86_64-linux";
               compiler-nix-name = "ghc910";
+              plan-sha256 = "sha256-7utJrA8Ll/tosbuhnqqoVexJTlLXFxSLViIpMJMTRr4=";
+              materialized = ./materialized;
 
               modules = [
                 {
@@ -86,6 +90,21 @@
         // rec {
           packages = {
             libhnefatafl = libhnefatafl;
+          };
+          apps = {
+            update-all-materialized = {
+              type = "app";
+              program =
+                (
+                  pkgs.writeShellScript "update-all-materialized-${system}" ''
+                    set -eEuo pipefail
+                    mkdir -p materialized
+                    echo "Updating project materialization" >&2
+                    ${pkgs.backend.plan-nix.passthru.generateMaterialized} materialized
+                  ''
+                )
+                .outPath;
+            };
           };
           devShells = {
             libhnefatafl = pkgs.mkShell rec {
