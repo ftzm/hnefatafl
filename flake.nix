@@ -87,8 +87,9 @@
         };
         flake = pkgs.backend.flake {};
       in
+        pkgs.lib.attrsets.recursiveUpdate
         flake
-        // rec {
+        rec {
           packages = {
             libhnefatafl = libhnefatafl;
           };
@@ -125,6 +126,7 @@
                 bear
                 cmake
                 clangStdenv
+
                 gdb
                 valgrind
                 just
