@@ -133,11 +133,16 @@
               ];
               shellHook = ''
                 export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH"
+
               '';
             };
-            backend = pkgs.backend.shellFor {
-              inherit shellHook;
-            };
+            backend = let
+              inherit (self.checks.${system}.pre-commit-check) shellHook enabledPackages;
+            in
+              pkgs.backend.shellFor {
+                inherit shellHook;
+                buildInputs = enabledPackages;
+              };
           };
           # Run the hooks in a sandbox with `nix flake check`.
           # Read-only filesystem and no internet access.
