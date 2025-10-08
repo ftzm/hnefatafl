@@ -90,7 +90,7 @@ dependencies:
   # - bytestring
   # - cassava
   # - deepseq
-  # - envparse
+  - envparse
   # - exceptions
   # - generic-optics
   # - generic-random

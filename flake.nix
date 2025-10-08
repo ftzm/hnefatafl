@@ -28,6 +28,7 @@
   }:
     flake-utils.lib.eachSystem ["x86_64-linux"] (
       system: let
+        materializedSha = "1gj62f9k0a92as5i85ypa974kv2mm2m9x8dvn5lgp5qb1yn4kszf";
         cabalProject = builtins.readFile ./backend/cabal.project;
         index-state =
           pkgs.haskell-nix.haskellLib.parseIndexState cabalProject;
@@ -41,7 +42,7 @@
               src = ./backend/.;
               # evalSystem = "x86_64-linux";
               compiler-nix-name = "ghc910";
-              plan-sha256 = "sha256-7utJrA8Ll/tosbuhnqqoVexJTlLXFxSLViIpMJMTRr4=";
+              # plan-sha256 = "sha256-7utJrA8Ll/tosbuhnqqoVexJTlLXFxSLViIpMJMTRr4=";
               materialized = ./materialized;
 
               modules = [
@@ -100,7 +101,12 @@
                     set -eEuo pipefail
                     mkdir -p materialized
                     echo "Updating project materialization" >&2
-                    ${pkgs.backend.plan-nix.passthru.generateMaterialized} materialized
+                    current_sha=$(${pkgs.backend.plan-nix.passthru.calculateMaterializedSha})
+                    echo "saved sha:"
+                    echo "${materializedSha}"
+                    echo "current sha:"
+                    echo "$current_sha"
+                    # ${pkgs.backend.plan-nix.passthru.updateMaterialized} materialized
                   ''
                 )
                 .outPath;
@@ -129,7 +135,24 @@
                 export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH"
               '';
             };
-            backend = pkgs.backend.shellFor {};
+            backend = pkgs.backend.shellFor {
+              inherit shellHook;
+            };
+          };
+          # Run the hooks in a sandbox with `nix flake check`.
+          # Read-only filesystem and no internet access.
+          checks = {
+            pre-commit-check = git-hooks.lib.${system}.run {
+              src = ./.;
+              hooks = {
+                materialization = {
+                  enable = true;
+                  name = "materialization";
+                  entry = "${apps.update-all-materialized.program}";
+                  files = "flake.nix";
+                };
+              };
+            };
           };
         }
     );
