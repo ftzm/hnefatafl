@@ -3,6 +3,7 @@
 #include "board.h"
 #include "capture.h"
 #include "constants.h"
+#include "io.h"
 #include "king_mobility.h"
 #include "layer.h"
 #include "limits.h"
@@ -478,9 +479,12 @@ i32 quiesce_black(
   // Increment black position evaluation count
   statistics->quiescence_positions_black++;
 
+  pv_data->pv_length[ply] = ply;
+
   // We only need to check for a king escape because the previous move will
   // have been white.
   if (white_victory(&b)) {
+    // printf("quiesce white score");
     return MIN_SCORE;
   }
 
@@ -491,8 +495,6 @@ i32 quiesce_black(
     statistics->quiescence_limit_reached++;
     return 0;
   }
-
-  pv_data->pv_length[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -570,6 +572,7 @@ i32 quiesce_black(
       // If black can't block an escape in one then they've lost.
       if (!total) {
         delete_position(positions, position_index);
+        // printf("black can't prevent an escape\n");
         return MIN_SCORE;
       }
 
@@ -589,7 +592,7 @@ i32 quiesce_black(
             apply_captures_z_black(&new_b, &new_position_hash, dest);
         score_state new_score_state = update_score_state_black_move_and_capture(
             w,
-            s,
+            &s,
             orig,
             dest,
 
@@ -680,8 +683,12 @@ i32 quiesce_black(
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
-      score_state new_score_state =
-          update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+      score_state new_score_state = update_score_state_black_move_and_capture(
+          w,
+          &s,
+          orig,
+          dest,
+          captures);
       i32 score = -quiesce_white(
           pv_data,
           positions,
@@ -749,7 +756,7 @@ i32 quiesce_black(
             apply_captures_z_black(&new_b, &new_position_hash, dest);
         score_state new_score_state = update_score_state_black_move_and_capture(
             w,
-            s,
+            &s,
             orig,
             dest,
             captures);
@@ -849,8 +856,12 @@ i32 quiesce_black(
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
-      score_state new_score_state =
-          update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+      score_state new_score_state = update_score_state_black_move_and_capture(
+          w,
+          &s,
+          orig,
+          dest,
+          captures);
       i32 score = -quiesce_white(
           pv_data,
           positions,
@@ -904,9 +915,12 @@ i32 quiesce_white(
   // Increment white position evaluation count
   statistics->quiescence_positions_white++;
 
+  pv_data->pv_length[ply] = ply;
+
   // We only need to check for a black_victory because the previous move will
   // have been black.
   if (black_victory(&b)) {
+    // printf("quiesce white score");
     return MIN_SCORE;
   }
 
@@ -916,8 +930,6 @@ i32 quiesce_white(
     statistics->quiescence_limit_reached++;
     return 0;
   }
-
-  pv_data->pv_length[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -981,7 +993,7 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     score_state new_score_state =
-        update_score_state_king_move_and_capture(w, s, orig, dest, captures);
+        update_score_state_king_move_and_capture(w, &s, orig, dest, captures);
     i32 score = -quiesce_black(
         pv_data,
         positions,
@@ -1042,8 +1054,12 @@ i32 quiesce_white(
       board new_b = apply_white_move(b, move, move_r);
       u64 new_position_hash = next_hash_white(position_hash, orig, dest);
       layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
-      score_state new_score_state =
-          update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+      score_state new_score_state = update_score_state_white_move_and_capture(
+          w,
+          &s,
+          orig,
+          dest,
+          captures);
       i32 score = -quiesce_black(
           pv_data,
           positions,
@@ -1112,7 +1128,7 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     score_state new_score_state =
-        update_score_state_king_move_and_capture(w, s, orig, dest, captures);
+        update_score_state_king_move_and_capture(w, &s, orig, dest, captures);
 
     i32 score = -quiesce_black(
         pv_data,
@@ -1171,7 +1187,7 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_white(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     score_state new_score_state =
-        update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+        update_score_state_white_move_and_capture(w, &s, orig, dest, captures);
     i32 score = -quiesce_black(
         pv_data,
         positions,
@@ -1208,7 +1224,7 @@ i32 quiesce_white(
     u64 new_position_hash = next_hash_white(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     score_state new_score_state =
-        update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+        update_score_state_white_move_and_capture(w, &s, orig, dest, captures);
     i32 score = -quiesce_black(
         pv_data,
         positions,
@@ -1323,13 +1339,14 @@ i32 search_black(
   // Increment black position evaluation count
   statistics->search_positions_black++;
 
+  pv_data->pv_length[ply] = ply;
+
   // We only need to check for a king escape because the previous move will
   // have been white.
   if (white_victory(&b)) {
+    // printf("search black victory detection\n");
     return MIN_SCORE;
   }
-
-  pv_data->pv_length[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -1373,7 +1390,7 @@ i32 search_black(
     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
     layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
     score_state new_score_state =
-        update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+        update_score_state_black_move_and_capture(w, &s, orig, dest, captures);
 
     i32 score = -search_white(
         pv_data,
@@ -1452,8 +1469,12 @@ i32 search_black(
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
-      score_state new_score_state =
-          update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+      score_state new_score_state = update_score_state_black_move_and_capture(
+          w,
+          &s,
+          orig,
+          dest,
+          captures);
       i32 score = -search_white(
           pv_data,
           positions,
@@ -1520,7 +1541,7 @@ i32 search_black(
     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
     layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
     score_state new_score_state =
-        update_score_state_black_move_and_capture(w, s, orig, dest, captures);
+        update_score_state_black_move_and_capture(w, &s, orig, dest, captures);
     i32 score = -search_white(
         pv_data,
         positions,
@@ -1581,13 +1602,14 @@ i32 search_white(
   // Increment white position evaluation count
   statistics->search_positions_white++;
 
+  pv_data->pv_length[ply] = ply;
+
   // We only need to check for a king escape because the previous move will
   // have been white.
   if (black_victory(&b)) {
+    // printf("search black victory detection\n");
     return MIN_SCORE;
   }
-
-  pv_data->pv_length[ply] = ply;
 
   // check for repetition
   int position_index;
@@ -1641,13 +1663,17 @@ i32 search_white(
       new_position_hash = next_hash_king(position_hash, orig, dest);
       captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
       new_score_state =
-          update_score_state_king_move_and_capture(w, s, orig, dest, captures);
+          update_score_state_king_move_and_capture(w, &s, orig, dest, captures);
     } else {
       new_b = apply_white_move(b, move_layer, move_layer_r);
       new_position_hash = next_hash_white(position_hash, orig, dest);
       captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
-      new_score_state =
-          update_score_state_white_move_and_capture(w, s, orig, dest, captures);
+      new_score_state = update_score_state_white_move_and_capture(
+          w,
+          &s,
+          orig,
+          dest,
+          captures);
     }
 
     i32 score = -search_black(
@@ -1684,6 +1710,73 @@ i32 search_white(
   // captures later, or even try all captures and then do king moves, but first
   // let's try it like this.
 
+  layer all_king_destinations = king_destinations(b);
+  layer all_king_destinations_r = king_destinations_r(b);
+
+  {
+    move ms[20] = {0};
+    layer ls[20] = {0};
+    layer ls_r[20] = {0};
+    int total = 0;
+    moves_to_king_impl(
+        all_king_destinations,
+        all_king_destinations_r,
+        b.king,
+        b.king_r,
+        king_board_occ(b),
+        king_board_occ_r(b),
+        ms,
+        ls,
+        ls_r,
+        &total);
+
+    // hacky bounds check
+    assert(total < 21);
+
+    // iterate
+    for (int i = 0; i < total; i++) {
+      u8 orig = ms[i].orig;
+      u8 dest = ms[i].dest;
+      layer move = ls[i];
+      layer move_r = ls_r[i];
+
+      board new_b = apply_king_move(b, move, move_r);
+      u64 new_position_hash = next_hash_king(position_hash, orig, dest);
+      layer captures = apply_captures_z_king(&new_b, &new_position_hash, dest);
+      score_state new_score_state =
+          update_score_state_king_move_and_capture(w, &s, orig, dest, captures);
+      i32 score = -search_black(
+          pv_data,
+          positions,
+          w,
+          new_score_state,
+          new_b,
+          new_position_hash,
+          ply + 1,
+          depth - 1,
+          -beta,
+          -alpha,
+          statistics,
+          (is_pv && ply < pv_data->prev_pv_length));
+
+      // printf("score: %d", score);
+      // print_board(new_b);
+
+      if (score >= beta) {
+        statistics->search_beta_cutoff_white++;
+        delete_position(positions, position_index);
+        return score;
+      }
+      if (score > best_value) {
+        best_value = score;
+        update_pv(pv_data, ply, ms[i]);
+      }
+      if (score > alpha) {
+        alpha = score;
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Pawn destinations
   // First captures, then remainder
@@ -1691,5 +1784,5 @@ i32 search_white(
   // layer remaining_destinations = pawn_destinations(b);
   // layer remaining_destinations_r = pawn_destinations_r(b);
 
-  return 0;
+  return best_value;
 }

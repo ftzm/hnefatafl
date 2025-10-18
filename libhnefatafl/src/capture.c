@@ -161,8 +161,6 @@ layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
   return LAYER_OR(captures, shield_wall_captures);
 }
 
-#define apply_captures_z_king apply_captures_z_white
-
 //******************************************************************************
 
 /* Generate a layer representing squares which, when arrived at, will definitely

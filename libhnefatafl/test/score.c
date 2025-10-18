@@ -158,7 +158,7 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
 
     score_state updated_score_state = ss;
     updated_score_state =
-        update_score_state_white_move(&w, updated_score_state, m.orig, m.dest);
+        update_score_state_white_move(&w, &updated_score_state, m.orig, m.dest);
     results.incremental_score_states[i] = updated_score_state;
 
     score_state recalculated_score_state = init_score_state(&w, &result_board);
@@ -236,7 +236,7 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
     score_state updated_score_state = ss;
     updated_score_state = update_score_state_white_move_and_capture(
         &w,
-        updated_score_state,
+        &updated_score_state,
         m.orig,
         m.dest,
         captures);

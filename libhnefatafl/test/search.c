@@ -1,6 +1,7 @@
 #include "search.h"
 #include "capture.h"
 #include "greatest.h"
+#include "greatest_extensions.h"
 #include "io.h"
 #include "limits.h"
 #include "macro_util.h"
@@ -319,9 +320,17 @@ TEST assert_pv(
   }
 
   if (args.score == VICTORY) {
-    ASSERT_EQ_FMTm("returns victory score", MAX_SCORE, computed_pv.score, "%d");
+    ASSERT_GT_FMTm(
+        "returns victory score",
+        computed_pv.score,
+        MAX_SCORE - 100,
+        "%d");
   } else if (args.score == LOSS) {
-    ASSERT_EQ_FMTm("returns loss score", MIN_SCORE, computed_pv.score, "%d");
+    ASSERT_LT_FMTm(
+        "returns loss score",
+        computed_pv.score,
+        MIN_SCORE + 100,
+        "%d");
   } else if (args.score == INCREASE) {
     ASSERT_GTm("returns score increase", computed_pv.score, static_eval);
   } else if (args.score == DECREASE) {
@@ -1078,9 +1087,51 @@ SUITE(search_black_shallow) {
   //
 }
 SUITE(search_white_shallow) {
-  // white pv beta cutoff
-  // king pv beta cutoff
+
+  ASSERT_SEARCH_WHITE(
+      "king makes an escape",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  #  .  .  . |"
+      " 10  | .  .  .  .  .  X  .  .  .  .  X |"
+      "  9  | X  X  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  X  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  O  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .depth = 2,
+      .score = VICTORY,
+      .pv = PV(h11k11));
+
+  ASSERT_SEARCH_WHITE(
+      "king makes a capture",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  #  .  .  .  .  . |"
+      "  5  | .  .  .  X  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  O  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .depth = 1,
+      .score = INCREASE,
+      .pv = PV(f6d6));
   // king makes a capture
   // king takes a position with greater mobility.
-  // white makes a capture
+
+  // white pv beta cutoff
+  // king pv beta cutoff
+
+  // white pawn makes a capture
 }

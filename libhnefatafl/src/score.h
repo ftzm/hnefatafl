@@ -40,22 +40,22 @@ typedef struct score_state {
 
 score_state init_score_state(score_weights *weights, const board *b);
 score_state update_score_state_white_move(const score_weights *weights,
-                                          score_state s, int orig, int dest);
+                                          const score_state *old, int orig, int dest);
 score_state update_score_state_black_move(const score_weights *weights,
-                                          score_state s, int orig, int dest);
+                                          const score_state *old, int orig, int dest);
 score_state
 update_score_state_white_move_and_capture(const score_weights *weights,
-                                          score_state s, int orig, int dest,
+                                          const score_state *old, int orig, int dest,
                                           const layer captures);
 score_state
 update_score_state_black_move_and_capture(const score_weights *weights,
-                                          score_state s, int orig, int dest,
+                                          const score_state *old, int orig, int dest,
                                           const layer captures);
 score_state update_score_state_king_move(const score_weights *weights,
-                                         score_state s, int orig, int dest);
+                                         const score_state *old, int orig, int dest);
 score_state
 update_score_state_king_move_and_capture(const score_weights *weights,
-                                         score_state s, int orig, int dest,
+                                         const score_state *old, int orig, int dest,
                                          const layer captures);
 i32 black_score(score_weights *w, score_state *s, board *b);
 i32 white_score(score_weights *w, score_state *s, board *b);
