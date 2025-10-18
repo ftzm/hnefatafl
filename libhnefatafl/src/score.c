@@ -436,12 +436,12 @@ i32 white_score(score_weights *w, score_state *s, board *b) {
 
 score_weights init_default_weights() {
   score_weights weights = {
-      .black_pawn = 100,
-      .white_pawn = 100,
+      .black_pawn = 1000,
+      .white_pawn = 1000,
       .corner_guard = 50,
-      .black_moves = 10,
-      .white_moves = 10,
-      .king_moves = 15,
+      .black_moves = 5,
+      .white_moves = 5,
+      .king_moves = 100,
       .king_surrounders = 25,
       .psts = init_default_psts()};
   return weights;

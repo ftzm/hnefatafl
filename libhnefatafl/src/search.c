@@ -1414,6 +1414,7 @@ i32 search_black(
       update_pv(pv_data, ply, m);
     }
     if (alpha > beta) {
+      // this is unlikely unless this is converted to a hash move.
       statistics->search_beta_cutoff_black++;
       delete_position(positions, position_index);
       return best_value;
@@ -1587,17 +1588,6 @@ i32 search_white(
     i32 beta,
     stats *statistics,
     bool is_pv) {
-  (void)positions;
-  (void)w;
-  (void)s;
-  (void)b;
-  (void)position_hash;
-  (void)ply;
-  (void)depth;
-  (void)alpha;
-  (void)beta;
-  (void)statistics;
-  (void)is_pv;
 
   // Increment white position evaluation count
   statistics->search_positions_white++;
@@ -1698,6 +1688,7 @@ i32 search_white(
       update_pv(pv_data, ply, m);
     }
     if (alpha > beta) {
+      // this is unlikely unless this is converted to a hash move.
       statistics->search_beta_cutoff_white++;
       delete_position(positions, position_index);
       return best_value;
@@ -1778,11 +1769,145 @@ i32 search_white(
   }
 
   // ---------------------------------------------------------------------------
-  // Pawn destinations
-  // First captures, then remainder
+  // capture moves
 
-  // layer remaining_destinations = pawn_destinations(b);
-  // layer remaining_destinations_r = pawn_destinations_r(b);
+  // generate capture moves for pawns
+  layer capture_dests = white_capture_destinations(&b);
+  layer capture_dests_r = white_capture_destinations_r(&b);
 
+  {
+    move ms[400] = {0};
+    layer ls[400] = {0};
+    layer ls_r[400] = {0};
+    int total = 0;
+    moves_to(
+        capture_dests,
+        capture_dests_r,
+        b.white,
+        b.white_r,
+        board_occ(b),
+        board_occ_r(b),
+        ms,
+        ls,
+        ls_r,
+        &total);
+
+    // hacky bounds check
+    assert(total < 400);
+
+    // iterate
+    for (int i = 0; i < total; i++) {
+      u8 orig = ms[i].orig;
+      u8 dest = ms[i].dest;
+      layer move = ls[i];
+      layer move_r = ls_r[i];
+
+      board new_b = apply_white_move(b, move, move_r);
+      u64 new_position_hash = next_hash_white(position_hash, orig, dest);
+      layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+      score_state new_score_state = update_score_state_white_move_and_capture(
+          w,
+          &s,
+          orig,
+          dest,
+          captures);
+      i32 score = -search_black(
+          pv_data,
+          positions,
+          w,
+          new_score_state,
+          new_b,
+          new_position_hash,
+          ply + 1,
+          depth - 1,
+          -beta,
+          -alpha,
+          statistics,
+          (is_pv && ply < pv_data->prev_pv_length));
+
+      if (score >= beta) {
+        statistics->search_beta_cutoff_white++;
+        delete_position(positions, position_index);
+        return score;
+      }
+      if (score > best_value) {
+        best_value = score;
+        update_pv(pv_data, ply, ms[i]);
+      }
+      if (score > alpha) {
+        alpha = score;
+      }
+    }
+  }
+
+  layer remaining_destinations = pawn_destinations(b);
+  layer remaining_destinations_r = pawn_destinations_r(b);
+  // clear the capture destinations for the remaining destinations
+  LAYER_XOR_ASSG(remaining_destinations, capture_dests);
+  LAYER_XOR_ASSG(remaining_destinations_r, capture_dests_r);
+
+  // ---------------------------------------------------------------------------
+  // Remaining
+
+  move ms[400] = {0};
+  layer ls[400] = {0};
+  layer ls_r[400] = {0};
+  int total = 0;
+  moves_to(
+      remaining_destinations,
+      remaining_destinations_r,
+      b.white,
+      b.white_r,
+      board_occ(b),
+      board_occ_r(b),
+      ms,
+      ls,
+      ls_r,
+      &total);
+
+  // hacky bounds check
+  assert(total < 400);
+
+  // iterate
+  for (int i = 0; i < total; i++) {
+    u8 orig = ms[i].orig;
+    u8 dest = ms[i].dest;
+    layer move = ls[i];
+    layer move_r = ls_r[i];
+
+    board new_b = apply_white_move(b, move, move_r);
+    u64 new_position_hash = next_hash_white(position_hash, orig, dest);
+    layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+    score_state new_score_state =
+        update_score_state_white_move_and_capture(w, &s, orig, dest, captures);
+    i32 score = -search_black(
+        pv_data,
+        positions,
+        w,
+        new_score_state,
+        new_b,
+        new_position_hash,
+        ply + 1,
+        depth - 1,
+        -beta,
+        -alpha,
+        statistics,
+        (is_pv && ply < pv_data->prev_pv_length));
+
+    if (score >= beta) {
+      statistics->search_beta_cutoff_white++;
+      delete_position(positions, position_index);
+      return score;
+    }
+    if (score > best_value) {
+      best_value = score;
+      update_pv(pv_data, ply, ms[i]);
+    }
+    if (score > alpha) {
+      alpha = score;
+    }
+  }
+
+  delete_position(positions, position_index);
   return best_value;
 }

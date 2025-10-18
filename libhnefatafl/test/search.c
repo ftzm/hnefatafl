@@ -1127,11 +1127,61 @@ SUITE(search_white_shallow) {
       .depth = 1,
       .score = INCREASE,
       .pv = PV(f6d6));
-  // king makes a capture
-  // king takes a position with greater mobility.
 
-  // white pv beta cutoff
-  // king pv beta cutoff
+  ASSERT_SEARCH_WHITE(
+      "king takes a position with greater mobility",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | X  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  O  #  O  .  .  .  . |"
+      "  5  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .depth = 1,
+      .score = INCREASE,
+      .pv = PV(f6f7));
 
-  // white pawn makes a capture
+  ASSERT_SEARCH_WHITE(
+      "king pawn makes a capture",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | X  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  6  | .  .  .  .  O  #  O  .  .  .  . |"
+      "  5  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  X  .  .  .  .  . |"
+      "  3  | X  .  .  .  O  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .score = INCREASE,
+      .pv = PV(e3f3));
+
+  ASSERT_SEARCH_WHITE(
+      "white makes a sensible non-capture move",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  X  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  8  | X  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  6  | .  .  .  .  O  #  O  .  .  .  . |"
+      "  5  | .  .  .  .  .  O  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .score = INCREASE);
 }
