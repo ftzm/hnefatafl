@@ -32,6 +32,18 @@ void moves_to(
     layer *ls_r,
     int *total);
 
+void moves_to2(
+    layer targets,
+    layer targets_r,
+    layer movers,
+    layer movers_r,
+    layer occ,
+    layer occ_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total);
+
 void moves_to_king_impl(
     layer targets,
     layer targets_r,

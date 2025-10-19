@@ -1,7 +1,6 @@
 #include "move.h"
 #include "assert.h"
 #include "board.h"
-#include "capture.h"
 #include "io.h"
 #include "king_mobility.h"
 #include "layer.h"
@@ -196,6 +195,50 @@ UBENCH_EX(foo3, moves_to_white) {
     layer ls_r[235];
     int total = 0;
     moves_to(
+        LAYER_NEG(board_occ(start_board)),
+        LAYER_NEG(board_occ_r(start_board)),
+        start_board.white,
+        start_board.white_r,
+        board_occ(start_board),
+        board_occ_r(start_board),
+        ms,
+        ls,
+        ls_r,
+        &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(foo3, moves_to2_black) {
+  const board start_board = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    layer ls[235];
+    layer ls_r[235];
+    int total = 0;
+    moves_to2(
+        LAYER_NEG(board_occ(start_board)),
+        LAYER_NEG(board_occ_r(start_board)),
+        start_board.black,
+        start_board.black_r,
+        board_occ(start_board),
+        board_occ_r(start_board),
+        ms,
+        ls,
+        ls_r,
+        &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(foo3, moves_to2_white) {
+  const board start_board = read_board(sanity_capture_king_string);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    layer ls[235];
+    layer ls_r[235];
+    int total = 0;
+    moves_to2(
         LAYER_NEG(board_occ(start_board)),
         LAYER_NEG(board_occ_r(start_board)),
         start_board.white,
@@ -683,7 +726,6 @@ UBENCH_EX(king_capture, bit_checks) {
 }
 
 UBENCH_EX(king_capture, surround_mask) {
-  gen_surround_masks();
   UBENCH_DO_BENCHMARK() {
     int res = bench_king_capture_check(king_captured);
     UBENCH_DO_NOTHING(&res);
@@ -691,7 +733,6 @@ UBENCH_EX(king_capture, surround_mask) {
 }
 
 UBENCH_EX(king_capture, surround_mask2) {
-  gen_surround_masks();
   UBENCH_DO_BENCHMARK() {
     int res = bench_king_capture_check(king_capture_check);
     UBENCH_DO_NOTHING(&res);

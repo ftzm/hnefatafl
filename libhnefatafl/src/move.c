@@ -63,31 +63,6 @@ int cmp_moves(const move *a, const move *b) {
 leftward
 */
 
-/*
- * - isolate the lowest set bit
- * - get the index of the lowest set bit
- * - potentially offset the index if processing upper half
- * - get the index of the origin by:
- *   - masking below the dest bit
- *   - doing bitwise and with the occ layer
- *   - doing leading zero count of the result
- *   - subtracting the leading zero count from 64
- *
- * TODO: We end up recalculating the origin for each destination,
- *     which seems like it should be inefficient. one idea would be to
- *     iterate over each mover, isolate its destinations, and then
- *     iterate over those. I think I've tried this with little speed
- *     difference, but it would be nice to try again in macro
- *     benchmark
- */
-#define EXTRACT_LEFTWARD(_i, _r)                                               \
-  u64 dest_bit = _blsi_u64(dests);                                             \
-  u8 dest = _tzcnt_u64(dest_bit);                                              \
-  OFFSET(dest, _i);                                                            \
-  u8 orig = 63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & leftward_occ##_r._[_i]);   \
-  __attribute__((unused)) u64 orig_bit = (u64)1 << orig;                       \
-  OFFSET(orig, _i);
-
 #define EXTRACT_CENTER_LEFTWARD(_l)                                            \
   u16 dest_bit = dests & -dests;                                               \
   u8 dest = _tzcnt_u16(dest_bit);                                              \
@@ -128,13 +103,57 @@ leftward
  *     destinations (which are assumed to be legal, unoccupied
  *     positions) we limit results to legal destinations.
  */
+/* From extract:
+ * - isolate the lowest set bit
+ * - get the index of the lowest set bit
+ * - potentially offset the index if processing upper half
+ * - get the index of the origin by:
+ *   - masking below the dest bit
+ *   - doing bitwise and with the occ layer
+ *   - doing leading zero count of the result
+ *   - subtracting the leading zero count from 64
+ *
+ * TODO: We end up recalculating the origin for each destination,
+ *     which seems like it should be inefficient. one idea would be to
+ *     iterate over each mover, isolate its destinations, and then
+ *     iterate over those. I think I've tried this with little speed
+ *     difference, but it would be nice to try again in macro
+ *     benchmark
+ */
 #define LEFTWARD(_i, _r)                                                       \
   {                                                                            \
     u64 dests = targets##_r._[_i] &                                            \
                 (leftward_occ##_r._[_i] - (movers##_r._[_i] << 1)) &           \
                 DROP_1_EAST_##_i;                                              \
     while (dests) {                                                            \
-      EXTRACT_LEFTWARD(_i, _r);                                                \
+      u64 dest_bit = _blsi_u64(dests);                                         \
+      u8 dest = _tzcnt_u64(dest_bit);                                          \
+      OFFSET(dest, _i);                                                        \
+      u8 orig =                                                                \
+          63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & leftward_occ##_r._[_i]);     \
+      __attribute__((unused)) u64 orig_bit = (u64)1 << orig;                   \
+      OFFSET(orig, _i);                                                        \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
+      u8 dest_r = ROTATE_DIR(_r)[dest];                                        \
+      BOOKKEEP##_r(_i);                                                        \
+      dests -= dest_bit;                                                       \
+    }                                                                          \
+  }
+
+#define RIGHTWARD2(_i, _r)                                                     \
+  {                                                                            \
+    u64 blockers = occ##_r._[_i] | file_mask_10._[_i];                         \
+    u64 movers_ext = _pext_u64(movers##_r._[_i], blockers) >> 1;               \
+    u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));                   \
+    u64 dests = (movers##_r._[_i] - movers_dep) & targets##_r._[_i];           \
+    while (dests) {                                                            \
+      u64 dest_bit = _blsi_u64(dests);                                         \
+      u8 dest = _tzcnt_u64(dest_bit);                                          \
+      OFFSET(dest, _i);                                                        \
+                                                                               \
+      u64 orig_bit = _blsi_u64(movers##_r._[_i] & -dest_bit);                  \
+      u8 orig = _tzcnt_u64(orig_bit);                                          \
+      OFFSET(orig, _i);                                                        \
       u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
       u8 dest_r = ROTATE_DIR(_r)[dest];                                        \
       BOOKKEEP##_r(_i);                                                        \
@@ -147,7 +166,11 @@ leftward
     u16 dests = GET_CENTER_ROW(targets##_r) &                                  \
                 (center_occ##_r - (center_movers##_r << 1));                   \
     while (dests) {                                                            \
-      EXTRACT_CENTER_LEFTWARD(center_occ##_r);                                 \
+      u16 dest_bit = dests & -dests;                                           \
+      u8 dest = _tzcnt_u16(dest_bit);                                          \
+      dest += 55;                                                              \
+      u8 orig = 15 - __lzcnt16((dest_bit - 1) & center_occ##_r);               \
+      orig += 55;                                                              \
       u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
       u8 dest_r = ROTATE_DIR(_r)[dest];                                        \
       BOOKKEEP_CENTER##_r();                                                   \
@@ -394,6 +417,62 @@ void moves_to(
   RIGHTWARD1(0, _r); // lower northward
   // printf("rightward total: %d\n", *total);
   RIGHTWARD1(1, _r); // upper northward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD_CENTER(_r); // center northward
+  // printf("rightward total: %d\n", *total);
+}
+
+void moves_to2(
+    layer targets,
+    layer targets_r,
+    layer movers,
+    layer movers_r,
+    layer occ,
+    layer occ_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total) {
+
+  u16 center_occ = GET_CENTER_ROW(occ);
+  u16 center_occ_r = GET_CENTER_ROW(occ_r);
+  u16 center_movers = GET_CENTER_ROW(movers);
+  u16 center_movers_r = GET_CENTER_ROW(movers_r);
+  layer leftward_occ = LAYER_OR(occ, file_mask_0);
+  layer leftward_occ_r = LAYER_OR(occ_r, file_mask_0);
+  // I thought these might be necessary but maybe not...
+  // rightward_occ._[1] |= 2;
+  // rightward_occ_r._[1] |= 2;
+  movers._[0] &= LOWER_HALF_MASK;
+  movers._[1] &= UPPER_HALF_MASK;
+  movers_r._[0] &= LOWER_HALF_MASK;
+  movers_r._[1] &= UPPER_HALF_MASK;
+
+  // printf("start total: %d\n", *total);
+  LEFTWARD(0, ); // lower westward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD(1, ); // upper westward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD_CENTER(); // center westward
+  // printf("leftward total: %d\n", *total);
+
+  LEFTWARD(0, _r); // lower southward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD(1, _r); // upper southward
+  // printf("leftward total: %d\n", *total);
+  LEFTWARD_CENTER(_r); // center southward
+  // printf("leftward total: %d\n", *total);
+
+  RIGHTWARD2(0, ); // lower eastward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD2(1, ); // upper eastward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD_CENTER(); // center eastward
+  // printf("rightward total: %d\n", *total);
+
+  RIGHTWARD2(0, _r); // lower northward
+  // printf("rightward total: %d\n", *total);
+  RIGHTWARD2(1, _r); // upper northward
   // printf("rightward total: %d\n", *total);
   RIGHTWARD_CENTER(_r); // center northward
   // printf("rightward total: %d\n", *total);
