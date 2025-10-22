@@ -177,3 +177,39 @@ void moves_from_layers(
     int *total);
 
 extern const move start_black_moves[116];
+
+// Generator-style move generation types and functions
+typedef enum move_cursor : u8 {
+  LOWER_LEFTWARD,
+  UPPER_LEFTWARD,
+  LOWER_LEFTWARD_R,
+  UPPER_LEFTWARD_R,
+  LOWER_RIGHTWARD,
+  UPPER_RIGHTWARD,
+  LOWER_RIGHTWARD_R,
+  UPPER_RIGHTWARD_R,
+  CENTER_LEFTWARD,
+  CENTER_LEFTWARD_R,
+  CENTER_RIGHTWARD,
+  CENTER_RIGHTWARD_R,
+} move_cursor;
+
+typedef struct {
+  u64 current;
+  u64 movers;
+  move_cursor cursor;
+} move_state;
+
+typedef struct {
+  move m;
+  layer l;
+  layer l_r;
+} move_data;
+
+move_state init_move_state(const move_layers *layers, layer movers);
+bool next_move_from_layers(
+    const move_layers *layers,
+    layer movers,
+    layer movers_r,
+    move_state *state,
+    move_data *result);

@@ -531,6 +531,11 @@ i32 quiesce_black(
   int king_rank = RANK(king_pos);
   int king_file = FILE(king_pos);
 
+  // Generate move layers once for reuse throughout function
+  // Defer generation until needed
+  bool layers_generated = false;
+  move_layers layers;
+
   // ---------------------------------------------------------------------------
   // escape-in-1 blocking dests
   // TODO: if there are escape paths we should set
@@ -553,21 +558,35 @@ i32 quiesce_black(
       // an escape.
       best_value = MIN_SCORE;
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsometimes-uninitialized"
+#endif
+      if (!layers_generated) {
+        layers = generate_black_move_layers(&b);
+        layers_generated = true;
+      }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+      move_layers escape1_layers = layers;
+      mask_move_layers(corner_paths, corner_paths_r, &escape1_layers);
+
       move ms[100] = {0};
       layer ls[100] = {0};
       layer ls_r[100] = {0};
       int total = 0;
-      moves_to(
-          corner_paths,
-          corner_paths_r,
+      moves_from_layers(
+          &escape1_layers,
           b.black,
           b.black_r,
-          board_occ(b),
-          board_occ_r(b),
           ms,
           ls,
           ls_r,
           &total);
+
+      // Subtract these moves from the main layers
+      subtract_move_layers(&layers, &escape1_layers);
 
       // If black can't block an escape in one then they've lost.
       if (!total) {
@@ -651,21 +670,28 @@ i32 quiesce_black(
       best_value = MIN_SCORE;
     }
 
+    if (!layers_generated) {
+      layers = generate_black_move_layers(&b);
+      layers_generated = true;
+    }
+    move_layers escape2_layers = layers;
+    mask_move_layers(corner_paths, corner_paths_r, &escape2_layers);
+
     move ms[100] = {0};
     layer ls[100] = {0};
     layer ls_r[100] = {0};
     int total = 0;
-    moves_to(
-        corner_paths,
-        corner_paths_r,
+    moves_from_layers(
+        &escape2_layers,
         b.black,
         b.black_r,
-        board_occ(b),
-        board_occ_r(b),
         ms,
         ls,
         ls_r,
         &total);
+
+    // Subtract these moves from the main layers
+    subtract_move_layers(&layers, &escape2_layers);
 
     // TODO: if total is 0 then ensure there are followup moves otherwise losing
     // score
@@ -724,24 +750,15 @@ i32 quiesce_black(
     // block the escape stem.
     // TODO: integrate better with the capture generation below.
     if (best_value < (MIN_SCORE + 100)) {
-      layer destinations = pawn_destinations(b);
-      layer destinations_r = pawn_destinations_r(b);
-
+      if (!layers_generated) {
+        layers = generate_black_move_layers(&b);
+        layers_generated = true;
+      }
       move ms[400] = {0};
       layer ls[400] = {0};
       layer ls_r[400] = {0};
       int total = 0;
-      moves_to(
-          destinations,
-          destinations_r,
-          b.black,
-          b.black_r,
-          board_occ(b),
-          board_occ_r(b),
-          ms,
-          ls,
-          ls_r,
-          &total);
+      moves_from_layers(&layers, b.black, b.black_r, ms, ls, ls_r, &total);
 
       // iterate
       for (int i = 0; i < total; i++) {
@@ -827,21 +844,28 @@ i32 quiesce_black(
     layer capture_dests = black_capture_destinations(&b);
     layer capture_dests_r = black_capture_destinations_r(&b);
 
+    if (!layers_generated) {
+      layers = generate_black_move_layers(&b);
+      layers_generated = true;
+    }
+    move_layers capture_layers = layers;
+    mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
+
     move ms[100] = {0};
     layer ls[100] = {0};
     layer ls_r[100] = {0};
     int total = 0;
-    moves_to(
-        capture_dests,
-        capture_dests_r,
+    moves_from_layers(
+        &capture_layers,
         b.black,
         b.black_r,
-        board_occ(b),
-        board_occ_r(b),
         ms,
         ls,
         ls_r,
         &total);
+
+    // Subtract these moves from the main layers
+    subtract_move_layers(&layers, &capture_layers);
 
     // hacky bounds check
     assert(total < 100);
@@ -959,6 +983,9 @@ i32 quiesce_white(
   int king_rank = RANK(king_pos);
   int king_file = FILE(king_pos);
 
+  // Generate move layers once for reuse throughout function
+  move_layers layers = generate_white_move_layers(&b);
+
   // ---------------------------------------------------------------------------
   // king escape moves in 2
 
@@ -1026,19 +1053,14 @@ i32 quiesce_white(
   // to the fallback all-move generation done to prevent 2-move escapes in black
   // quiescence.
   if (corner_move_count && best_value < (MAX_SCORE - 100)) {
-    layer destinations = pawn_destinations(b);
-    layer destinations_r = pawn_destinations_r(b);
     move ms[400] = {0};
     layer ls[400] = {0};
     layer ls_r[400] = {0};
     int total = 0;
-    moves_to(
-        destinations,
-        destinations_r,
+    moves_from_layers(
+        &layers,
         b.white,
         b.white_r,
-        board_occ(b),
-        board_occ_r(b),
         ms,
         ls,
         ls_r,
@@ -1159,14 +1181,14 @@ i32 quiesce_white(
   // ---------------------------------------------------------------------------
   // pawn capture moves
 
+  move_layers capture_layers = layers;
+  mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
+
   total = 0;
-  moves_to(
-      capture_dests,
-      capture_dests_r,
+  moves_from_layers(
+      &capture_layers,
       b.white,
       b.white_r,
-      board_occ(b),
-      board_occ_r(b),
       ms,
       ls,
       ls_r,
@@ -1176,44 +1198,6 @@ i32 quiesce_white(
   assert(total < 100);
 
   // iterate
-  // iterate
-  for (int i = 0; i < total; i++) {
-    u8 orig = ms[i].orig;
-    u8 dest = ms[i].dest;
-    layer move = ls[i];
-    layer move_r = ls_r[i];
-
-    board new_b = apply_white_move(b, move, move_r);
-    u64 new_position_hash = next_hash_white(position_hash, orig, dest);
-    layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
-    score_state new_score_state =
-        update_score_state_white_move_and_capture(w, &s, orig, dest, captures);
-    i32 score = -quiesce_black(
-        pv_data,
-        positions,
-        w,
-        new_score_state,
-        new_b,
-        new_position_hash,
-        ply + 1,
-        -beta,
-        -alpha,
-        statistics);
-
-    if (score >= beta) {
-      statistics->quiencence_beta_cutoff_white++;
-      delete_position(positions, position_index);
-      return score;
-    }
-    if (score > best_value) {
-      best_value = score;
-      update_pv(pv_data, ply, ms[i]);
-    }
-    if (score > alpha) {
-      alpha = score;
-    }
-  }
-
   for (int i = 0; i < total; i++) {
     u8 orig = ms[i].orig;
     u8 dest = ms[i].dest;
@@ -1305,6 +1289,60 @@ pv_line quiesce_black_runner(board b) {
       &statistics);
   destroy_position_set(positions);
   return create_pv_line(&pv_data, true, result);
+}
+
+pv_line search_black_runner(board b, int depth) {
+  pv pv_data = {0};
+  u64 position_hash = hash_for_board(b, true);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  stats statistics = {0};
+  int ply = 0;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
+  i32 result = search_black(
+      &pv_data,
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      depth,
+      alpha,
+      beta,
+      &statistics,
+      true);
+  destroy_position_set(positions);
+  return create_pv_line(&pv_data, true, result);
+}
+
+pv_line search_white_runner(board b, int depth) {
+  pv pv_data = {0};
+  u64 position_hash = hash_for_board(b, false);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  stats statistics = {0};
+  int ply = 0;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
+  i32 result = search_white(
+      &pv_data,
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      depth,
+      alpha,
+      beta,
+      &statistics,
+      true);
+  destroy_position_set(positions);
+  return create_pv_line(&pv_data, false, result);
 }
 
 /* We try moves in this order:
@@ -1424,14 +1462,13 @@ i32 search_black(
   // ---------------------------------------------------------------------------
   // Destinations
 
-  layer remaining_destinations = pawn_destinations(b);
-  layer remaining_destinations_r = pawn_destinations_r(b);
-
   // ---------------------------------------------------------------------------
   // TODO (maybe) king escape in 1 blockers
   // ---------------------------------------------------------------------------
   // TODO (maybe) king escape in 2 blockers. Maybe combine with above. Bench.
   // ---------------------------------------------------------------------------
+
+  move_layers layers = generate_black_move_layers(&b);
 
   // ---------------------------------------------------------------------------
   // capture moves
@@ -1439,19 +1476,18 @@ i32 search_black(
   // generate capture moves for pawns
   layer capture_dests = black_capture_destinations(&b);
   layer capture_dests_r = black_capture_destinations_r(&b);
+  move_layers capture_layers = layers;
+  mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
   {
     move ms[400] = {0};
     layer ls[400] = {0};
     layer ls_r[400] = {0};
     int total = 0;
-    moves_to(
-        capture_dests,
-        capture_dests_r,
+    moves_from_layers(
+        &capture_layers,
         b.black,
         b.black_r,
-        board_occ(b),
-        board_occ_r(b),
         ms,
         ls,
         ls_r,
@@ -1506,8 +1542,8 @@ i32 search_black(
   }
 
   // clear the capture destinations for the remaining destinations
-  LAYER_XOR_ASSG(remaining_destinations, capture_dests);
-  LAYER_XOR_ASSG(remaining_destinations_r, capture_dests_r);
+
+  subtract_move_layers(&layers, &capture_layers);
 
   // ---------------------------------------------------------------------------
   // Remaining
@@ -1516,17 +1552,7 @@ i32 search_black(
   layer ls[400] = {0};
   layer ls_r[400] = {0};
   int total = 0;
-  moves_to(
-      remaining_destinations,
-      remaining_destinations_r,
-      b.black,
-      b.black_r,
-      board_occ(b),
-      board_occ_r(b),
-      ms,
-      ls,
-      ls_r,
-      &total);
+  moves_from_layers(&layers, b.black, b.black_r, ms, ls, ls_r, &total);
 
   // hacky bounds check
   assert(total < 400);
@@ -1769,24 +1795,29 @@ i32 search_white(
   }
 
   // ---------------------------------------------------------------------------
+  // Pawn moves using moves_from_layers approach
+
+  move_layers layers = generate_white_move_layers(&b);
+
+  // ---------------------------------------------------------------------------
   // capture moves
 
   // generate capture moves for pawns
   layer capture_dests = white_capture_destinations(&b);
   layer capture_dests_r = white_capture_destinations_r(&b);
 
-  {
+  if (NOT_EMPTY(capture_dests)) {
+    move_layers capture_layers = layers;
+    mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
+
     move ms[400] = {0};
     layer ls[400] = {0};
     layer ls_r[400] = {0};
     int total = 0;
-    moves_to(
-        capture_dests,
-        capture_dests_r,
+    moves_from_layers(
+        &capture_layers,
         b.white,
         b.white_r,
-        board_occ(b),
-        board_occ_r(b),
         ms,
         ls,
         ls_r,
@@ -1838,32 +1869,19 @@ i32 search_white(
         alpha = score;
       }
     }
+
+    // clear the capture destinations for the remaining destinations
+    subtract_move_layers(&layers, &capture_layers);
   }
 
-  layer remaining_destinations = pawn_destinations(b);
-  layer remaining_destinations_r = pawn_destinations_r(b);
-  // clear the capture destinations for the remaining destinations
-  LAYER_XOR_ASSG(remaining_destinations, capture_dests);
-  LAYER_XOR_ASSG(remaining_destinations_r, capture_dests_r);
-
   // ---------------------------------------------------------------------------
-  // Remaining
+  // Remaining pawn moves
 
   move ms[400] = {0};
   layer ls[400] = {0};
   layer ls_r[400] = {0};
   int total = 0;
-  moves_to(
-      remaining_destinations,
-      remaining_destinations_r,
-      b.white,
-      b.white_r,
-      board_occ(b),
-      board_occ_r(b),
-      ms,
-      ls,
-      ls_r,
-      &total);
+  moves_from_layers(&layers, b.white, b.white_r, ms, ls, ls_r, &total);
 
   // hacky bounds check
   assert(total < 400);

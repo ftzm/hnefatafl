@@ -69,6 +69,8 @@ i32 quiesce_white(
 
 pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
+pv_line search_white_runner(board b, int depth);
+pv_line search_black_runner(board b, int depth);
 
 void destroy_pv_line(pv_line *line);
 

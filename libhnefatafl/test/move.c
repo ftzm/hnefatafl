@@ -2119,6 +2119,256 @@ TEST test_king_moves_count(void) {
   PASS();
 }
 
+// -----------------------------------------------------------------------------
+// test moves_from_layers black
+
+static enum theft_alloc_res
+moves_from_layers_black_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[735];
+  move ms[735];
+  int total = 0;
+  get_team_moves_black(b, &total, ms, bs);
+
+  // to test
+  move ms2[735];
+  layer ls[735];
+  layer ls_r[735];
+  int total2 = 0;
+
+  move_layers layers = generate_black_move_layers(&b);
+  moves_from_layers(&layers, b.black, b.black_r, ms2, ls, ls_r, &total2);
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+TEST test_moves_from_layers_black(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = moves_from_layers_black_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+// -----------------------------------------------------------------------------
+// test moves_from_layers white
+
+static enum theft_alloc_res
+moves_from_layers_white_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[335];
+  move ms[335];
+  int total = 0;
+  get_team_moves_white(b, &total, ms, bs);
+
+  // to test
+  move ms2[335];
+  layer ls[335];
+  layer ls_r[335];
+  int total2 = 0;
+
+  move_layers layers = generate_white_move_layers(&b);
+  moves_from_layers(&layers, b.white, b.white_r, ms2, ls, ls_r, &total2);
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+TEST test_moves_from_layers_white(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = moves_from_layers_white_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+// -----------------------------------------------------------------------------
+// test generator-style move generation
+
+static enum theft_alloc_res
+generator_moves_black_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
+  board b = theft_create_board(t);
+
+  // Generate moves using reference implementation
+  board bs[735];
+  move ms[735];
+  int total = 0;
+  get_team_moves_black(b, &total, ms, bs);
+
+  // Generate moves using generator-style approach
+  move_layers layers = generate_black_move_layers(&b);
+  move_state state = init_move_state(&layers, b.black);
+
+  move ms2[735];
+  int total2 = 0;
+  move_data current_move;
+
+  while (next_move_from_layers(&layers, b.black, b.black_r, &state, &current_move)) {
+    if (total2 >= 735) break; // Safety check
+    ms2[total2] = current_move.m;
+    total2++;
+  }
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+}
+
+TEST test_generator_moves_black(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = generator_moves_black_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+// -----------------------------------------------------------------------------
+// test generator-style move generation for white
+
+static enum theft_alloc_res
+generator_moves_white_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
+  board b = theft_create_board(t);
+
+  // Generate moves using reference implementation
+  board bs[335];
+  move ms[335];
+  int total = 0;
+  get_team_moves_white(b, &total, ms, bs);
+
+  // Generate moves using generator-style approach
+  move_layers layers = generate_white_move_layers(&b);
+  move_state state = init_move_state(&layers, b.white);
+
+  move ms2[335];
+  int total2 = 0;
+  move_data current_move;
+
+  while (next_move_from_layers(&layers, b.white, b.white_r, &state, &current_move)) {
+    if (total2 >= 335) break; // Safety check
+    ms2[total2] = current_move.m;
+    total2++;
+  }
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+}
+
+TEST test_generator_moves_white(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = generator_moves_white_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
 // The king will hop above black piece if we don't use king_board_occ
 TEST king_hopover() {
   board b = read_board("     +---------------------------------+"
@@ -2176,9 +2426,13 @@ SUITE(move_suite) {
   RUN_TEST(test_moves_to_black);
   RUN_TEST(test_moves_to_king);
   RUN_TEST(test_moves_to_layers_correct);
+  RUN_TEST(test_moves_from_layers_black);
+  RUN_TEST(test_moves_from_layers_white);
   RUN_TEST(test_black_moves_count);
   RUN_TEST(test_white_moves_count);
   RUN_TEST(test_king_moves_count);
+  RUN_TEST(test_generator_moves_black);
+  RUN_TEST(test_generator_moves_white);
   RUN_TEST(king_hopover);
 }
 
