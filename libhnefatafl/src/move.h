@@ -152,4 +152,28 @@ move *all_white_moves(board b, position_set *ps, int *total);
 /* all king moves, with any illegal repetitions removed */
 move *all_king_moves(board b, position_set *ps, int *total);
 
+typedef union {
+  struct {
+    layer leftward;
+    layer leftward_r;
+    layer rightward;
+    layer rightward_r;
+  };
+  layer layers[4];
+  u64 u64s[8];
+} move_layers;
+
+move_layers generate_black_move_layers(const board *b);
+move_layers generate_white_move_layers(const board *b);
+void mask_move_layers(layer l, layer l_r, move_layers *layers);
+void subtract_move_layers(move_layers *target, const move_layers *subtract);
+void moves_from_layers(
+    const move_layers *layers,
+    layer movers,
+    layer movers_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total);
+
 extern const move start_black_moves[116];
