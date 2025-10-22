@@ -246,6 +246,7 @@ pv_line quiesce_black_adapter(board b, search_args args, stats *statistics) {
       b,
       hash_for_board(b, false),
       0,
+      7,
       args.alpha,
       args.beta,
       statistics);
@@ -261,6 +262,7 @@ pv_line quiesce_white_adapter(board b, search_args args, stats *statistics) {
       b,
       hash_for_board(b, false),
       0,
+      7,
       args.alpha,
       args.beta,
       statistics);

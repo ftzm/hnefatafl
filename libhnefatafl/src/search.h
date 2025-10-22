@@ -51,6 +51,7 @@ i32 quiesce_black(
     board b,
     u64 position_hash,
     int ply,
+    int quiesce_depth,
     i32 alpha,
     i32 beta,
     stats *statistics);
@@ -63,6 +64,7 @@ i32 quiesce_white(
     board b,
     u64 position_hash,
     int ply,
+    int quiesce_depth,
     i32 alpha,
     i32 beta,
     stats *statistics);

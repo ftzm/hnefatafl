@@ -472,6 +472,7 @@ i32 quiesce_black(
     board b,
     u64 position_hash,
     int ply,
+    int quiesce_depth,
     i32 alpha,
     i32 beta,
     stats *statistics) {
@@ -491,7 +492,7 @@ i32 quiesce_black(
   // If we can't find a quiet position in 6 moves we consider the line unstable
   // and score it as a draw for each player, as we can't tell who comes out on
   // top.
-  if (ply > 6) {
+  if (quiesce_depth <= 0) {
     statistics->quiescence_limit_reached++;
     return 0;
   }
@@ -625,6 +626,7 @@ i32 quiesce_black(
             new_b,
             new_position_hash,
             ply + 1,
+            quiesce_depth - 1,
             -beta,
             -alpha,
             statistics);
@@ -723,6 +725,7 @@ i32 quiesce_black(
           new_b,
           new_position_hash,
           ply + 1,
+          quiesce_depth - 1,
           -beta,
           -alpha,
           statistics);
@@ -785,6 +788,7 @@ i32 quiesce_black(
             new_b,
             new_position_hash,
             ply + 1,
+            quiesce_depth - 1,
             -beta,
             -alpha,
             statistics);
@@ -894,6 +898,7 @@ i32 quiesce_black(
           new_b,
           new_position_hash,
           ply + 1,
+          quiesce_depth - 1,
           -beta,
           -alpha,
           statistics);
@@ -932,6 +937,7 @@ i32 quiesce_white(
     board b,
     u64 position_hash,
     int ply,
+    int quiesce_depth,
     i32 alpha,
     i32 beta,
     stats *statistics) {
@@ -950,7 +956,7 @@ i32 quiesce_white(
 
   // If we can't find a quiet position in 6 moves we consider the line
   // unstable and score it as a draw, as we can't tell who comes out on top.
-  if (ply > 6) {
+  if (quiesce_depth <= 0) {
     statistics->quiescence_limit_reached++;
     return 0;
   }
@@ -1029,6 +1035,7 @@ i32 quiesce_white(
         new_b,
         new_position_hash,
         ply + 1,
+        quiesce_depth - 1,
         -beta,
         -alpha,
         statistics);
@@ -1090,6 +1097,7 @@ i32 quiesce_white(
           new_b,
           new_position_hash,
           ply + 1,
+          quiesce_depth - 1,
           -beta,
           -alpha,
           statistics);
@@ -1160,6 +1168,7 @@ i32 quiesce_white(
         new_b,
         new_position_hash,
         ply + 1,
+        quiesce_depth - 1,
         -beta,
         -alpha,
         statistics);
@@ -1217,6 +1226,7 @@ i32 quiesce_white(
         new_b,
         new_position_hash,
         ply + 1,
+        quiesce_depth - 1,
         -beta,
         -alpha,
         statistics);
@@ -1259,6 +1269,7 @@ pv_line quiesce_white_runner(board b) {
       b,
       position_hash,
       ply,
+      7,
       alpha,
       beta,
       &statistics);
@@ -1284,6 +1295,7 @@ pv_line quiesce_black_runner(board b) {
       b,
       position_hash,
       ply,
+      7,
       alpha,
       beta,
       &statistics);
@@ -1406,6 +1418,7 @@ i32 search_black(
         b,
         position_hash,
         ply,
+        7,
         alpha,
         beta,
         statistics);
@@ -1647,6 +1660,7 @@ i32 search_white(
         b,
         position_hash,
         ply,
+        7,
         alpha,
         beta,
         statistics);

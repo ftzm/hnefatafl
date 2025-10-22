@@ -26,9 +26,9 @@ inline u32 score_for_count(u8 count) {
   case 1:
     return 1;
   case 2:
-    return 20;
+    return 3;
   case 3:
-    return 400;
+    return 9;
   default:
     return 0;
   }
@@ -40,9 +40,9 @@ inline u32 score_adjustment_for_count(u8 count) {
   case 1:
     return 1;
   case 2:
-    return 19;
+    return 2;
   case 3:
-    return 380;
+    return 6;
   default:
     return 0;
   }
@@ -438,7 +438,7 @@ score_weights init_default_weights() {
   score_weights weights = {
       .black_pawn = 1000,
       .white_pawn = 1000,
-      .corner_guard = 50,
+      .corner_guard = 100,
       .black_moves = 5,
       .white_moves = 5,
       .king_moves = 100,
