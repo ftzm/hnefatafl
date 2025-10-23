@@ -43,44 +43,46 @@ int capture_indices[] = {
 };
 
 UBENCH_EX(capture, shield_wall_white) {
-  const board start_board = read_board(start_board_string);
+  const board start_board_copy = start_board;
   UBENCH_DO_BENCHMARK() {
     for (int j = 0; j < 36; j++) {
-      board b = start_board;
-      shield_wall_white(&b, capture_indices[j]);
+      board b = start_board_copy;
+      u64 z = 0;
+      shield_wall_white(&b, &z, (u8)capture_indices[j]);
       UBENCH_DO_NOTHING(&b);
     }
   }
 }
 
 UBENCH_EX(capture, shield_wall_black) {
-  const board start_board = read_board(start_board_string);
+  const board start_board_copy = start_board;
   UBENCH_DO_BENCHMARK() {
     for (int j = 0; j < 36; j++) {
-      board b = start_board;
-      shield_wall_black(&b, capture_indices[j]);
+      board b = start_board_copy;
+      u64 z = 0;
+      shield_wall_black(&b, &z, (u8)capture_indices[j]);
       UBENCH_DO_NOTHING(&b);
     }
   }
 }
 
 UBENCH_EX(capture, shield_wall_white_gen) {
-  const board start_board = read_board(start_board_string);
+  const board start_board_copy = start_board;
   UBENCH_DO_BENCHMARK() {
     for (int j = 0; j < 36; j++) {
-      board b = start_board;
-      shield_wall_white_gen(&b, capture_indices[j]);
+      board b = start_board_copy;
+      shield_wall_white_gen(&b, (u8)capture_indices[j]);
       UBENCH_DO_NOTHING(&b);
     }
   }
 }
 
 UBENCH_EX(capture, shield_wall_black_gen) {
-  const board start_board = read_board(start_board_string);
+  const board start_board_copy = start_board;
   UBENCH_DO_BENCHMARK() {
     for (int j = 0; j < 36; j++) {
-      board b = start_board;
-      shield_wall_black_gen(&b, capture_indices[j]);
+      board b = start_board_copy;
+      shield_wall_black_gen(&b, (u8)capture_indices[j]);
       UBENCH_DO_NOTHING(&b);
     }
   }
