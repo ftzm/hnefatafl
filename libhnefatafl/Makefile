@@ -5,7 +5,9 @@ SRC_DIR = src
 TEST_DIR = test
 BENCH_DIR = bench
 BIN_DIR = bin
-OBJ_DIR = .obj
+LIB_OBJ_DIR = .lib_obj
+TEST_OBJ_DIR = .test_obj
+LIB_DIR = .lib
 TEST_BIN_DIR = .test_bin
 BENCH_BIN_DIR = .bench_bin
 DEP_DIR = .deps
@@ -18,11 +20,11 @@ TEST_SRCS := $(filter-out $(TEST_DIR)/test.c, $(TEST_SRCS))
 BENCH_SRCS := $(wildcard $(BENCH_DIR)/*.c)
 
 # Object files
-LIB_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(SRCS))
-TEST_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(TEST_SRCS))
+LIB_OBJS := $(patsubst $(SRC_DIR)/%.c,$(LIB_OBJ_DIR)/%.o,$(SRCS))
+TEST_OBJS := $(patsubst $(TEST_DIR)/%.c,$(TEST_OBJ_DIR)/%.o,$(TEST_SRCS))
 
 # Targets
-LIB_TARGET := $(OBJ_DIR)/lib.so
+LIB_TARGET := $(LIB_DIR)/libhnefatafl.so
 STATIC_LIB_TARGET := $(or $(STATIC_LIB_DIR),../backend)/libhnefatafl.a
 BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 
@@ -36,24 +38,24 @@ DEP_FLAGS = -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d
 
 # Include paths
 SRC_INCLUDES := -I $(SRC_DIR)
-TEST_INCLUDES := $(SRC_INCLUDES) -I vendor/theft/inc -I vendor/greatest -I vendor/ubench.h
+THEFT_INCLUDES ?= -I vendor/theft/inc
+TEST_INCLUDES := $(SRC_INCLUDES) $(THEFT_INCLUDES) -I vendor/greatest -I vendor/ubench.h
 BENCH_INCLUDES := $(SRC_INCLUDES) -I vendor/ubench.h
 
 # Libraries
-THEFT_LIB := vendor/theft/build/libtheft.a
-TEST_LIBS := -L$(OBJ_DIR) -l:lib.so $(THEFT_LIB) -lm
-BENCH_LIBS := -L$(OBJ_DIR) -l:lib.so -lm
-RUN_ENV := LD_LIBRARY_PATH=$(OBJ_DIR):$${LD_LIBRARY_PATH:-}
+THEFT_LIB ?= vendor/theft/build/libtheft.a
+TEST_DEPS_TARGET ?= test_deps
+TEST_LIBS := -L$(LIB_DIR) -lhnefatafl $(THEFT_LIB) -lm
+BENCH_LIBS := -L$(LIB_DIR) -lhnefatafl -lm
+RUN_ENV := LD_LIBRARY_PATH=$(LIB_DIR):$${LD_LIBRARY_PATH:-}
 
 # Link commands
 LINK_BASE := $(CC) $(LDFLAGS)
 
 # Directory creation targets
-$(OBJ_DIR) $(TEST_BIN_DIR) $(BENCH_BIN_DIR) $(DEP_DIR):
+$(LIB_OBJ_DIR) $(TEST_OBJ_DIR) $(LIB_DIR) $(TEST_BIN_DIR) $(BENCH_BIN_DIR) $(DEP_DIR):
 	@mkdir -p $@
 
-$(OBJ_DIR)/$(SRC_DIR) $(OBJ_DIR)/$(TEST_DIR): | $(OBJ_DIR)
-	@mkdir -p $@
 
 $(DEP_DIR)/$(SRC_DIR) $(DEP_DIR)/$(TEST_DIR): | $(DEP_DIR)
 	@mkdir -p $@
@@ -62,12 +64,12 @@ $(DEP_DIR)/$(SRC_DIR) $(DEP_DIR)/$(TEST_DIR): | $(DEP_DIR)
 # Library object files and shared library compilation
 
 # Pattern rule for main library object files
-$(OBJ_DIR)/%.o : %.c | $(OBJ_DIR)/$(SRC_DIR) $(DEP_DIR)/$(SRC_DIR)
+$(LIB_OBJ_DIR)/%.o : $(SRC_DIR)/%.c | $(LIB_OBJ_DIR) $(DEP_DIR)/$(SRC_DIR)
 	@echo "building $@"
-	@$(CC) $(CFLAGS) -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d $(SRC_INCLUDES) -c -o $@ $<
+	@$(CC) $(CFLAGS) -MMD -MP -MT $@ -MF $(DEP_DIR)/$(SRC_DIR)/$*.d $(SRC_INCLUDES) -c -o $@ $<
 
 # Build the shared library from all library object files
-$(LIB_TARGET): $(LIB_OBJS)
+$(LIB_TARGET): $(LIB_OBJS) | $(LIB_DIR)
 	@$(CC) $(LDFLAGS) -o $@ $^ -shared
 
 # Build the static library from all library object files
@@ -79,7 +81,7 @@ $(STATIC_LIB_TARGET): $(LIB_OBJS)
 # Test object files compilation
 
 # Pattern rule for test object files
-$(OBJ_DIR)/$(TEST_DIR)/%.o : $(TEST_DIR)/%.c | $(OBJ_DIR)/$(TEST_DIR) $(DEP_DIR)/$(TEST_DIR)
+$(TEST_OBJ_DIR)/%.o : $(TEST_DIR)/%.c | $(TEST_OBJ_DIR) $(DEP_DIR)/$(TEST_DIR)
 	@echo "building $@"
 	@$(CC) $(CFLAGS) -MMD -MP -MT $@ -MF $(DEP_DIR)/$(TEST_DIR)/$*.d $(TEST_INCLUDES) -c -o $@ $<
 
@@ -93,7 +95,7 @@ $(OBJ_DIR)/$(TEST_DIR)/%.o : $(TEST_DIR)/%.c | $(OBJ_DIR)/$(TEST_DIR) $(DEP_DIR)
 # 4. If a header changes, Make will recompile the affected .o files
 # 5. The $(DEP_FILES): empty rule prevents errors if .d files don't exist yet
 
-DEP_FILES := $(SRCS:%.c=$(DEP_DIR)/%.d) $(TEST_SRCS:%.c=$(DEP_DIR)/%.d)
+DEP_FILES := $(SRCS:$(SRC_DIR)/%.c=$(DEP_DIR)/$(SRC_DIR)/%.d) $(TEST_SRCS:$(TEST_DIR)/%.c=$(DEP_DIR)/$(TEST_DIR)/%.d)
 $(DEP_FILES):
 
 include $(wildcard $(DEP_FILES))
@@ -130,13 +132,13 @@ update-test-suites:
 #
 # Running `make test` will run all tests.
 
-$(TEST_BIN_DIR)/%: $(OBJ_DIR)/$(TEST_DIR)/%.o $(LIB_TARGET) | $(TEST_BIN_DIR)
+$(TEST_BIN_DIR)/%: $(TEST_OBJ_DIR)/%.o $(LIB_TARGET) | $(TEST_BIN_DIR)
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(TEST_LIBS)
 
 .PRECIOUS: $(TEST_BIN_DIR)/%
 
 # Special rule for test.c binary that links all test object files
-$(TEST_BIN_DIR)/test: $(TEST_DIR)/test.c $(TEST_OBJS) $(LIB_TARGET) | $(TEST_BIN_DIR)
+$(TEST_BIN_DIR)/test: $(TEST_DIR)/test.c $(TEST_OBJS) $(LIB_TARGET) $(TEST_DEPS_TARGET) | $(TEST_BIN_DIR)
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(TEST_INCLUDES) -o $@ $(TEST_DIR)/test.c $(TEST_OBJS) $(TEST_LIBS)
 
 .PHONY: test
@@ -159,6 +161,21 @@ $(BENCH_BIN_DIR)/%: $(BENCH_DIR)/%.c $(LIB_TARGET) | $(BENCH_BIN_DIR)
 
 bench_%: $(BENCH_BIN_DIR)/%
 	@$(RUN_ENV) ./$(BENCH_BIN_DIR)/$*
+
+# Build all benchmark binaries
+.PHONY: benchmarks
+benchmarks: $(BENCH_BINS)
+
+# Build and run all benchmarks
+.PHONY: run-benchmarks
+run-benchmarks: $(BENCH_BINS)
+	@echo "Running all benchmarks..."
+	@for bench in $(BENCH_BINS); do \
+		echo "Running $$bench..."; \
+		$(RUN_ENV) ./$$bench; \
+		echo; \
+	done
+
 # ------------------------------------------------------------------------------
 # Bins
 
@@ -191,7 +208,9 @@ gen_masks: $(BIN_DIR)/gen_masks.c $(LIB_TARGET)
 
 .PHONY: clean
 clean:
-	@rm -rf $(OBJ_DIR)
+	@rm -rf $(LIB_OBJ_DIR)
+	@rm -rf $(TEST_OBJ_DIR)
+	@rm -rf $(LIB_DIR)
 	@rm -rf $(TEST_BIN_DIR)
 	@rm -rf $(BENCH_BIN_DIR)
 	@rm -rf $(DEP_DIR)
@@ -204,22 +223,28 @@ clean:
 # ------------------------------------------------------------------------------
 # Dependencies
 
-.PHONY: deps
-deps:
+.PHONY: test_deps
+test_deps:
 	@echo "Building dependencies..."
 	@if [ ! -f "vendor/theft/build/libtheft.a" ]; then \
 		echo "Building theft..."; \
-		cd vendor/theft && make; \
+		cd vendor/theft && make LDFLAGS=-lm; \
 	fi
 
 # ------------------------------------------------------------------------------
 # All
 
 .PHONY: all
-all: deps $(LIB_TARGET) $(TEST_BIN_DIR)/test $(BENCH_BINS)
+all: $(LIB_TARGET) $(TEST_BIN_DIR)/test $(BENCH_BINS)
 
 .PHONY: static
 static: $(STATIC_LIB_TARGET)
+
+.PHONY: lib-only
+lib-only: $(LIB_TARGET)
+
+.PHONY: lib-objs
+lib-objs: $(LIB_OBJS)
 
 # ------------------------------------------------------------------------------
 # Bear

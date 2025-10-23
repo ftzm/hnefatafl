@@ -48,7 +48,7 @@
               modules = [
                 {
                   packages.hnefatafl.components.tests.bindings-test = {
-                    libs = [libhnefatafl];
+                    libs = [libhnefatafl.lib];
                     # ghcOptions = ["-O1" "-Werror"];
                     # Don't depend on GHC in build artifacts.  Otherwise GHC may
                     # be pulled in as a dependency, which causes docker images to
@@ -92,6 +92,7 @@
         rec {
           packages = {
             libhnefatafl = libhnefatafl;
+            theft = libhnefatafl.theft;
           };
           apps = {
             update-materialized = {
@@ -109,6 +110,23 @@
                     rm -rf materialized
                     cp -r ${pkgs.backend.plan-nix} materialized
                     chmod -R +w materialized
+                  ''
+                )
+                .outPath;
+            };
+            test-libhnefatafl = {
+              type = "app";
+              program =
+                (
+                  pkgs.writeShellScript "test-libhnefatafl-${system}" ''
+                    set -eEuo pipefail
+
+                    # This will only run tests if source/dependencies changed
+                    # If cached, it returns instantly with the cached result
+                    TEST_RESULTS="${libhnefatafl.test-results}"
+
+                    echo "Test results stored at: $TEST_RESULTS" >&2
+                    cat "$TEST_RESULTS/test-results.txt"
                   ''
                 )
                 .outPath;

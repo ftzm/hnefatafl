@@ -1,30 +1,166 @@
-{ pkgs ? import <nixpkgs> {} }:
+{pkgs ? import <nixpkgs> {}}: let
+  # Common attributes shared across all derivations
+  commonAttrs = {
+    version = "0.1.0";
+    nativeBuildInputs = with pkgs; [gcc coreutils gawk];
 
-pkgs.stdenv.mkDerivation {
-  pname = "libhnefatafl";
-  version = "0.1.0";
+    meta = with pkgs.lib; {
+      description = "C library for hnefatafl game logic";
+      license = licenses.mit;
+      platforms = platforms.unix;
+    };
+  };
 
-  src = ./.;
+  # Build object files once - this is the expensive compilation step
+  objects = pkgs.stdenv.mkDerivation (commonAttrs
+    // {
+      pname = "libhnefatafl-objects";
+      src = pkgs.lib.sources.sourceByRegex ./. ["Makefile" "src" "src/.*"];
 
-  nativeBuildInputs = with pkgs; [
-    gcc
-  ];
+      buildPhase = ''
+        # Build only the library object files
+        make lib-objs
+      '';
 
-  makeFlags = [ "static" ];
+      installPhase = ''
+        mkdir -p $out
+        cp -r .lib_obj $out/
+      '';
+    });
+  # Theft property testing library - separate derivation for caching
+  theft = pkgs.stdenv.mkDerivation (commonAttrs
+    // {
+      pname = "theft";
+      src = pkgs.lib.sources.sourceByRegex ./vendor/theft [
+        "Makefile"
+        "src" "src/.*"
+        "inc" "inc/.*"
+        "scripts" "scripts/.*"
+        "pc" "pc/.*"
+      ];
 
-  preBuild = ''
-    export STATIC_LIB_DIR="$out/lib"
-    mkdir -p $out/lib
-  '';
+      patchPhase = ''
+        # Fix shebang in theft script
+        substituteInPlace scripts/mk_bits_lut \
+          --replace "#!/usr/bin/env -S awk -f" "#!${pkgs.gawk}/bin/awk -f"
+      '';
 
-  installPhase = ''
-    mkdir -p $out/include
-    cp src/*.h $out/include/
-  '';
+      buildPhase = ''
+        make build/libtheft.a LDFLAGS=-lm
+      '';
 
-  meta = with pkgs.lib; {
-    description = "C library for hnefatafl game logic";
-    license = licenses.mit;
-    platforms = platforms.unix;
+      installPhase = ''
+        mkdir -p $out/lib $out/include
+        cp build/libtheft.a $out/lib/
+        cp inc/*.h $out/include/
+      '';
+    });
+in rec {
+  inherit theft;
+  # Shared library - reuses cached objects
+  shared-lib = pkgs.stdenv.mkDerivation (commonAttrs
+    // {
+      pname = "libhnefatafl-shared";
+      src = pkgs.lib.sources.sourceByRegex ./. ["Makefile" "src" "src/.*"];
+
+      buildInputs = [objects];
+
+      buildPhase = ''
+        # Build shared library directly from cached objects
+        make lib-only \
+          LIB_OBJ_DIR=${objects}/.lib_obj
+      '';
+
+      installPhase = ''
+        mkdir -p $out/lib $out/include
+        cp .lib/libhnefatafl.so $out/lib/
+        cp src/*.h $out/include/
+      '';
+    });
+
+  # Static library - reuses cached objects
+  lib = pkgs.stdenv.mkDerivation (commonAttrs
+    // {
+      pname = "libhnefatafl";
+      src = pkgs.lib.sources.sourceByRegex ./. ["Makefile" "src" "src/.*"];
+
+      buildInputs = [objects];
+
+      buildPhase = ''
+        # Build static library from cached objects
+        mkdir -p $out/lib
+        make static \
+          LIB_OBJ_DIR=${objects}/.lib_obj \
+          STATIC_LIB_DIR=$out/lib
+      '';
+
+      installPhase = ''
+        mkdir -p $out/include
+        cp src/*.h $out/include/
+      '';
+    });
+
+  # Tests - depends on shared library and theft
+  tests = pkgs.stdenv.mkDerivation (commonAttrs
+    // {
+      pname = "libhnefatafl-tests";
+      src = pkgs.lib.sources.sourceByRegex ./. ["Makefile" "src" "src/.*" "test" "test/.*" "vendor" "vendor/greatest" "vendor/greatest/.*" "vendor/ubench.h" "vendor/ubench.h/.*"];
+
+      buildInputs = [shared-lib theft];
+
+      buildPhase = ''
+        make .test_bin/test \
+          LIB_TARGET="" \
+          TEST_DEPS_TARGET="" \
+          THEFT_LIB="${theft}/lib/libtheft.a" \
+          THEFT_INCLUDES="-I${theft}/include" \
+          LDFLAGS="-Wl,-rpath,${shared-lib}/lib"
+      '';
+
+      installPhase = ''
+        mkdir -p $out/bin
+        cp .test_bin/test $out/bin/libhnefatafl-test
+      '';
+    });
+
+  # Test runner that only runs when dependencies change
+  test-results = pkgs.runCommand "libhnefatafl-test-results" {}
+    ''
+      echo "Running tests..." >&2
+      mkdir -p $out
+
+      # Run tests and capture output
+      ${tests}/bin/libhnefatafl-test > $out/test-results.txt 2>&1
+
+      # Add metadata to the results
+      echo "" >> $out/test-results.txt
+      echo "---" >> $out/test-results.txt
+      echo "Test run completed at $(date)" >> $out/test-results.txt
+      echo "Test binary: ${tests}/bin/libhnefatafl-test" >> $out/test-results.txt
+    '';
+
+  # Benchmarks - depends on shared library
+  benchmarks = pkgs.stdenv.mkDerivation (commonAttrs
+    // {
+      pname = "libhnefatafl-benchmarks";
+      src = pkgs.lib.sources.sourceByRegex ./. ["Makefile" "src" "src/.*" "bench" "bench/.*" "vendor" "vendor/.*"];
+
+      buildInputs = [shared-lib];
+
+      buildPhase = ''
+        make benchmarks \
+          LIB_TARGET="" \
+          LDFLAGS="-Wl,-rpath,${shared-lib}/lib"
+      '';
+
+      installPhase = ''
+        mkdir -p $out/bin
+        cp .bench_bin/* $out/bin/
+      '';
+    });
+  # Convenience derivation that provides all components
+  all = pkgs.buildEnv {
+    name = "libhnefatafl-all";
+    paths = [lib tests benchmarks];
   };
 }
