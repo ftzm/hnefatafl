@@ -127,6 +127,10 @@
 
                     echo "Test results stored at: $TEST_RESULTS" >&2
                     cat "$TEST_RESULTS/test-results.txt"
+
+                    # Read and propagate the test exit code
+                    EXIT_CODE=$(cat "$TEST_RESULTS/exit-code")
+                    exit "$EXIT_CODE"
                   ''
                 )
                 .outPath;
