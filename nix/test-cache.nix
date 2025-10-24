@@ -4,26 +4,26 @@
   # testName: string - descriptive name for the test (e.g., "libhnefatafl-test")
   mkTestResults = testCommand: testName:
     pkgs.runCommand "${testName}-results" {}
-      ''
-        echo "Running ${testName}..." >&2
-        mkdir -p $out
+    ''
+      echo "Running ${testName}..." >&2
+      mkdir -p $out
 
-        # Run tests and capture both output and exit code
-        set +e  # Don't exit on test failure
-        ${testCommand} > $out/test-results.txt 2>&1
-        TEST_EXIT_CODE=$?
-        set -e  # Re-enable exit on error
+      # Run tests and capture both output and exit code
+      set +e  # Don't exit on test failure
+      ${testCommand} > $out/test-results.txt 2>&1
+      TEST_EXIT_CODE=$?
+      set -e  # Re-enable exit on error
 
-        # Store the exit code for later use
-        echo "$TEST_EXIT_CODE" > $out/exit-code
+      # Store the exit code for later use
+      echo "$TEST_EXIT_CODE" > $out/exit-code
 
-        # Add metadata to the results
-        echo "" >> $out/test-results.txt
-        echo "---" >> $out/test-results.txt
-        echo "Test run completed at $(date)" >> $out/test-results.txt
-        echo "Test command: ${testCommand}" >> $out/test-results.txt
-        echo "Exit code: $TEST_EXIT_CODE" >> $out/test-results.txt
-      '';
+      # Add metadata to the results
+      echo "" >> $out/test-results.txt
+      echo "---" >> $out/test-results.txt
+      echo "Test run completed at $(date)" >> $out/test-results.txt
+      echo "Test command: ${testCommand}" >> $out/test-results.txt
+      echo "Exit code: $TEST_EXIT_CODE" >> $out/test-results.txt
+    '';
 
   # Creates a cached test runner app
   # testResults: derivation - the output of mkTestResults
@@ -50,13 +50,13 @@
           # Read the test exit code
           EXIT_CODE=$(cat "$TEST_RESULTS/exit-code")
 
-          echo "Test results stored at: $TEST_RESULTS" >&2
-
           if [ "$EXIT_CODE" -eq 0 ] && [ "$IS_CACHED" = true ]; then
             echo "cached success"
           elif [ "$EXIT_CODE" -ne 0 ]; then
             cat "$TEST_RESULTS/test-results.txt"
           fi
+
+          echo "Test results stored at: $TEST_RESULTS" >&2
 
           exit "$EXIT_CODE"
         ''
@@ -68,11 +68,10 @@
   # testCommand: string - the command to run the test
   # testName: string - descriptive name for the test
   # system: string - the system platform
-  mkCachedTest = testCommand: testName: system:
-    let
-      testResults = mkTestResults testCommand testName;
-    in {
-      inherit testResults;
-      app = mkTestApp testResults "test-${testName}" system;
-    };
+  mkCachedTest = testCommand: testName: system: let
+    testResults = mkTestResults testCommand testName;
+  in {
+    inherit testResults;
+    app = mkTestApp testResults "test-${testName}" system;
+  };
 }

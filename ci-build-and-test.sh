@@ -28,5 +28,3 @@ fi
 
 print_header "Running Haskell tests"
 nix run .#test-bindings
-
-echo "All builds and tests completed successfully!"
