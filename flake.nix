@@ -86,6 +86,20 @@
           inherit (haskellNix) config;
         };
         flake = pkgs.backend.flake {};
+
+        # Import test caching utilities
+        testCache = import ./nix/test-cache.nix {inherit pkgs;};
+
+        # Create cached tests
+        bindingsTest = testCache.mkCachedTest
+          "${flake.packages."hnefatafl:test:bindings-test"}/bin/bindings-test"
+          "bindings"
+          system;
+
+        libhnefataflTest = testCache.mkCachedTest
+          "${libhnefatafl.tests}/bin/libhnefatafl-test"
+          "libhnefatafl"
+          system;
       in
         pkgs.lib.attrsets.recursiveUpdate
         flake
@@ -114,27 +128,8 @@
                 )
                 .outPath;
             };
-            test-libhnefatafl = {
-              type = "app";
-              program =
-                (
-                  pkgs.writeShellScript "test-libhnefatafl-${system}" ''
-                    set -eEuo pipefail
-
-                    # This will only run tests if source/dependencies changed
-                    # If cached, it returns instantly with the cached result
-                    TEST_RESULTS="${libhnefatafl.test-results}"
-
-                    echo "Test results stored at: $TEST_RESULTS" >&2
-                    cat "$TEST_RESULTS/test-results.txt"
-
-                    # Read and propagate the test exit code
-                    EXIT_CODE=$(cat "$TEST_RESULTS/exit-code")
-                    exit "$EXIT_CODE"
-                  ''
-                )
-                .outPath;
-            };
+            test-libhnefatafl = libhnefataflTest.app;
+            test-bindings = bindingsTest.app;
           };
           devShells = {
             libhnefatafl = pkgs.mkShell rec {

@@ -123,29 +123,6 @@ in rec {
       '';
     });
 
-  # Test runner that only runs when dependencies change
-  test-results = pkgs.runCommand "libhnefatafl-test-results" {}
-    ''
-      echo "Running tests..." >&2
-      mkdir -p $out
-
-      # Run tests and capture both output and exit code
-      set +e  # Don't exit on test failure
-      ${tests}/bin/libhnefatafl-test > $out/test-results.txt 2>&1
-      TEST_EXIT_CODE=$?
-      set -e  # Re-enable exit on error
-
-      # Store the exit code for later use
-      echo "$TEST_EXIT_CODE" > $out/exit-code
-
-      # Add metadata to the results
-      echo "" >> $out/test-results.txt
-      echo "---" >> $out/test-results.txt
-      echo "Test run completed at $(date)" >> $out/test-results.txt
-      echo "Test binary: ${tests}/bin/libhnefatafl-test" >> $out/test-results.txt
-      echo "Exit code: $TEST_EXIT_CODE" >> $out/test-results.txt
-    '';
-
   # Benchmarks - depends on shared library
   benchmarks = pkgs.stdenv.mkDerivation (commonAttrs
     // {
