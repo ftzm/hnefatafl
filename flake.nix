@@ -13,172 +13,40 @@
   };
 
   inputs = {
-    haskellNix.url = "github:input-output-hk/haskell.nix";
-    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
+    nixpkgs.follows = "backend/haskellNix/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     git-hooks.url = "github:cachix/git-hooks.nix";
+    backend.url = "./backend";
   };
 
   outputs = {
     self,
     nixpkgs,
     flake-utils,
-    haskellNix,
     git-hooks,
+    backend,
   }:
     flake-utils.lib.eachSystem ["x86_64-linux"] (
       system: let
-        materializedSha = "1gj62f9k0a92as5i85ypa974kv2mm2m9x8dvn5lgp5qb1yn4kszf";
-        cabalProject = builtins.readFile ./backend/cabal.project;
-        index-state =
-          pkgs.haskell-nix.haskellLib.parseIndexState cabalProject;
-        libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix {};
-        overlays = [
-          haskellNix.overlay
-          (final: _prev: {
-            # This overlay adds our project to pkgs
-            backend = final.haskell-nix.project' {
-              inherit index-state;
-              src = ./backend/.;
-              # evalSystem = "x86_64-linux";
-              compiler-nix-name = "ghc910";
-              # plan-sha256 = "sha256-7utJrA8Ll/tosbuhnqqoVexJTlLXFxSLViIpMJMTRr4=";
-              materialized = ./materialized;
-
-              modules = [
-                {
-                  packages.hnefatafl.components.tests.bindings-test = {
-                    libs = [libhnefatafl.lib];
-                    # ghcOptions = ["-O1" "-Werror"];
-                    # Don't depend on GHC in build artifacts.  Otherwise GHC may
-                    # be pulled in as a dependency, which causes docker images to
-                    # balloon in size.
-                    dontStrip = false;
-                  };
-                }
-              ];
-              # This is used by `nix develop .` to open a shell for use with
-              # `cabal`, `hlint` and `haskell-language-server`
-              shell = {
-                tools = {
-                  cabal = {};
-                  hlint = {};
-                  haskell-language-server = {};
-                };
-                # Non-Haskell shell tools go here
-                buildInputs = with pkgs; [
-                  bashInteractive
-                  zlib
-                  fourmolu
-                  hpack
-                  (pkgs.writeShellScriptBin "haskell-language-server-wrapper" ''
-                    exec haskell-language-server $@
-                  '')
-                ];
-              };
-              # This adds `js-unknown-ghcjs-cabal` to the shell.
-              # shell.crossPlatforms = p: [p.ghcjs];
-            };
-          })
-        ];
         pkgs = import nixpkgs {
-          inherit overlays system;
-          inherit (haskellNix) config;
+          inherit system;
         };
-        flake = pkgs.backend.flake {};
-
-        # Import test caching utilities
-        testCache = import ./nix/test-cache.nix {inherit pkgs;};
-
-        # Create cached tests
-        bindingsTest = testCache.mkCachedTest
-          "${flake.packages."hnefatafl:test:bindings-test"}/bin/bindings-test"
-          "bindings"
-          system;
-
-        libhnefataflTest = testCache.mkCachedTest
-          "${libhnefatafl.tests}/bin/libhnefatafl-test"
-          "libhnefatafl"
-          system;
-      in
-        pkgs.lib.attrsets.recursiveUpdate
-        flake
-        rec {
-          packages = {
-            libhnefatafl = libhnefatafl;
-            theft = libhnefatafl.theft;
+        libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix {};
+      in rec {
+        packages = {
+          libhnefatafl = libhnefatafl;
+        };
+        devShells = {
+          default = pkgs.mkShell {fromInputs = [libhnefatafl.devShell backend.devShells.${system}.default];};
+        };
+        # Run the hooks in a sandbox with `nix flake check`.
+        # Read-only filesystem and no internet access.
+        checks = {
+          pre-commit-check = git-hooks.lib.${system}.run {
+            src = ./.;
+            hooks = backend.hooks;
           };
-          apps = {
-            update-materialized = {
-              type = "app";
-              program =
-                (
-                  pkgs.writeShellScript "update-all-materialized-${system}" ''
-                    set -eEuo pipefail
-                    echo "Updating project materialization" >&2
-                    current_sha=$(${pkgs.backend.plan-nix.passthru.calculateMaterializedSha})
-                    echo "saved sha:"
-                    echo "${materializedSha}"
-                    echo "current sha:"
-                    echo "$current_sha"
-                    rm -rf materialized
-                    cp -r ${pkgs.backend.plan-nix} materialized
-                    chmod -R +w materialized
-                  ''
-                )
-                .outPath;
-            };
-            test-libhnefatafl = libhnefataflTest.app;
-            test-bindings = bindingsTest.app;
-          };
-          devShells = {
-            libhnefatafl = pkgs.mkShell rec {
-              buildInputs = with pkgs; [
-                # first and foremost: a tolerable shell
-                bashInteractive
-                # C development tools
-                clang-tools
-                clang
-                libclang
-                bear
-                cmake
-                clangStdenv
-
-                gdb
-                valgrind
-                just
-                ripgrep
-                # Additional utilities
-                python312Packages.cogapp
-              ];
-              shellHook = ''
-                export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH"
-              '';
-            };
-            backend = let
-              inherit (self.checks.${system}.pre-commit-check) shellHook enabledPackages;
-            in
-              pkgs.backend.shellFor {
-                inherit shellHook;
-                buildInputs = enabledPackages ++ [pkgs.pre-commit];
-              };
-          };
-          # Run the hooks in a sandbox with `nix flake check`.
-          # Read-only filesystem and no internet access.
-          checks = {
-            pre-commit-check = git-hooks.lib.${system}.run {
-              src = ./.;
-              hooks = {
-                materialization = {
-                  enable = true;
-                  name = "materialization";
-                  entry = "${apps.update-materialized.program}";
-                  pass_filenames = false;
-                  always_run = true;
-                };
-              };
-            };
-          };
-        }
+        };
+      }
     );
 }

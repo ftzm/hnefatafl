@@ -28,12 +28,11 @@
   # Creates a cached test runner app
   # testResults: derivation - the output of mkTestResults
   # appName: string - name for the app script (e.g., "test-libhnefatafl")
-  # system: string - the system platform (e.g., "x86_64-linux")
-  mkTestApp = testResults: appName: system: {
+  mkTestApp = testResults: appName: {
     type = "app";
     program =
       (
-        pkgs.writeShellScript "${appName}-${system}" ''
+        pkgs.writeShellScript "${appName}" ''
           set -eEuo pipefail
 
           # Check if test-results are cached
@@ -68,10 +67,10 @@
   # testCommand: string - the command to run the test
   # testName: string - descriptive name for the test
   # system: string - the system platform
-  mkCachedTest = testCommand: testName: system: let
-    testResults = mkTestResults testCommand testName;
+  mkCachedTest = testCommand: testName: let
+    testResults = mkTestResults testCommand;
   in {
     inherit testResults;
-    app = mkTestApp testResults "test-${testName}" system;
+    app = mkTestApp testResults "test-${testName}";
   };
 }
