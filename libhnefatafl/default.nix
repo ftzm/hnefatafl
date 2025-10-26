@@ -149,11 +149,11 @@
   # Common attributes shared across all derivations
   # Import test caching utilities
   testCache = import ../nix/test-cache.nix {inherit pkgs;};
-in rec {
+in {
   # Derivation that provides all components. Used as build stage in CI.
   all = pkgs.buildEnv {
     name = "libhnefatafl-all";
-    paths = with artifacts; [lib tests benchmarks];
+    paths = with artifacts; [shared-lib tests benchmarks];
   };
 
   # cached test suite

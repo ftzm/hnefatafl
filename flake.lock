@@ -28,15 +28,14 @@
         ]
       },
       "locked": {
-        "lastModified": 1,
-        "narHash": "sha256-keK9isMgl4OqqSRD9unn/1EBkbWnyRI3pwdSlkwdTB0=",
-        "path": "/nix/store/n3ws6gsm13j62b7ncxc5anvnrdgvdjqv-source/backend",
+        "path": "./backend",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/n3ws6gsm13j62b7ncxc5anvnrdgvdjqv-source/backend",
+        "path": "./backend",
         "type": "path"
-      }
+      },
+      "parent": []
     },
     "cabal-32": {
       "flake": false,

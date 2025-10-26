@@ -35,9 +35,14 @@
       in rec {
         packages = {
           libhnefatafl = libhnefatafl;
+          inherit (backend.packages.${system}) "hnefatafl:lib:bindings";
+        };
+        apps = {
+          test-libhnefatafl = libhnefatafl.test.app;
+          inherit (backend.apps.${system}) test-bindings;
         };
         devShells = {
-          default = pkgs.mkShell {fromInputs = [libhnefatafl.devShell backend.devShells.${system}.default];};
+          default = pkgs.mkShell {inputsFrom = [libhnefatafl.devShell backend.devShells.${system}.default];};
         };
         # Run the hooks in a sandbox with `nix flake check`.
         # Read-only filesystem and no internet access.

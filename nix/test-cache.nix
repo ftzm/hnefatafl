@@ -66,9 +66,8 @@
   # Convenience function that creates both test results and app
   # testCommand: string - the command to run the test
   # testName: string - descriptive name for the test
-  # system: string - the system platform
   mkCachedTest = testCommand: testName: let
-    testResults = mkTestResults testCommand;
+    testResults = mkTestResults testCommand testName;
   in {
     inherit testResults;
     app = mkTestApp testResults "test-${testName}";
