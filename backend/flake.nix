@@ -102,6 +102,11 @@
           echo "${materializedSha}"
           echo "current sha:"
           echo "$current_sha"
+
+          # Always work relative to the backend directory
+          BACKEND_DIR="$(dirname "$(readlink -f "${./flake.nix}")")"
+          cd "$BACKEND_DIR"
+
           rm -rf materialized
           cp -r ${pkgs.backend.plan-nix} materialized
           chmod -R +w materialized
@@ -126,17 +131,6 @@
               always_run = true;
             };
           };
-          # devShells = {
-          #   backend = let
-          #     inherit (self.checks.${system}.pre-commit-check) shellHook enabledPackages;
-          #   in
-          #     pkgs.backend.shellFor {
-          #       inherit shellHook;
-          #       buildInputs = enabledPackages ++ [pkgs.pre-commit];
-          #     };
-          # };
-          # Run the hooks in a sandbox with `nix flake check`.
-          # Read-only filesystem and no internet access.
           checks = {
             pre-commit-check = git-hooks.lib.${system}.run {
               src = ./.;

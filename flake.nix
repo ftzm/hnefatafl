@@ -32,7 +32,7 @@
           inherit system;
         };
         libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix {};
-      in rec {
+      in {
         packages = {
           libhnefatafl = libhnefatafl;
           inherit (backend.packages.${system}) "hnefatafl:lib:bindings";
