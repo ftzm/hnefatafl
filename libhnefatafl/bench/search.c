@@ -101,31 +101,6 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
   return (pv_line){is_black_turn, moves, pv_data->pv_length[0], result};
 }
 
-pv_line search_black_runner_with_stats(board b, int depth, stats *statistics) {
-  pv pv_data = {0};
-  u64 position_hash = hash_for_board(b, true);
-  position_set *positions = create_position_set(100);
-  score_weights weights = init_default_weights();
-  score_state s = init_score_state(&weights, &b);
-  int ply = 0;
-  i32 alpha = -2147483647;
-  i32 beta = 2147483647;
-  i32 result = search_black(
-      &pv_data,
-      positions,
-      &weights,
-      s,
-      b,
-      position_hash,
-      ply,
-      depth,
-      alpha,
-      beta,
-      statistics,
-      true);
-  destroy_position_set(positions);
-  return create_pv_line(&pv_data, true, result);
-}
 
 UBENCH_EX(search, black_depth_3) {
   static bool black_depth_3_printed = false;
@@ -133,7 +108,7 @@ UBENCH_EX(search, black_depth_3) {
   stats statistics = {0};
 
   UBENCH_DO_BENCHMARK() {
-    pv_line result = search_black_runner_with_stats(start_board, 3, &statistics);
+    pv_line result = search_black_runner(start_board, 3, 0, &statistics);
     if (!black_depth_3_printed) {
       saved_result = result;
     } else {
@@ -157,7 +132,7 @@ UBENCH_EX(search, black_depth_4) {
   stats statistics = {0};
 
   UBENCH_DO_BENCHMARK() {
-    pv_line result = search_black_runner_with_stats(start_board, 4, &statistics);
+    pv_line result = search_black_runner(start_board, 4, 0, &statistics);
     if (!black_depth_4_printed) {
       saved_result = result;
     } else {
@@ -181,7 +156,7 @@ UBENCH_EX(search, black_depth_5) {
   stats statistics = {0};
 
   UBENCH_DO_BENCHMARK() {
-    pv_line result = search_black_runner_with_stats(start_board, 5, &statistics);
+    pv_line result = search_black_runner(start_board, 5, 0, &statistics);
     if (!black_depth_5_printed) {
       saved_result = result;
     } else {

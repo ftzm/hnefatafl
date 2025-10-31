@@ -446,6 +446,7 @@ TEST assert_pv(
 
 pv_line
 search_black_runner_with_stats(board b, search_args args, stats *statistics) {
+  _Atomic bool should_stop = false;
   i32 result = search_black(
       args.pv_data,
       args.positions,
@@ -458,12 +459,14 @@ search_black_runner_with_stats(board b, search_args args, stats *statistics) {
       args.alpha,
       args.beta,
       statistics,
-      args.is_pv);
+      args.is_pv,
+      &should_stop);
   return create_pv_line(args.pv_data, true, result);
 }
 
 pv_line
 search_white_runner_with_stats(board b, search_args args, stats *statistics) {
+  _Atomic bool should_stop = false;
   i32 result = search_white(
       args.pv_data,
       args.positions,
@@ -476,7 +479,8 @@ search_white_runner_with_stats(board b, search_args args, stats *statistics) {
       args.alpha,
       args.beta,
       statistics,
-      args.is_pv);
+      args.is_pv,
+      &should_stop);
   return create_pv_line(args.pv_data, false, result);
 }
 
@@ -1087,6 +1091,7 @@ SUITE(search_black_shallow) {
 
   // takes trade that results in better position
   //
+
 }
 SUITE(search_white_shallow) {
 
@@ -1186,4 +1191,35 @@ SUITE(search_white_shallow) {
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .score = INCREASE);
+}
+
+// Test time limiting functionality
+TEST time_limit_works(void) {
+  stats statistics = {0};
+
+  // Record start time
+  struct timespec start, end;
+  clock_gettime(CLOCK_MONOTONIC, &start);
+
+  // Run search with depth 10 and 50ms time limit
+  pv_line result = search_black_runner(start_board, 10, 50, &statistics);
+
+  // Record end time
+  clock_gettime(CLOCK_MONOTONIC, &end);
+
+  // Calculate elapsed time in milliseconds
+  long elapsed_ms = (end.tv_sec - start.tv_sec) * 1000 +
+                    (end.tv_nsec - start.tv_nsec) / 1000000;
+
+  // Assert that search finished within 10ms of the 50ms time limit
+  // (should be between 40ms and 60ms)
+  ASSERT_GTm("Search finished too early", elapsed_ms, 40L);
+  ASSERT_LTm("Search took too long", elapsed_ms, 60L);
+
+  destroy_pv_line(&result);
+  PASS();
+}
+
+SUITE(search_time_limiting) {
+  RUN_TEST(time_limit_works);
 }

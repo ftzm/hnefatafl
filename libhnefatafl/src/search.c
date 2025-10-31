@@ -15,6 +15,42 @@
 #include "victory.h"
 #include "x86intrin.h" // IWYU pragma: export
 #include "zobrist.h"
+#include <pthread.h>
+#include <unistd.h>
+#include <time.h>
+
+// Timer thread data structure
+typedef struct {
+    _Atomic bool *should_stop;
+    _Atomic bool *search_finished;
+    int time_limit_ms;
+} timer_data;
+
+// Timer thread function
+void* timer_thread(void* arg) {
+    timer_data* data = (timer_data*)arg;
+
+    // Check periodically instead of one long sleep
+    // Use the time limit itself for intervals below 100ms, otherwise use 100ms
+    int sleep_interval_ms = (data->time_limit_ms < 100) ? data->time_limit_ms : 100;
+    if (sleep_interval_ms < 1) sleep_interval_ms = 1;  // Minimum 1ms
+
+    int elapsed = 0;
+    while (elapsed < data->time_limit_ms) {
+        // Check if search finished early
+        if (atomic_load(data->search_finished)) {
+            return NULL;  // Exit early
+        }
+
+        // Sleep in appropriate intervals (usleep takes microseconds)
+        usleep(sleep_interval_ms * 1000);
+        elapsed += sleep_interval_ms;
+    }
+
+    // Time limit reached - signal search to stop
+    atomic_store(data->should_stop, true);
+    return NULL;
+}
 
 // typedef struct negamax_ab_result {
 //   move _move;
@@ -1303,16 +1339,44 @@ pv_line quiesce_black_runner(board b) {
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line search_black_runner(board b, int depth) {
+pv_line search_black_runner(board b, int depth, int time_limit, stats *statistics) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, true);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
-  stats statistics = {0};
   int ply = 0;
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
+  _Atomic bool should_stop = false;
+  _Atomic bool search_finished = false;
+
+  // Set up timer thread if time_limit > 0
+  pthread_t timer_thread_id;
+  int thread_result = -1;
+  timer_data timer_info;
+
+  if (time_limit > 0) {
+    timer_info = (timer_data){
+        .should_stop = &should_stop,
+        .search_finished = &search_finished,
+        .time_limit_ms = time_limit
+    };
+
+    thread_result = pthread_create(
+        &timer_thread_id,
+        NULL,
+        timer_thread,
+        &timer_info
+    );
+
+    if (thread_result != 0) {
+        // Handle thread creation error - continue without timer
+        fprintf(stderr, "Warning: Failed to create timer thread\n");
+    }
+  }
+
+  // Run the search
   i32 result = search_black(
       &pv_data,
       positions,
@@ -1324,22 +1388,60 @@ pv_line search_black_runner(board b, int depth) {
       depth,
       alpha,
       beta,
-      &statistics,
-      true);
+      statistics,
+      true,
+      &should_stop);
+
+  // Signal that search is finished
+  atomic_store(&search_finished, true);
+
+  // Wait for timer thread to finish (should exit quickly now)
+  if (time_limit > 0 && thread_result == 0) {
+      pthread_join(timer_thread_id, NULL);
+  }
+
   destroy_position_set(positions);
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line search_white_runner(board b, int depth) {
+pv_line search_white_runner(board b, int depth, int time_limit, stats *statistics) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, false);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
-  stats statistics = {0};
   int ply = 0;
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
+  _Atomic bool should_stop = false;
+  _Atomic bool search_finished = false;
+
+  // Set up timer thread if time_limit > 0
+  pthread_t timer_thread_id;
+  int thread_result = -1;
+  timer_data timer_info;
+
+  if (time_limit > 0) {
+    timer_info = (timer_data){
+        .should_stop = &should_stop,
+        .search_finished = &search_finished,
+        .time_limit_ms = time_limit
+    };
+
+    thread_result = pthread_create(
+        &timer_thread_id,
+        NULL,
+        timer_thread,
+        &timer_info
+    );
+
+    if (thread_result != 0) {
+        // Handle thread creation error - continue without timer
+        fprintf(stderr, "Warning: Failed to create timer thread\n");
+    }
+  }
+
+  // Run the search
   i32 result = search_white(
       &pv_data,
       positions,
@@ -1351,8 +1453,18 @@ pv_line search_white_runner(board b, int depth) {
       depth,
       alpha,
       beta,
-      &statistics,
-      true);
+      statistics,
+      true,
+      &should_stop);
+
+  // Signal that search is finished
+  atomic_store(&search_finished, true);
+
+  // Wait for timer thread to finish (should exit quickly now)
+  if (time_limit > 0 && thread_result == 0) {
+      pthread_join(timer_thread_id, NULL);
+  }
+
   destroy_position_set(positions);
   return create_pv_line(&pv_data, false, result);
 }
@@ -1384,7 +1496,12 @@ i32 search_black(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv) {
+    bool is_pv,
+    _Atomic bool *should_stop) {
+
+  if (atomic_load(should_stop)) {
+    return alpha;
+  }
 
   // Increment black position evaluation count
   statistics->search_positions_black++;
@@ -1455,7 +1572,8 @@ i32 search_black(
         -beta,
         -alpha,
         statistics,
-        (is_pv && ply < pv_data->prev_pv_length));
+        (is_pv && ply < pv_data->prev_pv_length),
+        should_stop);
 
     if (score > best_value) {
       best_value = score;
@@ -1537,7 +1655,8 @@ i32 search_black(
           -beta,
           -alpha,
           statistics,
-          (is_pv && ply < pv_data->prev_pv_length));
+          (is_pv && ply < pv_data->prev_pv_length),
+          should_stop);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_black++;
@@ -1594,7 +1713,8 @@ i32 search_black(
         -beta,
         -alpha,
         statistics,
-        (is_pv && ply < pv_data->prev_pv_length));
+        (is_pv && ply < pv_data->prev_pv_length),
+        should_stop);
 
     if (score >= beta) {
       statistics->search_beta_cutoff_black++;
@@ -1626,7 +1746,12 @@ i32 search_white(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv) {
+    bool is_pv,
+    _Atomic bool *should_stop) {
+
+  if (atomic_load(should_stop)) {
+    return alpha;
+  }
 
   // Increment white position evaluation count
   statistics->search_positions_white++;
@@ -1718,7 +1843,8 @@ i32 search_white(
         -beta,
         -alpha,
         statistics,
-        (is_pv && ply < pv_data->prev_pv_length));
+        (is_pv && ply < pv_data->prev_pv_length),
+        should_stop);
 
     if (score > best_value) {
       best_value = score;
@@ -1788,7 +1914,8 @@ i32 search_white(
           -beta,
           -alpha,
           statistics,
-          (is_pv && ply < pv_data->prev_pv_length));
+          (is_pv && ply < pv_data->prev_pv_length),
+          should_stop);
 
       // printf("score: %d", score);
       // print_board(new_b);
@@ -1868,7 +1995,8 @@ i32 search_white(
           -beta,
           -alpha,
           statistics,
-          (is_pv && ply < pv_data->prev_pv_length));
+          (is_pv && ply < pv_data->prev_pv_length),
+          should_stop);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_white++;
@@ -1924,7 +2052,8 @@ i32 search_white(
         -beta,
         -alpha,
         statistics,
-        (is_pv && ply < pv_data->prev_pv_length));
+        (is_pv && ply < pv_data->prev_pv_length),
+        should_stop);
 
     if (score >= beta) {
       statistics->search_beta_cutoff_white++;

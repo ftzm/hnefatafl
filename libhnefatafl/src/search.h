@@ -1,6 +1,7 @@
 #include "types.h"
 #include "score.h"
 #include "stdbool.h"
+#include "stdatomic.h"
 
 typedef struct position_set position_set;
 
@@ -71,8 +72,8 @@ i32 quiesce_white(
 
 pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
-pv_line search_white_runner(board b, int depth);
-pv_line search_black_runner(board b, int depth);
+pv_line search_white_runner(board b, int depth, int time_limit, stats *statistics);
+pv_line search_black_runner(board b, int depth, int time_limit, stats *statistics);
 
 void destroy_pv_line(pv_line *line);
 
@@ -96,7 +97,8 @@ i32 search_black(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv);
+    bool is_pv,
+    _Atomic bool *should_stop);
 
 i32 search_white(
     pv *pv_data,
@@ -110,4 +112,5 @@ i32 search_white(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv);
+    bool is_pv,
+    _Atomic bool *should_stop);
