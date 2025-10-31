@@ -96,15 +96,15 @@
 
         update-materialized = pkgs.writeShellScript "update-all-materialized-${system}" ''
           set -eEuo pipefail
-          echo "Updating project materialization" >&2
+          BACKEND_DIR="''${1:-$(pwd)}"
+
+          echo "Updating project materialization in $BACKEND_DIR" >&2
           current_sha=$(${pkgs.backend.plan-nix.passthru.calculateMaterializedSha})
           echo "saved sha:"
           echo "${materializedSha}"
           echo "current sha:"
           echo "$current_sha"
 
-          # Always work relative to the backend directory
-          BACKEND_DIR="$(dirname "$(readlink -f "${./flake.nix}")")"
           cd "$BACKEND_DIR"
 
           rm -rf materialized
@@ -118,7 +118,9 @@
           apps = {
             update-materialized = {
               type = "app";
-              program = update-materialized.outPath;
+              program = "${pkgs.writeShellScript "update-materialized-wrapper" ''
+                exec ${update-materialized} "$(git rev-parse --show-toplevel)/backend" "$@"
+              ''}";
             };
             test-bindings = bindingsTest.app;
           };
