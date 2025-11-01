@@ -19,23 +19,20 @@
     backend.url = "./backend";
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      flake-utils,
-      git-hooks,
-      backend,
-    }:
-    flake-utils.lib.eachSystem [ "x86_64-linux" ] (
-      system:
-      let
+  outputs = {
+    self,
+    nixpkgs,
+    flake-utils,
+    git-hooks,
+    backend,
+  }:
+    flake-utils.lib.eachSystem ["x86_64-linux"] (
+      system: let
         pkgs = import nixpkgs {
           inherit system;
         };
-        libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix { };
-      in
-      {
+        libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix {};
+      in {
         packages = {
           libhnefatafl = libhnefatafl.static;
           inherit (backend.packages.${system}) "hnefatafl:lib:bindings";
@@ -45,10 +42,9 @@
           inherit (backend.apps.${system}) test-bindings;
         };
         devShells = {
-          default =
-            let
-              inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
-            in
+          default = let
+            inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
+          in
             pkgs.mkShell {
               inputsFrom = [
                 libhnefatafl.devShell
@@ -80,6 +76,7 @@
                   enable = true;
                   name = "ci-build-and-test";
                   entry = "${pkgs.bash}/bin/bash";
+                  always_run = true;
                   args = [
                     "-c"
                     ''
@@ -91,7 +88,7 @@
                       fi
                     ''
                   ];
-                  stages = [ "pre-merge-commit" ];
+                  stages = ["pre-merge-commit"];
                 };
               };
           };
