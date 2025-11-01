@@ -19,20 +19,23 @@
     backend.url = "./backend";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    git-hooks,
-    backend,
-  }:
-    flake-utils.lib.eachSystem ["x86_64-linux"] (
-      system: let
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      git-hooks,
+      backend,
+    }:
+    flake-utils.lib.eachSystem [ "x86_64-linux" ] (
+      system:
+      let
         pkgs = import nixpkgs {
           inherit system;
         };
-        libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix {};
-      in {
+        libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix { };
+      in
+      {
         packages = {
           libhnefatafl = libhnefatafl.static;
           inherit (backend.packages.${system}) "hnefatafl:lib:bindings";
@@ -42,11 +45,15 @@
           inherit (backend.apps.${system}) test-bindings;
         };
         devShells = {
-          default = let
-            inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
-          in
+          default =
+            let
+              inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
+            in
             pkgs.mkShell {
-              inputsFrom = [libhnefatafl.devShell backend.devShells.${system}.default];
+              inputsFrom = [
+                libhnefatafl.devShell
+                backend.devShells.${system}.default
+              ];
               # buildInputs = enabledPackages;
               inherit shellHook;
             };
@@ -57,12 +64,18 @@
           pre-commit-check = git-hooks.lib.${system}.run {
             src = ./.;
             hooks =
-              backend.hooks.${system}
+              libhnefatafl.hooks
+              // backend.hooks.${system}
               // {
                 no-commit-to-branch = {
                   enable = true;
-                  args = ["--branch" "master"];
+                  args = [
+                    "--branch"
+                    "master"
+                  ];
                 };
+                check-merge-conflicts.enable = true;
+                commitizen.enable = true;
               };
           };
         };

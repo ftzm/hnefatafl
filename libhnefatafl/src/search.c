@@ -16,40 +16,42 @@
 #include "x86intrin.h" // IWYU pragma: export
 #include "zobrist.h"
 #include <pthread.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 
 // Timer thread data structure
 typedef struct {
-    _Atomic bool *should_stop;
-    _Atomic bool *search_finished;
-    int time_limit_ms;
+  _Atomic bool *should_stop;
+  _Atomic bool *search_finished;
+  int time_limit_ms;
 } timer_data;
 
 // Timer thread function
-void* timer_thread(void* arg) {
-    timer_data* data = (timer_data*)arg;
+void *timer_thread(void *arg) {
+  timer_data *data = (timer_data *)arg;
 
-    // Check periodically instead of one long sleep
-    // Use the time limit itself for intervals below 100ms, otherwise use 100ms
-    int sleep_interval_ms = (data->time_limit_ms < 100) ? data->time_limit_ms : 100;
-    if (sleep_interval_ms < 1) sleep_interval_ms = 1;  // Minimum 1ms
+  // Check periodically instead of one long sleep
+  // Use the time limit itself for intervals below 100ms, otherwise use 100ms
+  int sleep_interval_ms =
+      (data->time_limit_ms < 100) ? data->time_limit_ms : 100;
+  if (sleep_interval_ms < 1)
+    sleep_interval_ms = 1; // Minimum 1ms
 
-    int elapsed = 0;
-    while (elapsed < data->time_limit_ms) {
-        // Check if search finished early
-        if (atomic_load(data->search_finished)) {
-            return NULL;  // Exit early
-        }
-
-        // Sleep in appropriate intervals (usleep takes microseconds)
-        usleep(sleep_interval_ms * 1000);
-        elapsed += sleep_interval_ms;
+  int elapsed = 0;
+  while (elapsed < data->time_limit_ms) {
+    // Check if search finished early
+    if (atomic_load(data->search_finished)) {
+      return NULL; // Exit early
     }
 
-    // Time limit reached - signal search to stop
-    atomic_store(data->should_stop, true);
-    return NULL;
+    // Sleep in appropriate intervals (usleep takes microseconds)
+    usleep(sleep_interval_ms * 1000);
+    elapsed += sleep_interval_ms;
+  }
+
+  // Time limit reached - signal search to stop
+  atomic_store(data->should_stop, true);
+  return NULL;
 }
 
 // typedef struct negamax_ab_result {
@@ -1100,14 +1102,7 @@ i32 quiesce_white(
     layer ls[400] = {0};
     layer ls_r[400] = {0};
     int total = 0;
-    moves_from_layers(
-        &layers,
-        b.white,
-        b.white_r,
-        ms,
-        ls,
-        ls_r,
-        &total);
+    moves_from_layers(&layers, b.white, b.white_r, ms, ls, ls_r, &total);
 
     // iterate
     for (int i = 0; i < total; i++) {
@@ -1230,14 +1225,7 @@ i32 quiesce_white(
   mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
   total = 0;
-  moves_from_layers(
-      &capture_layers,
-      b.white,
-      b.white_r,
-      ms,
-      ls,
-      ls_r,
-      &total);
+  moves_from_layers(&capture_layers, b.white, b.white_r, ms, ls, ls_r, &total);
 
   // hacky bounds check
   assert(total < 100);
@@ -1339,7 +1327,8 @@ pv_line quiesce_black_runner(board b) {
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line search_black_runner(board b, int depth, int time_limit, stats *statistics) {
+pv_line
+search_black_runner(board b, int depth, int time_limit, stats *statistics) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, true);
   position_set *positions = create_position_set(100);
@@ -1357,22 +1346,16 @@ pv_line search_black_runner(board b, int depth, int time_limit, stats *statistic
   timer_data timer_info;
 
   if (time_limit > 0) {
-    timer_info = (timer_data){
-        .should_stop = &should_stop,
-        .search_finished = &search_finished,
-        .time_limit_ms = time_limit
-    };
+    timer_info = (timer_data){.should_stop = &should_stop,
+                              .search_finished = &search_finished,
+                              .time_limit_ms = time_limit};
 
-    thread_result = pthread_create(
-        &timer_thread_id,
-        NULL,
-        timer_thread,
-        &timer_info
-    );
+    thread_result =
+        pthread_create(&timer_thread_id, NULL, timer_thread, &timer_info);
 
     if (thread_result != 0) {
-        // Handle thread creation error - continue without timer
-        fprintf(stderr, "Warning: Failed to create timer thread\n");
+      // Handle thread creation error - continue without timer
+      fprintf(stderr, "Warning: Failed to create timer thread\n");
     }
   }
 
@@ -1397,14 +1380,15 @@ pv_line search_black_runner(board b, int depth, int time_limit, stats *statistic
 
   // Wait for timer thread to finish (should exit quickly now)
   if (time_limit > 0 && thread_result == 0) {
-      pthread_join(timer_thread_id, NULL);
+    pthread_join(timer_thread_id, NULL);
   }
 
   destroy_position_set(positions);
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line search_white_runner(board b, int depth, int time_limit, stats *statistics) {
+pv_line
+search_white_runner(board b, int depth, int time_limit, stats *statistics) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, false);
   position_set *positions = create_position_set(100);
@@ -1422,22 +1406,16 @@ pv_line search_white_runner(board b, int depth, int time_limit, stats *statistic
   timer_data timer_info;
 
   if (time_limit > 0) {
-    timer_info = (timer_data){
-        .should_stop = &should_stop,
-        .search_finished = &search_finished,
-        .time_limit_ms = time_limit
-    };
+    timer_info = (timer_data){.should_stop = &should_stop,
+                              .search_finished = &search_finished,
+                              .time_limit_ms = time_limit};
 
-    thread_result = pthread_create(
-        &timer_thread_id,
-        NULL,
-        timer_thread,
-        &timer_info
-    );
+    thread_result =
+        pthread_create(&timer_thread_id, NULL, timer_thread, &timer_info);
 
     if (thread_result != 0) {
-        // Handle thread creation error - continue without timer
-        fprintf(stderr, "Warning: Failed to create timer thread\n");
+      // Handle thread creation error - continue without timer
+      fprintf(stderr, "Warning: Failed to create timer thread\n");
     }
   }
 
@@ -1462,7 +1440,7 @@ pv_line search_white_runner(board b, int depth, int time_limit, stats *statistic
 
   // Wait for timer thread to finish (should exit quickly now)
   if (time_limit > 0 && thread_result == 0) {
-      pthread_join(timer_thread_id, NULL);
+    pthread_join(timer_thread_id, NULL);
   }
 
   destroy_position_set(positions);
