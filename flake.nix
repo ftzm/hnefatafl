@@ -42,14 +42,21 @@
           inherit (backend.apps.${system}) test-bindings;
         };
         devShells = {
-          default = pkgs.mkShell {inputsFrom = [libhnefatafl.devShell backend.devShells.${system}.default];};
+          default = let
+            inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
+          in
+            pkgs.mkShell {
+              inputsFrom = [libhnefatafl.devShell backend.devShells.${system}.default];
+              # buildInputs = enabledPackages;
+              inherit shellHook;
+            };
         };
         # Run the hooks in a sandbox with `nix flake check`.
         # Read-only filesystem and no internet access.
         checks = {
           pre-commit-check = git-hooks.lib.${system}.run {
             src = ./.;
-            hooks = backend.hooks;
+            hooks = backend.hooks.${system};
           };
         };
       }
