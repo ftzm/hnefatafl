@@ -2261,8 +2261,14 @@ generator_moves_black_cb(struct theft *t, void *env, void **instance) {
   int total2 = 0;
   move_data current_move;
 
-  while (next_move_from_layers(&layers, b.black, b.black_r, &state, &current_move)) {
-    if (total2 >= 735) break; // Safety check
+  while (next_move_from_layers(
+      &layers,
+      b.black,
+      b.black_r,
+      &state,
+      &current_move)) {
+    if (total2 >= 735)
+      break; // Safety check
     ms2[total2] = current_move.m;
     total2++;
   }
@@ -2326,8 +2332,14 @@ generator_moves_white_cb(struct theft *t, void *env, void **instance) {
   int total2 = 0;
   move_data current_move;
 
-  while (next_move_from_layers(&layers, b.white, b.white_r, &state, &current_move)) {
-    if (total2 >= 335) break; // Safety check
+  while (next_move_from_layers(
+      &layers,
+      b.white,
+      b.white_r,
+      &state,
+      &current_move)) {
+    if (total2 >= 335)
+      break; // Safety check
     ms2[total2] = current_move.m;
     total2++;
   }
@@ -2371,20 +2383,21 @@ TEST test_generator_moves_white(void) {
 
 // The king will hop above black piece if we don't use king_board_occ
 TEST king_hopover() {
-  board b = read_board("     +---------------------------------+"
-                       " 11  | .  .  X  .  .  .  .  .  O  .  . |"
-                       " 10  | .  .  .  .  .  .  .  .  .  X  . |"
-                       "  9  | .  .  .  .  .  X  .  .  O  #  . |"
-                       "  8  | .  .  .  .  .  .  .  .  .  .  . |"
-                       "  7  | .  .  .  .  .  .  .  .  .  .  . |"
-                       "  6  | .  .  .  .  .  .  .  .  .  .  . |"
-                       "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-                       "  4  | .  .  .  .  .  .  .  .  .  .  . |"
-                       "  3  | X  .  .  .  .  .  .  .  .  .  X |"
-                       "  2  | .  X  .  .  .  .  .  .  .  .  . |"
-                       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
-                       "     +---------------------------------+"
-                       "       a  b  c  d  e  f  g  h  i  j  k  ");
+  board b = read_board(
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  O  .  . |"
+      " 10  | .  .  .  .  .  .  .  .  .  X  . |"
+      "  9  | .  .  .  .  .  X  .  .  O  #  . |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  .  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ");
   layer capture_dests = read_layer(
       ".  .  .  .  .  .  .  .  .  X  ."
       ".  .  .  .  .  .  .  .  .  .  ."

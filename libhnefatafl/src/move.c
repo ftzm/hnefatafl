@@ -622,7 +622,6 @@ layer rightward_moves_layer_king(layer movers, layer occ) {
   return output;
 }
 
-
 /* The idea for this will be to generate the whole struct up front and provide
  * it to search functions. These functions can then mask the portions they need,
  * such as king captures or other tactical moves, and then extract moves from
@@ -631,7 +630,6 @@ layer rightward_moves_layer_king(layer movers, layer occ) {
  * generator-style approach to extraction that allows stopping before all moves
  * have been extracted, albiet requiring more storage than the existing
  * implementation. */
-
 
 bool move_state_from_cursor(
     const move_layers *layers,

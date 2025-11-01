@@ -1,8 +1,8 @@
 #include "zobrist.h"
-#include "zobrist_constants.h"
 #include "board.h"
 #include "stdbool.h"
 #include "x86intrin.h"
+#include "zobrist_constants.h"
 
 u64 hash_for_board(board b, bool is_black_turn) {
   u64 hash = 0;

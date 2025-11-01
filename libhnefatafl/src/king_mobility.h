@@ -1,7 +1,7 @@
 #pragma once
 
-#include "types.h"
 #include "stdbool.h"
+#include "types.h"
 
 bool corner_moves_1(
     const layer occ,

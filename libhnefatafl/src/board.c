@@ -25,11 +25,10 @@ int boards_equal(board a, board b) {
 
 // todo: take reference
 inline layer board_occ(board b) {
-  return (layer){
-      {// We can't put the throne in here becase it shouldn't function
-       // as a blocker
-       b.black._[0] | b.white._[0] | b.king._[0] | corners._[0],
-       b.black._[1] | b.white._[1] | b.king._[1] | corners._[1]}};
+  return (layer){{// We can't put the throne in here becase it shouldn't
+                  // function as a blocker
+                  b.black._[0] | b.white._[0] | b.king._[0] | corners._[0],
+                  b.black._[1] | b.white._[1] | b.king._[1] | corners._[1]}};
 }
 
 // todo: take reference

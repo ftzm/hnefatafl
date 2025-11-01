@@ -247,6 +247,7 @@ in
   hooks = {
     clang-format = {
       enable = true;
+      verbose = true;
     };
   };
 }

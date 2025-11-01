@@ -1,5 +1,4 @@
 #include "move_generator.h"
-#include "move.h"
 #include "assert.h"
 #include "board.h"
 #include "capture.h"
@@ -9,6 +8,7 @@
 #include "io.h"
 #include "king_mobility.h"
 #include "layer.h"
+#include "move.h"
 #include "move_legacy.h"
 #include "move_legacy_mm.h"
 #include "stdbool.h"
@@ -64,18 +64,34 @@ move_generator_cb(struct theft *t, void *env, void **instance) {
   move generator_moves[335];
   int generator_total = 0;
   move_generator gen;
-  init_move_generator(&gen, targets, targets_r, b.black, b.black_r, board_occ(b), board_occ_r(b));
-  
+  init_move_generator(
+      &gen,
+      targets,
+      targets_r,
+      b.black,
+      b.black_r,
+      board_occ(b),
+      board_occ_r(b));
+
   move current_move;
   while (next_move(&gen, &current_move)) {
     generator_moves[generator_total] = current_move;
     generator_total++;
-    if (generator_total >= 335) break; // Safety check
+    if (generator_total >= 335)
+      break; // Safety check
   }
 
   // Sort both arrays for comparison
-  qsort(reference_moves, reference_total, sizeof(move), (ConstCompareListElements)cmp_moves);
-  qsort(generator_moves, generator_total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(
+      reference_moves,
+      reference_total,
+      sizeof(move),
+      (ConstCompareListElements)cmp_moves);
+  qsort(
+      generator_moves,
+      generator_total,
+      sizeof(move),
+      (ConstCompareListElements)cmp_moves);
 
   // Find differences
   struct generator_comparison comp;
@@ -217,13 +233,21 @@ king_move_generator_cb(struct theft *t, void *env, void **instance) {
   move generator_moves[335];
   int generator_total = 0;
   move_generator gen;
-  init_move_generator_king(&gen, targets, targets_r, b.king, b.king_r, king_board_occ(b), king_board_occ_r(b));
-  
+  init_move_generator_king(
+      &gen,
+      targets,
+      targets_r,
+      b.king,
+      b.king_r,
+      king_board_occ(b),
+      king_board_occ_r(b));
+
   move current_move;
   while (next_move_king(&gen, &current_move)) {
     generator_moves[generator_total] = current_move;
     generator_total++;
-    if (generator_total >= 335) break; // Safety check
+    if (generator_total >= 335)
+      break; // Safety check
   }
 
   // Check if moves are generated in the same order (before sorting)
@@ -232,19 +256,34 @@ king_move_generator_cb(struct theft *t, void *env, void **instance) {
     for (int i = 0; i < reference_total; i++) {
       if (!MOVES_EQUAL(reference_moves[i], generator_moves[i])) {
         order_matches = false;
-        printf("Order mismatch at index %d: ref(%d->%d) vs gen(%d->%d)\n", 
-               i, reference_moves[i].orig, reference_moves[i].dest,
-               generator_moves[i].orig, generator_moves[i].dest);
+        printf(
+            "Order mismatch at index %d: ref(%d->%d) vs gen(%d->%d)\n",
+            i,
+            reference_moves[i].orig,
+            reference_moves[i].dest,
+            generator_moves[i].orig,
+            generator_moves[i].dest);
         break;
       }
     }
   } else {
-    printf("Total count mismatch: ref=%d vs gen=%d\n", reference_total, generator_total);
+    printf(
+        "Total count mismatch: ref=%d vs gen=%d\n",
+        reference_total,
+        generator_total);
   }
-  
+
   // Sort both arrays for set comparison
-  qsort(reference_moves, reference_total, sizeof(move), (ConstCompareListElements)cmp_moves);
-  qsort(generator_moves, generator_total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(
+      reference_moves,
+      reference_total,
+      sizeof(move),
+      (ConstCompareListElements)cmp_moves);
+  qsort(
+      generator_moves,
+      generator_total,
+      sizeof(move),
+      (ConstCompareListElements)cmp_moves);
 
   // Find differences
   struct generator_comparison comp;

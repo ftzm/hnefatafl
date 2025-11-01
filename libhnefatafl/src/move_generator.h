@@ -1,7 +1,7 @@
 #pragma once
 
-#include "types.h"
 #include "stdbool.h"
+#include "types.h"
 
 // Generator state constants
 enum generator_state {
@@ -72,7 +72,7 @@ typedef struct move_generator {
   layer movers_r;
   layer occ;
   layer occ_r;
-  
+
   // Derived values calculated once during initialization
   u16 center_occ;
   u16 center_occ_r;
@@ -82,14 +82,14 @@ typedef struct move_generator {
   layer leftward_occ_r;
   layer rightward_occ;
   layer rightward_occ_r;
-  
+
   // Generator state
   int state;
   u64 dests;
   u64 origs;
   u64 current_orig_bit;
   u8 current_orig;
-  
+
   // For rightward moves
   u64 move_mask;
 } move_generator;

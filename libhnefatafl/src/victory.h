@@ -1,5 +1,5 @@
-#include "types.h"
 #include "stdbool.h"
+#include "types.h"
 
 bool king_capture_check_ref(const board *b);
 bool king_capture_check(const board *b);

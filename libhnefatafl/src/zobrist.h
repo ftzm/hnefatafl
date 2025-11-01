@@ -1,7 +1,7 @@
 #pragma once
 
-#include "types.h"
 #include "stdbool.h"
+#include "types.h"
 #include "util.h"
 
 u64 hash_for_board(board b, bool is_black_turn);

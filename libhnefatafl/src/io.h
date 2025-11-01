@@ -1,7 +1,7 @@
 #pragma once
 
-#include "util.h"
 #include "types.h"
+#include "util.h"
 
 layer read_layer(const char *string, u8 symbol);
 
@@ -35,12 +35,13 @@ typedef struct board_string {
 
 board_string_t to_board_string(board board);
 
-board_string_t to_board_move_string(board board, int orig, int dest, layer captures);
+board_string_t
+to_board_move_string(board board, int orig, int dest, layer captures);
 
 struct move_string {
   char buf[12];
 };
 
-struct move_string fmt_move(int orig, int dest); 
+struct move_string fmt_move(int orig, int dest);
 
-void print_move(int orig, int dest); 
+void print_move(int orig, int dest);

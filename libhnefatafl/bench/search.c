@@ -1,13 +1,13 @@
 #include "search.h"
 #include "board.h"
-#include "ubench.h"
+#include "capture.h"
+#include "constants.h"
+#include "io.h"
+#include "move.h"
 #include "position_set.h"
 #include "score.h"
+#include "ubench.h"
 #include "zobrist.h"
-#include "constants.h"
-#include "move.h"
-#include "io.h"
-#include "capture.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,9 +30,13 @@ void print_search_stats(const stats *s) {
   printf("Search - Total positions: %d\n", total_search_positions);
   printf("Search - Total beta cutoffs: %d\n", total_search_cutoffs);
   printf("Quiescence - Black positions: %d\n", s->quiescence_positions_black);
-  printf("Quiescence - Black beta cutoffs: %d\n", s->quiencence_beta_cutoff_black);
+  printf(
+      "Quiescence - Black beta cutoffs: %d\n",
+      s->quiencence_beta_cutoff_black);
   printf("Quiescence - White positions: %d\n", s->quiescence_positions_white);
-  printf("Quiescence - White beta cutoffs: %d\n", s->quiencence_beta_cutoff_white);
+  printf(
+      "Quiescence - White beta cutoffs: %d\n",
+      s->quiencence_beta_cutoff_white);
   printf("Quiescence - Total positions: %d\n", total_quiescence_positions);
   printf("Quiescence - Total beta cutoffs: %d\n", total_quiescence_cutoffs);
   printf("Quiescence - Limit reached: %d\n", s->quiescence_limit_reached);
@@ -46,7 +50,8 @@ void print_pv_line(const pv_line *pv) {
   printf("Moves (%d): ", pv->length);
   for (int i = 0; i < pv->length; i++) {
     printf("%d->%d", pv->moves[i].orig, pv->moves[i].dest);
-    if (i < pv->length - 1) printf(" ");
+    if (i < pv->length - 1)
+      printf(" ");
   }
   printf("\n\n");
 
@@ -100,7 +105,6 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
   memcpy(moves, pv_data->pv_table[0], sizeof(move) * pv_data->pv_length[0]);
   return (pv_line){is_black_turn, moves, pv_data->pv_length[0], result};
 }
-
 
 UBENCH_EX(search, black_depth_3) {
   static bool black_depth_3_printed = false;

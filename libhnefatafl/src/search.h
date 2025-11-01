@@ -1,7 +1,7 @@
-#include "types.h"
 #include "score.h"
-#include "stdbool.h"
 #include "stdatomic.h"
+#include "stdbool.h"
+#include "types.h"
 
 typedef struct position_set position_set;
 
@@ -72,18 +72,19 @@ i32 quiesce_white(
 
 pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
-pv_line search_white_runner(board b, int depth, int time_limit, stats *statistics);
-pv_line search_black_runner(board b, int depth, int time_limit, stats *statistics);
+pv_line
+search_white_runner(board b, int depth, int time_limit, stats *statistics);
+pv_line
+search_black_runner(board b, int depth, int time_limit, stats *statistics);
 
 void destroy_pv_line(pv_line *line);
 
 // Helper macro to create an empty pv struct
 #define CREATE_EMPTY_PV()                                                      \
-  (&(pv){                                                                      \
-      .pv_length = {0},                                                        \
-      .pv_table = {{0}},                                                       \
-      .prev_pv = {0},                                                          \
-      .prev_pv_length = 0})
+  (&(pv){.pv_length = {0},                                                     \
+         .pv_table = {{0}},                                                    \
+         .prev_pv = {0},                                                       \
+         .prev_pv_length = 0})
 
 i32 search_black(
     pv *pv_data,

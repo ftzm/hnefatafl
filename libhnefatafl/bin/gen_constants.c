@@ -865,7 +865,7 @@ int main() {
                                    " .  .  .  .  .  .  .  .  .  .  . "
                                    " .  .  .  .  .  X  .  .  .  .  . "
                                    " .  .  .  X  X  X  X  X  .  .  . ";
-  
+
   layer start_black = read_layer(start_board_string, 'X');
   layer start_white = read_layer(start_board_string, 'O');
   layer start_king = read_layer(start_board_string, '#');
@@ -874,7 +874,7 @@ int main() {
   layer start_king_r = rotate_layer_right(start_king);
 
   print_layer_direct(start_black, "start_black");
-  print_layer_direct(start_white, "start_white");  
+  print_layer_direct(start_white, "start_white");
   print_layer_direct(start_king, "start_king");
   print_layer_direct(start_black_r, "start_black_r");
   print_layer_direct(start_white_r, "start_white_r");

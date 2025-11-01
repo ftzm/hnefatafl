@@ -1091,7 +1091,6 @@ SUITE(search_black_shallow) {
 
   // takes trade that results in better position
   //
-
 }
 SUITE(search_white_shallow) {
 
@@ -1220,6 +1219,4 @@ TEST time_limit_works(void) {
   PASS();
 }
 
-SUITE(search_time_limiting) {
-  RUN_TEST(time_limit_works);
-}
+SUITE(search_time_limiting) { RUN_TEST(time_limit_works); }

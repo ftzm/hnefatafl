@@ -1,8 +1,8 @@
 #pragma once
 
-#include "theft.h"
-#include "constants.h"
 #include "board.h"
+#include "constants.h"
+#include "theft.h"
 
 inline u64 theft_random_choice_between(struct theft *t, u64 floor, u64 ceil) {
   (void)t;

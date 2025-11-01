@@ -202,8 +202,8 @@ ahead of time and stored in the struct.
     u16 below = orig_bit - 1;                                                  \
     u16 above_highest_occ_mask =                                               \
         (_gen->center_occ##_r & below)                                         \
-            ? ((u16)-1 << (16 - __lzcnt16(_gen->center_occ##_r & below)))      \
-            : (u16)-1;                                                         \
+            ? ((u16) - 1 << (16 - __lzcnt16(_gen->center_occ##_r & below)))    \
+            : (u16) - 1;                                                       \
     _gen->dests =                                                              \
         GET_CENTER_ROW(_gen->targets##_r) & below & above_highest_occ_mask;    \
   } while (0)

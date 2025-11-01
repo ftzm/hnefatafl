@@ -128,7 +128,6 @@ inline void into_row(layer *l, u16 row, int n) {
 #define LEGAL_FILE_MASK_10_1 35201560350722ULL
 #define LEGAL_FILE_MASK_10 ((layer){{18023198899568640ULL, 35201560350722ULL}})
 
-
 #define ADJUST_AXIS_VAL_file(_i) _i
 #define ADJUST_AXIS_VAL_rank(_i) (10 - _i)
 #define ADJUST_AXIS_VAL(_axis) JOIN(ADJUST_AXIS_VAL, _axis)(_axis)
@@ -250,7 +249,6 @@ const layer legal_file_masks[] = {
     LEGAL_FILE_MASK_10};
 
 #define LEGAL_FILE_MASK_DYN(_i) legal_file_masks[_i]
-
 
 const layer file_mask_adjacent[] = {
     FILE_MASK_EDGE_ADJACENT_0,

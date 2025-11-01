@@ -27,7 +27,6 @@ SUITE_EXTERN(zobrist_suite);
 GREATEST_MAIN_DEFS();
 
 int main(int argc, char **argv) {
-  
 
   GREATEST_MAIN_BEGIN();
   RUN_SUITE(base64_suite);
