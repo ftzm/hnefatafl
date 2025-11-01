@@ -10,10 +10,10 @@ print_header() {
 }
 
 print_header "Building libhnefatafl"
-if nix path-info .#libhnefatafl.all >/dev/null 2>&1; then
+if nix path-info .#libhnefatafl-all >/dev/null 2>&1; then
     echo "cached"
 else
-    nix build .#libhnefatafl.all --print-build-logs
+    nix build .#libhnefatafl-all --print-build-logs
 fi
 
 print_header "Running libhnefatafl tests"
