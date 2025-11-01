@@ -34,7 +34,7 @@
         libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix {};
       in {
         packages = {
-          libhnefatafl = libhnefatafl;
+          libhnefatafl = libhnefatafl.static;
           inherit (backend.packages.${system}) "hnefatafl:lib:bindings";
         };
         apps = {
@@ -56,7 +56,14 @@
         checks = {
           pre-commit-check = git-hooks.lib.${system}.run {
             src = ./.;
-            hooks = backend.hooks.${system};
+            hooks =
+              backend.hooks.${system}
+              // {
+                no-commit-to-branch = {
+                  enable = true;
+                  args = ["--branch" "master"];
+                };
+              };
           };
         };
       }
