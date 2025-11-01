@@ -88,7 +88,7 @@
                       fi
                     ''
                   ];
-                  stages = ["pre-merge-commit"];
+                  stages = ["pre-commit" "pre-merge-commit"];
                 };
               };
           };
