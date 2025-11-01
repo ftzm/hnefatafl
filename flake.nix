@@ -76,6 +76,23 @@
                 };
                 check-merge-conflicts.enable = true;
                 commitizen.enable = true;
+                ci-build-and-test = {
+                  enable = true;
+                  name = "ci-build-and-test";
+                  entry = "${pkgs.bash}/bin/bash";
+                  args = [
+                    "-c"
+                    ''
+                      # Check if we're merging to master
+                      target_branch=$(git rev-parse --abbrev-ref HEAD)
+                      if [ "$target_branch" = "master" ]; then
+                        echo "Detected merge to master branch, running CI build and test..."
+                        exec ${pkgs.bash}/bin/bash ./ci-build-and-test.sh
+                      fi
+                    ''
+                  ];
+                  stages = [ "pre-merge-commit" ];
+                };
               };
           };
         };
