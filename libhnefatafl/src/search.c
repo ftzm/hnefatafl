@@ -1327,16 +1327,58 @@ pv_line quiesce_black_runner(board b) {
   return create_pv_line(&pv_data, true, result);
 }
 
-pv_line
-search_black_runner(board b, int depth, int time_limit, stats *statistics) {
+search_result search_runner_generic(
+    board b,
+    int depth,
+    _Atomic bool *should_stop,
+    search_func search_fn,
+    bool is_black) {
   pv pv_data = {0};
-  u64 position_hash = hash_for_board(b, true);
+  u64 position_hash = hash_for_board(b, is_black);
   position_set *positions = create_position_set(100);
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
   int ply = 0;
   i32 alpha = -INFINITY;
   i32 beta = INFINITY;
+  stats statistics = {0};
+
+  // Run the search
+  i32 result = search_fn(
+      &pv_data,
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      depth,
+      alpha,
+      beta,
+      &statistics,
+      true,
+      should_stop);
+
+  destroy_position_set(positions);
+  return (search_result){create_pv_line(&pv_data, is_black, result),
+                         statistics};
+}
+
+search_result
+search_black_runner(board b, int depth, _Atomic bool *should_stop) {
+  return search_runner_generic(b, depth, should_stop, search_black, true);
+}
+
+search_result
+search_white_runner(board b, int depth, _Atomic bool *should_stop) {
+  return search_runner_generic(b, depth, should_stop, search_white, false);
+}
+
+pv_line search_with_timeout(
+    search_runner_func runner,
+    board b,
+    int depth,
+    int time_limit) {
   _Atomic bool should_stop = false;
   _Atomic bool search_finished = false;
 
@@ -1360,20 +1402,7 @@ search_black_runner(board b, int depth, int time_limit, stats *statistics) {
   }
 
   // Run the search
-  i32 result = search_black(
-      &pv_data,
-      positions,
-      &weights,
-      s,
-      b,
-      position_hash,
-      ply,
-      depth,
-      alpha,
-      beta,
-      statistics,
-      true,
-      &should_stop);
+  search_result result = runner(b, depth, &should_stop);
 
   // Signal that search is finished
   atomic_store(&search_finished, true);
@@ -1383,68 +1412,156 @@ search_black_runner(board b, int depth, int time_limit, stats *statistics) {
     pthread_join(timer_thread_id, NULL);
   }
 
+  return result.pv;
+}
+
+pv_line search_white_with_timeout(board b, int depth, int time_limit) {
+  return search_with_timeout(search_white_runner, b, depth, time_limit);
+}
+
+pv_line search_black_with_timeout(board b, int depth, int time_limit) {
+  return search_with_timeout(search_black_runner, b, depth, time_limit);
+}
+
+search_result search_runner_iterative_generic(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop,
+    search_func search_fn,
+    bool is_black) {
+  pv pv_data = {0};
+  u64 position_hash = hash_for_board(b, is_black);
+  position_set *positions = create_position_set(100);
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &b);
+  int ply = 0;
+  i32 alpha = -INFINITY;
+  i32 beta = INFINITY;
+  stats statistics = {0};
+
+  search_result result = {0};
+  _Atomic bool dummy_stop = false;
+
+  // Always do depth 1 first to guarantee we have a result
+  i32 search_result_score = search_fn(
+      &pv_data,
+      positions,
+      &weights,
+      s,
+      b,
+      position_hash,
+      ply,
+      1, // depth = 1
+      alpha,
+      beta,
+      &statistics,
+      true,
+      &dummy_stop); // Use dummy so depth-1 always completes
+
+  result.pv = create_pv_line(&pv_data, is_black, search_result_score);
+  result.statistics = statistics;
+
+  // If max_depth is 1, we're done
+  if (max_depth == 1) {
+    destroy_position_set(positions);
+    return result;
+  }
+
+  // Set up PV hint for subsequent iterations
+  memcpy(
+      pv_data.prev_pv,
+      pv_data.pv_table[0],
+      sizeof(move) * pv_data.pv_length[0]);
+  pv_data.prev_pv_length = pv_data.pv_length[0];
+
+  // Continue with iterative deepening from depth 2 to max_depth
+  for (int depth = 2; depth <= max_depth; depth++) {
+    // Check if we should stop before starting this iteration
+    if (atomic_load(should_stop)) {
+      break;
+    }
+
+    // Reset position set for each iteration
+    destroy_position_set(positions);
+    positions = create_position_set(100);
+
+    // Copy previous PV as hint for next iteration
+    memcpy(
+        pv_data.prev_pv,
+        pv_data.pv_table[0],
+        sizeof(move) * pv_data.pv_length[0]);
+    pv_data.prev_pv_length = pv_data.pv_length[0];
+
+    search_result_score = search_fn(
+        &pv_data,
+        positions,
+        &weights,
+        s,
+        b,
+        position_hash,
+        ply,
+        depth,
+        alpha,
+        beta,
+        &statistics,
+        true,
+        should_stop);
+
+    // Only update result if iteration completed (not stopped)
+    if (!atomic_load(should_stop)) {
+      destroy_pv_line(&result.pv);
+      result.pv = create_pv_line(&pv_data, is_black, search_result_score);
+      result.statistics = statistics;
+    } else {
+      // If stopped, break without updating result
+      break;
+    }
+  }
+
   destroy_position_set(positions);
-  return create_pv_line(&pv_data, true, result);
+  return result;
+}
+
+search_result search_black_runner_iterative(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop) {
+  return search_runner_iterative_generic(
+      b,
+      max_depth,
+      should_stop,
+      search_black,
+      true);
+}
+
+search_result search_white_runner_iterative(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop) {
+  return search_runner_iterative_generic(
+      b,
+      max_depth,
+      should_stop,
+      search_white,
+      false);
 }
 
 pv_line
-search_white_runner(board b, int depth, int time_limit, stats *statistics) {
-  pv pv_data = {0};
-  u64 position_hash = hash_for_board(b, false);
-  position_set *positions = create_position_set(100);
-  score_weights weights = init_default_weights();
-  score_state s = init_score_state(&weights, &b);
-  int ply = 0;
-  i32 alpha = -INFINITY;
-  i32 beta = INFINITY;
-  _Atomic bool should_stop = false;
-  _Atomic bool search_finished = false;
-
-  // Set up timer thread if time_limit > 0
-  pthread_t timer_thread_id;
-  int thread_result = -1;
-  timer_data timer_info;
-
-  if (time_limit > 0) {
-    timer_info = (timer_data){.should_stop = &should_stop,
-                              .search_finished = &search_finished,
-                              .time_limit_ms = time_limit};
-
-    thread_result =
-        pthread_create(&timer_thread_id, NULL, timer_thread, &timer_info);
-
-    if (thread_result != 0) {
-      // Handle thread creation error - continue without timer
-      fprintf(stderr, "Warning: Failed to create timer thread\n");
-    }
-  }
-
-  // Run the search
-  i32 result = search_white(
-      &pv_data,
-      positions,
-      &weights,
-      s,
+search_white_with_timeout_iterative(board b, int max_depth, int time_limit) {
+  return search_with_timeout(
+      search_white_runner_iterative,
       b,
-      position_hash,
-      ply,
-      depth,
-      alpha,
-      beta,
-      statistics,
-      true,
-      &should_stop);
+      max_depth,
+      time_limit);
+}
 
-  // Signal that search is finished
-  atomic_store(&search_finished, true);
-
-  // Wait for timer thread to finish (should exit quickly now)
-  if (time_limit > 0 && thread_result == 0) {
-    pthread_join(timer_thread_id, NULL);
-  }
-
-  destroy_position_set(positions);
-  return create_pv_line(&pv_data, false, result);
+pv_line
+search_black_with_timeout_iterative(board b, int max_depth, int time_limit) {
+  return search_with_timeout(
+      search_black_runner_iterative,
+      b,
+      max_depth,
+      time_limit);
 }
 
 /* We try moves in this order:

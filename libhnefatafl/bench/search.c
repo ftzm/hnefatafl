@@ -8,6 +8,7 @@
 #include "score.h"
 #include "ubench.h"
 #include "zobrist.h"
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,12 +110,17 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
 UBENCH_EX(search, black_depth_3) {
   static bool black_depth_3_printed = false;
   static pv_line saved_result;
-  stats statistics = {0};
+  static stats saved_statistics;
 
   UBENCH_DO_BENCHMARK() {
-    pv_line result = search_black_runner(start_board, 3, 0, &statistics);
+    _Atomic bool should_stop = false;
+    search_result search_res =
+        search_black_runner(start_board, 3, &should_stop);
+    pv_line result = search_res.pv;
+    stats statistics = search_res.statistics;
     if (!black_depth_3_printed) {
       saved_result = result;
+      saved_statistics = statistics;
     } else {
       destroy_pv_line(&result);
     }
@@ -123,8 +129,8 @@ UBENCH_EX(search, black_depth_3) {
 
   if (!black_depth_3_printed) {
     printf("\n=== Black Depth 3 Stats ===\n");
-    print_search_stats(&statistics);
-    print_pv_line(&saved_result);
+    print_search_stats(&saved_statistics);
+    // print_pv_line(&saved_result);
     destroy_pv_line(&saved_result);
     black_depth_3_printed = true;
   }
@@ -133,12 +139,17 @@ UBENCH_EX(search, black_depth_3) {
 UBENCH_EX(search, black_depth_4) {
   static bool black_depth_4_printed = false;
   static pv_line saved_result;
-  stats statistics = {0};
+  static stats saved_statistics;
 
   UBENCH_DO_BENCHMARK() {
-    pv_line result = search_black_runner(start_board, 4, 0, &statistics);
+    _Atomic bool should_stop = false;
+    search_result search_res =
+        search_black_runner(start_board, 4, &should_stop);
+    pv_line result = search_res.pv;
+    stats statistics = search_res.statistics;
     if (!black_depth_4_printed) {
       saved_result = result;
+      saved_statistics = statistics;
     } else {
       destroy_pv_line(&result);
     }
@@ -147,8 +158,8 @@ UBENCH_EX(search, black_depth_4) {
 
   if (!black_depth_4_printed) {
     printf("\n=== Black Depth 4 Stats ===\n");
-    print_search_stats(&statistics);
-    print_pv_line(&saved_result);
+    print_search_stats(&saved_statistics);
+    // print_pv_line(&saved_result);
     destroy_pv_line(&saved_result);
     black_depth_4_printed = true;
   }
@@ -157,12 +168,17 @@ UBENCH_EX(search, black_depth_4) {
 UBENCH_EX(search, black_depth_5) {
   static bool black_depth_5_printed = false;
   static pv_line saved_result;
-  stats statistics = {0};
+  static stats saved_statistics;
 
   UBENCH_DO_BENCHMARK() {
-    pv_line result = search_black_runner(start_board, 5, 0, &statistics);
+    _Atomic bool should_stop = false;
+    search_result search_res =
+        search_black_runner(start_board, 5, &should_stop);
+    pv_line result = search_res.pv;
+    stats statistics = search_res.statistics;
     if (!black_depth_5_printed) {
       saved_result = result;
+      saved_statistics = statistics;
     } else {
       destroy_pv_line(&result);
     }
@@ -171,10 +187,97 @@ UBENCH_EX(search, black_depth_5) {
 
   if (!black_depth_5_printed) {
     printf("\n=== Black Depth 5 Stats ===\n");
-    print_search_stats(&statistics);
-    print_pv_line(&saved_result);
+    print_search_stats(&saved_statistics);
+    // print_pv_line(&saved_result);
     destroy_pv_line(&saved_result);
     black_depth_5_printed = true;
+  }
+}
+
+UBENCH_EX(search, black_iterative_depth_3) {
+  static bool black_iterative_depth_3_printed = false;
+  static pv_line saved_result;
+  static stats saved_statistics;
+
+  UBENCH_DO_BENCHMARK() {
+    _Atomic bool should_stop = false;
+    search_result search_res =
+        search_black_runner_iterative(start_board, 3, &should_stop);
+    pv_line result = search_res.pv;
+    stats statistics = search_res.statistics;
+    if (!black_iterative_depth_3_printed) {
+      saved_result = result;
+      saved_statistics = statistics;
+    } else {
+      destroy_pv_line(&result);
+    }
+    UBENCH_DO_NOTHING(&result);
+  }
+
+  if (!black_iterative_depth_3_printed) {
+    printf("\n=== Black Iterative Depth 3 Stats ===\n");
+    print_search_stats(&saved_statistics);
+    // print_pv_line(&saved_result);
+    destroy_pv_line(&saved_result);
+    black_iterative_depth_3_printed = true;
+  }
+}
+
+UBENCH_EX(search, black_iterative_depth_4) {
+  static bool black_iterative_depth_4_printed = false;
+  static pv_line saved_result;
+  static stats saved_statistics;
+
+  UBENCH_DO_BENCHMARK() {
+    _Atomic bool should_stop = false;
+    search_result search_res =
+        search_black_runner_iterative(start_board, 4, &should_stop);
+    pv_line result = search_res.pv;
+    stats statistics = search_res.statistics;
+    if (!black_iterative_depth_4_printed) {
+      saved_result = result;
+      saved_statistics = statistics;
+    } else {
+      destroy_pv_line(&result);
+    }
+    UBENCH_DO_NOTHING(&result);
+  }
+
+  if (!black_iterative_depth_4_printed) {
+    printf("\n=== Black Iterative Depth 4 Stats ===\n");
+    print_search_stats(&saved_statistics);
+    // print_pv_line(&saved_result);
+    destroy_pv_line(&saved_result);
+    black_iterative_depth_4_printed = true;
+  }
+}
+
+UBENCH_EX(search, black_iterative_depth_5) {
+  static bool black_iterative_depth_5_printed = false;
+  static pv_line saved_result;
+  static stats saved_statistics;
+
+  UBENCH_DO_BENCHMARK() {
+    _Atomic bool should_stop = false;
+    search_result search_res =
+        search_black_runner_iterative(start_board, 5, &should_stop);
+    pv_line result = search_res.pv;
+    stats statistics = search_res.statistics;
+    if (!black_iterative_depth_5_printed) {
+      saved_result = result;
+      saved_statistics = statistics;
+    } else {
+      destroy_pv_line(&result);
+    }
+    UBENCH_DO_NOTHING(&result);
+  }
+
+  if (!black_iterative_depth_5_printed) {
+    printf("\n=== Black Iterative Depth 5 Stats ===\n");
+    print_search_stats(&saved_statistics);
+    // print_pv_line(&saved_result);
+    destroy_pv_line(&saved_result);
+    black_iterative_depth_5_printed = true;
   }
 }
 

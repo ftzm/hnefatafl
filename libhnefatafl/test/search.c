@@ -1194,14 +1194,12 @@ SUITE(search_white_shallow) {
 
 // Test time limiting functionality
 TEST time_limit_works(void) {
-  stats statistics = {0};
-
   // Record start time
   struct timespec start, end;
   clock_gettime(CLOCK_MONOTONIC, &start);
 
   // Run search with depth 10 and 50ms time limit
-  pv_line result = search_black_runner(start_board, 10, 50, &statistics);
+  pv_line result = search_black_with_timeout(start_board, 10, 50);
 
   // Record end time
   clock_gettime(CLOCK_MONOTONIC, &end);

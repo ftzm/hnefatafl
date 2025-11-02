@@ -44,6 +44,11 @@ typedef struct stats {
   int repeat_moves_encountered;
 } stats;
 
+typedef struct search_result {
+  pv_line pv;
+  stats statistics;
+} search_result;
+
 i32 quiesce_black(
     pv *pv_data,
     position_set *positions,
@@ -72,10 +77,62 @@ i32 quiesce_white(
 
 pv_line quiesce_white_runner(board b);
 pv_line quiesce_black_runner(board b);
+search_result
+search_white_runner(board b, int depth, _Atomic bool *should_stop);
+search_result
+search_black_runner(board b, int depth, _Atomic bool *should_stop);
+search_result search_white_runner_iterative(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop);
+search_result search_black_runner_iterative(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop);
+pv_line search_white_with_timeout(board b, int depth, int time_limit);
+pv_line search_black_with_timeout(board b, int depth, int time_limit);
 pv_line
-search_white_runner(board b, int depth, int time_limit, stats *statistics);
+search_white_with_timeout_iterative(board b, int max_depth, int time_limit);
 pv_line
-search_black_runner(board b, int depth, int time_limit, stats *statistics);
+search_black_with_timeout_iterative(board b, int max_depth, int time_limit);
+
+// Search function pointer type
+typedef i32 (*search_func)(
+    pv *pv_data,
+    position_set *positions,
+    score_weights *w,
+    score_state s,
+    board b,
+    u64 position_hash,
+    int ply,
+    int depth,
+    i32 alpha,
+    i32 beta,
+    stats *statistics,
+    bool is_pv,
+    _Atomic bool *should_stop);
+
+// Generic runner functions
+search_result search_runner_generic(
+    board b,
+    int depth,
+    _Atomic bool *should_stop,
+    search_func search_fn,
+    bool is_black);
+search_result search_runner_iterative_generic(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop,
+    search_func search_fn,
+    bool is_black);
+
+// Generic wrapper function for search with timeout
+typedef search_result (*search_runner_func)(board, int, _Atomic bool *);
+pv_line search_with_timeout(
+    search_runner_func runner,
+    board b,
+    int depth,
+    int time_limit);
 
 void destroy_pv_line(pv_line *line);
 
