@@ -130,7 +130,7 @@
               name = "materialization";
               entry = "${apps.update-materialized.program}";
               pass_filenames = false;
-              always_run = true;
+              files = "((^|/)flake\\.nix$|^backend/.*\\.(cabal|project|freeze).*$)";
             };
           };
           checks = {
