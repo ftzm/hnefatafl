@@ -13,29 +13,31 @@
   };
 
   inputs = {
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     nixpkgs.follows = "backend/haskellNix/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     git-hooks.url = "github:cachix/git-hooks.nix";
     backend.url = "./backend";
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      flake-utils,
-      git-hooks,
-      backend,
-    }:
-    flake-utils.lib.eachSystem [ "x86_64-linux" ] (
-      system:
-      let
+  outputs = {
+    self,
+    nixpkgs-unstable,
+    nixpkgs,
+    flake-utils,
+    git-hooks,
+    backend,
+  }:
+    flake-utils.lib.eachSystem ["x86_64-linux"] (
+      system: let
         pkgs = import nixpkgs {
           inherit system;
         };
-        libhnefatafl = pkgs.callPackage ./libhnefatafl/default.nix { };
-      in
-      {
+        unstablePkgs = import nixpkgs-unstable {
+          inherit system;
+        };
+        libhnefatafl = unstablePkgs.callPackage ./libhnefatafl/default.nix {pkgs = unstablePkgs;};
+      in {
         packages = {
           libhnefatafl-all = libhnefatafl.all;
           libhnefatafl = libhnefatafl.static;
@@ -46,10 +48,9 @@
           inherit (backend.apps.${system}) test-bindings;
         };
         devShells = {
-          default =
-            let
-              inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
-            in
+          default = let
+            inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
+          in
             pkgs.mkShell {
               inputsFrom = [
                 libhnefatafl.devShell
