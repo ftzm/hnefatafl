@@ -15,6 +15,13 @@ typedef struct board {
   layer king_r;
 } board;
 
+typedef enum piece_type {
+  empty,
+  black_pawn,
+  white_pawn,
+  king,
+} piece_type;
+
 typedef enum dir {
   north,
   south,

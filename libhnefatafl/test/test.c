@@ -1,5 +1,4 @@
 #include "greatest.h"
-#include "zobrist.h"
 
 SUITE_EXTERN(base64_suite);
 SUITE_EXTERN(capture_suite);
