@@ -1,14 +1,9 @@
--- Chess-like Game Database Schema for SQLite
--- Supports mixed human/ENGINE players with proper referential integrity
-
--- Base players table (supertype)
 CREATE TABLE player (
     id TEXT PRIMARY KEY,
     player_type TEXT NOT NULL CHECK (player_type IN ('human', 'engine')),
     created_at DATETIME NOT NULL
 );
 
--- Human players table (subtype)
 CREATE TABLE human_player (
     player_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -17,7 +12,6 @@ CREATE TABLE human_player (
     FOREIGN KEY (player_id, player_type) REFERENCES player(id, player_type) ON DELETE CASCADE
 );
 
--- ENGINE players table (subtype)
 CREATE TABLE engine_player (
     player_id TEXT PRIMARY KEY,
     version TEXT NOT NULL,
@@ -25,7 +19,6 @@ CREATE TABLE engine_player (
     FOREIGN KEY (player_id, player_type) REFERENCES player(id, player_type) ON DELETE CASCADE
 );
 
--- Games table
 CREATE TABLE game (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -49,7 +42,6 @@ CREATE TABLE game (
     FOREIGN KEY (black_player_id) REFERENCES player(id),
 );
 
--- Moves table
 CREATE TABLE move (
     id TEXT PRIMARY KEY,
     game_id TEXT NOT NULL,
@@ -94,7 +86,6 @@ CREATE TABLE game_participant_token (
     FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE
 );
 
--- Indexes for performance
 CREATE INDEX idx_games_players ON game(white_player_id, black_player_id);
 CREATE INDEX idx_moves_game ON move(game_id, move_number);
 CREATE INDEX idx_players_type ON player(player_type);
