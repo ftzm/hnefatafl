@@ -140,10 +140,10 @@
             };
           };
           checks = {
-            # pre-commit-check = git-hooks.lib.${system}.run {
-            #   src = ./.;
-            #   inherit hooks;
-            # };
+            pre-commit-check = git-hooks.lib.${system}.run {
+              src = ./.;
+              inherit hooks;
+            };
           };
         }
     );
