@@ -122,9 +122,9 @@ leftward
  */
 #define LEFTWARD(_i, _r)                                                       \
   {                                                                            \
-    u64 dests = targets##_r._[_i] &                                            \
-                (leftward_occ##_r._[_i] - (movers##_r._[_i] << 1)) &           \
-                DROP_1_EAST_##_i;                                              \
+    u64 dests = targets##_r._[_i]                                              \
+                & (leftward_occ##_r._[_i] - (movers##_r._[_i] << 1))           \
+                & DROP_1_EAST_##_i;                                            \
     while (dests) {                                                            \
       u64 dest_bit = _blsi_u64(dests);                                         \
       u8 dest = _tzcnt_u64(dest_bit);                                          \
@@ -163,8 +163,8 @@ leftward
 
 #define LEFTWARD_CENTER(_r)                                                    \
   {                                                                            \
-    u16 dests = GET_CENTER_ROW(targets##_r) &                                  \
-                (center_occ##_r - (center_movers##_r << 1));                   \
+    u16 dests = GET_CENTER_ROW(targets##_r)                                    \
+                & (center_occ##_r - (center_movers##_r << 1));                 \
     while (dests) {                                                            \
       u16 dest_bit = dests & -dests;                                           \
       u8 dest = _tzcnt_u16(dest_bit);                                          \
@@ -644,8 +644,8 @@ bool move_state_from_cursor(
   // Handle cursors 0-7 (LOWER/UPPER cases) with direct array access
   for (move_cursor current_cursor = cursor; current_cursor < CENTER_LEFTWARD;
        current_cursor++) {
-    u64 part = layers->u64s[current_cursor] &
-               (current_cursor & 1 ? UPPER_HALF_MASK : LOWER_HALF_MASK);
+    u64 part = layers->u64s[current_cursor]
+               & (current_cursor & 1 ? UPPER_HALF_MASK : LOWER_HALF_MASK);
     if (part != 0) {
       result->current = part;
       result->cursor = current_cursor;

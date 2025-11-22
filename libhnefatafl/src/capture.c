@@ -24,8 +24,10 @@ u8 apply_captures_niave(
   // northCapture
   target = dest + 11;
   behind = dest + 22;
-  if (dest < 99 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (dest
+      < 99
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -35,8 +37,10 @@ u8 apply_captures_niave(
   // southCapture
   target = dest - 11;
   behind = dest - 22;
-  if (dest > 21 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (dest
+      > 21
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -46,8 +50,10 @@ u8 apply_captures_niave(
   // westCapture
   target = dest + 1;
   behind = dest + 2;
-  if (modDest < 9 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (modDest
+      < 9
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -57,8 +63,10 @@ u8 apply_captures_niave(
   // eastCapture
   target = dest - 1;
   behind = dest - 2;
-  if (modDest > 1 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (modDest
+      > 1
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -84,8 +92,10 @@ layer apply_captures_niave_z(
   // northCapture
   target = dest + 11;
   behind = dest + 22;
-  if (dest < 99 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (dest
+      < 99
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -96,8 +106,10 @@ layer apply_captures_niave_z(
   // southCapture
   target = dest - 11;
   behind = dest - 22;
-  if (dest > 21 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (dest
+      > 21
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -108,8 +120,10 @@ layer apply_captures_niave_z(
   // westCapture
   target = dest + 1;
   behind = dest + 2;
-  if (modDest < 9 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (modDest
+      < 9
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -120,8 +134,10 @@ layer apply_captures_niave_z(
   // eastCapture
   target = dest - 1;
   behind = dest - 2;
-  if (modDest > 1 && CHECK_INDEX_PTR(foes, target) &&
-      CHECK_INDEX(friends, behind)) {
+  if (modDest
+      > 1
+      && CHECK_INDEX_PTR(foes, target)
+      && CHECK_INDEX(friends, behind)) {
     CLEAR_INDEX_PTR(foes, target);
     int target_r = rotate_right[target];
     CLEAR_INDEX_PTR(foes_r, target_r);
@@ -371,8 +387,8 @@ inline void upper_middle_shield_captures(
   u16 flank = allies >> 46;
   u16 wall = allies >> 35;
   u16 foes_row = foes >> 46;
-  u16 row_captures = left_shield_captures(flank, wall, foes_row, pos) |
-                     right_shield_captures(flank, wall, foes_row, pos);
+  u16 row_captures = left_shield_captures(flank, wall, foes_row, pos)
+                     | right_shield_captures(flank, wall, foes_row, pos);
   (*captures) |= ((u64)row_captures << 46);
 }
 
@@ -400,8 +416,8 @@ inline void lower_middle_shield_captures(
     const unsigned char pos,
     u64 *captures) {
   u16 wall = allies >> 11;
-  u16 row_captures = left_shield_captures(allies, wall, foes, pos) |
-                     right_shield_captures(allies, wall, foes, pos);
+  u16 row_captures = left_shield_captures(allies, wall, foes, pos)
+                     | right_shield_captures(allies, wall, foes, pos);
   (*captures) |= ((u64)row_captures);
 }
 

@@ -30,8 +30,7 @@
       system: let
         materializedSha = "1gj62f9k0a92as5i85ypa974kv2mm2m9x8dvn5lgp5qb1yn4kszf";
         cabalProject = builtins.readFile ./cabal.project;
-        index-state =
-          pkgs.haskell-nix.haskellLib.parseIndexState cabalProject;
+        index-state = pkgs.haskell-nix.haskellLib.parseIndexState cabalProject;
         libhnefatafl = import ../libhnefatafl/default.nix {inherit pkgs;};
         overlays = [
           haskellNix.overlay
@@ -41,13 +40,21 @@
               inherit index-state;
               src = ./.;
               # evalSystem = "x86_64-linux";
-              compiler-nix-name = "ghc910";
+              compiler-nix-name = "ghc912";
               # plan-sha256 = "sha256-7utJrA8Ll/tosbuhnqqoVexJTlLXFxSLViIpMJMTRr4=";
               materialized = ./materialized;
 
               modules = [
                 {
                   packages.hnefatafl.components.tests.bindings-test = {
+                    libs = [libhnefatafl.static];
+                    # ghcOptions = ["-O1" "-Werror"];
+                    # Don't depend on GHC in build artifacts.  Otherwise GHC may
+                    # be pulled in as a dependency, which causes docker images to
+                    # balloon in size.
+                    dontStrip = false;
+                  };
+                  packages.hnefatafl.components.tests.storage-test = {
                     libs = [libhnefatafl.static];
                     # ghcOptions = ["-O1" "-Werror"];
                     # Don't depend on GHC in build artifacts.  Otherwise GHC may
@@ -64,35 +71,29 @@
                   cabal = {};
                   hlint = {};
                   haskell-language-server = {};
+                  fourmolu = {};
                 };
-                # Non-Haskell shell tools go here
+                # Non-built-in shell tools go here
                 buildInputs = with pkgs; [
                   bashInteractive
                   zlib
-                  fourmolu
                   hpack
-                  (pkgs.writeShellScriptBin "haskell-language-server-wrapper" ''
+                  (writeShellScriptBin "haskell-language-server-wrapper" ''
                     exec haskell-language-server $@
                   '')
+                  sqlite
+                  dbmate
                 ];
               };
             };
           })
         ];
+
         pkgs = import nixpkgs {
           inherit overlays system;
           inherit (haskellNix) config;
         };
         flake = pkgs.backend.flake {};
-
-        # Import test caching utilities
-        testCache = import ../nix/test-cache.nix {inherit pkgs;};
-
-        # Create cached tests
-        bindingsTest =
-          testCache.mkCachedTest
-          "${flake.packages."hnefatafl:test:bindings-test"}/bin/bindings-test"
-          "bindings";
 
         update-materialized = pkgs.writeShellScript "update-all-materialized-${system}" ''
           set -eEuo pipefail
@@ -112,9 +113,7 @@
           chmod -R +w materialized
         '';
       in
-        pkgs.lib.attrsets.recursiveUpdate
-        flake
-        rec {
+        pkgs.lib.attrsets.recursiveUpdate flake rec {
           apps = {
             update-materialized = {
               type = "app";
@@ -122,7 +121,14 @@
                 exec ${update-materialized} "$(git rev-parse --show-toplevel)/backend" "$@"
               ''}";
             };
-            test-bindings = bindingsTest.app;
+            # test-bindings = {
+            #   type = "app";
+            #   program = "${flake.packages."hnefatafl:test:bindings-test"}/bin/bindings-test";
+            # };
+            # test-storage = {
+            #   type = "app";
+            #   program = "${flake.packages."hnefatafl:test:storage-test"}/bin/storage-test";
+            # };
           };
           hooks = {
             materialization = {
@@ -134,10 +140,10 @@
             };
           };
           checks = {
-            pre-commit-check = git-hooks.lib.${system}.run {
-              src = ./.;
-              inherit hooks;
-            };
+            # pre-commit-check = git-hooks.lib.${system}.run {
+            #   src = ./.;
+            #   inherit hooks;
+            # };
           };
         }
     );

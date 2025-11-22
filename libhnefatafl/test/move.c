@@ -700,10 +700,14 @@ void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
 
 bool move_breakdown_diff_empty(const struct move_breakdown_diff *d) {
   for (int i = 0; i < 121; i++) {
-    int totals = d->extra[i].north_count + d->extra[i].east_count +
-                 d->extra[i].south_count + d->extra[i].west_count +
-                 d->missing[i].north_count + d->missing[i].east_count +
-                 d->missing[i].south_count + d->missing[i].west_count;
+    int totals = d->extra[i].north_count
+                 + d->extra[i].east_count
+                 + d->extra[i].south_count
+                 + d->extra[i].west_count
+                 + d->missing[i].north_count
+                 + d->missing[i].east_count
+                 + d->missing[i].south_count
+                 + d->missing[i].west_count;
     if (totals)
       return false;
   }
@@ -1875,8 +1879,8 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
     OP_LAYER_BIT(correct_layer, m.orig, |=);
     OP_LAYER_BIT(correct_layer, m.dest, |=);
     layer correct_layer_r = rotate_layer_right(correct_layer);
-    if (!LAYERS_EQUAL(correct_layer, ls[i]) ||
-        !LAYERS_EQUAL(correct_layer_r, ls_r[i])) {
+    if (!LAYERS_EQUAL(correct_layer, ls[i])
+        || !LAYERS_EQUAL(correct_layer_r, ls_r[i])) {
       incorrect_entries.entries[incorrect_entries.len] =
           (struct move_to_entry){m, ls[i], ls_r[i]};
       incorrect_entries.len++;

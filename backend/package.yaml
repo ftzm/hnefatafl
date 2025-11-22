@@ -16,10 +16,12 @@ default-extensions:
   - LambdaCase
   - DerivingVia
   - ImportQualifiedPost
+  - MultilineStrings
 
 ghc-options:
   - -Wunused-imports
   - -Wall
+  - -Werror
   - -Wmissing-export-lists
   - -Wmissing-home-modules
   - -Widentities
@@ -33,6 +35,9 @@ ghc-options:
   # https://stackoverflow.com/questions/36040366/haskell-cabal-include-static-library
   - -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
 
+data-files:
+  - db/schema.sql
+
 dependencies:
   - name: base
     #version: ">=4.15"
@@ -42,67 +47,15 @@ dependencies:
     #version: ">= 1.1.0.0"
     mixin:
       - (Relude as Prelude)
-
-  # old
-  # - aeson
-  # - array
-  # - async
-  # - containers
-  # - deepseq
-  # - generic-lens
-  # - http-media
-  # - http-types
-  # - lucid2
-  # - mtl
-  # - parallel
-  # - random
-  # - raw-strings-qq
-  # - servant
-  # - servant-client
-  # - servant-server
-  # - servant-websockets
-  # - split
-  # - sqlite-simple
-  # - stm
-  # - storable-tuple
-  # - template-haskell
-  # - text
-  # - time
-  # - unagi-chan
-  # - uuid
-  # - vector
-  # - vector-hashtables
-  # - wai
-  # - warp
-  # - websockets
-  # - wide-word
-  # - wai-websockets
-  # - resourcet
-  # - lens
-  # - storable-record
-
-  # new
   - derive-storable
   - derive-storable-plugin
-  # - QuickCheck
-  # - annotated-exception
-  # - attoparsec
-  # - bytestring
-  # - cassava
-  # - deepseq
-  # - envparse
-  # - exceptions
-  # - generic-optics
-  # - generic-random
-  # - http-client
-  # - katip
-  # - newtype-generics
-  # - optics
-  # - quickcheck-instances
-  # - refined >= 0.7
-  # - resourcet
-  # - servant-lucid
-  # - some
+  - sqlite-simple
+  - text
+  - time
+  - ulid
+  - effectful
+  - effectful-th
+  - optics
 
 # executables:
 #   app:
@@ -112,18 +65,53 @@ dependencies:
 #       - hnefatafl
       
 internal-libraries:
+  core-data:
+    source-dirs: core-data
   bindings:
     source-dirs: bindings
+    dependencies:
+      - core-data
+  storage:
+    source-dirs: storage
+    dependencies:
+      - core-data
+  storage-sqlite:
+    source-dirs: storage-sqlite
+    dependencies:
+      - core-data
+      - storage
 
 tests:
+  storage-test:
+    main: "Driver.hs"
+    ghc-options:
+      - -Wno-missing-export-lists
+    source-dirs: storage-test
+    build-tools:
+        tasty-discover:tasty-discover
+    dependencies:
+      - core-data
+      - storage
+      - storage-sqlite
+      - hspec
+      - hspec-expectations-pretty-diff
+      - tasty
+      - tasty-hunit
+      - tasty-hspec
+      - tasty-discover
+      - temporary
+      - process
+      - direct-sqlite
+      - optics
   bindings-test:
     main: "Driver.hs"
-    ghc-options: 
-      - -Wno-missing-export-lists
+    ghc-options:
+    - -Wno-missing-export-lists
     source-dirs: bindings-test
     build-tools:
         tasty-discover:tasty-discover
     dependencies:
+      - core-data
       - bindings
       - hspec
       - hspec-expectations-pretty-diff
@@ -131,15 +119,6 @@ tests:
       - tasty-hunit
       - tasty-hspec
       - tasty-discover
-#       - hspec
-#       - hspec-contrib
-#       - hspec-core
-#       - hspec-wai
-#       - HUnit
-#       - tasty-hspec
-#       - tasty-quickcheck
-#      - quickcheck-instances
-#      - QuickCheck
 
 # benchmarks:
 #   board:

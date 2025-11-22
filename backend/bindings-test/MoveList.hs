@@ -1,6 +1,7 @@
 module MoveList where
 
 import Hnefatafl.Bindings
+import Hnefatafl.Core.Data (Move (..))
 import Test.Hspec (Spec, it)
 import Test.Hspec.Expectations.Pretty
 
@@ -19,7 +20,7 @@ spec_basicMoveListString =
       expectedString = "AQIFTQVXbm0GTQhXUW1RbQ=="
       actualString = moveListToBase64 moveList
       recalculatedMoveList = moveListFromBase64 actualString
-   in it "should be equal z" $ do
+   in it "should be equal abcdayzzdun" $ do
         expectedString `shouldBe` actualString
         recalculatedMoveList `shouldBe` moveList
 
@@ -33,5 +34,5 @@ spec_nextGameState =
   it "should return moves for white after first black move" $ do
     let firstBlackMove = head startBlackMoves
         (status, possibleMoves) = nextGameState (firstBlackMove :| [])
-    status `shouldBe` Ongoing
+    status `shouldBe` EngineOngoing
     length possibleMoves `shouldSatisfy` (> 0)

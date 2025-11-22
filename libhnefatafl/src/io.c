@@ -137,16 +137,16 @@ inline uint fmt_index(uint index) {
 void fmt_board(board board, char *input) {
   for (int board_index = 120; board_index > -1; board_index--) {
     int string_index = fmt_index(board_index);
-    if (board.black._[SUB_LAYER(board_index)] &
-        ((u64)1 << sub_layer_offset_direct[board_index])) {
+    if (board.black._[SUB_LAYER(board_index)]
+        & ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'X';
     } else if (
-        board.white._[SUB_LAYER(board_index)] &
-        ((u64)1 << sub_layer_offset_direct[board_index])) {
+        board.white._[SUB_LAYER(board_index)]
+        & ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = 'O';
     } else if (
-        board.king._[SUB_LAYER(board_index)] &
-        ((u64)1 << sub_layer_offset_direct[board_index])) {
+        board.king._[SUB_LAYER(board_index)]
+        & ((u64)1 << sub_layer_offset_direct[board_index])) {
       input[string_index] = '#';
     }
   }

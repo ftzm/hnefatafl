@@ -14,15 +14,20 @@
 #include <string.h>
 
 bool corner_guard_states_equal(corner_guard_state *a, corner_guard_state *b) {
-  return a->ne_guard_count == b->ne_guard_count &&
-         a->nw_guard_count == b->nw_guard_count &&
-         a->se_guard_count == b->se_guard_count &&
-         a->sw_guard_count == b->sw_guard_count;
+  return a->ne_guard_count
+         == b->ne_guard_count
+         && a->nw_guard_count
+         == b->nw_guard_count
+         && a->se_guard_count
+         == b->se_guard_count
+         && a->sw_guard_count
+         == b->sw_guard_count;
 }
 
 bool score_states_equal(score_state *a, score_state *b) {
-  return a->score == b->score &&
-         corner_guard_states_equal(&a->corner_guard, &b->corner_guard);
+  return a->score
+         == b->score
+         && corner_guard_states_equal(&a->corner_guard, &b->corner_guard);
 }
 
 void print_corner_guard_state(FILE *f, corner_guard_state *cgs) {

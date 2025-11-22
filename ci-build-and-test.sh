@@ -2,29 +2,37 @@
 set -euo pipefail
 
 print_header() {
-    echo 
+    echo
     echo "================================================================================"
     echo "$1"
     echo "================================================================================"
-    echo 
+    echo
 }
 
-print_header "Building libhnefatafl"
-if nix path-info .#libhnefatafl-all >/dev/null 2>&1; then
-    echo "cached"
-else
-    nix build .#libhnefatafl-all --print-build-logs
-fi
+build_target() {
+    local target_name="$1"
+    local nix_target="$2"
+
+    print_header "Building $target_name"
+    if nix path-info .#"$nix_target" >/dev/null 2>&1; then
+        echo "cached"
+    else
+        nix build .#"$nix_target" #--print-build-logs
+    fi
+}
+
+build_target "libhnefatafl" "libhnefatafl-all"
 
 print_header "Running libhnefatafl tests"
 nix run .#test-libhnefatafl
 
-print_header "Building Haskell bindings"
-if nix path-info .#"hnefatafl:lib:bindings" >/dev/null 2>&1; then
-    echo "cached"
-else
-    nix build .#"hnefatafl:lib:bindings" --print-build-logs
-fi
+build_target "Haskell core-data" "backend.hnefatafl:lib:core-data"
+build_target "Haskell storage" "backend.hnefatafl:lib:storage"
+build_target "Haskell storage-sqlite" "backend.hnefatafl:lib:storage-sqlite"
+build_target "Haskell bindings" "backend.hnefatafl:lib:bindings"
 
-print_header "Running Haskell tests"
-nix run .#test-bindings
+print_header "Running Haskell bindings tests"
+nix run .#backend.hnefatafl:test:bindings-test
+
+print_header "Running Haskell storage tests"
+nix run .#backend.hnefatafl:test:storage-test

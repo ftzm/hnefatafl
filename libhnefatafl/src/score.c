@@ -54,22 +54,24 @@ init_state_corner_guard(const board *b, const i32 weight, i32 *score) {
   u8 ne = __builtin_popcountll(corner_guard_ne._[1] & b->black._[1]);
   u8 sw = __builtin_popcountll(corner_guard_sw._[0] & b->black._[0]);
   u8 se = __builtin_popcountll(corner_guard_se._[0] & b->black._[0]);
-  *score += (score_for_count(nw) + score_for_count(ne) + score_for_count(sw) +
-             score_for_count(se)) *
-            weight;
+  *score += (score_for_count(nw)
+             + score_for_count(ne)
+             + score_for_count(sw)
+             + score_for_count(se))
+            * weight;
   return (corner_guard_state){nw, ne, sw, se};
 }
 
 i32 corner_guard_stateless(const board *b, const i32 weight) {
   return ((score_for_count(
-               __builtin_popcountll(corner_guard_nw._[1] & b->black._[1])) +
-           score_for_count(
-               __builtin_popcountll(corner_guard_ne._[1] & b->black._[1])) +
-           score_for_count(
-               __builtin_popcountll(corner_guard_sw._[0] & b->black._[0])) +
-           score_for_count(
-               __builtin_popcountll(corner_guard_se._[0] & b->black._[0])))) *
-         weight;
+               __builtin_popcountll(corner_guard_nw._[1] & b->black._[1]))
+           + score_for_count(
+               __builtin_popcountll(corner_guard_ne._[1] & b->black._[1]))
+           + score_for_count(
+               __builtin_popcountll(corner_guard_sw._[0] & b->black._[0]))
+           + score_for_count(
+               __builtin_popcountll(corner_guard_se._[0] & b->black._[0]))))
+         * weight;
 }
 
 i32 handle_arrival(corner_guard_state *state, int dest) {
@@ -142,8 +144,8 @@ i32 init_pawn_count_score(
     const i32 black_weight,
     const i32 white_weight) {
   return (
-      (black_pawn_count(b) * black_weight) -
-      (white_pawn_count(b) * white_weight));
+      (black_pawn_count(b) * black_weight)
+      - (white_pawn_count(b) * white_weight));
 }
 
 i32 pawn_count_capture_adjust(const i32 weight, layer captures) {
@@ -308,9 +310,8 @@ i32 pst_capture_handler(const piece_square_table *pst, layer captures) {
 // Full setup
 
 score_state init_score_state(score_weights *weights, const board *b) {
-  i32 score =
-      init_pawn_count_score(b, weights->black_pawn, weights->white_pawn) +
-      init_pst_score(&weights->psts, b);
+  i32 score = init_pawn_count_score(b, weights->black_pawn, weights->white_pawn)
+              + init_pst_score(&weights->psts, b);
   corner_guard_state cgs =
       init_state_corner_guard(b, weights->corner_guard, &score);
   return (score_state){cgs, score};

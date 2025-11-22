@@ -19,8 +19,9 @@ int black_pawn_count(const board *b) { return LAYER_POPCOUNT(b->black); }
 
 // todo: take reference
 int boards_equal(board a, board b) {
-  return LAYERS_EQUAL(a.black, b.black) && LAYERS_EQUAL(a.white, b.white) &&
-         LAYERS_EQUAL(a.king, b.king);
+  return LAYERS_EQUAL(a.black, b.black)
+         && LAYERS_EQUAL(a.white, b.white)
+         && LAYERS_EQUAL(a.king, b.king);
 }
 
 // todo: take reference

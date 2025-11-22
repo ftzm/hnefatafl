@@ -122,13 +122,13 @@ TEST test_draw_line_between() {
 
 TEST test_has_clear_path() {
   // Create empty board for controlled testing
-  board empty_board
-      = {.black = EMPTY_LAYER,
-         .black_r = EMPTY_LAYER,
-         .white = EMPTY_LAYER,
-         .white_r = EMPTY_LAYER,
-         .king = EMPTY_LAYER,
-         .king_r = EMPTY_LAYER};
+  board empty_board = {
+      .black = EMPTY_LAYER,
+      .black_r = EMPTY_LAYER,
+      .white = EMPTY_LAYER,
+      .white_r = EMPTY_LAYER,
+      .king = EMPTY_LAYER,
+      .king_r = EMPTY_LAYER};
 
   // Test clear path
   move clear_move = {60, 63};
@@ -152,8 +152,8 @@ TEST test_validate_move_integration() {
   board b = start_board;
 
   // Test a known valid black move from start position
-  move valid_black
-      = start_black_moves[0]; // Use first move from predefined moves
+  move valid_black =
+      start_black_moves[0]; // Use first move from predefined moves
   ASSERT(validate_move(b, valid_black, true));
 
   // Test invalid move (wrong team)

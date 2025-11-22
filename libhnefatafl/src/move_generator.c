@@ -42,9 +42,9 @@ ahead of time and stored in the struct.
 
 // Generate leftward destinations for a half-layer
 #define GEN_LEFTWARD_DESTS(_i, _r, _gen)                                       \
-  (_gen->targets##_r._[_i] &                                                   \
-   (_gen->leftward_occ##_r._[_i] - (_gen->movers##_r._[_i] << 1)) &            \
-   DROP_1_EAST_##_i)
+  (_gen->targets##_r._[_i]                                                     \
+   & (_gen->leftward_occ##_r._[_i] - (_gen->movers##_r._[_i] << 1))            \
+   & DROP_1_EAST_##_i)
 
 // Extract a leftward move from dests (non-rotated)
 #define EXTRACT_LEFTWARD_MOVE(_i, _gen, _result)                               \
@@ -78,8 +78,8 @@ ahead of time and stored in the struct.
 
 // Generate leftward destinations for center row
 #define GEN_LEFTWARD_CENTER_DESTS(_r, _gen)                                    \
-  (GET_CENTER_ROW(_gen->targets##_r) &                                         \
-   (_gen->center_occ##_r - (_gen->center_movers##_r << 1)))
+  (GET_CENTER_ROW(_gen->targets##_r)                                           \
+   & (_gen->center_occ##_r - (_gen->center_movers##_r << 1)))
 
 // Extract a leftward center move (non-rotated)
 #define EXTRACT_LEFTWARD_CENTER_MOVE(_gen, _result)                            \
@@ -117,8 +117,8 @@ ahead of time and stored in the struct.
     u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));                   \
     _gen->move_mask =                                                          \
         (_gen->movers##_r._[_i] - movers_dep) & _gen->targets##_r._[_i];       \
-    _gen->origs = _gen->movers##_r._[_i] &                                     \
-                  ~(_gen->movers##_r._[_i] - _gen->targets##_r._[_i]);         \
+    _gen->origs = _gen->movers##_r._[_i]                                       \
+                  & ~(_gen->movers##_r._[_i] - _gen->targets##_r._[_i]);       \
   } while (0)
 
 // Initialize rightward move generation for a half-layer (king version)
@@ -127,10 +127,11 @@ ahead of time and stored in the struct.
     u64 blockers = _gen->occ##_r._[_i] | file_mask_10._[_i];                   \
     u64 movers_ext = _pext_u64(_gen->movers##_r._[_i], 1 | blockers) >> 1;     \
     u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));               \
-    _gen->move_mask = (_gen->movers##_r._[_i] - movers_dep) & HALF_MASK_##_i & \
-                      _gen->targets##_r._[_i];                                 \
-    _gen->origs = _gen->movers##_r._[_i] &                                     \
-                  ~(_gen->movers##_r._[_i] - _gen->targets##_r._[_i]);         \
+    _gen->move_mask = (_gen->movers##_r._[_i] - movers_dep)                    \
+                      & HALF_MASK_##_i                                         \
+                      & _gen->targets##_r._[_i];                               \
+    _gen->origs = _gen->movers##_r._[_i]                                       \
+                  & ~(_gen->movers##_r._[_i] - _gen->targets##_r._[_i]);       \
   } while (0)
 
 // Get next origin for rightward moves and calculate its destinations
@@ -187,8 +188,8 @@ ahead of time and stored in the struct.
 // Initialize rightward center moves
 #define INIT_RIGHTWARD_CENTER_MOVES(_r, _gen)                                  \
   (_gen->origs =                                                               \
-       _gen->center_movers##_r &                                               \
-       ~(_gen->center_occ##_r - (GET_CENTER_ROW(_gen->targets##_r))))
+       _gen->center_movers##_r                                                 \
+       & ~(_gen->center_occ##_r - (GET_CENTER_ROW(_gen->targets##_r))))
 
 // Get next center origin and calculate its destinations
 #define GET_NEXT_RIGHTWARD_CENTER_ORIGIN(_r, _gen)                             \

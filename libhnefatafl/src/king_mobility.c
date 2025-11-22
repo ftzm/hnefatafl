@@ -342,22 +342,22 @@ const layer file_mask_adjacent[] = {
   {                                                                            \
     INTO_ROW(_i, _parallel_paths, JOIN(APPLY_LEGAL_EDGE_MASK, _i)(mask));      \
     _perpendicular_paths->_[0] |=                                              \
-        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 0) &                      \
-         ROT_SIDE(_side, NOT_AXIS(_axis))[_axis]._[0]);                        \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 0)                        \
+         & ROT_SIDE(_side, NOT_AXIS(_axis))[_axis]._[0]);                      \
     _perpendicular_paths->_[1] |=                                              \
-        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 1) &                      \
-         ROT_SIDE(_side, NOT_AXIS(_axis))[_axis]._[1]);                        \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 1)                        \
+         & ROT_SIDE(_side, NOT_AXIS(_axis))[_axis]._[1]);                      \
   }
 
 #define ADD_PATHS_INC(_i, _axis, _side, _parallel_paths, _perpendicular_paths) \
   {                                                                            \
     INTO_ROW(_i, _parallel_paths, JOIN(APPLY_LEGAL_EDGE_MASK, _i)(mask));      \
     _perpendicular_paths->_[0] |=                                              \
-        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 0) &                      \
-         ROT_SIDE_INC(_side, NOT_AXIS(_axis))[_axis]._[0]);                    \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 0)                        \
+         & ROT_SIDE_INC(_side, NOT_AXIS(_axis))[_axis]._[0]);                  \
     _perpendicular_paths->_[1] |=                                              \
-        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 1) &                      \
-         ROT_SIDE_INC(_side, NOT_AXIS(_axis))[_axis]._[1]);                    \
+        (LEGAL_FILE_MASK_HALF(VERT_INDEX(_axis, _i), 1)                        \
+         & ROT_SIDE_INC(_side, NOT_AXIS(_axis))[_axis]._[1]);                  \
   }
 
 #define BOTH_SIDES(_i, _variable, _occ, _parallel_paths, _perpendicular_paths) \
@@ -426,11 +426,11 @@ const layer file_mask_adjacent[] = {
           TARGET_MASKER(_target)(ADJUST_AXIS_VAL(NOT_AXIS(_axis)), _target);   \
       into_row(AXIS_PATHS(_axis), stem, _axis);                                \
       AXIS_PATHS(NOT_AXIS(_axis))->_[0] |=                                     \
-          STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 0) &                 \
-          ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[0];         \
+          STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 0)                   \
+          & ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[0];       \
       AXIS_PATHS(NOT_AXIS(_axis))->_[1] |=                                     \
-          STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 1) &                 \
-          ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[1];         \
+          STEM_BASE_HALF(ADJUST_AXIS_VAL(_axis), _target, 1)                   \
+          & ROT_SIDE(TARGET_SIDE(_target), _axis)[NOT_AXIS(_axis)]._[1];       \
     }                                                                          \
   }
 
@@ -810,8 +810,8 @@ void corner_paths_2(
 /* _axis is a token named either rank or file, which determines the
 axis _i should be interpreted as. _i is an int constant. */
 #define GET_POS(_axis, _i)                                                     \
-  (GET_AXIS_VAL(_axis, _axis) +                                                \
-   GET_AXIS_VAL(NOT_AXIS(_axis), ADJUST_AXIS_VAL_I(NOT_AXIS(_axis), _i)))
+  (GET_AXIS_VAL(_axis, _axis)                                                  \
+   + GET_AXIS_VAL(NOT_AXIS(_axis), ADJUST_AXIS_VAL_I(NOT_AXIS(_axis), _i)))
 #define GET_AXIS_VAL_rank(_i) (_i * 11)
 #define GET_AXIS_VAL_file(_i) _i
 #define GET_AXIS_VAL(_axis, _i) JOIN(GET_AXIS_VAL, _axis)(_i)

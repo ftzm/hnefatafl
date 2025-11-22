@@ -8,4 +8,6 @@ AllowAllParametersOfDeclarationOnNextLine: false
 AllowAllArgumentsOnNextLine: false
 AlignAfterOpenBracket: AlwaysBreak
 BreakBinaryOperations: OnePerLine
-BreakBeforeBinaryOperators: All
+BreakBeforeBinaryOperators: NonAssignment
+Cpp11BracedListStyle: true
+BreakBeforeBraces: Attach

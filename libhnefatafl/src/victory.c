@@ -11,11 +11,11 @@ bool king_capture_check_ref(const board *b) {
   int king_index = LOWEST_INDEX(b->king);
   layer attackers = b->black;
   attackers._[0] |= THRONE_MASK_0;
-  return NOT_EMPTY(LAYER_AND(b->king, INTERIOR)) &&
-         CHECK_INDEX(attackers, king_index - 1) &&
-         CHECK_INDEX(attackers, king_index + 1) &&
-         CHECK_INDEX(attackers, king_index - 11) &&
-         CHECK_INDEX(attackers, king_index + 11);
+  return NOT_EMPTY(LAYER_AND(b->king, INTERIOR))
+         && CHECK_INDEX(attackers, king_index - 1)
+         && CHECK_INDEX(attackers, king_index + 1)
+         && CHECK_INDEX(attackers, king_index - 11)
+         && CHECK_INDEX(attackers, king_index + 11);
 }
 
 bool king_capture_check(const board *b) {
@@ -58,8 +58,10 @@ bool king_escaped(const board *b) {
 
 // Also considers adjacents to be escapes to simplify code.
 bool king_effectively_escaped(const board *b) {
-  return b->king._[0] & CORNERS_AND_ADJACENTS_0 ||
-         b->king._[1] & CORNERS_AND_ADJACENTS_1;
+  return b->king._[0]
+         & CORNERS_AND_ADJACENTS_0
+         || b->king._[1]
+         & CORNERS_AND_ADJACENTS_1;
 }
 
 bool king_captured(const board *b) {
@@ -133,10 +135,10 @@ bool exit_fort(const board *b) {
       if (BLACK_FREE_0 & black_adjusted) {
         return false;
       }
-      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_0) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_0) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_0) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_0)) {
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_0)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_0)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_0)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_0)) {
         return true;
       }
     } else if (king_file == 0) {
@@ -146,10 +148,10 @@ bool exit_fort(const board *b) {
       if (BLACK_FREE_0 & black_adjusted) {
         return false;
       }
-      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_0) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_0) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_0) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_0)) {
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_0)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_0)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_0)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_0)) {
         return true;
       }
     } else if (king_rank == 10) {
@@ -159,10 +161,10 @@ bool exit_fort(const board *b) {
       if (BLACK_FREE_UPPER_1 & black_adjusted) {
         return false;
       }
-      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_UPPER_1) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_UPPER_1) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_UPPER_1) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_UPPER_1)) {
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_UPPER_1)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_UPPER_1)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_UPPER_1)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_UPPER_1)) {
         return true;
       }
     } else if (king_file == 10) {
@@ -172,10 +174,10 @@ bool exit_fort(const board *b) {
       if (BLACK_FREE_UPPER_1 & black_adjusted) {
         return false;
       }
-      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_UPPER_1) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_UPPER_1) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_UPPER_1) ||
-          U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_UPPER_1)) {
+      if (U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_A_UPPER_1)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_SHORT_B_UPPER_1)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_A_UPPER_1)
+          || U64_CONTAINS(white_adjusted, EXIT_FORT_TALL_B_UPPER_1)) {
         return true;
       }
     }

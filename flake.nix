@@ -41,11 +41,11 @@
         packages = {
           libhnefatafl-all = libhnefatafl.all;
           libhnefatafl = libhnefatafl.static;
-          inherit (backend.packages.${system}) "hnefatafl:lib:bindings";
+          backend = backend.packages.${system};
         };
         apps = {
-          test-libhnefatafl = libhnefatafl.test.app;
-          inherit (backend.apps.${system}) test-bindings;
+          test-libhnefatafl = libhnefatafl.test;
+          backend = backend.apps.${system};
         };
         devShells = {
           default = let

@@ -60,8 +60,8 @@ static const pv_assertion EMPTY_PV = {
 #define PV(...)                                                                \
   ((pv_assertion){.tag = PV_EXPECT,                                            \
                   .move_strings = (char *[]){FOR_EACH(STR, __VA_ARGS__)},      \
-                  .length = sizeof((char *[]){FOR_EACH(STR, __VA_ARGS__)}) /   \
-                            sizeof(char *)})
+                  .length = sizeof((char *[]){FOR_EACH(STR, __VA_ARGS__)})     \
+                            / sizeof(char *)})
 
 // Helper macro to convert string to move
 #define READ_MOVE(move_str) read_move(STR(move_str))
@@ -70,9 +70,8 @@ static const pv_assertion EMPTY_PV = {
 #define PREV_PV(...)                                                           \
   (&(pv){.pv_length = {0},                                                     \
          .pv_table = {0},                                                      \
-         .prev_pv_length =                                                     \
-             sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)}) /              \
-             sizeof(move),                                                     \
+         .prev_pv_length = sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)})  \
+                           / sizeof(move),                                     \
          .prev_pv = {FOR_EACH(READ_MOVE, __VA_ARGS__)}})
 
 bool pvs_equal(pv_line *a, pv_line *b) {
@@ -153,8 +152,8 @@ typedef struct {
 
 #define STATS(...)                                                             \
   ((stats_assertions){.assertions = (stats_assertion[]){__VA_ARGS__},          \
-                      .length = sizeof((stats_assertion[]){__VA_ARGS__}) /     \
-                                sizeof(stats_assertion)})
+                      .length = sizeof((stats_assertion[]){__VA_ARGS__})       \
+                                / sizeof(stats_assertion)})
 
 const char *stats_field_name(stats_field field) {
   switch (field) {
@@ -1205,8 +1204,10 @@ TEST time_limit_works(void) {
   clock_gettime(CLOCK_MONOTONIC, &end);
 
   // Calculate elapsed time in milliseconds
-  long elapsed_ms = (end.tv_sec - start.tv_sec) * 1000 +
-                    (end.tv_nsec - start.tv_nsec) / 1000000;
+  long elapsed_ms = (end.tv_sec - start.tv_sec)
+                    * 1000
+                    + (end.tv_nsec - start.tv_nsec)
+                    / 1000000;
 
   // Assert that search finished within 10ms of the 50ms time limit
   // (should be between 40ms and 60ms)

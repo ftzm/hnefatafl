@@ -53,8 +53,8 @@ void paths_to(
   {
     layer candidate = EMPTY_LAYER;
     draw_vertical(rank, file, dest_rank, &candidate);
-    if ((rank != 0 && rank != 10 && file != 0 && file != 10) ||
-        IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
+    if ((rank != 0 && rank != 10 && file != 0 && file != 10)
+        || IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
       if ((dest_rank != 0 && dest_rank != 10) || (file != 1 && file != 9)) {
         draw_horizontal(dest_rank, file, dest_file, &candidate);
       }
@@ -69,8 +69,8 @@ void paths_to(
   {
     layer candidate = EMPTY_LAYER;
     draw_horizontal(rank, file, dest_file, &candidate);
-    if ((rank != 0 && rank != 10 && file != 0 && file != 10) ||
-        IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
+    if ((rank != 0 && rank != 10 && file != 0 && file != 10)
+        || IS_EMPTY(LAYER_AND(candidate, ADJACENTS))) {
       if ((dest_file != 0 && dest_file != 10) || (rank != 1 && rank != 9)) {
         draw_vertical(rank, dest_file, dest_rank, &candidate);
       }
@@ -160,8 +160,8 @@ static enum theft_trial_res prop_layers_equal(struct theft *t, void *arg1) {
   (void)t;
   struct layer_comparison *input = (struct layer_comparison *)arg1;
 
-  if (LAYERS_EQUAL(input->x, input->y) &&
-      LAYERS_EQUAL(input->x_r, input->y_r)) {
+  if (LAYERS_EQUAL(input->x, input->y)
+      && LAYERS_EQUAL(input->x_r, input->y_r)) {
     return THEFT_TRIAL_PASS;
   } else {
     return THEFT_TRIAL_FAIL;
@@ -430,8 +430,8 @@ prop_moves_2_comparison_equal(struct theft *t, void *arg1) {
   } else if (input->x_escape) {
     return THEFT_TRIAL_PASS;
   } else if (
-      LAYERS_EQUAL(input->x, input->y) &&
-      LAYERS_EQUAL(input->x_r, input->y_r)) {
+      LAYERS_EQUAL(input->x, input->y)
+      && LAYERS_EQUAL(input->x_r, input->y_r)) {
     return THEFT_TRIAL_PASS;
   } else {
     return THEFT_TRIAL_FAIL;
