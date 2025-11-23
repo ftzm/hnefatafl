@@ -1,6 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 
-module SQLiteTest.Util where
+module Hnefatafl.Interpreter.Storage.SQLite.Util where
 
 import Control.Concurrent.MVar qualified as MVar
 import Data.List (zipWith3)
@@ -10,8 +10,8 @@ import Database.SQLite3 qualified as SQLite3
 import Effectful
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Storage.Effect
-import Hnefatafl.Storage.SQLite (runStorageSQLite)
+import Hnefatafl.Effect.Storage
+import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Paths_hnefatafl (getDataFileName)
 import Test.Hspec.Expectations.Pretty
 

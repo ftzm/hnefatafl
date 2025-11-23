@@ -1,18 +1,18 @@
 {-# LANGUAGE BlockArguments #-}
 
-module SQLiteTest.Game where
+module Hnefatafl.Interpreter.Storage.SQLite.GameTest where
 
 import Data.List (isInfixOf)
 import Data.Time (getCurrentTime)
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Storage.Effect
+import Hnefatafl.Effect.Storage
+import Hnefatafl.Interpreter.Storage.SQLite.Util
 import Optics
-import SQLiteTest.Util
 import Test.Hspec (Spec, around, describe, it)
 import Test.Hspec.Expectations.Pretty
 
-spec_SQLite_Game :: Spec
-spec_SQLite_Game =
+spec_Game :: Spec
+spec_Game =
   around withSharedDB $ do
     describe "insertGame" $ do
       it "can insert a game without players (anonymous)" $ \conn -> do

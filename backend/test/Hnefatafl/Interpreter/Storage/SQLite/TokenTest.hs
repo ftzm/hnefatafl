@@ -1,18 +1,18 @@
 {-# LANGUAGE BlockArguments #-}
 
-module SQLiteTest.Token where
+module Hnefatafl.Interpreter.Storage.SQLite.TokenTest where
 
 import Data.List (isInfixOf)
 import Data.Time (getCurrentTime)
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Storage.Effect
+import Hnefatafl.Effect.Storage
 import Optics
-import SQLiteTest.Util
+import Hnefatafl.Interpreter.Storage.SQLite.Util
 import Test.Hspec (Spec, around, describe, it)
 import Test.Hspec.Expectations.Pretty
 
-spec_SQLite_Token :: Spec
-spec_SQLite_Token =
+spec_Token :: Spec
+spec_Token =
   around withSharedDB $ do
     describe "createGameParticipantToken" $ do
       it "can create a token for a game" $ \conn -> do

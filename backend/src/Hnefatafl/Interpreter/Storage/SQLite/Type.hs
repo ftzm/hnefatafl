@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Hnefatafl.Storage.SQLite.Type (
+module Hnefatafl.Interpreter.Storage.SQLite.Type (
   PlayerIdDb (..),
   PlayerType (..),
   HumanPlayerDb (..),

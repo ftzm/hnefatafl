@@ -1,12 +1,12 @@
-module MoveList where
+module Hnefatafl.BindingsTest where
 
 import Hnefatafl.Bindings
 import Hnefatafl.Core.Data (Move (..))
 import Test.Hspec (Spec, it)
 import Test.Hspec.Expectations.Pretty
 
-spec_basicMoveListString :: Spec
-spec_basicMoveListString =
+spec_MoveListSerialization :: Spec
+spec_MoveListSerialization =
   let moveList =
         [ Move 1 2
         , Move 5 77
@@ -20,17 +20,17 @@ spec_basicMoveListString =
       expectedString = "AQIFTQVXbm0GTQhXUW1RbQ=="
       actualString = moveListToBase64 moveList
       recalculatedMoveList = moveListFromBase64 actualString
-   in it "should be equal abcdayzzdun" $ do
+   in it "should serialize and deserialize move lists correctly" $ do
         expectedString `shouldBe` actualString
         recalculatedMoveList `shouldBe` moveList
 
-spec_startBlackMoves :: Spec
-spec_startBlackMoves =
+spec_StartBlackMoves :: Spec
+spec_StartBlackMoves =
   it "should contain 116 moves" $ do
     length startBlackMoves `shouldBe` 116
 
-spec_nextGameState :: Spec
-spec_nextGameState =
+spec_NextGameState :: Spec
+spec_NextGameState =
   it "should return moves for white after first black move" $ do
     let firstBlackMove = head startBlackMoves
         (status, possibleMoves) = nextGameState (firstBlackMove :| [])

@@ -1,15 +1,15 @@
 {-# LANGUAGE BlockArguments #-}
 
-module SQLiteTest.Player where
+module Hnefatafl.Interpreter.Storage.SQLite.PlayerTest where
 
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Storage.Effect
+import Hnefatafl.Effect.Storage
 import Optics
-import SQLiteTest.Util
+import Hnefatafl.Interpreter.Storage.SQLite.Util
 import Test.Hspec (Spec, around, describe, it)
 
-spec_SQLite_Player :: Spec
-spec_SQLite_Player =
+spec_Player :: Spec
+spec_Player =
   around withSharedDB $ do
     describe "insertHumanPlayer" $ do
       it "can insert a human player without error" $ \conn ->

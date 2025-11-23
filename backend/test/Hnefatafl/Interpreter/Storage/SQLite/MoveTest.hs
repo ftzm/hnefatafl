@@ -1,17 +1,17 @@
 {-# LANGUAGE BlockArguments #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module SQLiteTest.Move where
+module Hnefatafl.Interpreter.Storage.SQLite.MoveTest where
 
 import Data.Time (getCurrentTime)
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Storage.Effect
+import Hnefatafl.Effect.Storage
 import Optics
-import SQLiteTest.Util
+import Hnefatafl.Interpreter.Storage.SQLite.Util
 import Test.Hspec (Spec, around, describe, it)
 
-spec_SQLite_Move :: Spec
-spec_SQLite_Move =
+spec_Move :: Spec
+spec_Move =
   around withSharedDB $ do
     describe "insertMove" $ do
       it "can insert a move without error" $ \conn -> do

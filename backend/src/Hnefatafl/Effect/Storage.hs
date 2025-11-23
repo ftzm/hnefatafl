@@ -3,8 +3,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Hnefatafl.Storage.Effect (
-  module Hnefatafl.Storage.Effect,
+module Hnefatafl.Effect.Storage (
+  module Hnefatafl.Effect.Storage,
 ) where
 
 import Data.Time (UTCTime)

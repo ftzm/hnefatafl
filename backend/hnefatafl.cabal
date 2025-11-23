@@ -14,9 +14,14 @@ library
   exposed-modules:
       Hnefatafl.Bindings
       Hnefatafl.Core.Data
-      Hnefatafl.Storage.Effect
-      Hnefatafl.Storage.SQLite
-      Hnefatafl.Storage.SQLite.Type
+      Hnefatafl.Effect.Storage
+      Hnefatafl.Interpreter.Storage.SQLite
+      Hnefatafl.Interpreter.Storage.SQLite.Game
+      Hnefatafl.Interpreter.Storage.SQLite.Move
+      Hnefatafl.Interpreter.Storage.SQLite.Player
+      Hnefatafl.Interpreter.Storage.SQLite.Token
+      Hnefatafl.Interpreter.Storage.SQLite.Type
+      Hnefatafl.Interpreter.Storage.SQLite.Util
   other-modules:
       Paths_hnefatafl
   autogen-modules:
@@ -55,12 +60,12 @@ test-suite hnefatafl-test
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
-      MoveList
-      SQLiteTest.Game
-      SQLiteTest.Move
-      SQLiteTest.Player
-      SQLiteTest.Token
-      SQLiteTest.Util
+      Hnefatafl.BindingsTest
+      Hnefatafl.Interpreter.Storage.SQLite.GameTest
+      Hnefatafl.Interpreter.Storage.SQLite.MoveTest
+      Hnefatafl.Interpreter.Storage.SQLite.PlayerTest
+      Hnefatafl.Interpreter.Storage.SQLite.TokenTest
+      Hnefatafl.Interpreter.Storage.SQLite.Util
       Paths_hnefatafl
   autogen-modules:
       Paths_hnefatafl
