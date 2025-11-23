@@ -276,7 +276,6 @@
           "hscolour".components.library.planned = lib.mkOverride 900 true;
           "unordered-containers".components.library.planned = lib.mkOverride 900 true;
           "QuickCheck".components.library.planned = lib.mkOverride 900 true;
-          "hnefatafl".components.sublibs."bindings".planned = lib.mkOverride 900 true;
           "transformers".components.library.planned = lib.mkOverride 900 true;
           "hspec-core".components.library.planned = lib.mkOverride 900 true;
           "effectful-th".components.library.planned = lib.mkOverride 900 true;
@@ -306,7 +305,6 @@
           "optics-extra".components.library.planned = lib.mkOverride 900 true;
           "derive-storable".components.library.planned = lib.mkOverride 900 true;
           "parsec".components.library.planned = lib.mkOverride 900 true;
-          "hnefatafl".components.sublibs."storage".planned = lib.mkOverride 900 true;
           "monad-control".components.library.planned = lib.mkOverride 900 true;
           "random".components.library.planned = lib.mkOverride 900 true;
           "dlist".components.library.planned = lib.mkOverride 900 true;
@@ -315,6 +313,7 @@
           "Only".components.library.planned = lib.mkOverride 900 true;
           "Cabal".components.library.planned = lib.mkOverride 900 true;
           "ghc".components.library.planned = lib.mkOverride 900 true;
+          "hnefatafl".components.tests."hnefatafl-test".planned = lib.mkOverride 900 true;
           "prettyprinter".components.library.planned = lib.mkOverride 900 true;
           "hspec-discover".components.exes."hspec-discover".planned = lib.mkOverride 900 true;
           "transformers-compat".components.library.planned = lib.mkOverride 900 true;
@@ -340,7 +339,6 @@
           "time".components.library.planned = lib.mkOverride 900 true;
           "primitive".components.library.planned = lib.mkOverride 900 true;
           "ghc-bignum".components.library.planned = lib.mkOverride 900 true;
-          "hnefatafl".components.sublibs."storage-sqlite".planned = lib.mkOverride 900 true;
           "pretty".components.library.planned = lib.mkOverride 900 true;
           "haskell-lexer".components.library.planned = lib.mkOverride 900 true;
           "old-locale".components.library.planned = lib.mkOverride 900 true;
@@ -349,7 +347,6 @@
           "th-abstraction".components.library.planned = lib.mkOverride 900 true;
           "ghc-heap".components.library.planned = lib.mkOverride 900 true;
           "optics".components.library.planned = lib.mkOverride 900 true;
-          "hnefatafl".components.tests."storage-test".planned = lib.mkOverride 900 true;
           "safe".components.library.planned = lib.mkOverride 900 true;
           "mtl".components.library.planned = lib.mkOverride 900 true;
           "logict".components.library.planned = lib.mkOverride 900 true;
@@ -357,6 +354,7 @@
           "derive-storable-plugin".components.library.planned = lib.mkOverride 900 true;
           "binary".components.library.planned = lib.mkOverride 900 true;
           "ansi-terminal-types".components.library.planned = lib.mkOverride 900 true;
+          "hnefatafl".components.library.planned = lib.mkOverride 900 true;
           "ghci".components.library.planned = lib.mkOverride 900 true;
           "tasty-discover".components.exes."tasty-discover".planned = lib.mkOverride 900 true;
           "tasty-quickcheck".components.library.planned = lib.mkOverride 900 true;
@@ -377,9 +375,7 @@
           "tasty".components.library.planned = lib.mkOverride 900 true;
           "sqlite-simple".components.library.planned = lib.mkOverride 900 true;
           "text".components.library.planned = lib.mkOverride 900 true;
-          "hnefatafl".components.sublibs."core-data".planned = lib.mkOverride 900 true;
           "indexed-traversable".components.library.planned = lib.mkOverride 900 true;
-          "hnefatafl".components.tests."bindings-test".planned = lib.mkOverride 900 true;
           "splitmix".components.library.planned = lib.mkOverride 900 true;
           "ghc-prim".components.library.planned = lib.mkOverride 900 true;
           "async".components.library.planned = lib.mkOverride 900 true;

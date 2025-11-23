@@ -26,13 +26,7 @@ build_target "libhnefatafl" "libhnefatafl-all"
 print_header "Running libhnefatafl tests"
 nix run .#test-libhnefatafl
 
-build_target "Haskell core-data" "backend.hnefatafl:lib:core-data"
-build_target "Haskell storage" "backend.hnefatafl:lib:storage"
-build_target "Haskell storage-sqlite" "backend.hnefatafl:lib:storage-sqlite"
-build_target "Haskell bindings" "backend.hnefatafl:lib:bindings"
+build_target "Haskell library" "backend.\"hnefatafl:lib:hnefatafl\""
 
-print_header "Running Haskell bindings tests"
-nix run .#backend.hnefatafl:test:bindings-test
-
-print_header "Running Haskell storage tests"
-nix run .#backend.hnefatafl:test:storage-test
+print_header "Running Haskell tests"
+nix run .#backend.\"hnefatafl:test:hnefatafl-test\"

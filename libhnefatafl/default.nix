@@ -244,6 +244,7 @@ in {
   hooks = {
     clang-format = {
       enable = true;
+      types_or = pkgs.lib.mkForce ["c"];
       verbose = true;
     };
   };

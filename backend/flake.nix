@@ -46,15 +46,7 @@
 
               modules = [
                 {
-                  packages.hnefatafl.components.tests.bindings-test = {
-                    libs = [libhnefatafl.static];
-                    # ghcOptions = ["-O1" "-Werror"];
-                    # Don't depend on GHC in build artifacts.  Otherwise GHC may
-                    # be pulled in as a dependency, which causes docker images to
-                    # balloon in size.
-                    dontStrip = false;
-                  };
-                  packages.hnefatafl.components.tests.storage-test = {
+                  packages.hnefatafl.components.tests.hnefatafl-test = {
                     libs = [libhnefatafl.static];
                     # ghcOptions = ["-O1" "-Werror"];
                     # Don't depend on GHC in build artifacts.  Otherwise GHC may

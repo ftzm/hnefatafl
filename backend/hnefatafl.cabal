@@ -1,6 +1,6 @@
 cabal-version: 2.4
 
--- This file has been generated from package.yaml by hpack version 0.38.2.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -10,121 +10,11 @@ build-type:     Simple
 data-files:
     db/schema.sql
 
-library bindings
+library
   exposed-modules:
       Hnefatafl.Bindings
-  other-modules:
-      Paths_hnefatafl
-  autogen-modules:
-      Paths_hnefatafl
-  hs-source-dirs:
-      bindings
-  default-extensions:
-      TemplateHaskell
-      OverloadedStrings
-      OverloadedRecordDot
-      OverloadedLabels
-      DuplicateRecordFields
-      LambdaCase
-      DerivingVia
-      ImportQualifiedPost
-      MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-  build-depends:
-      base
-    , core-data
-    , derive-storable
-    , derive-storable-plugin
-    , effectful
-    , effectful-th
-    , optics
-    , relude
-    , sqlite-simple
-    , text
-    , time
-    , ulid
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-  default-language: GHC2021
-
-library core-data
-  exposed-modules:
       Hnefatafl.Core.Data
-  other-modules:
-      Paths_hnefatafl
-  autogen-modules:
-      Paths_hnefatafl
-  hs-source-dirs:
-      core-data
-  default-extensions:
-      TemplateHaskell
-      OverloadedStrings
-      OverloadedRecordDot
-      OverloadedLabels
-      DuplicateRecordFields
-      LambdaCase
-      DerivingVia
-      ImportQualifiedPost
-      MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-  build-depends:
-      base
-    , derive-storable
-    , derive-storable-plugin
-    , effectful
-    , effectful-th
-    , optics
-    , relude
-    , sqlite-simple
-    , text
-    , time
-    , ulid
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-  default-language: GHC2021
-
-library storage
-  exposed-modules:
       Hnefatafl.Storage.Effect
-  other-modules:
-      Paths_hnefatafl
-  autogen-modules:
-      Paths_hnefatafl
-  hs-source-dirs:
-      storage
-  default-extensions:
-      TemplateHaskell
-      OverloadedStrings
-      OverloadedRecordDot
-      OverloadedLabels
-      DuplicateRecordFields
-      LambdaCase
-      DerivingVia
-      ImportQualifiedPost
-      MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
-  build-depends:
-      base
-    , core-data
-    , derive-storable
-    , derive-storable-plugin
-    , effectful
-    , effectful-th
-    , optics
-    , relude
-    , sqlite-simple
-    , text
-    , time
-    , ulid
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-  default-language: GHC2021
-
-library storage-sqlite
-  exposed-modules:
       Hnefatafl.Storage.SQLite
       Hnefatafl.Storage.SQLite.Type
   other-modules:
@@ -132,7 +22,7 @@ library storage-sqlite
   autogen-modules:
       Paths_hnefatafl
   hs-source-dirs:
-      storage-sqlite
+      src
   default-extensions:
       TemplateHaskell
       OverloadedStrings
@@ -146,7 +36,6 @@ library storage-sqlite
   ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       base
-    , core-data
     , derive-storable
     , derive-storable-plugin
     , effectful
@@ -154,7 +43,6 @@ library storage-sqlite
     , optics
     , relude
     , sqlite-simple
-    , storage
     , text
     , time
     , ulid
@@ -163,58 +51,11 @@ library storage-sqlite
     , relude (Relude as Prelude)
   default-language: GHC2021
 
-test-suite bindings-test
+test-suite hnefatafl-test
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
       MoveList
-      Paths_hnefatafl
-  autogen-modules:
-      Paths_hnefatafl
-  hs-source-dirs:
-      bindings-test
-  default-extensions:
-      TemplateHaskell
-      OverloadedStrings
-      OverloadedRecordDot
-      OverloadedLabels
-      DuplicateRecordFields
-      LambdaCase
-      DerivingVia
-      ImportQualifiedPost
-      MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
-  build-tool-depends:
-      tasty-discover:tasty-discover
-  build-depends:
-      base
-    , bindings
-    , core-data
-    , derive-storable
-    , derive-storable-plugin
-    , effectful
-    , effectful-th
-    , hspec
-    , hspec-expectations-pretty-diff
-    , optics
-    , relude
-    , sqlite-simple
-    , tasty
-    , tasty-discover
-    , tasty-hspec
-    , tasty-hunit
-    , text
-    , time
-    , ulid
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude)
-  default-language: GHC2021
-
-test-suite storage-test
-  type: exitcode-stdio-1.0
-  main-is: Driver.hs
-  other-modules:
       SQLiteTest.Game
       SQLiteTest.Move
       SQLiteTest.Player
@@ -224,7 +65,7 @@ test-suite storage-test
   autogen-modules:
       Paths_hnefatafl
   hs-source-dirs:
-      storage-test
+      test
   default-extensions:
       TemplateHaskell
       OverloadedStrings
@@ -240,20 +81,18 @@ test-suite storage-test
       tasty-discover:tasty-discover
   build-depends:
       base
-    , core-data
     , derive-storable
     , derive-storable-plugin
     , direct-sqlite
     , effectful
     , effectful-th
+    , hnefatafl
     , hspec
     , hspec-expectations-pretty-diff
     , optics
     , process
     , relude
     , sqlite-simple
-    , storage
-    , storage-sqlite
     , tasty
     , tasty-discover
     , tasty-hspec
