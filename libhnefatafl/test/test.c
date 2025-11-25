@@ -1,12 +1,13 @@
 #include "greatest.h"
+#include "zobrist.h"
 
+SUITE_EXTERN(api_suite);
 SUITE_EXTERN(base64_suite);
 SUITE_EXTERN(capture_suite);
 SUITE_EXTERN(corner_moves_1_suite);
 SUITE_EXTERN(corner_moves_2_suite);
 SUITE_EXTERN(corner_paths_1_suite);
 SUITE_EXTERN(corner_paths_2_suite);
-SUITE_EXTERN(lib_suite);
 SUITE_EXTERN(move_generator_suite);
 SUITE_EXTERN(move_suite);
 SUITE_EXTERN(position_set_suite);
@@ -20,6 +21,7 @@ SUITE_EXTERN(score_suite);
 SUITE_EXTERN(search_black_shallow);
 SUITE_EXTERN(search_time_limiting);
 SUITE_EXTERN(search_white_shallow);
+SUITE_EXTERN(validation_suite);
 SUITE_EXTERN(victory_suite);
 SUITE_EXTERN(zobrist_suite);
 
@@ -28,13 +30,13 @@ GREATEST_MAIN_DEFS();
 int main(int argc, char **argv) {
 
   GREATEST_MAIN_BEGIN();
+  RUN_SUITE(api_suite);
   RUN_SUITE(base64_suite);
   RUN_SUITE(capture_suite);
   RUN_SUITE(corner_moves_1_suite);
   RUN_SUITE(corner_moves_2_suite);
   RUN_SUITE(corner_paths_1_suite);
   RUN_SUITE(corner_paths_2_suite);
-  RUN_SUITE(lib_suite);
   RUN_SUITE(move_generator_suite);
   RUN_SUITE(move_suite);
   RUN_SUITE(position_set_suite);
@@ -48,6 +50,7 @@ int main(int argc, char **argv) {
   RUN_SUITE(search_black_shallow);
   RUN_SUITE(search_time_limiting);
   RUN_SUITE(search_white_shallow);
+  RUN_SUITE(validation_suite);
   RUN_SUITE(victory_suite);
   RUN_SUITE(zobrist_suite);
   GREATEST_MAIN_END();

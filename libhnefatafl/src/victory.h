@@ -10,3 +10,7 @@ bool surrounded(const board *b);
 bool exit_fort(const board *b);
 bool black_victory(const board *b);
 bool white_victory(const board *b);
+
+// Victory check functions that return detailed game status
+game_status white_victory_check(const board *b);
+game_status black_victory_check(const board *b);

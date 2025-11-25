@@ -1,35 +1,8 @@
-#include "lib.h"
+#include "validation.h"
 #include "greatest.h"
 #include "move.h"
 #include "stdio.h"
 #include "types.h"
-
-TEST test_get_possible_moves() {
-
-  // Get the first black move from start_black_moves
-  move first_move = start_black_moves[0];
-
-  // Create move history with just one move
-  move history[1] = {first_move};
-
-  // Call next_game_state
-  int move_count = 0;
-  game_status gs;
-  move *possible_moves = next_game_state(history, 1, &move_count, &gs);
-
-  if (possible_moves == NULL) {
-    printf("ERROR: get_possible_moves returned NULL\n");
-    FAIL();
-  }
-
-  // Should have some moves for white after black's first move
-  ASSERT(move_count > 0);
-
-  // Clean up
-  free(possible_moves);
-
-  PASS();
-}
 
 TEST test_has_correct_piece() {
   board b = start_board;
@@ -168,8 +141,7 @@ TEST test_validate_move_integration() {
   PASS();
 }
 
-SUITE(lib_suite) {
-  RUN_TEST(test_get_possible_moves);
+SUITE(validation_suite) {
   RUN_TEST(test_has_correct_piece);
   RUN_TEST(test_is_orthogonal_move);
   RUN_TEST(test_get_move_direction);

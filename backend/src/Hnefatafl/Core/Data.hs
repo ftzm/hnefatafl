@@ -1,3 +1,5 @@
+{-# LANGUAGE FunctionalDependencies #-}
+
 module Hnefatafl.Core.Data (
   -- * Player Types
   PlayerId (..),
@@ -145,6 +147,6 @@ data GameParticipantToken = GameParticipantToken
   }
   deriving (Show, Eq, Generic)
 
-class DomainMapping a b where
+class DomainMapping a b | a -> b where
   toDomain :: a -> b
   fromDomain :: b -> a

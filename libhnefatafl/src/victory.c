@@ -2,6 +2,7 @@
 #include "capture.h"
 #include "constants.h"
 #include "layer.h"
+#include "move.h"
 #include "stdbool.h"
 #include "x86intrin.h" // IWYU pragma: export
 
@@ -191,4 +192,26 @@ bool black_victory(const board *b) {
 
 bool white_victory(const board *b) {
   return king_effectively_escaped(b) || exit_fort(b);
+}
+
+game_status white_victory_check(const board *b) {
+  if (black_moves_count(b) == 0) {
+    return status_no_black_moves;
+  } else if (king_escaped(b)) {
+    return status_king_escaped;
+  } else if (exit_fort(b)) {
+    return status_exit_fort;
+  }
+  return status_ongoing;
+}
+
+game_status black_victory_check(const board *b) {
+  if (white_moves_count(b) == 0) {
+    return status_no_white_moves;
+  } else if (king_captured(b)) {
+    return status_king_captured;
+  } else if (surrounded(b)) {
+    return status_white_surrounded;
+  }
+  return status_ongoing;
 }

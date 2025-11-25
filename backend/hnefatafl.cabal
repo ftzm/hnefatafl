@@ -50,6 +50,7 @@ library
     , sqlite-simple
     , text
     , time
+    , transformers
     , ulid
   mixins:
       base hiding (Prelude)
@@ -105,6 +106,7 @@ test-suite hnefatafl-test
     , temporary
     , text
     , time
+    , transformers
     , ulid
   mixins:
       base hiding (Prelude)

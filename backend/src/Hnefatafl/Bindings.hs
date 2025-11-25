@@ -2,16 +2,18 @@
 {-# OPTIONS_GHC -fplugin-opt=Foreign.Storable.Generic.Plugin:-v1 #-}
 {-# OPTIONS_GHC -fplugin=Foreign.Storable.Generic.Plugin #-}
 
--- oioi
 module Hnefatafl.Bindings (
   startBoard,
   moveListToBase64,
   moveListFromBase64,
   startBlackMoves,
   nextGameState,
+  nextGameStateWithMoves,
+  nextGameStateWithMovesTrusted,
   EngineGameStatus (..),
 ) where
 
+import Control.Monad.Trans.Cont
 import Foreign (
   Ptr,
   Storable (alignment, peek, poke, sizeOf),
@@ -20,11 +22,11 @@ import Foreign (
   castPtr,
   free,
   peekArray,
+  with,
   withArray,
-  withArrayLen,
  )
 import Foreign.C.String (CString, peekCString, withCString)
-import Foreign.C.Types (CInt (..))
+import Foreign.C.Types (CBool (..), CInt (..))
 import Foreign.Storable.Generic (GStorable)
 import Hnefatafl.Core.Data (
   DomainMapping (..),
@@ -158,31 +160,114 @@ startBlackMoves :: NonEmpty Move
 startBlackMoves = fromList $ map toDomain $ unsafePerformIO $ peekArray 116 c_start_black_moves
 
 foreign import ccall unsafe "next_game_state"
-  c_get_possible_moves ::
+  c_next_game_state ::
     Ptr StorableMove ->
     CInt ->
+    Ptr StorableGameStatus ->
+    IO CInt
+
+foreign import ccall unsafe "next_game_state_with_moves"
+  c_next_game_state_with_moves ::
+    Ptr StorableMove ->
+    CInt ->
+    Ptr (Ptr StorableMove) ->
     Ptr CInt ->
     Ptr StorableGameStatus ->
-    IO (Ptr StorableMove)
+    IO CInt
 
-nextGameState :: NonEmpty Move -> (EngineGameStatus, [Move])
-nextGameState moveHistory = unsafePerformIO $
-  withArrayLen (map fromDomain $ toList moveHistory) $ \historyLen historyPtr -> alloca $ \moveCountPtr ->
-    alloca $ \gameStatusPtr -> do
-      movesPtr <-
-        c_get_possible_moves
-          historyPtr
-          (fromIntegral historyLen)
-          moveCountPtr
-          gameStatusPtr
-      storableStatus <- peek gameStatusPtr
-      let status = toDomain storableStatus
-      moves <-
-        if storableStatus == Hnefatafl.Bindings.Ongoing
-          then do
-            count <- peek moveCountPtr
-            storableMoves <- peekArray (fromIntegral count) movesPtr
-            free movesPtr
-            return $ map toDomain storableMoves
-          else return []
-      return (status, moves)
+foreign import ccall unsafe "next_game_state_with_moves_trusted"
+  c_next_game_state_with_moves_trusted ::
+    Ptr StorableExternBoard ->
+    CBool ->
+    Ptr StorableMove ->
+    CInt ->
+    Ptr (Ptr StorableMove) ->
+    Ptr CInt ->
+    Ptr StorableGameStatus ->
+    IO CInt
+
+nextGameState :: NonEmpty Move -> EngineGameStatus
+nextGameState moveHistory = unsafePerformIO $ evalContT $ do
+  let
+    historyLen :: CInt = fromIntegral $ length moveHistory
+    storableHistory = map (fromDomain @StorableMove) (toList moveHistory)
+  historyPtr <- ContT $ withArray storableHistory
+  gameStatusPtr <- ContT (alloca @StorableGameStatus)
+  result <-
+    liftIO $
+      c_next_game_state
+        historyPtr
+        historyLen
+        gameStatusPtr
+  if result /= 0
+    then error "next_game_state failed"
+    else do
+      storableStatus <- liftIO $ peek gameStatusPtr
+      return $ toDomain storableStatus
+
+nextGameStateWithMoves :: NonEmpty Move -> (EngineGameStatus, [Move])
+nextGameStateWithMoves moveHistory = unsafePerformIO $ evalContT $ do
+  let
+    historyLen :: CInt = fromIntegral $ length moveHistory
+    storableHistory = map (fromDomain @StorableMove) (toList moveHistory)
+  historyPtr <- ContT $ withArray storableHistory
+  movesPtrPtr <- ContT alloca
+  moveCountPtr <- ContT alloca
+  gameStatusPtr <- ContT alloca
+  result <-
+    liftIO $
+      c_next_game_state_with_moves
+        historyPtr
+        historyLen
+        movesPtrPtr
+        moveCountPtr
+        gameStatusPtr
+  when (result /= 0) $ error "next_game_state_with_moves failed"
+  storableStatus <- liftIO $ peek gameStatusPtr
+  let status = toDomain storableStatus
+  moves <-
+    if storableStatus == Hnefatafl.Bindings.Ongoing
+      then liftIO $ do
+        count <- peek moveCountPtr
+        movesPtr <- peek movesPtrPtr
+        storableMoves <- peekArray (fromIntegral count) movesPtr
+        free movesPtr
+        return $ map toDomain storableMoves
+      else return []
+  return (status, moves)
+
+nextGameStateWithMovesTrusted ::
+  ExternBoard -> Bool -> NonEmpty Move -> (EngineGameStatus, [Move])
+nextGameStateWithMovesTrusted trustedBoard isBlackTurn moveHistory = unsafePerformIO $ evalContT $ do
+  let
+    historyLen :: CInt = fromIntegral $ length moveHistory
+    storableHistory = map (fromDomain @StorableMove) (toList moveHistory)
+    storableBoard = fromDomain @StorableExternBoard trustedBoard
+  boardPtr <- ContT $ with storableBoard
+  historyPtr <- ContT $ withArray storableHistory
+  movesPtrPtr <- ContT alloca
+  moveCountPtr <- ContT alloca
+  gameStatusPtr <- ContT alloca
+  result <-
+    liftIO $
+      c_next_game_state_with_moves_trusted
+        boardPtr
+        (if isBlackTurn then 1 else 0)
+        historyPtr
+        historyLen
+        movesPtrPtr
+        moveCountPtr
+        gameStatusPtr
+  when (result /= 0) $ error "next_game_state_with_moves_trusted failed"
+  storableStatus <- liftIO $ peek gameStatusPtr
+  let status = toDomain storableStatus
+  moves <-
+    if storableStatus == Hnefatafl.Bindings.Ongoing
+      then liftIO $ do
+        count <- peek moveCountPtr
+        movesPtr <- peek movesPtrPtr
+        storableMoves <- peekArray (fromIntegral count) movesPtr
+        free movesPtr
+        return $ map toDomain storableMoves
+      else return []
+  return (status, moves)
