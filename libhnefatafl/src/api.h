@@ -1,4 +1,4 @@
-/* public-facing interface for this library. It's designed be ergononmic when
+/* public-facing interface for this library. It's designed to be ergononmic when
  * used via Haskell's FFI.
  */
 
@@ -12,6 +12,13 @@ typedef struct {
   layer white;
   u8 king;
 } compact_board;
+
+typedef struct {
+  move move;
+  compact_board board;
+  layer captures;
+  bool was_black_turn;
+} move_result;
 
 /* Function declarations */
 compact_board to_compact(const board *b);
@@ -61,3 +68,10 @@ int next_game_state_with_moves_trusted(
     move **moves_out,
     int *move_count,
     game_status *gs);
+
+/* Apply a sequence of moves and return detailed data about each move.
+ * Does not perform move validation or game state logic - just applies moves
+ * and captures. Returns dynamically allocated array of move_result structures.
+ * Caller must free the returned array.
+ */
+move_result *apply_move_sequence(const move *moves, int move_count);

@@ -213,3 +213,50 @@ int next_game_state_with_moves_trusted(
   *moves_out = possible_moves;
   return 0;
 }
+
+/* Apply a sequence of moves and return detailed data about each move.
+ * Does not perform move validation or game state logic - just applies moves
+ * and captures. Returns dynamically allocated array of move_result structures.
+ * Caller must free the returned array.
+ */
+move_result *apply_move_sequence(const move *moves, int move_count) {
+  move_result *move_results = malloc(sizeof(move_result) * move_count);
+
+  board current_board = start_board;
+  bool is_black_turn = true;
+
+  for (int i = 0; i < move_count; i++) {
+    move m = moves[i];
+
+    // Store the move and whose turn it was
+    move_results[i].move = m;
+    move_results[i].was_black_turn = is_black_turn;
+
+    // Apply the move and captures
+    layer captures;
+    if (is_black_turn) {
+      current_board = apply_black_move_m(current_board, m.orig, m.dest);
+      u64 dummy_hash = 0;
+      captures = apply_captures_z_black(&current_board, &dummy_hash, m.dest);
+    } else if (LOWEST_INDEX(current_board.king) == m.orig) {
+      // King move
+      current_board = apply_king_move_m(current_board, m.orig, m.dest);
+      u64 dummy_hash = 0;
+      captures = apply_captures_z_white(&current_board, &dummy_hash, m.dest);
+    } else {
+      // White pawn move
+      current_board = apply_white_move_m(current_board, m.orig, m.dest);
+      u64 dummy_hash = 0;
+      captures = apply_captures_z_white(&current_board, &dummy_hash, m.dest);
+    }
+
+    // Store the captures and final board state
+    move_results[i].captures = captures;
+    move_results[i].board = to_compact(&current_board);
+
+    // Alternate turns
+    is_black_turn = !is_black_turn;
+  }
+
+  return move_results;
+}

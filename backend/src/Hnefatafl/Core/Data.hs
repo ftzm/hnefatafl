@@ -18,6 +18,7 @@ module Hnefatafl.Core.Data (
   Layer (..),
   ExternBoard (..),
   Move (..),
+  MoveResult (..),
   MoveId (..),
   generateMoveId,
   PlayerColor (..),
@@ -108,6 +109,15 @@ data ExternBoard = ExternBoard
 data Move = Move
   { orig :: Word8
   , dest :: Word8
+  }
+  deriving (Show, Read, Eq)
+
+-- | Result of applying a move, including captures and board state
+data MoveResult = MoveResult
+  { move :: Move
+  , board :: ExternBoard
+  , captures :: Layer
+  , wasBlackTurn :: Bool
   }
   deriving (Show, Read, Eq)
 

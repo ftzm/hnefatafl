@@ -8,7 +8,7 @@ newlines-between-decls: 1
 haddock-style: single-line
 let-style: auto
 in-style: right-align
-respectful: false
+respectful: true
 fixities: []
 column-limit: 80
 single-constraint-parens: never

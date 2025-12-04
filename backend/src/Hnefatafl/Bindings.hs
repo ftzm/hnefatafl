@@ -10,6 +10,7 @@ module Hnefatafl.Bindings (
   nextGameState,
   nextGameStateWithMoves,
   nextGameStateWithMovesTrusted,
+  applyMoveSequence,
   EngineGameStatus (..),
 ) where
 
@@ -33,6 +34,7 @@ import Hnefatafl.Core.Data (
   ExternBoard (..),
   Layer (..),
   Move (..),
+  MoveResult (..),
  )
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -58,6 +60,14 @@ data StorableExternBoard = StorableExternBoard
 data StorableMove = StorableMove
   {orig :: Word8, dest :: Word8}
   deriving (Show, Read, Eq, Generic, GStorable)
+
+data StorableMoveResult = StorableMoveResult
+  { move :: StorableMove
+  , board :: StorableExternBoard
+  , captures :: StorableLayer
+  , was_black_turn :: Bool
+  }
+  deriving (Show, Read, Generic, GStorable)
 
 data StorableGameStatus
   = Ongoing
@@ -90,6 +100,10 @@ instance DomainMapping StorableMove Move where
   toDomain (StorableMove o d) = Move o d
   fromDomain (Move o d) = StorableMove o d
 
+instance DomainMapping StorableMoveResult MoveResult where
+  toDomain (StorableMoveResult m b c wbt) = MoveResult (toDomain m) (toDomain b) (toDomain c) wbt
+  fromDomain (MoveResult m b c wbt) = StorableMoveResult (fromDomain m) (fromDomain b) (fromDomain c) wbt
+
 instance DomainMapping StorableGameStatus EngineGameStatus where
   toDomain Hnefatafl.Bindings.Ongoing = EngineOngoing
   toDomain KingCaptured = EngineKingCaptured
@@ -110,8 +124,9 @@ instance DomainMapping StorableGameStatus EngineGameStatus where
 foreign import ccall unsafe "start_board_extern"
   start_board_extern :: Ptr StorableExternBoard -> IO ()
 
-startBoard :: IO ExternBoard
-startBoard = alloca $ \ptr -> do
+startBoard :: ExternBoard
+{-# NOINLINE startBoard #-}
+startBoard = unsafePerformIO $ alloca $ \ptr -> do
   start_board_extern ptr
   storableBoard <- peek ptr
   return $ toDomain storableBoard
@@ -271,3 +286,21 @@ nextGameStateWithMovesTrusted trustedBoard isBlackTurn moveHistory = unsafePerfo
         return $ map toDomain storableMoves
       else return []
   return (status, moves)
+
+foreign import ccall unsafe "apply_move_sequence"
+  c_apply_move_sequence ::
+    Ptr StorableMove ->
+    CInt ->
+    IO (Ptr StorableMoveResult)
+
+applyMoveSequence :: NonEmpty Move -> NonEmpty MoveResult
+applyMoveSequence moves = unsafePerformIO $ evalContT $ do
+  let
+    moveCount :: CInt = fromIntegral $ length moves
+    storableMoves = map (fromDomain @StorableMove) (toList moves)
+  movesPtr <- ContT $ withArray storableMoves
+  moveResultsPtr <- liftIO $ c_apply_move_sequence movesPtr moveCount
+  storableMoveResults <-
+    liftIO $ peekArray (fromIntegral moveCount) moveResultsPtr
+  liftIO $ free moveResultsPtr
+  return $ fromList $ map toDomain storableMoveResults

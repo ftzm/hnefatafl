@@ -23,7 +23,7 @@ ghc-options:
   - -Wall
   - -Werror
   - -Wmissing-export-lists
-  - -Wmissing-home-modules
+  - -Wno-missing-home-modules
   - -Widentities
   - -Wpartial-fields
   - -Wcpp-undef
@@ -39,6 +39,10 @@ data-files:
   - db/schema.sql
 
 dependencies:
+  - name: ''
+    #version: ">= 1.1.0.0"
+    mixin:
+      - relude
   - name: base
     #version: ">=4.15"
     mixin:
@@ -57,6 +61,9 @@ dependencies:
   - effectful-th
   - optics
   - transformers
+  - attoparsec
+  - array
+  - split
 
 # executables:
 #   app:

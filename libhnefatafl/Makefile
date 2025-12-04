@@ -66,7 +66,7 @@ $(DEP_DIR)/$(SRC_DIR) $(DEP_DIR)/$(TEST_DIR): | $(DEP_DIR)
 # Pattern rule for main library object files
 $(LIB_OBJ_DIR)/%.o : $(SRC_DIR)/%.c | $(LIB_OBJ_DIR) $(DEP_DIR)/$(SRC_DIR)
 	@echo "building $@"
-	@$(CC) $(CFLAGS) -MMD -MP -MT $@ -MF $(DEP_DIR)/$(SRC_DIR)/$*.d $(SRC_INCLUDES) -c -o $@ $<
+	@$(CC) $(CFLAGS) -fPIC -MMD -MP -MT $@ -MF $(DEP_DIR)/$(SRC_DIR)/$*.d $(SRC_INCLUDES) -c -o $@ $<
 
 # Build the shared library from all library object files
 $(LIB_TARGET): $(LIB_OBJS) | $(LIB_DIR)
@@ -239,6 +239,11 @@ all: $(LIB_TARGET) $(TEST_BIN_DIR)/test $(BENCH_BINS)
 
 .PHONY: static
 static: $(STATIC_LIB_TARGET)
+
+.PHONY: shared
+shared: $(LIB_TARGET)
+	@echo "copying shared library to backend"
+	@cp $(LIB_TARGET) ../backend/
 
 .PHONY: lib-only
 lib-only: $(LIB_TARGET)

@@ -13,6 +13,7 @@ data-files:
 library
   exposed-modules:
       Hnefatafl.Bindings
+      Hnefatafl.Board
       Hnefatafl.Core.Data
       Hnefatafl.Effect.Storage
       Hnefatafl.Interpreter.Storage.SQLite
@@ -22,6 +23,7 @@ library
       Hnefatafl.Interpreter.Storage.SQLite.Token
       Hnefatafl.Interpreter.Storage.SQLite.Type
       Hnefatafl.Interpreter.Storage.SQLite.Util
+      Hnefatafl.Serialization
   other-modules:
       Paths_hnefatafl
   autogen-modules:
@@ -38,22 +40,27 @@ library
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
-      base
+      
+    , array
+    , attoparsec
+    , base
     , derive-storable
     , derive-storable-plugin
     , effectful
     , effectful-th
     , optics
     , relude
+    , split
     , sqlite-simple
     , text
     , time
     , transformers
     , ulid
   mixins:
-      base hiding (Prelude)
+       relude
+    , base hiding (Prelude)
     , relude (Relude as Prelude)
   default-language: GHC2021
 
@@ -82,11 +89,14 @@ test-suite hnefatafl-test
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wmissing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
   build-tool-depends:
       tasty-discover:tasty-discover
   build-depends:
-      base
+      
+    , array
+    , attoparsec
+    , base
     , derive-storable
     , derive-storable-plugin
     , direct-sqlite
@@ -98,6 +108,7 @@ test-suite hnefatafl-test
     , optics
     , process
     , relude
+    , split
     , sqlite-simple
     , tasty
     , tasty-discover
@@ -109,6 +120,7 @@ test-suite hnefatafl-test
     , transformers
     , ulid
   mixins:
-      base hiding (Prelude)
+       relude
+    , base hiding (Prelude)
     , relude (Relude as Prelude)
   default-language: GHC2021

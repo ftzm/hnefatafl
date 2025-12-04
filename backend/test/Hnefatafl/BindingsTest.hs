@@ -65,3 +65,12 @@ spec_NextGameStateWithMovesTrusted =
           result = nextGameStateWithMovesTrusted board True (firstMove :| [])
       case result of
         (_, moves) -> length moves `shouldSatisfy` (>= 0)
+
+spec_ApplyMoveSequence :: Spec
+spec_ApplyMoveSequence =
+  it "should apply first black move and return board state" $ do
+    let firstBlackMove = head startBlackMoves
+        boardStates = applyMoveSequence (firstBlackMove :| [])
+    length boardStates `shouldBe` 1
+    let boardAfterMove = head boardStates
+    boardAfterMove `shouldSatisfy` (\ExternBoard{} -> True)
