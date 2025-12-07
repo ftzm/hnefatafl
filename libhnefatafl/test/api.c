@@ -16,11 +16,21 @@ TEST test_get_possible_moves() {
   int move_count = 0;
   game_status gs;
   move *possible_moves = NULL;
-  int result =
-      next_game_state_with_moves(history, 1, &possible_moves, &move_count, &gs);
+  move_validation_result result;
+  next_game_state_with_moves(
+      history,
+      1,
+      &possible_moves,
+      &move_count,
+      &gs,
+      &result,
+      false);
 
-  if (result != 0) {
-    printf("ERROR: next_game_state_with_moves failed with code %d\n", result);
+  if (result.error != move_error_no_error) {
+    printf(
+        "ERROR: next_game_state_with_moves failed with error %d at move %d\n",
+        result.error,
+        result.move_index);
     FAIL();
   }
 
@@ -47,10 +57,14 @@ TEST test_next_game_state() {
 
   // Call next_game_state (just status, no moves)
   game_status gs;
-  int result = next_game_state(history, 1, &gs);
+  move_validation_result result;
+  next_game_state(history, 1, &gs, &result, false);
 
-  if (result != 0) {
-    printf("ERROR: next_game_state failed with code %d\n", result);
+  if (result.error != move_error_no_error) {
+    printf(
+        "ERROR: next_game_state failed with error %d at move %d\n",
+        result.error,
+        result.move_index);
     FAIL();
   }
 

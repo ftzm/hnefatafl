@@ -213,8 +213,13 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
         OP_LAYER_BIT(b2.black, dest, |=);
         OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-        if (CHECK_INDEX(capture_dests, dest))
-          apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+        if (CHECK_INDEX(capture_dests, dest)) {
+          layer friends = LAYER_OR(b2.black, corners);
+          if (!CHECK_INDEX(b2.king, 60)) {
+            friends = LAYER_OR(friends, throne);
+          }
+          apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+        }
 
         bs[(*total)] = b2;
         ms[(*total)] = (move){orig, dest};
@@ -234,8 +239,13 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
         OP_LAYER_BIT(b2.black, dest, |=);
         OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-        if (CHECK_INDEX(capture_dests, dest))
-          apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+        if (CHECK_INDEX(capture_dests, dest)) {
+          layer friends = LAYER_OR(b2.black, corners);
+          if (!CHECK_INDEX(b2.king, 60)) {
+            friends = LAYER_OR(friends, throne);
+          }
+          apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+        }
 
         bs[(*total)] = b2;
         ms[(*total)] = (move){orig, dest};
@@ -255,8 +265,13 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
         OP_LAYER_BIT(b2.black, dest, |=);
         OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-        if (CHECK_INDEX(capture_dests, dest))
-          apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+        if (CHECK_INDEX(capture_dests, dest)) {
+          layer friends = LAYER_OR(b2.black, corners);
+          if (!CHECK_INDEX(b2.king, 60)) {
+            friends = LAYER_OR(friends, throne);
+          }
+          apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+        }
 
         bs[(*total)] = b2;
         ms[(*total)] = (move){orig, dest};
@@ -276,7 +291,13 @@ void gen_reference_moves_black(board b, int *total, move *ms, board *bs) {
         OP_LAYER_BIT(b2.black, dest, |=);
         OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+        {
+          layer friends = LAYER_OR(b2.black, corners);
+          if (!CHECK_INDEX(b2.king, 60)) {
+            friends = LAYER_OR(friends, throne);
+          }
+          apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+        }
 
         bs[(*total)] = b2;
         ms[(*total)] = (move){orig, dest};
@@ -318,8 +339,13 @@ process:
       OP_LAYER_BIT(b2.black, dest, |=);
       OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (CHECK_INDEX(capture_dests, dest))
-        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      if (CHECK_INDEX(capture_dests, dest)) {
+        layer friends = LAYER_OR(b2.black, corners);
+        if (!CHECK_INDEX(b2.king, 60)) {
+          friends = LAYER_OR(friends, throne);
+        }
+        apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -340,8 +366,13 @@ process:
       OP_LAYER_BIT(b2.black, dest, |=);
       OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (CHECK_INDEX(capture_dests, dest))
-        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      if (CHECK_INDEX(capture_dests, dest)) {
+        layer friends = LAYER_OR(b2.black, corners);
+        if (!CHECK_INDEX(b2.king, 60)) {
+          friends = LAYER_OR(friends, throne);
+        }
+        apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -362,8 +393,13 @@ process:
       OP_LAYER_BIT(b2.black, dest, |=);
       OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      if (CHECK_INDEX(capture_dests, dest))
-        apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      if (CHECK_INDEX(capture_dests, dest)) {
+        layer friends = LAYER_OR(b2.black, corners);
+        if (!CHECK_INDEX(b2.king, 60)) {
+          friends = LAYER_OR(friends, throne);
+        }
+        apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -384,7 +420,13 @@ process:
       OP_LAYER_BIT(b2.black, dest, |=);
       OP_LAYER_BIT(b2.black_r, rotate_right[dest], |=);
 
-      apply_captures_niave(b2.black, &b2.white, &b2.white_r, dest);
+      {
+        layer friends = LAYER_OR(b2.black, corners);
+        if (!CHECK_INDEX(b2.king, 60)) {
+          friends = LAYER_OR(friends, throne);
+        }
+        apply_captures_niave(friends, &b2.white, &b2.white_r, dest);
+      }
 
       bs[(*total)] = b2;
       ms[(*total)] = (move){orig, dest};
@@ -486,7 +528,13 @@ void reference_dir_moves_black(
     OP_LAYER_BIT(b2.black_r, rotate_right[i], |=);
     OP_LAYER_BIT(b2.black, pos, |=);
     OP_LAYER_BIT(b2.black_r, rotate_right[pos], |=);
-    apply_captures_niave(b2.black, &b2.white, &b2.white_r, pos);
+    {
+      layer friends = LAYER_OR(b2.black, corners);
+      if (!CHECK_INDEX(b2.king, 60)) {
+        friends = LAYER_OR(friends, throne);
+      }
+      apply_captures_niave(friends, &b2.white, &b2.white_r, pos);
+    }
     // printf("pre b\n");
     ms[(*cnt)].b = b2;
     // printf("pre cnt\n");
@@ -895,7 +943,11 @@ void reference_dir_moves_white(
     OP_LAYER_BIT(b2.white_r, rotate_right[i], |=);
     OP_LAYER_BIT(b2.white, pos, |=);
     OP_LAYER_BIT(b2.white_r, rotate_right[pos], |=);
-    apply_captures_niave(b2.white, &b2.black, &b2.black_r, pos);
+    apply_captures_niave(
+        LAYER_OR(LAYER_OR(LAYER_OR(b2.white, b2.king), corners), throne),
+        &b2.black,
+        &b2.black_r,
+        pos);
     // printf("pre b\n");
     ms[(*cnt)].b = b2;
     // printf("pre cnt\n");
@@ -1068,7 +1120,11 @@ void reference_dir_moves_king(
     OP_LAYER_BIT(b2.king_r, rotate_right[i], |=);
     OP_LAYER_BIT(b2.king, pos, |=);
     OP_LAYER_BIT(b2.king_r, rotate_right[pos], |=);
-    apply_captures_niave(b2.king, &b2.black, &b2.black_r, pos);
+    apply_captures_niave(
+        LAYER_OR(LAYER_OR(LAYER_OR(b2.white, b2.king), corners), throne),
+        &b2.black,
+        &b2.black_r,
+        pos);
     // printf("pre b\n");
     ms[(*cnt)].b = b2;
     // printf("pre cnt\n");

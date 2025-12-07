@@ -14,6 +14,7 @@ library
   exposed-modules:
       Hnefatafl.Bindings
       Hnefatafl.Board
+      Hnefatafl.CLI
       Hnefatafl.Core.Data
       Hnefatafl.Effect.Storage
       Hnefatafl.Interpreter.Storage.SQLite
@@ -50,7 +51,54 @@ library
     , derive-storable-plugin
     , effectful
     , effectful-th
+    , either
     , optics
+    , optparse-applicative
+    , relude
+    , split
+    , sqlite-simple
+    , text
+    , time
+    , transformers
+    , ulid
+  mixins:
+       relude
+    , base hiding (Prelude)
+    , relude (Relude as Prelude)
+  default-language: GHC2021
+
+executable cli
+  main-is: Main.hs
+  other-modules:
+      Paths_hnefatafl
+  autogen-modules:
+      Paths_hnefatafl
+  hs-source-dirs:
+      cli
+  default-extensions:
+      TemplateHaskell
+      OverloadedStrings
+      OverloadedRecordDot
+      OverloadedLabels
+      DuplicateRecordFields
+      LambdaCase
+      DerivingVia
+      ImportQualifiedPost
+      MultilineStrings
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  build-depends:
+      
+    , array
+    , attoparsec
+    , base
+    , derive-storable
+    , derive-storable-plugin
+    , effectful
+    , effectful-th
+    , either
+    , hnefatafl
+    , optics
+    , optparse-applicative
     , relude
     , split
     , sqlite-simple
@@ -102,10 +150,12 @@ test-suite hnefatafl-test
     , direct-sqlite
     , effectful
     , effectful-th
+    , either
     , hnefatafl
     , hspec
     , hspec-expectations-pretty-diff
     , optics
+    , optparse-applicative
     , process
     , relude
     , split

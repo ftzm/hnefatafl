@@ -1,10 +1,11 @@
-module Hnefatafl.Board (printBoard, moveResultToArray, printMoveResult) where
+module Hnefatafl.Board (printBoard, moveResultToArray, formatMoveResult) where
 
 import Control.Monad.ST
 import Data.Array.MArray
 import Data.Array.ST
 import Data.Array.Unboxed
 import Data.Bits (FiniteBits (..), (.&.))
+import Data.List (zipWith3)
 import Data.List.Split (chunksOf)
 import Data.Text (intercalate)
 import Hnefatafl.Core.Data (
@@ -13,6 +14,7 @@ import Hnefatafl.Core.Data (
   Move (..),
   MoveResult (..),
  )
+import Text.Printf (printf)
 import Prelude hiding (intercalate)
 
 clearLSB :: (FiniteBits a, Num a) => a -> a
@@ -64,7 +66,7 @@ formatElem = \case
   Orig -> "[ ]"
   Captured -> " ! "
   Static p -> " " <> formatPiece p <> " "
-  Dest p -> "[" <> formatPiece p <> " "
+  Dest p -> "[" <> formatPiece p <> "]"
  where
   formatPiece = \case
     Black -> "X"
@@ -73,10 +75,17 @@ formatElem = \case
 
 -- | Arrange the pieces into a formatted 11x11 board grid
 formatSquares :: Array Int Square -> Text
-formatSquares = intercalate "\n" . map mconcat . chunksOf 11 . map formatElem . elems
+formatSquares arr = top <> intercalate "\n" labeledRows <> bottom <> bottomLabels
+ where
+  rows :: [Text] = map mconcat . chunksOf 11 . map formatElem $ reverse $ elems arr
+  rankLabels :: [Text] = map (toText @String . printf "%2d  |") [11 :: Integer, 10 ..]
+  labeledRows = zipWith3 (\a b c -> a <> b <> c) rankLabels rows $ repeat "|"
+  top = "    +---------------------------------+\n"
+  bottom = "\n    +---------------------------------+"
+  bottomLabels = "\n      a  b  c  d  e  f  g  h  i  j  k  \n"
 
 printBoard :: ExternBoard -> Text
 printBoard b = formatSquares $ runST $ freeze =<< boardToArray b
 
-printMoveResult :: MoveResult -> Text
-printMoveResult = formatSquares . moveResultToArray
+formatMoveResult :: MoveResult -> Text
+formatMoveResult = formatSquares . moveResultToArray

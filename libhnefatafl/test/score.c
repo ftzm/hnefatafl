@@ -228,7 +228,9 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
     LAYER_XOR_ASSG(result_board.white, moves.ls[i]);
     LAYER_XOR_ASSG(result_board.white_r, moves.ls_r[i]);
     apply_captures_niave(
-        LAYER_OR(result_board.white, result_board.king),
+        LAYER_OR(
+            LAYER_OR(LAYER_OR(result_board.white, result_board.king), corners),
+            throne),
         &result_board.black,
         &result_board.black_r,
         m.dest);

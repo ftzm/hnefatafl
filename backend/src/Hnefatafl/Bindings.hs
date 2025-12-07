@@ -12,6 +12,8 @@ module Hnefatafl.Bindings (
   nextGameStateWithMovesTrusted,
   applyMoveSequence,
   EngineGameStatus (..),
+  MoveError (..),
+  MoveValidationResult (..),
 ) where
 
 import Control.Monad.Trans.Cont
@@ -79,6 +81,22 @@ data StorableGameStatus
   | NoBlackMoves -- white victory
   deriving (Show, Read, Eq, Enum)
 
+data MoveError
+  = MoveErrorNoError
+  | MoveErrorNoPieceAtOrigin
+  | MoveErrorWrongPieceForTurn
+  | MoveErrorInvalidDestination
+  | MoveErrorNotOrthogonal
+  | MoveErrorPathBlocked
+  | MoveErrorThreefoldRepetition
+  deriving (Show, Read, Eq, Enum)
+
+data MoveValidationResult = MoveValidationResult
+  { err :: MoveError
+  , moveIndex :: CInt
+  }
+  deriving (Eq, Show, Read, Generic, GStorable)
+
 instance Storable StorableGameStatus where
   sizeOf _ = sizeOf (0 :: CInt)
   alignment _ = alignment (0 :: CInt)
@@ -86,6 +104,17 @@ instance Storable StorableGameStatus where
     val <- peek (castPtr ptr :: Ptr CInt)
     return $ toEnum (fromIntegral val)
   poke ptr val = poke (castPtr ptr :: Ptr CInt) (fromIntegral $ fromEnum val)
+
+instance Storable MoveError where
+  sizeOf _ = sizeOf (0 :: CInt)
+  alignment _ = alignment (0 :: CInt)
+  peek ptr = do
+    val <- peek (castPtr ptr :: Ptr CInt)
+    return $ toEnum (fromIntegral val)
+  poke ptr val = poke (castPtr ptr :: Ptr CInt) (fromIntegral $ fromEnum val)
+
+instance ToText MoveError where
+  toText = toText @String . show
 
 -- DomainMapping instances
 instance DomainMapping StorableLayer Layer where
@@ -174,12 +203,31 @@ foreign import ccall unsafe "&start_black_moves"
 startBlackMoves :: NonEmpty Move
 startBlackMoves = fromList $ map toDomain $ unsafePerformIO $ peekArray 116 c_start_black_moves
 
+-- -- Convert move validation error to human readable error message
+-- moveValidationErrorMessage :: MoveError -> Int -> Text
+-- moveValidationErrorMessage err moveIndex =
+--   "Move validation failed: "
+--     <> toText err
+--     <> " at move "
+--     <> toText @String (show moveIndex)
+
+-- Convert Haskell moves to C array and pass to continuation with pointer and length
+withStorableMoveArray ::
+  NonEmpty Move -> (Ptr StorableMove -> CInt -> ContT r IO a) -> ContT r IO a
+withStorableMoveArray moveHistory action = do
+  let historyLen = fromIntegral $ length moveHistory
+      storableHistory = map (fromDomain @StorableMove) (toList moveHistory)
+  historyPtr <- ContT $ withArray storableHistory
+  action historyPtr historyLen
+
 foreign import ccall unsafe "next_game_state"
   c_next_game_state ::
     Ptr StorableMove ->
     CInt ->
     Ptr StorableGameStatus ->
-    IO CInt
+    Ptr MoveValidationResult ->
+    CBool ->
+    IO ()
 
 foreign import ccall unsafe "next_game_state_with_moves"
   c_next_game_state_with_moves ::
@@ -188,7 +236,9 @@ foreign import ccall unsafe "next_game_state_with_moves"
     Ptr (Ptr StorableMove) ->
     Ptr CInt ->
     Ptr StorableGameStatus ->
-    IO CInt
+    Ptr MoveValidationResult ->
+    CBool ->
+    IO ()
 
 foreign import ccall unsafe "next_game_state_with_moves_trusted"
   c_next_game_state_with_moves_trusted ::
@@ -201,35 +251,34 @@ foreign import ccall unsafe "next_game_state_with_moves_trusted"
     Ptr StorableGameStatus ->
     IO CInt
 
-nextGameState :: NonEmpty Move -> EngineGameStatus
-nextGameState moveHistory = unsafePerformIO $ evalContT $ do
-  let
-    historyLen :: CInt = fromIntegral $ length moveHistory
-    storableHistory = map (fromDomain @StorableMove) (toList moveHistory)
-  historyPtr <- ContT $ withArray storableHistory
-  gameStatusPtr <- ContT (alloca @StorableGameStatus)
-  result <-
+nextGameState ::
+  NonEmpty Move -> Bool -> Either MoveValidationResult EngineGameStatus
+nextGameState moveHistory allowRepetition = unsafePerformIO $ evalContT $ do
+  withStorableMoveArray moveHistory $ \historyPtr historyLen -> do
+    gameStatusPtr <- ContT (alloca @StorableGameStatus)
+    validationPtr <- ContT (alloca @MoveValidationResult)
     liftIO $
       c_next_game_state
         historyPtr
         historyLen
         gameStatusPtr
-  if result /= 0
-    then error "next_game_state failed"
-    else do
-      storableStatus <- liftIO $ peek gameStatusPtr
-      return $ toDomain storableStatus
+        validationPtr
+        (if allowRepetition then 1 else 0)
+    result <- liftIO $ peek validationPtr
+    case result.err of
+      MoveErrorNoError -> do
+        storableStatus <- liftIO $ peek gameStatusPtr
+        return $ Right $ toDomain storableStatus
+      _ -> return $ Left result
 
-nextGameStateWithMoves :: NonEmpty Move -> (EngineGameStatus, [Move])
-nextGameStateWithMoves moveHistory = unsafePerformIO $ evalContT $ do
-  let
-    historyLen :: CInt = fromIntegral $ length moveHistory
-    storableHistory = map (fromDomain @StorableMove) (toList moveHistory)
-  historyPtr <- ContT $ withArray storableHistory
-  movesPtrPtr <- ContT alloca
-  moveCountPtr <- ContT alloca
-  gameStatusPtr <- ContT alloca
-  result <-
+nextGameStateWithMoves ::
+  NonEmpty Move -> Bool -> Either MoveValidationResult (EngineGameStatus, [Move])
+nextGameStateWithMoves moveHistory allowRepetition = unsafePerformIO $ evalContT $ do
+  withStorableMoveArray moveHistory $ \historyPtr historyLen -> do
+    movesPtrPtr <- ContT alloca
+    moveCountPtr <- ContT alloca
+    gameStatusPtr <- ContT alloca
+    validationPtr <- ContT (alloca @MoveValidationResult)
     liftIO $
       c_next_game_state_with_moves
         historyPtr
@@ -237,19 +286,24 @@ nextGameStateWithMoves moveHistory = unsafePerformIO $ evalContT $ do
         movesPtrPtr
         moveCountPtr
         gameStatusPtr
-  when (result /= 0) $ error "next_game_state_with_moves failed"
-  storableStatus <- liftIO $ peek gameStatusPtr
-  let status = toDomain storableStatus
-  moves <-
-    if storableStatus == Hnefatafl.Bindings.Ongoing
-      then liftIO $ do
-        count <- peek moveCountPtr
-        movesPtr <- peek movesPtrPtr
-        storableMoves <- peekArray (fromIntegral count) movesPtr
-        free movesPtr
-        return $ map toDomain storableMoves
-      else return []
-  return (status, moves)
+        validationPtr
+        (if allowRepetition then 1 else 0)
+    result <- liftIO $ peek validationPtr
+    case result.err of
+      MoveErrorNoError -> do
+        storableStatus <- liftIO $ peek gameStatusPtr
+        let status = toDomain storableStatus
+        moves <-
+          if storableStatus == Hnefatafl.Bindings.Ongoing
+            then liftIO $ do
+              count <- peek moveCountPtr
+              movesPtr <- peek movesPtrPtr
+              storableMoves <- peekArray (fromIntegral count) movesPtr
+              free movesPtr
+              return $ map toDomain storableMoves
+            else return []
+        return $ Right (status, moves)
+      _ -> return $ Left result
 
 nextGameStateWithMovesTrusted ::
   ExternBoard -> Bool -> NonEmpty Move -> (EngineGameStatus, [Move])
@@ -273,7 +327,7 @@ nextGameStateWithMovesTrusted trustedBoard isBlackTurn moveHistory = unsafePerfo
         movesPtrPtr
         moveCountPtr
         gameStatusPtr
-  when (result /= 0) $ error "next_game_state_with_moves_trusted failed"
+  when (result /= 0) $ Prelude.error "next_game_state_with_moves_trusted failed"
   storableStatus <- liftIO $ peek gameStatusPtr
   let status = toDomain storableStatus
   moves <-

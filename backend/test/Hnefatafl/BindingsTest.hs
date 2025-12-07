@@ -1,7 +1,7 @@
 module Hnefatafl.BindingsTest where
 
 import Hnefatafl.Bindings
-import Hnefatafl.Core.Data (ExternBoard (..), Move (..))
+import Hnefatafl.Core.Data (ExternBoard (..), Move (..), MoveResult (..))
 import Test.Hspec (Spec, describe, it)
 import Test.Hspec.Expectations.Pretty
 
@@ -33,35 +33,38 @@ spec_NextGameState :: Spec
 spec_NextGameState =
   it "should return status after first black move" $ do
     let firstBlackMove = head startBlackMoves
-        status = nextGameState (firstBlackMove :| [])
-    status `shouldBe` EngineOngoing
+        status = nextGameState (firstBlackMove :| []) False
+    status `shouldBe` Right EngineOngoing
 
 spec_NextGameStateWithMoves :: Spec
 spec_NextGameStateWithMoves =
   it "should return status and moves after first black move" $ do
     let firstBlackMove = head startBlackMoves
-        (status, possibleMoves) = nextGameStateWithMoves (firstBlackMove :| [])
-    status `shouldBe` EngineOngoing
-    length possibleMoves `shouldSatisfy` (> 0)
+        result = nextGameStateWithMoves (firstBlackMove :| []) False
+    case result of
+      Right (status, possibleMoves) -> do
+        status `shouldBe` EngineOngoing
+        length possibleMoves `shouldSatisfy` (> 0)
+      Left _ -> expectationFailure "Move validation failed"
 
 spec_StartBoard :: Spec
 spec_StartBoard =
   describe "startBoard" $ do
     it "should return a valid initial board" $ do
-      board <- startBoard
+      let board = startBoard
       board `shouldSatisfy` (\ExternBoard{} -> True)
 
     it "should return consistent board state" $ do
-      board1 <- startBoard
-      board2 <- startBoard
+      let board1 = startBoard
+      let board2 = startBoard
       board1 `shouldBe` board2
 
 spec_NextGameStateWithMovesTrusted :: Spec
 spec_NextGameStateWithMovesTrusted =
   describe "nextGameStateWithMovesTrusted" $ do
     it "should not crash when called" $ do
-      board <- startBoard
-      let firstMove = head startBlackMoves
+      let board = startBoard
+          firstMove = head startBlackMoves
           result = nextGameStateWithMovesTrusted board True (firstMove :| [])
       case result of
         (_, moves) -> length moves `shouldSatisfy` (>= 0)
@@ -70,7 +73,7 @@ spec_ApplyMoveSequence :: Spec
 spec_ApplyMoveSequence =
   it "should apply first black move and return board state" $ do
     let firstBlackMove = head startBlackMoves
-        boardStates = applyMoveSequence (firstBlackMove :| [])
-    length boardStates `shouldBe` 1
-    let boardAfterMove = head boardStates
-    boardAfterMove `shouldSatisfy` (\ExternBoard{} -> True)
+        moveResults = applyMoveSequence (firstBlackMove :| [])
+        moveResult = head moveResults
+    length moveResults `shouldBe` 1
+    moveResult `shouldSatisfy` (\MoveResult{} -> True)

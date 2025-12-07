@@ -28,17 +28,7 @@ CREATE TABLE game (
     black_player_id TEXT, -- NULL for anonymous players
     start_time DATETIME NOT NULL,
     end_time DATETIME,
-    game_status TEXT CHECK (game_status IN (
-        'ongoing',
-        'white_won',
-        'white_won_resignation',
-        'white_won_timeout',
-        'black_won',
-        'black_won_resignation',
-        'black_won_timeout',
-        'draw',
-        'abandoned'
-    )),
+    game_status TEXT,
     created_at DATETIME NOT NULL,
     FOREIGN KEY (white_player_id) REFERENCES player(id),
     FOREIGN KEY (black_player_id) REFERENCES player(id)

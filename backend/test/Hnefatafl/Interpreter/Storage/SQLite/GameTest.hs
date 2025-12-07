@@ -56,7 +56,7 @@ spec_Game =
 
       it "can retrieve a game with different status" $ \conn -> do
         now <- getCurrentTime
-        let testGame = baseGame now & #endTime ?~ now & #gameStatus .~ WhiteWon
+        let testGame = baseGame now & #endTime ?~ now & #gameStatus .~ WhiteWonKingEscaped
         resultEquals
           ( do
               insertGame testGame
@@ -69,12 +69,12 @@ spec_Game =
       it "can update game status to completed" $ \conn -> do
         now <- getCurrentTime
         let originalGame = baseGame now
-            expectedGame = originalGame & #gameStatus .~ BlackWon & #endTime ?~ now
+            expectedGame = originalGame & #gameStatus .~ BlackWonKingCaptured & #endTime ?~ now
 
         resultEquals
           ( do
               insertGame originalGame
-              updateGameStatus originalGame.gameId BlackWon (Just now)
+              updateGameStatus originalGame.gameId BlackWonKingCaptured (Just now)
               getGame originalGame.gameId
           )
           expectedGame
@@ -146,12 +146,16 @@ spec_Game =
       now <- getCurrentTime
       let statusTests =
             [ (Ongoing, "ongoing-game")
-            , (WhiteWon, "white-won-game")
-            , (WhiteWonResignation, "white-resignation-game")
-            , (WhiteWonTimeout, "white-timeout-game")
-            , (BlackWon, "black-won-game")
+            , (BlackWonKingCaptured, "black-won-king-captured-game")
+            , (BlackWonWhiteSurrounded, "black-won-white-surrounded-game")
+            , (BlackWonNoWhiteMoves, "black-won-no-white-moves-game")
             , (BlackWonResignation, "black-resignation-game")
             , (BlackWonTimeout, "black-timeout-game")
+            , (WhiteWonKingEscaped, "white-won-king-escaped-game")
+            , (WhiteWonExitFort, "white-won-exit-fort-game")
+            , (WhiteWonNoBlackMoves, "white-won-no-black-moves-game")
+            , (WhiteWonResignation, "white-resignation-game")
+            , (WhiteWonTimeout, "white-timeout-game")
             , (Draw, "draw-game")
             , (Abandoned, "abandoned-game")
             ]

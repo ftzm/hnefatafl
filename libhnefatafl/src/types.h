@@ -43,3 +43,18 @@ typedef enum game_status {
   status_exit_fort,
   status_no_black_moves,
 } game_status;
+
+typedef enum move_error {
+  move_error_no_error = 0,
+  move_error_no_piece_at_origin = 1,
+  move_error_wrong_piece_for_turn = 2,
+  move_error_invalid_destination = 3,
+  move_error_not_orthogonal = 4,
+  move_error_path_blocked = 5,
+  move_error_threefold_repetition = 6,
+} move_error;
+
+typedef struct move_validation_result {
+  move_error error;
+  int move_index;
+} move_validation_result;

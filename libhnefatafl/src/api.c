@@ -50,31 +50,43 @@ move *all_white_and_king_moves(board b, position_set *ps, int *total) {
   return combined_moves;
 }
 
-int next_game_state_with_moves(
+void next_game_state_with_moves(
     const move *move_history,
     int history_count,
     move **moves_out,
     int *move_count,
-    game_status *gs) {
+    game_status *gs,
+    move_validation_result *validation_out,
+    bool allow_repetition) {
 
+  // First get the game state - this handles all validation
+  next_game_state(
+      move_history,
+      history_count,
+      gs,
+      validation_out,
+      allow_repetition);
+
+  if (validation_out->error != move_error_no_error || *gs != status_ongoing) {
+    *moves_out = NULL;
+    *move_count = 0;
+    return;
+  }
+
+  // Game is ongoing and no errors, generate moves
   board *b;
   position_set *ps;
   bool is_black_turn;
 
-  // Get board state from move history
-  int result = board_state_from_move_list(
+  // Get board state for move generation
+  board_state_from_move_list(
       move_history,
       history_count,
       &b,
       &ps,
       &is_black_turn,
-      gs);
-
-  if (result != 0) {
-    *moves_out = NULL;
-    *move_count = 0;
-    return result;
-  }
+      gs,
+      allow_repetition);
 
   move *possible_moves;
   if (is_black_turn) {
@@ -88,36 +100,39 @@ int next_game_state_with_moves(
   destroy_position_set(ps);
 
   *moves_out = possible_moves;
-  return 0;
 }
 
-int next_game_state(
+void next_game_state(
     const move *move_history,
     int history_count,
-    game_status *gs) {
+    game_status *gs,
+    move_validation_result *validation_out,
+    bool allow_repetition) {
 
   board *b;
   position_set *ps;
   bool is_black_turn;
 
   // Get board state from move history
-  int result = board_state_from_move_list(
+  move_validation_result result = board_state_from_move_list(
       move_history,
       history_count,
       &b,
       &ps,
       &is_black_turn,
-      gs);
+      gs,
+      allow_repetition);
 
-  if (result != 0) {
-    return result;
+  if (result.error != move_error_no_error) {
+    *validation_out = result;
+    return;
   }
 
   // Clean up
   free(b);
   destroy_position_set(ps);
 
-  return 0;
+  *validation_out = result;
 }
 
 int next_game_state_with_moves_trusted(

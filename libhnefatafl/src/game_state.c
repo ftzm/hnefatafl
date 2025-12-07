@@ -3,6 +3,7 @@
 #include "capture.h"
 #include "move.h"
 #include "position_set.h"
+#include "stdio.h"
 #include "stdlib.h"
 #include "validation.h"
 #include "victory.h"
@@ -15,10 +16,12 @@ int apply_move_to_game(
     position_set *second_ps,
     bool *is_black_turn,
     move m,
-    game_status *gs) {
+    game_status *gs,
+    bool allow_repetition) {
 
-  if (!validate_move(*b, m, *is_black_turn)) {
-    return 1;
+  move_error error = validate_move(*b, m, *is_black_turn);
+  if (error != move_error_no_error) {
+    return error;
   }
 
   u64 board_hash;
@@ -39,13 +42,15 @@ int apply_move_to_game(
     apply_captures_z_white(b, &board_hash, m.dest);
   }
 
-  // Check for threefold repetition
-  int index;
-  if (insert_position(first_ps, board_hash, &index) != 0) {
-    // Position already exists in first set, try second set
-    if (insert_position(second_ps, board_hash, &index) != 0) {
-      // Position already exists in second set - threefold repetition
-      return 2;
+  // Check for threefold repetition only if not allowing repetition
+  if (!allow_repetition) {
+    int index;
+    if (insert_position(first_ps, board_hash, &index) != 0) {
+      // Position already exists in first set, try second set
+      if (insert_position(second_ps, board_hash, &index) != 0) {
+        // Position already exists in second set - threefold repetition
+        return move_error_threefold_repetition;
+      }
     }
   }
 
@@ -60,13 +65,14 @@ int apply_move_to_game(
   return 0;
 }
 
-int board_state_from_move_list(
+move_validation_result board_state_from_move_list(
     const move *moves,
     int count,
     board **b_ptr,
     position_set **ps_ptr,
     bool *is_black_turn,
-    game_status *gs) {
+    game_status *gs,
+    bool allow_repetition) {
 
   *is_black_turn = true;
 
@@ -76,12 +82,23 @@ int board_state_from_move_list(
 
   for (int i = 0; i < count; i++) {
     move m = moves[i];
-    int result =
-        apply_move_to_game(&b, first_ps, second_ps, is_black_turn, m, gs);
+    int result = apply_move_to_game(
+        &b,
+        first_ps,
+        second_ps,
+        is_black_turn,
+        m,
+        gs,
+        allow_repetition);
     if (result != 0) {
       destroy_position_set(first_ps);
       destroy_position_set(second_ps);
-      return result;
+      move_validation_result mvr = {result, i};
+      printf(
+          "DEBUG C: error at move index %d, error code %d\n",
+          mvr.move_index,
+          mvr.error);
+      return mvr;
     }
   }
 
@@ -89,5 +106,5 @@ int board_state_from_move_list(
   **b_ptr = b;
   *ps_ptr = second_ps;
   destroy_position_set(first_ps);
-  return 0;
+  return (move_validation_result){move_error_no_error, -1};
 }

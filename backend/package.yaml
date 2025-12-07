@@ -64,13 +64,15 @@ dependencies:
   - attoparsec
   - array
   - split
+  - optparse-applicative
+  - either
 
-# executables:
-#   app:
-#     main: "Main.hs"
-#     source-dirs: app
-#     dependencies:
-#       - hnefatafl
+executables:
+  cli:
+    main: "Main.hs"
+    source-dirs: cli
+    dependencies:
+      - hnefatafl
       
 library:
   source-dirs: src

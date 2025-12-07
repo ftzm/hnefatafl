@@ -96,10 +96,28 @@ bool has_clear_path(board b, move m) {
   return !LAYERS_OVERLAP(path, occupied);
 }
 
-bool validate_move(board b, move m, bool is_black_turn) {
+move_error validate_move(board b, move m, bool is_black_turn) {
   piece_type moving_piece = get_piece_at(b, m.orig);
-  return is_correct_piece(is_black_turn, moving_piece)
-         && is_valid_destination(b, m.dest, moving_piece)
-         && is_orthogonal_move(m)
-         && has_clear_path(b, m);
+
+  if (moving_piece == empty) {
+    return move_error_no_piece_at_origin;
+  }
+
+  if (!is_correct_piece(is_black_turn, moving_piece)) {
+    return move_error_wrong_piece_for_turn;
+  }
+
+  if (!is_valid_destination(b, m.dest, moving_piece)) {
+    return move_error_invalid_destination;
+  }
+
+  if (!is_orthogonal_move(m)) {
+    return move_error_not_orthogonal;
+  }
+
+  if (!has_clear_path(b, m)) {
+    return move_error_path_blocked;
+  }
+
+  return move_error_no_error;
 }

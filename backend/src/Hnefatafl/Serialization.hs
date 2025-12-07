@@ -4,8 +4,9 @@ module Hnefatafl.Serialization (
   parseMoveList,
 ) where
 
-import Data.Attoparsec.ByteString.Char8
+import Data.Attoparsec.Text
 import Data.Char (isAlphaNum)
+import Data.Either.Combinators (mapLeft)
 import Data.List (elemIndex, (!!))
 import Data.Maybe (fromJust)
 import Data.Text (singleton)
@@ -32,13 +33,13 @@ positionToNotation (Position (File file) (Rank rank)) =
    in (fileSymbols !! file) <> show (rank + 1)
 
 positionToIndex :: Position -> Int
-positionToIndex (Position (File file) (Rank rank)) = file + rank
+positionToIndex (Position (File file) (Rank rank)) = rank * 11 + file
 
 indexToPosition :: Word8 -> Position
 indexToPosition index =
   let
-    file = File $ fromIntegral $ index `div` 11
-    rank = Rank $ fromIntegral $ index `mod` 11
+    rank = Rank $ fromIntegral $ index `div` 11
+    file = File $ fromIntegral $ index `mod` 11
    in
     Position file rank
 
@@ -68,7 +69,7 @@ positionParser = Position <$> fileParser <*> rankParser
 captureParser :: Parser ()
 captureParser = do
   _ <- char 'x'
-  _ <- Data.Attoparsec.ByteString.Char8.takeWhile isAlphaNum
+  _ <- Data.Attoparsec.Text.takeWhile isAlphaNum
   pure ()
 
 moveParser :: Parser Move
@@ -82,8 +83,8 @@ moveParser = do
 moveListParser :: Parser [Move]
 moveListParser = skipSpace *> sepBy1 moveParser skipSpace <* skipSpace
 
-parseMove :: ByteString -> Maybe Move
-parseMove = rightToMaybe . parseOnly moveParser
+parseMove :: Text -> Either Text Move
+parseMove = mapLeft toText . parseOnly moveParser
 
-parseMoveList :: ByteString -> Maybe [Move]
-parseMoveList = rightToMaybe . parseOnly moveListParser
+parseMoveList :: Text -> Either Text [Move]
+parseMoveList = mapLeft toText . parseOnly moveListParser

@@ -85,12 +85,16 @@ instance DomainMapping GameStatusDb GameStatus where
 instance ToField GameStatusDb where
   toField (GameStatusDb status) = toField $ case status of
     Ongoing -> "ongoing" :: Text
-    WhiteWon -> "white_won"
-    WhiteWonResignation -> "white_won_resignation"
-    WhiteWonTimeout -> "white_won_timeout"
-    BlackWon -> "black_won"
+    BlackWonKingCaptured -> "black_won_king_captured"
+    BlackWonWhiteSurrounded -> "black_won_white_surrounded"
+    BlackWonNoWhiteMoves -> "black_won_no_white_moves"
     BlackWonResignation -> "black_won_resignation"
     BlackWonTimeout -> "black_won_timeout"
+    WhiteWonKingEscaped -> "white_won_king_escaped"
+    WhiteWonExitFort -> "white_won_exit_fort"
+    WhiteWonNoBlackMoves -> "white_won_no_black_moves"
+    WhiteWonResignation -> "white_won_resignation"
+    WhiteWonTimeout -> "white_won_timeout"
     Draw -> "draw"
     Abandoned -> "abandoned"
 
@@ -98,14 +102,21 @@ instance FromField GameStatusDb where
   fromField f =
     fromField @Text f >>= \case
       "ongoing" -> pure $ GameStatusDb Ongoing
-      "white_won" -> pure $ GameStatusDb WhiteWon
-      "white_won_resignation" -> pure $ GameStatusDb WhiteWonResignation
-      "white_won_timeout" -> pure $ GameStatusDb WhiteWonTimeout
-      "black_won" -> pure $ GameStatusDb BlackWon
+      "black_won_king_captured" -> pure $ GameStatusDb BlackWonKingCaptured
+      "black_won_white_surrounded" -> pure $ GameStatusDb BlackWonWhiteSurrounded
+      "black_won_no_white_moves" -> pure $ GameStatusDb BlackWonNoWhiteMoves
       "black_won_resignation" -> pure $ GameStatusDb BlackWonResignation
       "black_won_timeout" -> pure $ GameStatusDb BlackWonTimeout
+      "white_won_king_escaped" -> pure $ GameStatusDb WhiteWonKingEscaped
+      "white_won_exit_fort" -> pure $ GameStatusDb WhiteWonExitFort
+      "white_won_no_black_moves" -> pure $ GameStatusDb WhiteWonNoBlackMoves
+      "white_won_resignation" -> pure $ GameStatusDb WhiteWonResignation
+      "white_won_timeout" -> pure $ GameStatusDb WhiteWonTimeout
       "draw" -> pure $ GameStatusDb Draw
       "abandoned" -> pure $ GameStatusDb Abandoned
+      -- Legacy support for old values
+      "white_won" -> pure $ GameStatusDb WhiteWonKingEscaped  -- Default to most common white victory
+      "black_won" -> pure $ GameStatusDb BlackWonKingCaptured  -- Default to most common black victory
       _ -> returnError ConversionFailed f "Invalid game status"
 
 data GameDb = GameDb

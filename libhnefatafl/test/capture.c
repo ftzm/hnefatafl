@@ -511,6 +511,149 @@ TEST test_capture_n_l_king(void) {
   return TEST_SHIELD_WALL_TEAM(true, inp, exp, 113);
 }
 
+TEST test_capture_destinations_runner(
+    const char *board_str,
+    const char *expected_layer_str,
+    bool is_black_turn) {
+
+  board b = read_board(board_str);
+  layer expected_layer = read_layer(expected_layer_str, 'X');
+  layer actual_layer;
+
+  if (is_black_turn) {
+    actual_layer = black_capture_destinations(&b);
+  } else {
+    actual_layer = white_capture_destinations(&b);
+  }
+
+  if (!LAYERS_EQUAL(actual_layer, expected_layer)) {
+    printf("Capture destinations test failed\n");
+    printf("Expected:\n");
+    print_layer(expected_layer);
+    printf("Actual:\n");
+    print_layer(actual_layer);
+    FAIL();
+  }
+
+  PASS();
+}
+
+#define TEST_CAPTURE_DESTINATIONS(                                             \
+    board_str,                                                                 \
+    expected_layer_str,                                                        \
+    is_black_turn)                                                             \
+  test_capture_destinations_runner(board_str, expected_layer_str, is_black_turn)
+
+TEST test_throne_capture_dest_black_occupied(void) {
+  const char *board = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  O  #  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  X  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+
+  const char *dests = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+  return TEST_CAPTURE_DESTINATIONS(board, dests, true);
+}
+
+TEST test_throne_capture_dest_black_unoccupied(void) {
+  const char *board = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  #  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  O  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  X  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+
+  const char *dests = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  X  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+  return TEST_CAPTURE_DESTINATIONS(board, dests, true);
+}
+
+TEST test_throne_capture_dest_white_occupied(void) {
+  const char *board = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  X  #  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  O  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+
+  const char *dests = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  X  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+
+  return TEST_CAPTURE_DESTINATIONS(board, dests, false);
+}
+
+TEST test_throne_capture_dest_white_unoccupied(void) {
+  const char *board = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  #  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  X  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  O  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+
+  const char *dests = ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  X  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  ."
+                      ".  .  .  .  .  .  .  .  .  .  .";
+
+  return TEST_CAPTURE_DESTINATIONS(board, dests, false);
+}
+
 SUITE(capture_suite) {
   RUN_TEST(test_capture_s_m);
   RUN_TEST(test_capture_s_left);
@@ -526,4 +669,8 @@ SUITE(capture_suite) {
   RUN_TEST(test_capture_n_e);
   RUN_TEST(test_capture_n_l);
   RUN_TEST(test_capture_n_l_king);
+  RUN_TEST(test_throne_capture_dest_black_occupied);
+  RUN_TEST(test_throne_capture_dest_black_unoccupied);
+  RUN_TEST(test_throne_capture_dest_white_occupied);
+  RUN_TEST(test_throne_capture_dest_white_unoccupied);
 }

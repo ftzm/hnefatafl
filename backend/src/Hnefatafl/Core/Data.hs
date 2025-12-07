@@ -68,12 +68,19 @@ generateGameId = GameId . show <$> getULID
 
 data GameStatus
   = Ongoing
-  | WhiteWon
-  | WhiteWonResignation
-  | WhiteWonTimeout
-  | BlackWon
+  -- Black victory conditions
+  | BlackWonKingCaptured
+  | BlackWonWhiteSurrounded
+  | BlackWonNoWhiteMoves
   | BlackWonResignation
   | BlackWonTimeout
+  -- White victory conditions
+  | WhiteWonKingEscaped
+  | WhiteWonExitFort
+  | WhiteWonNoBlackMoves
+  | WhiteWonResignation
+  | WhiteWonTimeout
+  -- Other outcomes
   | Draw
   | Abandoned
   deriving (Show, Eq)
