@@ -127,15 +127,17 @@ TEST test_validate_move_integration() {
   // Test a known valid black move from start position
   move valid_black =
       start_black_moves[0]; // Use first move from predefined moves
-  ASSERT(validate_move(b, valid_black, true));
+  ASSERT_EQ(validate_move(b, valid_black, true), move_error_no_error);
 
   // Test invalid move (wrong team)
-  ASSERT_FALSE(validate_move(b, valid_black, false));
+  ASSERT_EQ(
+      validate_move(b, valid_black, false),
+      move_error_wrong_piece_for_turn);
 
   // Test invalid diagonal move
   move diagonal = {7, 18}; // Assuming this is diagonal
   if (!is_orthogonal_move(diagonal)) {
-    ASSERT_FALSE(validate_move(b, diagonal, true));
+    ASSERT_EQ(validate_move(b, diagonal, true), move_error_not_orthogonal);
   }
 
   PASS();

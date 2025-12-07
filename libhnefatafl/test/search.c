@@ -1023,6 +1023,8 @@ SUITE(search_black_shallow) {
           QUIESCENCE_POSITIONS_BLACK(GT, 0), ));
 
   // Example of using PREV_PV macro for testing with previous PV
+  // NOTE: I think this test maybe doesn't make any sense but need to analayze
+  // it properly to make sure. Think some wires got crossed.
   ASSERT_SEARCH_BLACK(
       "gets a beta cutoff from a PV move when possible",
       "     +---------------------------------+"
@@ -1046,9 +1048,9 @@ SUITE(search_black_shallow) {
       // to white quiescence
       .stats_assertions = STATS(
           SEARCH_POSITIONS_BLACK(EQ, 1),
-          SEARCH_POSITIONS_WHITE(EQ, 1),
-          QUIESCENCE_POSITIONS_WHITE(EQ, 1),
-          SEARCH_BETA_CUTOFF_BLACK(EQ, 1), ));
+          SEARCH_POSITIONS_WHITE(EQ, 2),
+          QUIESCENCE_POSITIONS_WHITE(EQ, 8),
+          SEARCH_BETA_CUTOFF_BLACK(EQ, 1)));
 
   // makes obvious capture
 

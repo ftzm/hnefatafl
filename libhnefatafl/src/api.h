@@ -32,26 +32,30 @@ void start_board_extern(compact_board *b);
 // move *all_white_and_king_moves(board b, position_set *ps, int *total);
 
 /* Get the game status after applying the move history.
- * Returns 0 on success, non-zero error code on failure.
+ * Writes validation result to validation_out.
  */
-int next_game_state(
+void next_game_state(
     const move *move_history,
     int history_count,
-    game_status *gs);
+    game_status *gs,
+    move_validation_result *validation_out,
+    bool allow_repetition);
 
 /* Get the next game state based on the previously played moves. If the game is
  * ongoing we return an "ongoing" status and the available moves for the
  * position. If the last move triggered a victory then we indicate the nature of
  * the victory in the status type. Sets moves_out to dynamically allocated array
  * of moves and sets move_count. Caller must free the returned array.
- * Returns 0 on success, non-zero error code on failure.
+ * Writes validation result to validation_out.
  */
-int next_game_state_with_moves(
+void next_game_state_with_moves(
     const move *move_history,
     int history_count,
     move **moves_out,
     int *move_count,
-    game_status *gs);
+    game_status *gs,
+    move_validation_result *validation_out,
+    bool allow_repetition);
 
 /* Get the next game state with moves using a trusted board state as input.
  * This function doesn't reconstruct the board state from move history but

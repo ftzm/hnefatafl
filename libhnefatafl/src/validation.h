@@ -6,7 +6,7 @@
 #include "types.h"
 
 // Main validation function
-bool validate_move(board b, move m, bool is_black_turn);
+move_error validate_move(board b, move m, bool is_black_turn);
 
 // Helper functions exposed for testing
 piece_type get_piece_at(board b, u8 position);

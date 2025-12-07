@@ -13,13 +13,14 @@ typedef struct {
 } board_state;
 
 // Board state reconstruction from move history
-int board_state_from_move_list(
+move_validation_result board_state_from_move_list(
     const move *moves,
     int count,
     board **b_ptr,
     position_set **ps_ptr,
     bool *is_black_turn,
-    game_status *gs);
+    game_status *gs,
+    bool allow_repetition);
 
 // Apply a single move to the game state with validation
 // Returns 0 on success, 1 if the move is invalid, 2 if threefold repetition
@@ -29,4 +30,5 @@ int apply_move_to_game(
     position_set *second_ps,
     bool *is_black_turn,
     move m,
-    game_status *gs);
+    game_status *gs,
+    bool allow_repetition);

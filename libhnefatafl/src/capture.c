@@ -149,8 +149,12 @@ layer apply_captures_niave_z(
 }
 
 layer apply_captures_z_black(board *b, u64 *z, u8 dest) {
+  layer friends = LAYER_OR(b->black, corners);
+  if (!CHECK_INDEX(b->king, 60)) {
+    friends = LAYER_OR(friends, throne);
+  }
   layer captures = apply_captures_niave_z(
-      LAYER_OR(b->black, corners),
+      friends,
       &b->white,
       &b->white_r,
       z,
@@ -166,7 +170,7 @@ layer apply_captures_z_black(board *b, u64 *z, u8 dest) {
 
 layer apply_captures_z_white(board *b, u64 *z, u8 dest) {
   layer captures = apply_captures_niave_z(
-      LAYER_OR(LAYER_OR(b->white, b->king), corners),
+      LAYER_OR(LAYER_OR(LAYER_OR(b->white, b->king), corners), throne),
       &b->black,
       &b->black_r,
       z,
@@ -262,16 +266,20 @@ layer gen_shield_wall_triggers(
 layer black_capture_destinations(const board *b) {
   layer occ = board_occ(*b);
   layer allies = LAYER_OR(b->black, corners);
+  if (!CHECK_INDEX(b->king, 60)) {
+    allies = LAYER_OR(allies, throne);
+  }
   return LAYER_OR(
       simple_capture_destinations(allies, b->white, occ),
-      gen_shield_wall_triggers(allies, b->white, occ));
+      gen_shield_wall_triggers(allies, LAYER_OR(b->white, b->king), occ));
 }
 
 /* This includes the throne so it can be used with the king; pawns must remove
  * it before calculating destinations */
 layer white_capture_destinations(const board *b) {
   layer occ = LAYER_OR(corners, king_board_occ(*b));
-  layer allies = LAYER_OR(LAYER_OR(b->white, b->king), corners);
+  layer allies =
+      LAYER_OR(LAYER_OR(LAYER_OR(b->white, b->king), corners), throne);
   return LAYER_OR(
       simple_capture_destinations(allies, b->black, occ),
       gen_shield_wall_triggers(allies, b->black, occ));
@@ -280,16 +288,20 @@ layer white_capture_destinations(const board *b) {
 layer black_capture_destinations_r(const board *b) {
   layer occ = board_occ_r(*b);
   layer allies = LAYER_OR(b->black_r, corners);
+  if (!CHECK_INDEX(b->king, 60)) {
+    allies = LAYER_OR(allies, throne);
+  }
   return LAYER_OR(
       simple_capture_destinations(allies, b->white_r, occ),
-      gen_shield_wall_triggers(allies, b->white_r, occ));
+      gen_shield_wall_triggers(allies, LAYER_OR(b->white_r, b->king), occ));
 }
 
 /* This includes the throne so it can be used with the king; pawns must remove
  * it before calculating destinations */
 layer white_capture_destinations_r(const board *b) {
   layer occ = LAYER_OR(corners, king_board_occ_r(*b));
-  layer allies = LAYER_OR(LAYER_OR(b->white_r, b->king_r), corners);
+  layer allies =
+      LAYER_OR(LAYER_OR(LAYER_OR(b->white_r, b->king_r), corners), throne);
   return LAYER_OR(
       simple_capture_destinations(allies, b->black_r, occ),
       gen_shield_wall_triggers(allies, b->black_r, occ));
@@ -450,7 +462,8 @@ def build_f(color, direction, portion):
 
     return f"""
 layer shield_wall_{color}_{direction}_{portion}(board *b, u64 *z, int pos) {{
-  u64 sub_allies = b->{allies}{sub};
+  u64 sub_allies = b->{allies}{sub} | corners{sub};
+  {when(not is_black, f"sub_allies |= b->king{aligned}{sub};")}
   u64 *sub_foes = &b->{foes}{sub};
   layer *foes_r = &b->{foes_r};
   {when(is_rotated, "pos = rotate_right[pos];")}
@@ -458,8 +471,9 @@ layer shield_wall_{color}_{direction}_{portion}(board *b, u64 *z, int pos) {{
   {when(is_black, "(*sub_foes) |= b->king" + aligned + sub + ";")}
   u64 captures = 0;
   {half}_{portion}_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   {when(is_black, "(*sub_foes) &= ~(b->" + "king" + aligned +  sub + ");")}
+  {when(is_black, "captures &= ~(b->" + "king" + aligned +  sub + ");")}
   layer output = EMPTY_LAYER;
   while (captures) {{
     int index = {offset}_tzcnt_u64(captures);
@@ -484,7 +498,8 @@ for (c, d, p) in product(colors, dirs, portion):
 ]]]*/
 
 layer shield_wall_black_north_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black._[1];
+  u64 sub_allies = b->black._[1] | corners._[1];
+
   u64 *sub_foes = &b->white._[1];
   layer *foes_r = &b->white_r;
 
@@ -492,8 +507,9 @@ layer shield_wall_black_north_left(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king._[1];
   u64 captures = 0;
   upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king._[1]);
+  captures &= ~(b->king._[1]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
@@ -507,7 +523,8 @@ layer shield_wall_black_north_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_north_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black._[1];
+  u64 sub_allies = b->black._[1] | corners._[1];
+
   u64 *sub_foes = &b->white._[1];
   layer *foes_r = &b->white_r;
 
@@ -515,8 +532,9 @@ layer shield_wall_black_north_middle(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king._[1];
   u64 captures = 0;
   upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king._[1]);
+  captures &= ~(b->king._[1]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
@@ -530,7 +548,8 @@ layer shield_wall_black_north_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_north_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black._[1];
+  u64 sub_allies = b->black._[1] | corners._[1];
+
   u64 *sub_foes = &b->white._[1];
   layer *foes_r = &b->white_r;
 
@@ -538,8 +557,9 @@ layer shield_wall_black_north_right(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king._[1];
   u64 captures = 0;
   upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king._[1]);
+  captures &= ~(b->king._[1]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
@@ -553,7 +573,8 @@ layer shield_wall_black_north_right(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_east_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black_r._[0];
+  u64 sub_allies = b->black_r._[0] | corners._[0];
+
   u64 *sub_foes = &b->white_r._[0];
   layer *foes_r = &b->white;
   pos = rotate_right[pos];
@@ -561,8 +582,9 @@ layer shield_wall_black_east_left(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king_r._[0];
   u64 captures = 0;
   lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king_r._[0]);
+  captures &= ~(b->king_r._[0]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = _tzcnt_u64(captures);
@@ -576,7 +598,8 @@ layer shield_wall_black_east_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_east_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black_r._[0];
+  u64 sub_allies = b->black_r._[0] | corners._[0];
+
   u64 *sub_foes = &b->white_r._[0];
   layer *foes_r = &b->white;
   pos = rotate_right[pos];
@@ -584,8 +607,9 @@ layer shield_wall_black_east_middle(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king_r._[0];
   u64 captures = 0;
   lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king_r._[0]);
+  captures &= ~(b->king_r._[0]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = _tzcnt_u64(captures);
@@ -599,7 +623,8 @@ layer shield_wall_black_east_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_east_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black_r._[0];
+  u64 sub_allies = b->black_r._[0] | corners._[0];
+
   u64 *sub_foes = &b->white_r._[0];
   layer *foes_r = &b->white;
   pos = rotate_right[pos];
@@ -607,8 +632,9 @@ layer shield_wall_black_east_right(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king_r._[0];
   u64 captures = 0;
   lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king_r._[0]);
+  captures &= ~(b->king_r._[0]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = _tzcnt_u64(captures);
@@ -622,15 +648,17 @@ layer shield_wall_black_east_right(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_south_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black._[0];
+  u64 sub_allies = b->black._[0] | corners._[0];
+
   u64 *sub_foes = &b->white._[0];
   layer *foes_r = &b->white_r;
 
   (*sub_foes) |= b->king._[0];
   u64 captures = 0;
   lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king._[0]);
+  captures &= ~(b->king._[0]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = _tzcnt_u64(captures);
@@ -644,15 +672,17 @@ layer shield_wall_black_south_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_south_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black._[0];
+  u64 sub_allies = b->black._[0] | corners._[0];
+
   u64 *sub_foes = &b->white._[0];
   layer *foes_r = &b->white_r;
 
   (*sub_foes) |= b->king._[0];
   u64 captures = 0;
   lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king._[0]);
+  captures &= ~(b->king._[0]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = _tzcnt_u64(captures);
@@ -666,15 +696,17 @@ layer shield_wall_black_south_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_south_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black._[0];
+  u64 sub_allies = b->black._[0] | corners._[0];
+
   u64 *sub_foes = &b->white._[0];
   layer *foes_r = &b->white_r;
 
   (*sub_foes) |= b->king._[0];
   u64 captures = 0;
   lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king._[0]);
+  captures &= ~(b->king._[0]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = _tzcnt_u64(captures);
@@ -688,7 +720,8 @@ layer shield_wall_black_south_right(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_west_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black_r._[1];
+  u64 sub_allies = b->black_r._[1] | corners._[1];
+
   u64 *sub_foes = &b->white_r._[1];
   layer *foes_r = &b->white;
   pos = rotate_right[pos];
@@ -696,8 +729,9 @@ layer shield_wall_black_west_left(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king_r._[1];
   u64 captures = 0;
   upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king_r._[1]);
+  captures &= ~(b->king_r._[1]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
@@ -711,7 +745,8 @@ layer shield_wall_black_west_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_west_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black_r._[1];
+  u64 sub_allies = b->black_r._[1] | corners._[1];
+
   u64 *sub_foes = &b->white_r._[1];
   layer *foes_r = &b->white;
   pos = rotate_right[pos];
@@ -719,8 +754,9 @@ layer shield_wall_black_west_middle(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king_r._[1];
   u64 captures = 0;
   upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king_r._[1]);
+  captures &= ~(b->king_r._[1]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
@@ -734,7 +770,8 @@ layer shield_wall_black_west_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_black_west_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->black_r._[1];
+  u64 sub_allies = b->black_r._[1] | corners._[1];
+
   u64 *sub_foes = &b->white_r._[1];
   layer *foes_r = &b->white;
   pos = rotate_right[pos];
@@ -742,8 +779,9 @@ layer shield_wall_black_west_right(board *b, u64 *z, int pos) {
   (*sub_foes) |= b->king_r._[1];
   u64 captures = 0;
   upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
   (*sub_foes) &= ~(b->king_r._[1]);
+  captures &= ~(b->king_r._[1]);
   layer output = EMPTY_LAYER;
   while (captures) {
     int index = 64 + _tzcnt_u64(captures);
@@ -757,7 +795,8 @@ layer shield_wall_black_west_right(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_north_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white._[1];
+  u64 sub_allies = b->white._[1] | corners._[1];
+  sub_allies |= b->king._[1];
   u64 *sub_foes = &b->black._[1];
   layer *foes_r = &b->black_r;
 
@@ -765,7 +804,7 @@ layer shield_wall_white_north_left(board *b, u64 *z, int pos) {
 
   u64 captures = 0;
   upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -780,7 +819,8 @@ layer shield_wall_white_north_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_north_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white._[1];
+  u64 sub_allies = b->white._[1] | corners._[1];
+  sub_allies |= b->king._[1];
   u64 *sub_foes = &b->black._[1];
   layer *foes_r = &b->black_r;
 
@@ -788,7 +828,7 @@ layer shield_wall_white_north_middle(board *b, u64 *z, int pos) {
 
   u64 captures = 0;
   upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -803,7 +843,8 @@ layer shield_wall_white_north_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_north_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white._[1];
+  u64 sub_allies = b->white._[1] | corners._[1];
+  sub_allies |= b->king._[1];
   u64 *sub_foes = &b->black._[1];
   layer *foes_r = &b->black_r;
 
@@ -811,7 +852,7 @@ layer shield_wall_white_north_right(board *b, u64 *z, int pos) {
 
   u64 captures = 0;
   upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -826,14 +867,15 @@ layer shield_wall_white_north_right(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_east_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white_r._[0];
+  u64 sub_allies = b->white_r._[0] | corners._[0];
+  sub_allies |= b->king_r._[0];
   u64 *sub_foes = &b->black_r._[0];
   layer *foes_r = &b->black;
   pos = rotate_right[pos];
 
   u64 captures = 0;
   lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -848,14 +890,15 @@ layer shield_wall_white_east_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_east_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white_r._[0];
+  u64 sub_allies = b->white_r._[0] | corners._[0];
+  sub_allies |= b->king_r._[0];
   u64 *sub_foes = &b->black_r._[0];
   layer *foes_r = &b->black;
   pos = rotate_right[pos];
 
   u64 captures = 0;
   lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -870,14 +913,15 @@ layer shield_wall_white_east_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_east_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white_r._[0];
+  u64 sub_allies = b->white_r._[0] | corners._[0];
+  sub_allies |= b->king_r._[0];
   u64 *sub_foes = &b->black_r._[0];
   layer *foes_r = &b->black;
   pos = rotate_right[pos];
 
   u64 captures = 0;
   lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -892,13 +936,14 @@ layer shield_wall_white_east_right(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_south_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white._[0];
+  u64 sub_allies = b->white._[0] | corners._[0];
+  sub_allies |= b->king._[0];
   u64 *sub_foes = &b->black._[0];
   layer *foes_r = &b->black_r;
 
   u64 captures = 0;
   lower_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -913,13 +958,14 @@ layer shield_wall_white_south_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_south_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white._[0];
+  u64 sub_allies = b->white._[0] | corners._[0];
+  sub_allies |= b->king._[0];
   u64 *sub_foes = &b->black._[0];
   layer *foes_r = &b->black_r;
 
   u64 captures = 0;
   lower_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -934,13 +980,14 @@ layer shield_wall_white_south_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_south_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white._[0];
+  u64 sub_allies = b->white._[0] | corners._[0];
+  sub_allies |= b->king._[0];
   u64 *sub_foes = &b->black._[0];
   layer *foes_r = &b->black_r;
 
   u64 captures = 0;
   lower_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -955,7 +1002,8 @@ layer shield_wall_white_south_right(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_west_left(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white_r._[1];
+  u64 sub_allies = b->white_r._[1] | corners._[1];
+  sub_allies |= b->king_r._[1];
   u64 *sub_foes = &b->black_r._[1];
   layer *foes_r = &b->black;
   pos = rotate_right[pos];
@@ -963,7 +1011,7 @@ layer shield_wall_white_west_left(board *b, u64 *z, int pos) {
 
   u64 captures = 0;
   upper_left_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -978,7 +1026,8 @@ layer shield_wall_white_west_left(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_west_middle(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white_r._[1];
+  u64 sub_allies = b->white_r._[1] | corners._[1];
+  sub_allies |= b->king_r._[1];
   u64 *sub_foes = &b->black_r._[1];
   layer *foes_r = &b->black;
   pos = rotate_right[pos];
@@ -986,7 +1035,7 @@ layer shield_wall_white_west_middle(board *b, u64 *z, int pos) {
 
   u64 captures = 0;
   upper_middle_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -1001,7 +1050,8 @@ layer shield_wall_white_west_middle(board *b, u64 *z, int pos) {
 }
 
 layer shield_wall_white_west_right(board *b, u64 *z, int pos) {
-  u64 sub_allies = b->white_r._[1];
+  u64 sub_allies = b->white_r._[1] | corners._[1];
+  sub_allies |= b->king_r._[1];
   u64 *sub_foes = &b->black_r._[1];
   layer *foes_r = &b->black;
   pos = rotate_right[pos];
@@ -1009,7 +1059,7 @@ layer shield_wall_white_west_right(board *b, u64 *z, int pos) {
 
   u64 captures = 0;
   upper_right_shield_captures(sub_allies, *sub_foes, pos, &captures);
-  (*sub_foes) -= captures;
+  (*sub_foes) &= ~captures;
 
   layer output = EMPTY_LAYER;
   while (captures) {
@@ -1251,13 +1301,16 @@ void shield_wall_gen(
     pos -= 110;
   }
 
-  const u64 sub_allies =
+  u64 sub_allies =
       (is_rotated ? allies_r : allies)->_[sub_index] | corners._[sub_index];
   u64 sub_foes = (is_rotated ? foes_r : foes)->_[sub_index];
 
-  // add king to foes if foes are white
+  // add king to foes if foes are white (black attacking)
+  // add king to allies if allies are white (white attacking)
   if (is_black) {
     sub_foes |= (is_rotated ? b->king_r : b->king)._[sub_index];
+  } else {
+    sub_allies |= (is_rotated ? b->king_r : b->king)._[sub_index];
   }
 
   u64 captures = 0;
