@@ -3,7 +3,7 @@
 module Hnefatafl.Interpreter.Storage.SQLite.TokenTest where
 
 import Data.List (isInfixOf)
-import Data.Time (getCurrentTime)
+import Chronos (now)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Optics
@@ -16,8 +16,8 @@ spec_Token =
   around withSharedDB $ do
     describe "createGameParticipantToken" $ do
       it "can create a token for a game" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
             testToken =
               baseToken
                 & #tokenId
@@ -33,8 +33,8 @@ spec_Token =
           conn
 
       it "can create tokens for both roles" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
             whiteToken =
               baseToken
                 & #tokenId
@@ -60,8 +60,8 @@ spec_Token =
 
     describe "getTokenByText" $ do
       it "can retrieve a token by its text value" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
             testToken =
               baseToken
                 & #token
@@ -83,8 +83,8 @@ spec_Token =
           conn
 
       it "can distinguish between different token texts" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
             token1 =
               baseToken
                 & #tokenId
@@ -112,8 +112,8 @@ spec_Token =
 
     describe "getActiveTokenByGameAndRole" $ do
       it "can retrieve active token by game and role" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
             whiteToken =
               baseToken
                 & #tokenId
@@ -140,8 +140,8 @@ spec_Token =
           conn
 
       it "returns Nothing when no active token exists for role" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
 
         resultEquals
           ( do
@@ -153,8 +153,8 @@ spec_Token =
 
     describe "unique constraint on active tokens" $ do
       it "prevents multiple active tokens for same game and role" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
             firstToken =
               baseToken
                 & #tokenId
@@ -177,8 +177,8 @@ spec_Token =
           Right _ -> False
 
       it "allows multiple active tokens for different roles in same game" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
             whiteToken =
               baseToken
                 & #tokenId
@@ -203,15 +203,15 @@ spec_Token =
           conn
 
       it "allows same role tokens for different games" $ \conn -> do
-        now <- getCurrentTime
+        currentTime <- now
         let game1 =
-              baseGame now
+              baseGame currentTime
                 & #gameId
                 .~ GameId "multi-game-1"
                 & #name
                 ?~ "Multi Game 1"
             game2 =
-              baseGame now
+              baseGame currentTime
                 & #gameId
                 .~ GameId "multi-game-2"
                 & #name

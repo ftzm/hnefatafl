@@ -55,8 +55,8 @@ dependencies:
   - derive-storable-plugin
   - sqlite-simple
   - text
-  - time
-  - ulid
+  - uuid-types
+  - heptapod
   - effectful
   - effectful-th
   - optics
@@ -66,6 +66,9 @@ dependencies:
   - split
   - optparse-applicative
   - either
+  - aeson
+  - chronos
+  - template-haskell
 
 executables:
   cli:

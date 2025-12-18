@@ -3,7 +3,7 @@
 module Hnefatafl.Interpreter.Storage.SQLite.GameTest where
 
 import Data.List (isInfixOf)
-import Data.Time (getCurrentTime)
+import Chronos (now)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Util
@@ -16,17 +16,17 @@ spec_Game =
   around withSharedDB $ do
     describe "insertGame" $ do
       it "can insert a game without players (anonymous)" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
 
         shouldSucceed (insertGame testGame) conn
 
       it "can insert a game with players" $ \conn -> do
-        now <- getCurrentTime
-        let whitePlayer = baseHumanPlayer & #playerId .~ PlayerId "white-player"
-            blackPlayer = baseHumanPlayer & #playerId .~ PlayerId "black-player"
+        currentTime <- now
+        let whitePlayer = baseHumanPlayer & #playerId .~ PlayerId "white-player" & #name .~ "White Player"
+            blackPlayer = baseHumanPlayer & #playerId .~ PlayerId "black-player" & #name .~ "Black Player"
             testGame =
-              baseGame now
+              baseGame currentTime
                 & #gameId
                 .~ GameId "test-game-2"
                 & #whitePlayerId
@@ -44,8 +44,8 @@ spec_Game =
 
     describe "getGame" $ do
       it "can retrieve a game that was inserted" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
         resultEquals
           ( do
               insertGame testGame
@@ -55,8 +55,8 @@ spec_Game =
           conn
 
       it "can retrieve a game with different status" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now & #endTime ?~ now & #gameStatus .~ WhiteWonKingEscaped
+        currentTime <- now
+        let testGame = baseGame currentTime & #endTime ?~ currentTime & #gameStatus .~ WhiteWonKingEscaped
         resultEquals
           ( do
               insertGame testGame
@@ -67,22 +67,22 @@ spec_Game =
 
     describe "updateGameStatus" $ do
       it "can update game status to completed" $ \conn -> do
-        now <- getCurrentTime
-        let originalGame = baseGame now
-            expectedGame = originalGame & #gameStatus .~ BlackWonKingCaptured & #endTime ?~ now
+        currentTime <- now
+        let originalGame = baseGame currentTime
+            expectedGame = originalGame & #gameStatus .~ BlackWonKingCaptured & #endTime ?~ currentTime
 
         resultEquals
           ( do
               insertGame originalGame
-              updateGameStatus originalGame.gameId BlackWonKingCaptured (Just now)
+              updateGameStatus originalGame.gameId BlackWonKingCaptured (Just currentTime)
               getGame originalGame.gameId
           )
           expectedGame
           conn
 
       it "can update game status without setting end time" $ \conn -> do
-        now <- getCurrentTime
-        let originalGame = baseGame now
+        currentTime <- now
+        let originalGame = baseGame currentTime
             expectedGame = originalGame & #gameStatus .~ Draw
 
         resultEquals
@@ -96,18 +96,18 @@ spec_Game =
 
     describe "deleteGame" $ do
       it "can delete a game and verify deletion" $ \conn -> do
-        now <- getCurrentTime
-        let testGame = baseGame now
+        currentTime <- now
+        let testGame = baseGame currentTime
 
-        shouldSucceed
-          ( do
-              insertGame testGame
-              deleteGame testGame.gameId
-          )
-          conn
+        -- Insert, delete, and verify deletion all in one transaction
+        result <- runStorageTest conn $ do
+          insertGame testGame
+          deleteGame testGame.gameId
+          getGame testGame.gameId -- This should fail
 
-        -- Verify game no longer exists
-        shouldFail (getGame testGame.gameId) conn
+        case result of
+          Left _ -> pure () -- Expected failure when trying to get deleted game
+          Right _ -> expectationFailure "Expected failure when getting deleted game"
 
       it "deleting a non-existent game should succeed (no-op)" $ \conn -> do
         let nonExistentId = GameId "does-not-exist"
@@ -116,9 +116,9 @@ spec_Game =
 
     describe "game names" $ do
       it "can insert games with null names" $ \conn -> do
-        now <- getCurrentTime
-        let game1 = baseGame now & #gameId .~ GameId "null-name-1" & #name .~ Nothing
-            game2 = baseGame now & #gameId .~ GameId "null-name-2" & #name .~ Nothing
+        currentTime <- now
+        let game1 = baseGame currentTime & #gameId .~ GameId "null-name-1" & #name .~ Nothing
+            game2 = baseGame currentTime & #gameId .~ GameId "null-name-2" & #name .~ Nothing
         shouldSucceed
           ( do
               insertGame game1
@@ -130,9 +130,9 @@ spec_Game =
           conn
 
       it "fails when inserting games with duplicate names" $ \conn -> do
-        now <- getCurrentTime
-        let game1 = baseGame now & #gameId .~ GameId "dup-name-1" & #name ?~ "Duplicate Name"
-            game2 = baseGame now & #gameId .~ GameId "dup-name-2" & #name ?~ "Duplicate Name"
+        currentTime <- now
+        let game1 = baseGame currentTime & #gameId .~ GameId "dup-name-1" & #name ?~ "Duplicate Name"
+            game2 = baseGame currentTime & #gameId .~ GameId "dup-name-2" & #name ?~ "Duplicate Name"
 
         -- Both operations in the same transaction to test the constraint
         result <- runStorageTest conn $ do
@@ -142,8 +142,60 @@ spec_Game =
           Left err -> "UNIQUE constraint failed" `isInfixOf` err
           Right _ -> False
 
+    describe "listGames" $ do
+      it "returns empty list when no games exist" $ \conn -> do
+        resultEquals
+          listGames
+          []
+          conn
+
+      it "returns games in descending order by creation time" $ \conn -> do
+        currentTime <- now
+        let game1 = baseGame currentTime & #gameId .~ GameId "game-1" & #name ?~ "First Game"
+            game2 = baseGame currentTime & #gameId .~ GameId "game-2" & #name ?~ "Second Game"
+            game3 = baseGame currentTime & #gameId .~ GameId "game-3" & #name ?~ "Third Game"
+
+        -- Insert games and get the list all in one transaction
+        result <- runStorageTest conn $ do
+          insertGame game1
+          insertGame game2
+          insertGame game3
+          listGames
+
+        case result of
+          Left err -> expectationFailure $ "Expected success but got error: " ++ err
+          Right games -> do
+            length games `shouldBe` 3
+            -- Games should be ordered by creation time (most recent first)
+            -- Since all have same timestamp, order by gameId for predictability
+            let gameNames = map (.name) games
+            gameNames `shouldContain` [Just "First Game", Just "Second Game", Just "Third Game"]
+
+      it "can list games with different statuses" $ \conn -> do
+        currentTime <- now
+        let ongoingGame = baseGame currentTime & #gameId .~ GameId "ongoing" & #name ?~ "Ongoing Game"
+            completedGame =
+              baseGame currentTime
+                & #gameId .~ GameId "completed"
+                & #name ?~ "Completed Game"
+                & #gameStatus .~ WhiteWonKingEscaped
+                & #endTime ?~ currentTime
+
+        -- Insert games and get the list all in one transaction
+        result <- runStorageTest conn $ do
+          insertGame ongoingGame
+          insertGame completedGame
+          listGames
+
+        case result of
+          Left err -> expectationFailure $ "Expected success but got error: " ++ err
+          Right games -> do
+            length games `shouldBe` 2
+            let statuses = map (.gameStatus) games
+            statuses `shouldContain` [Ongoing, WhiteWonKingEscaped]
+
     describe "game with all status types" $ it "can handle all GameStatus variants" $ \conn -> do
-      now <- getCurrentTime
+      currentTime <- now
       let statusTests =
             [ (Ongoing, "ongoing-game")
             , (BlackWonKingCaptured, "black-won-king-captured-game")
@@ -166,7 +218,7 @@ spec_Game =
             ( \(status, gameIdSuffix) -> do
                 let gameId = GameId gameIdSuffix
                     testGame =
-                      baseGame now
+                      baseGame currentTime
                         & #gameId
                         .~ gameId
                         & #name

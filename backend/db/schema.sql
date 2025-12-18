@@ -6,7 +6,7 @@ CREATE TABLE player (
 );
 CREATE TABLE human_player (
     player_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     email TEXT,
     player_type TEXT NOT NULL DEFAULT 'human' CHECK (player_type = 'human'),
     FOREIGN KEY (player_id, player_type) REFERENCES player(id, player_type) ON DELETE CASCADE
@@ -30,7 +30,6 @@ CREATE TABLE game (
     FOREIGN KEY (black_player_id) REFERENCES player(id)
 );
 CREATE TABLE move (
-    id TEXT PRIMARY KEY,
     game_id TEXT NOT NULL,
     move_number INTEGER NOT NULL CHECK (move_number >= 0),
     player_color TEXT NOT NULL CHECK (player_color IN ('white', 'black')),
@@ -42,8 +41,8 @@ CREATE TABLE move (
     white_upper INTEGER NOT NULL,
     king INTEGER NOT NULL CHECK (king >= 0 AND king <= 120),
     timestamp DATETIME NOT NULL,
-    FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE,
-    UNIQUE (game_id, move_number)
+    PRIMARY KEY (game_id, move_number),
+    FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE
 );
 CREATE TRIGGER enforce_sequential_moves
 BEFORE INSERT ON move
@@ -68,7 +67,6 @@ CREATE TABLE game_participant_token (
     FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE
 );
 CREATE INDEX idx_games_players ON game(white_player_id, black_player_id);
-CREATE INDEX idx_moves_game ON move(game_id, move_number);
 CREATE INDEX idx_players_type ON player(player_type);
 CREATE INDEX idx_game_participant_tokens_game ON game_participant_token(game_id);
 CREATE INDEX idx_game_participant_tokens_token ON game_participant_token(token);

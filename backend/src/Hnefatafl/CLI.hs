@@ -1,5 +1,15 @@
-module Hnefatafl.CLI (run) where
+{-# LANGUAGE DeriveAnyClass #-}
 
+module Hnefatafl.CLI (
+  run,
+  GameImport (..),
+  GameImportInput (..),
+  getOrCreateHumanPlayer,
+) where
+
+import Chronos (Time)
+import Data.Aeson (FromJSON, ToJSON)
+import Effectful
 import Hnefatafl.Bindings (
   EngineGameStatus,
   MoveValidationResult (..),
@@ -7,7 +17,9 @@ import Hnefatafl.Bindings (
   nextGameState,
  )
 import Hnefatafl.Board (formatMoveResult)
-import Hnefatafl.Core.Data (Move)
+import Hnefatafl.Core.Data (HumanPlayer (..), Move, PlayerId (..))
+import Hnefatafl.Effect.IdGen
+import Hnefatafl.Effect.Storage
 import Hnefatafl.Serialization (parseMoveList)
 import Options.Applicative
 import System.Exit (ExitCode (..))
@@ -42,7 +54,8 @@ processMovesParser =
     <$> ( ProcessMovesOptions
             <$> strArgument (metavar "MOVES" <> help "Move list to process")
             <*> switch (long "silent-success" <> help "Don't print moves if they're valid")
-            <*> switch (long "allow-repetition" <> help "Allow threefold repetition without failing")
+            <*> switch
+              (long "allow-repetition" <> help "Allow threefold repetition without failing")
         )
 
 otherParser :: Parser Command
@@ -74,10 +87,13 @@ globalOptionsParser =
       )
 
 versionOption :: Parser (a -> a)
-versionOption = infoOption "hnefatafl version 0.0.0.2"
-  ( long "version"
- <> short 'v'
- <> help "Show version" )
+versionOption =
+  infoOption
+    "hnefatafl version 0.0.0.2"
+    ( long "version"
+        <> short 'v'
+        <> help "Show version"
+    )
 
 optionsParser :: Parser Options
 optionsParser =
@@ -115,11 +131,7 @@ runOptions options = case options.cmd of
       Left parseErr -> do
         putTextLn $ "Failed to parse moves: " <> parseErr
         pure $ ExitFailure 1
-      Right [] -> do
-        putTextLn "No moves provided"
-        pure $ ExitFailure 1
-      Right (m : ms) -> do
-        let moves = m :| ms
+      Right moves -> do
         case nextGameState moves allowRepetition of
           Right status -> do
             if silentSuccess
@@ -133,8 +145,51 @@ runOptions options = case options.cmd of
     putTextLn "other"
     pure ExitSuccess
 
+--------------------------------------------------------------------------------
+-- import
+
+-- importGames :: IO (
+-- importGames = undefined
+
+data GameImportInput = GameImportInput
+  { gameName :: Maybe Text
+  , blackPlayerName :: Text
+  , whitePlayerName :: Text
+  , startTime :: Maybe Time
+  , endTime :: Maybe Time
+  , game_status :: Maybe Text
+  , moveString :: Text
+  }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+data GameImport = GameImport
+  { gameName :: Text
+  , blackPlayerName :: Text
+  , whitePlayerName :: Text
+  , startTime :: Time
+  , endTime :: Maybe Time
+  , game_status :: Text
+  }
+
+-- | Look up a human player by name, creating one if it doesn't exist
+getOrCreateHumanPlayer ::
+  (Storage :> es, IdGen :> es) =>
+  Text -> Eff es HumanPlayer
+getOrCreateHumanPlayer name =
+  humanPlayerFromName name >>= \case
+    Just player -> pure player
+    Nothing -> do
+      playerId <- generateId
+      let newPlayer = HumanPlayer playerId name Nothing
+      insertHumanPlayer newPlayer
+      pure newPlayer
+
+--------------------------------------------------------------------------------
+
 run :: IO ()
 run = do
-  opts <- execParser (info (optionsParser <**> helper <**> versionOption) (progDesc "Test Program"))
+  opts <-
+    execParser
+      (info (optionsParser <**> helper <**> versionOption) (progDesc "Test Program"))
   exitCode <- runOptions opts
   exitWith exitCode

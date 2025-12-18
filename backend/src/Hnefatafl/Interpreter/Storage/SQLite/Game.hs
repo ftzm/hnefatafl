@@ -1,11 +1,12 @@
 module Hnefatafl.Interpreter.Storage.SQLite.Game (
   createGame,
   getGameById,
+  listGamesDb,
   updateGameStatusById,
   deleteGameById,
 ) where
 
-import Data.Time (UTCTime)
+import Chronos (Time)
 import Database.SQLite.Simple
 import Hnefatafl.Interpreter.Storage.SQLite.Type
 import Hnefatafl.Interpreter.Storage.SQLite.Util
@@ -31,8 +32,18 @@ getGameById =
     """
     . Only
 
+listGamesDb :: Connection -> IO [GameDb]
+listGamesDb =
+  query'
+    """
+    SELECT id, name, white_player_id, black_player_id, start_time, end_time, game_status, created_at
+    FROM game
+    ORDER BY created_at DESC
+    """
+    ()
+
 updateGameStatusById ::
-  GameIdDb -> GameStatusDb -> Maybe UTCTime -> Connection -> IO ()
+  GameIdDb -> GameStatusDb -> Maybe Time -> Connection -> IO ()
 updateGameStatusById gameId gameStatus endTime =
   execute'
     "UPDATE game SET game_status = ?, end_time = ? WHERE id = ?"

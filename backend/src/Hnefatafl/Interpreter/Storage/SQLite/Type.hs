@@ -10,7 +10,6 @@ module Hnefatafl.Interpreter.Storage.SQLite.Type (
   GameIdDb (..),
   GameStatusDb (..),
   GameDb (..),
-  MoveIdDb (..),
   PlayerColorDb (..),
   MoveDb (..),
   GameParticipantTokenIdDb (..),
@@ -18,11 +17,25 @@ module Hnefatafl.Interpreter.Storage.SQLite.Type (
   DomainMapping (..),
 ) where
 
-import Data.Time (UTCTime)
+import Chronos
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromField
+import Database.SQLite.Simple.Internal
+import Database.SQLite.Simple.Ok (Ok (..))
 import Database.SQLite.Simple.ToField
 import Hnefatafl.Core.Data
+
+-- ToField/FromField instances for Chronos Time
+instance ToField Time where
+  toField = SQLText . encodeIso8601 . timeToDatetime
+
+instance FromField Time where
+  fromField f@(Field (SQLText t) _) =
+    case decode_lenient t of
+      Just time -> Ok $ datetimeToTime time
+      Nothing ->
+        returnError ConversionFailed f ("couldn't parse UTCTime field: " ++ toString t)
+  fromField f = returnError ConversionFailed f "expecting SQLText column type"
 
 --------------------------------------------------------------------------------
 -- DB types
@@ -115,8 +128,8 @@ instance FromField GameStatusDb where
       "draw" -> pure $ GameStatusDb Draw
       "abandoned" -> pure $ GameStatusDb Abandoned
       -- Legacy support for old values
-      "white_won" -> pure $ GameStatusDb WhiteWonKingEscaped  -- Default to most common white victory
-      "black_won" -> pure $ GameStatusDb BlackWonKingCaptured  -- Default to most common black victory
+      "white_won" -> pure $ GameStatusDb WhiteWonKingEscaped -- Default to most common white victory
+      "black_won" -> pure $ GameStatusDb BlackWonKingCaptured -- Default to most common black victory
       _ -> returnError ConversionFailed f "Invalid game status"
 
 data GameDb = GameDb
@@ -124,10 +137,10 @@ data GameDb = GameDb
   , name :: Maybe Text
   , whitePlayerId :: Maybe PlayerIdDb
   , blackPlayerId :: Maybe PlayerIdDb
-  , startTime :: UTCTime
-  , endTime :: Maybe UTCTime
+  , startTime :: Time
+  , endTime :: Maybe Time
   , gameStatus :: GameStatusDb
-  , createdAt :: UTCTime
+  , createdAt :: Time
   }
   deriving (Show, Generic, ToRow, FromRow)
 
@@ -175,10 +188,6 @@ instance DomainMapping GameDb Game where
         , createdAt = createdAt
         }
 
-newtype MoveIdDb = MoveIdDb Text
-  deriving (Show, Eq)
-  deriving newtype (ToField, FromField)
-
 data PlayerColorDb = WhiteColorDb | BlackColorDb
   deriving (Show, Eq)
 
@@ -194,9 +203,7 @@ instance FromField PlayerColorDb where
       _ -> returnError ConversionFailed f "Invalid player color"
 
 data MoveDb = MoveDb
-  { moveId :: MoveIdDb
-  , moveNumber :: Int
-  , playerColor :: PlayerColorDb
+  { playerColor :: PlayerColorDb
   , fromPosition :: Word8
   , toPosition :: Word8
   , blackLower :: Int64
@@ -204,13 +211,9 @@ data MoveDb = MoveDb
   , whiteLower :: Int64
   , whiteUpper :: Int64
   , king :: Word8
-  , timestamp :: UTCTime
+  , timestamp :: Time
   }
   deriving (Show, Generic, ToRow, FromRow)
-
-instance DomainMapping MoveIdDb MoveId where
-  toDomain = coerce
-  fromDomain = coerce
 
 instance DomainMapping PlayerColorDb PlayerColor where
   toDomain WhiteColorDb = White
@@ -221,9 +224,7 @@ instance DomainMapping PlayerColorDb PlayerColor where
 instance DomainMapping MoveDb GameMove where
   toDomain
     MoveDb
-      { moveId
-      , moveNumber
-      , playerColor
+      { playerColor
       , fromPosition
       , toPosition
       , blackLower
@@ -234,9 +235,7 @@ instance DomainMapping MoveDb GameMove where
       , timestamp
       } =
       GameMove
-        { moveId = toDomain moveId
-        , moveNumber = moveNumber
-        , playerColor = toDomain playerColor
+        { playerColor = toDomain playerColor
         , move = Move fromPosition toPosition
         , boardStateAfter =
             ExternBoard
@@ -246,11 +245,9 @@ instance DomainMapping MoveDb GameMove where
               }
         , timestamp = timestamp
         }
-  fromDomain GameMove{moveId, moveNumber, playerColor, move, boardStateAfter, timestamp} =
+  fromDomain GameMove{playerColor, move, boardStateAfter, timestamp} =
     MoveDb
-      { moveId = fromDomain moveId
-      , moveNumber = moveNumber
-      , playerColor = fromDomain playerColor
+      { playerColor = fromDomain playerColor
       , fromPosition = orig move
       , toPosition = dest move
       , blackLower = boardStateAfter.black.lower
@@ -274,7 +271,7 @@ data GameParticipantTokenDb = GameParticipantTokenDb
   , gameId :: GameIdDb
   , token :: Text
   , role :: PlayerColorDb
-  , createdAt :: UTCTime
+  , createdAt :: Time
   , isActive :: Bool
   }
   deriving (Show, Generic, ToRow, FromRow)

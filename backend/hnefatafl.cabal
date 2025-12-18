@@ -16,7 +16,12 @@ library
       Hnefatafl.Board
       Hnefatafl.CLI
       Hnefatafl.Core.Data
+      Hnefatafl.Effect.Clock
+      Hnefatafl.Effect.IdGen
       Hnefatafl.Effect.Storage
+      Hnefatafl.Import
+      Hnefatafl.Interpreter.Clock.IO
+      Hnefatafl.Interpreter.IdGen.UUIDv7
       Hnefatafl.Interpreter.Storage.SQLite
       Hnefatafl.Interpreter.Storage.SQLite.Game
       Hnefatafl.Interpreter.Storage.SQLite.Move
@@ -24,6 +29,7 @@ library
       Hnefatafl.Interpreter.Storage.SQLite.Token
       Hnefatafl.Interpreter.Storage.SQLite.Type
       Hnefatafl.Interpreter.Storage.SQLite.Util
+      Hnefatafl.QQ.Move
       Hnefatafl.Serialization
   other-modules:
       Paths_hnefatafl
@@ -44,23 +50,26 @@ library
   ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
+    , aeson
     , array
     , attoparsec
     , base
+    , chronos
     , derive-storable
     , derive-storable-plugin
     , effectful
     , effectful-th
     , either
+    , heptapod
     , optics
     , optparse-applicative
     , relude
     , split
     , sqlite-simple
+    , template-haskell
     , text
-    , time
     , transformers
-    , ulid
+    , uuid-types
   mixins:
        relude
     , base hiding (Prelude)
@@ -88,24 +97,27 @@ executable cli
   ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
+    , aeson
     , array
     , attoparsec
     , base
+    , chronos
     , derive-storable
     , derive-storable-plugin
     , effectful
     , effectful-th
     , either
+    , heptapod
     , hnefatafl
     , optics
     , optparse-applicative
     , relude
     , split
     , sqlite-simple
+    , template-haskell
     , text
-    , time
     , transformers
-    , ulid
+    , uuid-types
   mixins:
        relude
     , base hiding (Prelude)
@@ -117,11 +129,14 @@ test-suite hnefatafl-test
   main-is: Driver.hs
   other-modules:
       Hnefatafl.BindingsTest
+      Hnefatafl.ImportTest
       Hnefatafl.Interpreter.Storage.SQLite.GameTest
       Hnefatafl.Interpreter.Storage.SQLite.MoveTest
       Hnefatafl.Interpreter.Storage.SQLite.PlayerTest
       Hnefatafl.Interpreter.Storage.SQLite.TokenTest
       Hnefatafl.Interpreter.Storage.SQLite.Util
+      Hnefatafl.QQ.MoveTest
+      TestUtil
       Paths_hnefatafl
   autogen-modules:
       Paths_hnefatafl
@@ -142,15 +157,18 @@ test-suite hnefatafl-test
       tasty-discover:tasty-discover
   build-depends:
       
+    , aeson
     , array
     , attoparsec
     , base
+    , chronos
     , derive-storable
     , derive-storable-plugin
     , direct-sqlite
     , effectful
     , effectful-th
     , either
+    , heptapod
     , hnefatafl
     , hspec
     , hspec-expectations-pretty-diff
@@ -164,11 +182,11 @@ test-suite hnefatafl-test
     , tasty-discover
     , tasty-hspec
     , tasty-hunit
+    , template-haskell
     , temporary
     , text
-    , time
     , transformers
-    , ulid
+    , uuid-types
   mixins:
        relude
     , base hiding (Prelude)

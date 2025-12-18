@@ -11,6 +11,7 @@ module Hnefatafl.Bindings (
   nextGameStateWithMoves,
   nextGameStateWithMovesTrusted,
   applyMoveSequence,
+  toGameStatus,
   EngineGameStatus (..),
   MoveError (..),
   MoveValidationResult (..),
@@ -34,6 +35,7 @@ import Foreign.Storable.Generic (GStorable)
 import Hnefatafl.Core.Data (
   DomainMapping (..),
   ExternBoard (..),
+  GameStatus (..),
   Layer (..),
   Move (..),
   MoveResult (..),
@@ -50,6 +52,16 @@ data EngineGameStatus
   | EngineExitFort -- white victory
   | EngineNoBlackMoves -- white victory
   deriving (Show, Read, Eq, Enum)
+
+toGameStatus :: EngineGameStatus -> GameStatus
+toGameStatus = \case
+  EngineOngoing -> Hnefatafl.Core.Data.Ongoing
+  EngineKingCaptured -> BlackWonKingCaptured
+  EngineWhiteSurrounded -> BlackWonWhiteSurrounded
+  EngineNoWhiteMoves -> BlackWonNoWhiteMoves
+  EngineKingEscaped -> WhiteWonKingEscaped
+  EngineExitFort -> WhiteWonExitFort
+  EngineNoBlackMoves -> WhiteWonNoBlackMoves
 
 -- Internal storable types for FFI
 data StorableLayer = StorableLayer {lower :: Int64, upper :: Int64}

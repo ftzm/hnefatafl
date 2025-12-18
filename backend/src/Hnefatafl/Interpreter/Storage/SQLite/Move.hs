@@ -1,10 +1,11 @@
 module Hnefatafl.Interpreter.Storage.SQLite.Move (
   insertMoveDb,
-  getMoveById,
+  insertMovesDb,
+  getMoveByCompositeKey,
   getMovesForGameDb,
   getLatestMoveForGameDb,
   getMoveCountForGameDb,
-  deleteMoveById,
+  deleteMove,
 ) where
 
 import Database.SQLite.Simple
@@ -14,33 +15,37 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 --------------------------------------------------------------------------------
 -- Move operations
 
-insertMoveDb :: Connection -> GameIdDb -> MoveDb -> IO ()
-insertMoveDb conn gameIdDb moveDb = do
-  execute
+insertMovesDb :: Connection -> GameIdDb -> [MoveDb] -> IO ()
+insertMovesDb conn gameIdDb movesDb = do
+  executeMany
     conn
     """
-    INSERT INTO move (game_id, id, move_number, player_color, from_position, to_position,
+    INSERT INTO move (game_id, move_number, player_color, from_position, to_position,
                      black_lower, black_upper, white_lower, white_upper, king, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, (SELECT COALESCE(MAX(move_number), -1) + 1 FROM move WHERE game_id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
-    (Only gameIdDb :. moveDb)
+    (map (\moveDb -> (gameIdDb, gameIdDb) :. moveDb) movesDb)
 
-getMoveById :: MoveIdDb -> Connection -> IO MoveDb
-getMoveById =
+insertMoveDb :: Connection -> GameIdDb -> MoveDb -> IO ()
+insertMoveDb conn gameIdDb moveDb =
+  insertMovesDb conn gameIdDb [moveDb]
+
+getMoveByCompositeKey :: GameIdDb -> Int -> Connection -> IO MoveDb
+getMoveByCompositeKey gameIdDb moveNumber =
   selectSingle
     """
-    SELECT id, move_number, player_color, from_position, to_position,
+    SELECT player_color, from_position, to_position,
            black_lower, black_upper, white_lower, white_upper, king, timestamp
     FROM move
-    WHERE id = ?
+    WHERE game_id = ? AND move_number = ?
     """
-    . Only
+    (gameIdDb, moveNumber)
 
 getMovesForGameDb :: GameIdDb -> Connection -> IO [MoveDb]
 getMovesForGameDb =
   query'
     """
-    SELECT id, move_number, player_color, from_position, to_position,
+    SELECT player_color, from_position, to_position,
            black_lower, black_upper, white_lower, white_upper, king, timestamp
     FROM move
     WHERE game_id = ?
@@ -52,7 +57,7 @@ getLatestMoveForGameDb :: GameIdDb -> Connection -> IO (Maybe MoveDb)
 getLatestMoveForGameDb =
   selectMaybe
     """
-    SELECT id, move_number, player_color, from_position, to_position,
+    SELECT player_color, from_position, to_position,
            black_lower, black_upper, white_lower, white_upper, king, timestamp
     FROM move
     WHERE game_id = ?
@@ -67,5 +72,6 @@ getMoveCountForGameDb =
     <<<$>>> selectSingle "SELECT COUNT(*) FROM move WHERE game_id = ?"
     . Only
 
-deleteMoveById :: MoveIdDb -> Connection -> IO ()
-deleteMoveById = execute' "DELETE FROM move WHERE id = ?" . Only
+deleteMove :: GameIdDb -> Int -> Connection -> IO ()
+deleteMove gameIdDb moveNumber =
+  execute' "DELETE FROM move WHERE game_id = ? AND move_number = ?" (gameIdDb, moveNumber)

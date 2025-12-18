@@ -94,10 +94,6 @@ move_validation_result board_state_from_move_list(
       destroy_position_set(first_ps);
       destroy_position_set(second_ps);
       move_validation_result mvr = {result, i};
-      printf(
-          "DEBUG C: error at move index %d, error code %d\n",
-          mvr.move_index,
-          mvr.error);
       return mvr;
     }
   }

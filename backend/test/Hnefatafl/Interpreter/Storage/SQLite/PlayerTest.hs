@@ -16,8 +16,8 @@ spec_Player =
         shouldSucceed (insertHumanPlayer baseHumanPlayer) conn
 
       it "can insert multiple human players in sequence" $ \conn -> do
-        let testPlayer1 = baseHumanPlayer & #playerId .~ PlayerId "player-1"
-            testPlayer2 = baseHumanPlayer & #playerId .~ PlayerId "player-2" & #email .~ Nothing
+        let testPlayer1 = baseHumanPlayer & #playerId .~ PlayerId "player-1" & #name .~ "Test Human 1"
+            testPlayer2 = baseHumanPlayer & #playerId .~ PlayerId "player-2" & #name .~ "Test Human 2" & #email .~ Nothing
 
         shouldSucceed
           ( do
@@ -43,8 +43,8 @@ spec_Player =
           conn
 
       it "can retrieve multiple different players" $ \conn -> do
-        let player1 = baseHumanPlayer & #playerId .~ PlayerId "multi-1"
-            player2 = baseHumanPlayer & #playerId .~ PlayerId "multi-2" & #email .~ Nothing
+        let player1 = baseHumanPlayer & #playerId .~ PlayerId "multi-1" & #name .~ "Multi Test 1"
+            player2 = baseHumanPlayer & #playerId .~ PlayerId "multi-2" & #name .~ "Multi Test 2" & #email .~ Nothing
 
         resultEquals
           ( do
@@ -142,3 +142,37 @@ spec_Player =
         let nonExistentId = PlayerId "does-not-exist"
 
         shouldSucceed (deletePlayer nonExistentId) conn
+
+    describe "humanPlayerFromName" $ do
+      it "returns Nothing when no player with the given name exists" $ \conn ->
+        resultEquals
+          (humanPlayerFromName "NonexistentPlayer")
+          Nothing
+          conn
+
+      it "returns the human player when a player with the given name exists" $ \conn -> do
+        let testPlayer =
+              baseHumanPlayer & #playerId .~ PlayerId "name-lookup-1" & #name .~ "UniqueTestName"
+
+        resultEquals
+          ( do
+              insertHumanPlayer testPlayer
+              humanPlayerFromName "UniqueTestName"
+          )
+          (Just testPlayer)
+          conn
+
+      it "returns the correct player when multiple players exist with different names" $ \conn -> do
+        let player1 = baseHumanPlayer & #playerId .~ PlayerId "name-lookup-2" & #name .~ "Alice"
+            player2 = baseHumanPlayer & #playerId .~ PlayerId "name-lookup-3" & #name .~ "Bob"
+            player3 = baseHumanPlayer & #playerId .~ PlayerId "name-lookup-4" & #name .~ "Charlie"
+
+        resultEquals
+          ( do
+              insertHumanPlayer player1
+              insertHumanPlayer player2
+              insertHumanPlayer player3
+              humanPlayerFromName "Bob"
+          )
+          (Just player2)
+          conn

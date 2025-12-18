@@ -1,5 +1,6 @@
 module Hnefatafl.Serialization (
-  indexToNotation,
+  moveToNotation,
+  movesToNotation,
   parseMove,
   parseMoveList,
 ) where
@@ -46,6 +47,12 @@ indexToPosition index =
 indexToNotation :: Word8 -> Text
 indexToNotation = positionToNotation . indexToPosition
 
+moveToNotation :: Move -> Text
+moveToNotation Move{orig, dest} = indexToNotation orig <> indexToNotation dest
+
+movesToNotation :: [Move] -> Text
+movesToNotation = mconcat . intersperse " " . map moveToNotation
+
 --------------------------------------------------------------------------------
 -- Parse notation
 
@@ -80,11 +87,15 @@ moveParser = do
   _ <- optional captureParser
   pure $ Move orig dest
 
-moveListParser :: Parser [Move]
-moveListParser = skipSpace *> sepBy1 moveParser skipSpace <* skipSpace
+sepByNonEmpty ::
+  forall (f :: Type -> Type) a s. Alternative f => f a -> f s -> f (NonEmpty a)
+sepByNonEmpty p s = fromList <$> sepBy1 p s
+
+moveListParser :: Parser (NonEmpty Move)
+moveListParser = skipSpace *> sepByNonEmpty moveParser skipSpace <* skipSpace
 
 parseMove :: Text -> Either Text Move
 parseMove = mapLeft toText . parseOnly moveParser
 
-parseMoveList :: Text -> Either Text [Move]
+parseMoveList :: Text -> Either Text (NonEmpty Move)
 parseMoveList = mapLeft toText . parseOnly moveListParser

@@ -5,11 +5,12 @@ module Hnefatafl.Interpreter.Storage.SQLite.Player (
   getPlayerById,
   getHumanPlayerById,
   getEnginePlayerById,
+  getHumanPlayerByName,
   deletePlayerById,
 ) where
 
 import Data.Maybe (fromJust)
-import Data.Time (UTCTime)
+import Chronos (Time)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
 import Hnefatafl.Interpreter.Storage.SQLite.Type
@@ -18,14 +19,14 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 --------------------------------------------------------------------------------
 -- Player operations
 
-createBasePlayer :: PlayerIdDb -> Text -> UTCTime -> Connection -> IO ()
+createBasePlayer :: PlayerIdDb -> Text -> Time -> Connection -> IO ()
 createBasePlayer playerId playerType createdAt =
   execute'
     "INSERT INTO player (id, player_type, created_at) VALUES (?, ?, ?)"
     (playerId, playerType, createdAt)
 
 createHumanPlayer ::
-  HumanPlayerDb -> UTCTime -> Connection -> IO ()
+  HumanPlayerDb -> Time -> Connection -> IO ()
 createHumanPlayer player createdAt conn = do
   createBasePlayer player.playerId "human" createdAt conn
   execute'
@@ -34,7 +35,7 @@ createHumanPlayer player createdAt conn = do
     conn
 
 createEnginePlayer ::
-  EnginePlayerDb -> UTCTime -> Connection -> IO ()
+  EnginePlayerDb -> Time -> Connection -> IO ()
 createEnginePlayer player createdAt conn = do
   createBasePlayer player.playerId "engine" createdAt conn
   execute'
@@ -82,6 +83,17 @@ getEnginePlayerById =
     WHERE e.player_id = ?
     """
     . Only
+
+getHumanPlayerByName :: Text -> Connection -> IO (Maybe HumanPlayerDb)
+getHumanPlayerByName name conn =
+  selectMaybe
+    """
+    SELECT h.player_id, h.name, h.email
+    FROM human_player h
+    WHERE h.name = ?
+    """
+    (Only name)
+    conn
 
 deletePlayerById :: PlayerIdDb -> Connection -> IO ()
 deletePlayerById playerId =

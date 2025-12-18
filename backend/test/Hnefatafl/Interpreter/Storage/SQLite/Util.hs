@@ -2,9 +2,8 @@
 
 module Hnefatafl.Interpreter.Storage.SQLite.Util where
 
+import Chronos (Time)
 import Control.Concurrent.MVar qualified as MVar
-import Data.List (zipWith3)
-import Data.Time (UTCTime)
 import Database.SQLite.Simple hiding (Error)
 import Database.SQLite3 qualified as SQLite3
 import Effectful
@@ -27,22 +26,27 @@ withSharedDB action = do
   close conn
   return result
 
+-- | Run storage effects with automatic rollback for test isolation
+runStorageSQLiteWithRollback ::
+  (IOE :> es, Error String :> es) =>
+  MVar Connection -> Eff (Storage : es) a -> Eff es a
+runStorageSQLiteWithRollback connectionVar action = do
+  -- Start transaction
+  conn <- liftIO $ MVar.readMVar connectionVar
+  liftIO $ execute_ conn "BEGIN TRANSACTION"
+  -- Run the action
+  result <- runStorageSQLite connectionVar action
+  -- Always rollback to ensure test isolation
+  liftIO $ execute_ conn "ROLLBACK"
+  return result
+
 -- | Run storage effects in a transaction and roll back
 runStorageTest ::
   MVar Connection ->
   (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
   IO (Either String a)
-runStorageTest connectionVar action = do
-  -- Start transaction
-  conn <- MVar.readMVar connectionVar
-  execute_ conn "BEGIN TRANSACTION"
-  -- Run the test
-  result <-
-    runEff $ runErrorNoCallStack @String $ runStorageSQLite connectionVar action
-  -- Always rollback to ensure test isolation
-  execute_ conn "ROLLBACK"
-
-  return result
+runStorageTest connectionVar action =
+  runEff $ runErrorNoCallStack @String $ runStorageSQLiteWithRollback connectionVar action
 
 -- | Test utility that runs a storage action and asserts it completes without error
 shouldSucceed ::
@@ -79,6 +83,18 @@ shouldFail action connectionVar = do
     Left _ -> pure () -- Expected failure
     Right _ -> expectationFailure "Expected failure but action succeeded"
 
+-- | Test utility that runs a storage action returning a Bool and asserts it's True
+shouldBeTrue ::
+  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es Bool) ->
+  MVar Connection ->
+  Expectation
+shouldBeTrue action connectionVar = do
+  result <- runStorageTest connectionVar action
+  case result of
+    Left err -> expectationFailure $ "Expected success but got error: " ++ err
+    Right False -> expectationFailure "Expected True but got False"
+    Right True -> pure ()
+
 -- * Test data utilities
 
 -- | Base human player for testing
@@ -99,29 +115,27 @@ baseEnginePlayer =
     }
 
 -- | Base game for testing (requires current time)
-baseGame :: UTCTime -> Game
-baseGame now =
+baseGame :: Time -> Game
+baseGame currentTime =
   Game
     { gameId = GameId "test-game"
     , name = Just "Test Game"
     , whitePlayerId = Nothing
     , blackPlayerId = Nothing
-    , startTime = now
+    , startTime = currentTime
     , endTime = Nothing
     , gameStatus = Ongoing
-    , createdAt = now
+    , createdAt = currentTime
     }
 
 -- | Base game move for testing (requires current time)
-baseMove :: UTCTime -> GameMove
-baseMove now =
+baseMove :: Time -> GameMove
+baseMove currentTime =
   GameMove
-    { moveId = MoveId "test-move"
-    , moveNumber = 0
-    , playerColor = White
+    { playerColor = White
     , move = Move 0 1
     , boardStateAfter = emptyBoard
-    , timestamp = now
+    , timestamp = currentTime
     }
 
 -- | Base game participant token for testing
@@ -144,19 +158,16 @@ emptyBoard =
     }
 
 -- | Generate a sequence of GameMoves from a list of Moves
--- Automatically handles move IDs, move numbers, and alternating player colors
+-- Automatically handles alternating player colors
 -- First move is always White, then alternates
-generateMoves :: UTCTime -> [Move] -> [GameMove]
-generateMoves timestamp moves =
-  zipWith3 makeGameMove [0..] (cycle [White, Black]) moves
-  where
-    makeGameMove :: Int -> PlayerColor -> Move -> GameMove
-    makeGameMove moveNum color move =
-      GameMove
-        { moveId = MoveId ("move-" <> show moveNum)
-        , moveNumber = moveNum
-        , playerColor = color
-        , move = move
-        , boardStateAfter = emptyBoard
-        , timestamp = timestamp
-        }
+generateMoves :: Time -> [Move] -> [GameMove]
+generateMoves timestamp = zipWith makeGameMove (cycle [White, Black])
+ where
+  makeGameMove :: PlayerColor -> Move -> GameMove
+  makeGameMove color move =
+    GameMove
+      { playerColor = color
+      , move = move
+      , boardStateAfter = emptyBoard
+      , timestamp = timestamp
+      }

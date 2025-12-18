@@ -3,14 +3,12 @@
 module Hnefatafl.Core.Data (
   -- * Player Types
   PlayerId (..),
-  generatePlayerId,
   HumanPlayer (..),
   EnginePlayer (..),
   Player (..),
 
   -- * Game Types
   GameId (..),
-  generateGameId,
   GameStatus (..),
   Game (..),
 
@@ -19,29 +17,21 @@ module Hnefatafl.Core.Data (
   ExternBoard (..),
   Move (..),
   MoveResult (..),
-  MoveId (..),
-  generateMoveId,
   PlayerColor (..),
   GameMove (..),
 
   -- * Game Participant Token Types
   GameParticipantTokenId (..),
-  generateGameParticipantTokenId,
   GameParticipantToken (..),
 
   -- * Utilities
   DomainMapping (..),
 ) where
 
-import Data.Time (UTCTime)
-import Data.ULID
+import Chronos (Time)
 
 newtype PlayerId = PlayerId Text
   deriving (Show, Eq)
-
--- | Generate a new PlayerId using ULID
-generatePlayerId :: IO PlayerId
-generatePlayerId = PlayerId . show <$> getULID
 
 data HumanPlayer = HumanPlayer
   { playerId :: PlayerId
@@ -62,26 +52,22 @@ data Player = EnginePlayerTag EnginePlayer | HumanPlayerTag HumanPlayer
 newtype GameId = GameId Text
   deriving (Show, Eq)
 
--- | Generate a new GameId using ULID
-generateGameId :: IO GameId
-generateGameId = GameId . show <$> getULID
-
 data GameStatus
   = Ongoing
-  -- Black victory conditions
-  | BlackWonKingCaptured
+  | -- Black victory conditions
+    BlackWonKingCaptured
   | BlackWonWhiteSurrounded
   | BlackWonNoWhiteMoves
   | BlackWonResignation
   | BlackWonTimeout
-  -- White victory conditions
-  | WhiteWonKingEscaped
+  | -- White victory conditions
+    WhiteWonKingEscaped
   | WhiteWonExitFort
   | WhiteWonNoBlackMoves
   | WhiteWonResignation
   | WhiteWonTimeout
-  -- Other outcomes
-  | Draw
+  | -- Other outcomes
+    Draw
   | Abandoned
   deriving (Show, Eq)
 
@@ -90,10 +76,10 @@ data Game = Game
   , name :: Maybe Text
   , whitePlayerId :: Maybe PlayerId -- Nothing for anonymous players
   , blackPlayerId :: Maybe PlayerId -- Nothing for anonymous players
-  , startTime :: UTCTime
-  , endTime :: Maybe UTCTime
+  , startTime :: Time
+  , endTime :: Maybe Time
   , gameStatus :: GameStatus
-  , createdAt :: UTCTime
+  , createdAt :: Time
   }
   deriving (Show, Eq, Generic)
 
@@ -117,7 +103,7 @@ data Move = Move
   { orig :: Word8
   , dest :: Word8
   }
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Generic)
 
 -- | Result of applying a move, including captures and board state
 data MoveResult = MoveResult
@@ -128,33 +114,20 @@ data MoveResult = MoveResult
   }
   deriving (Show, Read, Eq)
 
-newtype MoveId = MoveId Text
-  deriving (Show, Eq)
-
--- | Generate a new MoveId using ULID
-generateMoveId :: IO MoveId
-generateMoveId = MoveId . show <$> getULID
-
 data PlayerColor = White | Black
   deriving (Show, Eq)
 
 -- | A game move with full context including board state
 data GameMove = GameMove
-  { moveId :: MoveId
-  , moveNumber :: Int
-  , playerColor :: PlayerColor
+  { playerColor :: PlayerColor
   , move :: Move
   , boardStateAfter :: ExternBoard
-  , timestamp :: UTCTime
+  , timestamp :: Time
   }
   deriving (Show, Eq, Generic)
 
 newtype GameParticipantTokenId = GameParticipantTokenId Text
   deriving (Show, Eq)
-
--- | Generate a new GameParticipantTokenId using ULID
-generateGameParticipantTokenId :: IO GameParticipantTokenId
-generateGameParticipantTokenId = GameParticipantTokenId . show <$> getULID
 
 data GameParticipantToken = GameParticipantToken
   { tokenId :: GameParticipantTokenId

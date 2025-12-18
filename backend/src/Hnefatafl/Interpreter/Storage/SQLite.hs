@@ -5,7 +5,7 @@ module Hnefatafl.Interpreter.Storage.SQLite (
 ) where
 
 import Control.Concurrent.MVar
-import Data.Time (getCurrentTime)
+import Chronos (now)
 import Database.SQLite.Simple (Connection, SQLError)
 import Effectful
 import Effectful.Dispatch.Dynamic
@@ -14,7 +14,7 @@ import Effectful.Exception
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Game
-import Hnefatafl.Interpreter.Storage.SQLite.Move
+import Hnefatafl.Interpreter.Storage.SQLite.Move qualified as MoveDb
 import Hnefatafl.Interpreter.Storage.SQLite.Player
 import Hnefatafl.Interpreter.Storage.SQLite.Token
 import Hnefatafl.Interpreter.Storage.SQLite.Type ()
@@ -28,13 +28,15 @@ runStorageSQLite ::
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLite connectionVar = interpret $ \_ -> \case
   InsertHumanPlayer player -> run $ \conn -> do
-    now <- getCurrentTime
-    createHumanPlayer (fromDomain player) now conn
+    currentTime <- liftIO now
+    createHumanPlayer (fromDomain player) currentTime conn
   GetHumanPlayer playerId ->
     run $ toDomain <<$>> getHumanPlayerById (fromDomain playerId)
+  HumanPlayerFromName name ->
+    run $ toDomain <<<$>>> getHumanPlayerByName name
   InsertEnginePlayer player -> run $ \conn -> do
-    now <- getCurrentTime
-    createEnginePlayer (fromDomain player) now conn
+    currentTime <- liftIO now
+    createEnginePlayer (fromDomain player) currentTime conn
   GetEnginePlayer playerId ->
     run $ toDomain <<$>> getEnginePlayerById (fromDomain playerId)
   GetPlayer playerId -> run $ \conn ->
@@ -45,26 +47,30 @@ runStorageSQLite connectionVar = interpret $ \_ -> \case
     run $ createGame (fromDomain game)
   GetGame gameId ->
     run $ toDomain <<$>> getGameById (fromDomain gameId)
+  ListGames ->
+    run $ toDomain <<<$>>> listGamesDb
   UpdateGameStatus gameId gameStatus endTime ->
     run $
       updateGameStatusById (fromDomain gameId) (fromDomain gameStatus) endTime
   DeleteGame gameId ->
     run $ deleteGameById (fromDomain gameId)
   InsertMove gameId gameMove -> run $ \conn ->
-    insertMoveDb conn (fromDomain gameId) (fromDomain gameMove)
-  GetMove moveId ->
-    run $ toDomain <<$>> getMoveById (fromDomain moveId)
+    MoveDb.insertMoveDb conn (fromDomain gameId) (fromDomain gameMove)
+  InsertMoves gameId gameMoves -> run $ \conn ->
+    MoveDb.insertMovesDb conn (fromDomain gameId) (map fromDomain gameMoves)
+  GetMove gameId moveNumber ->
+    run $ toDomain <<$>> MoveDb.getMoveByCompositeKey (fromDomain gameId) moveNumber
   GetMovesForGame gameId ->
-    run $ toDomain <<<$>>> getMovesForGameDb (fromDomain gameId)
+    run $ toDomain <<<$>>> MoveDb.getMovesForGameDb (fromDomain gameId)
   GetLatestMoveForGame gameId ->
-    run $ toDomain <<<$>>> getLatestMoveForGameDb (fromDomain gameId)
+    run $ toDomain <<<$>>> MoveDb.getLatestMoveForGameDb (fromDomain gameId)
   GetMoveCountForGame gameId ->
-    run $ getMoveCountForGameDb (fromDomain gameId)
-  DeleteMove moveId ->
-    run $ deleteMoveById (fromDomain moveId)
+    run $ MoveDb.getMoveCountForGameDb (fromDomain gameId)
+  DeleteMove gameId moveNumber ->
+    run $ MoveDb.deleteMove (fromDomain gameId) moveNumber
   CreateGameParticipantToken token -> run $ \conn -> do
-    now <- getCurrentTime
-    createGameParticipantTokenDb (gameParticipantTokenToDb token now) conn
+    currentTime <- liftIO now
+    createGameParticipantTokenDb (gameParticipantTokenToDb token currentTime) conn
   GetTokenByText tokenText ->
     run $ gameParticipantTokenFromDb <<<$>>> getGameParticipantTokenByText tokenText
   GetActiveTokenByGameAndRole gameId role ->

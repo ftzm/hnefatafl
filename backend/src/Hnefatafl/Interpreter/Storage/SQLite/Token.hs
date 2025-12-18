@@ -6,7 +6,7 @@ module Hnefatafl.Interpreter.Storage.SQLite.Token (
   getActiveTokenByGameAndRoleDb,
 ) where
 
-import Data.Time (UTCTime)
+import Chronos (Time)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
 import Hnefatafl.Interpreter.Storage.SQLite.Type
@@ -16,7 +16,7 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 -- GameParticipantToken operations
 
 gameParticipantTokenToDb ::
-  GameParticipantToken -> UTCTime -> GameParticipantTokenDb
+  GameParticipantToken -> Time -> GameParticipantTokenDb
 gameParticipantTokenToDb GameParticipantToken{tokenId, gameId, token, role} createdAt =
   GameParticipantTokenDb
     { tokenId = fromDomain tokenId
