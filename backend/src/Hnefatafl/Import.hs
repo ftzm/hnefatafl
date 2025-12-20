@@ -216,7 +216,7 @@ importGameFromFile filename = do
     Left err -> pure $ Left $ "Failed to parse JSON: " <> toText err
     Right gameImports -> do
       results <- forM (zip [1 :: Int ..] gameImports) \(i, g) -> do
-        let gameNumber :: ByteString = "processing game: " <> show i
+        let gameNumber :: ByteString = "Processing game: " <> show i
         putStrLn gameNumber
         importGame g
       case partitionEithers results of

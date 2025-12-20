@@ -28,7 +28,6 @@
   }:
     flake-utils.lib.eachSystem ["x86_64-linux"] (
       system: let
-        materializedSha = "1gj62f9k0a92as5i85ypa974kv2mm2m9x8dvn5lgp5qb1yn4kszf";
         cabalProject = builtins.readFile ./cabal.project;
         index-state = pkgs.haskell-nix.haskellLib.parseIndexState cabalProject;
         libhnefatafl = import ../libhnefatafl/default.nix {inherit pkgs;};
@@ -41,8 +40,6 @@
               src = ./.;
               # evalSystem = "x86_64-linux";
               compiler-nix-name = "ghc912";
-              # plan-sha256 = "sha256-7utJrA8Ll/tosbuhnqqoVexJTlLXFxSLViIpMJMTRr4=";
-              materialized = ./materialized;
 
               modules = [
                 {
@@ -86,50 +83,9 @@
           inherit (haskellNix) config;
         };
         flake = pkgs.backend.flake {};
-
-        update-materialized = pkgs.writeShellScript "update-all-materialized-${system}" ''
-          set -eEuo pipefail
-          BACKEND_DIR="''${1:-$(pwd)}"
-
-          echo "Updating project materialization in $BACKEND_DIR" >&2
-          current_sha=$(${pkgs.backend.plan-nix.passthru.calculateMaterializedSha})
-          echo "saved sha:"
-          echo "${materializedSha}"
-          echo "current sha:"
-          echo "$current_sha"
-
-          cd "$BACKEND_DIR"
-
-          rm -rf materialized
-          cp -r ${pkgs.backend.plan-nix} materialized
-          chmod -R +w materialized
-        '';
       in
         pkgs.lib.attrsets.recursiveUpdate flake rec {
-          apps = {
-            update-materialized = {
-              type = "app";
-              program = "${pkgs.writeShellScript "update-materialized-wrapper" ''
-                exec ${update-materialized} "$(git rev-parse --show-toplevel)/backend" "$@"
-              ''}";
-            };
-            # test-bindings = {
-            #   type = "app";
-            #   program = "${flake.packages."hnefatafl:test:bindings-test"}/bin/bindings-test";
-            # };
-            # test-storage = {
-            #   type = "app";
-            #   program = "${flake.packages."hnefatafl:test:storage-test"}/bin/storage-test";
-            # };
-          };
           hooks = {
-            materialization = {
-              enable = true;
-              name = "materialization";
-              entry = "${apps.update-materialized.program}";
-              pass_filenames = false;
-              files = "((^|/)flake\\.nix$|^backend/.*\\.(cabal|project|freeze).*$)";
-            };
           };
           checks = {
             pre-commit-check = git-hooks.lib.${system}.run {
