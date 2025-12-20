@@ -40,6 +40,8 @@ CREATE TABLE move (
     white_lower INTEGER NOT NULL,
     white_upper INTEGER NOT NULL,
     king INTEGER NOT NULL CHECK (king >= 0 AND king <= 120),
+    captures_lower INTEGER NOT NULL,
+    captures_upper INTEGER NOT NULL,
     timestamp DATETIME NOT NULL,
     PRIMARY KEY (game_id, move_number),
     FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE

@@ -17,14 +17,25 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 
 insertMovesDb :: Connection -> GameIdDb -> [MoveDb] -> IO ()
 insertMovesDb conn gameIdDb movesDb = do
+  -- Get current max move number once
+  maxMoveNum <- fromOnly <$> selectSingle
+    "SELECT COALESCE(MAX(move_number), -1) FROM move WHERE game_id = ?"
+    (Only gameIdDb)
+    conn
+
+  -- Number moves sequentially starting from maxMoveNum + 1
+  let numberedMoves = zipWith (\i moveDb -> (gameIdDb, maxMoveNum + i) :. moveDb)
+                              [1..] movesDb
+
   executeMany
     conn
     """
     INSERT INTO move (game_id, move_number, player_color, from_position, to_position,
-                     black_lower, black_upper, white_lower, white_upper, king, timestamp)
-    VALUES (?, (SELECT COALESCE(MAX(move_number), -1) + 1 FROM move WHERE game_id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     black_lower, black_upper, white_lower, white_upper, king,
+                     captures_lower, captures_upper, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
-    (map (\moveDb -> (gameIdDb, gameIdDb) :. moveDb) movesDb)
+    numberedMoves
 
 insertMoveDb :: Connection -> GameIdDb -> MoveDb -> IO ()
 insertMoveDb conn gameIdDb moveDb =
@@ -35,7 +46,8 @@ getMoveByCompositeKey gameIdDb moveNumber =
   selectSingle
     """
     SELECT player_color, from_position, to_position,
-           black_lower, black_upper, white_lower, white_upper, king, timestamp
+           black_lower, black_upper, white_lower, white_upper, king,
+           captures_lower, captures_upper, timestamp
     FROM move
     WHERE game_id = ? AND move_number = ?
     """
@@ -46,7 +58,8 @@ getMovesForGameDb =
   query'
     """
     SELECT player_color, from_position, to_position,
-           black_lower, black_upper, white_lower, white_upper, king, timestamp
+           black_lower, black_upper, white_lower, white_upper, king,
+           captures_lower, captures_upper, timestamp
     FROM move
     WHERE game_id = ?
     ORDER BY move_number ASC
@@ -58,7 +71,8 @@ getLatestMoveForGameDb =
   selectMaybe
     """
     SELECT player_color, from_position, to_position,
-           black_lower, black_upper, white_lower, white_upper, king, timestamp
+           black_lower, black_upper, white_lower, white_upper, king,
+           captures_lower, captures_upper, timestamp
     FROM move
     WHERE game_id = ?
     ORDER BY move_number DESC

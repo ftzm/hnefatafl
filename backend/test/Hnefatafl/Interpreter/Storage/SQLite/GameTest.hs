@@ -2,8 +2,8 @@
 
 module Hnefatafl.Interpreter.Storage.SQLite.GameTest where
 
-import Data.List (isInfixOf)
 import Chronos (now)
+import Data.List (isInfixOf)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Util
@@ -21,10 +21,13 @@ spec_Game =
 
         shouldSucceed (insertGame testGame) conn
 
+        shouldSucceed (insertGame testGame) conn
       it "can insert a game with players" $ \conn -> do
         currentTime <- now
-        let whitePlayer = baseHumanPlayer & #playerId .~ PlayerId "white-player" & #name .~ "White Player"
-            blackPlayer = baseHumanPlayer & #playerId .~ PlayerId "black-player" & #name .~ "Black Player"
+        let whitePlayer =
+              baseHumanPlayer & #playerId .~ PlayerId "white-player" & #name .~ "White Player"
+            blackPlayer =
+              baseHumanPlayer & #playerId .~ PlayerId "black-player" & #name .~ "Black Player"
             testGame =
               baseGame currentTime
                 & #gameId
@@ -56,7 +59,12 @@ spec_Game =
 
       it "can retrieve a game with different status" $ \conn -> do
         currentTime <- now
-        let testGame = baseGame currentTime & #endTime ?~ currentTime & #gameStatus .~ WhiteWonKingEscaped
+        let testGame =
+              baseGame currentTime
+                & #endTime
+                ?~ currentTime
+                & #gameStatus
+                .~ WhiteWonKingEscaped
         resultEquals
           ( do
               insertGame testGame
@@ -104,7 +112,6 @@ spec_Game =
           insertGame testGame
           deleteGame testGame.gameId
           getGame testGame.gameId -- This should fail
-
         case result of
           Left _ -> pure () -- Expected failure when trying to get deleted game
           Right _ -> expectationFailure "Expected failure when getting deleted game"
@@ -131,8 +138,18 @@ spec_Game =
 
       it "fails when inserting games with duplicate names" $ \conn -> do
         currentTime <- now
-        let game1 = baseGame currentTime & #gameId .~ GameId "dup-name-1" & #name ?~ "Duplicate Name"
-            game2 = baseGame currentTime & #gameId .~ GameId "dup-name-2" & #name ?~ "Duplicate Name"
+        let game1 =
+              baseGame currentTime
+                & #gameId
+                .~ GameId "dup-name-1"
+                & #name
+                ?~ "Duplicate Name"
+            game2 =
+              baseGame currentTime
+                & #gameId
+                .~ GameId "dup-name-2"
+                & #name
+                ?~ "Duplicate Name"
 
         -- Both operations in the same transaction to test the constraint
         result <- runStorageTest conn $ do
@@ -169,17 +186,22 @@ spec_Game =
             -- Games should be ordered by creation time (most recent first)
             -- Since all have same timestamp, order by gameId for predictability
             let gameNames = map (.name) games
-            gameNames `shouldContain` [Just "First Game", Just "Second Game", Just "Third Game"]
+            gameNames
+              `shouldContain` [Just "First Game", Just "Second Game", Just "Third Game"]
 
       it "can list games with different statuses" $ \conn -> do
         currentTime <- now
         let ongoingGame = baseGame currentTime & #gameId .~ GameId "ongoing" & #name ?~ "Ongoing Game"
             completedGame =
               baseGame currentTime
-                & #gameId .~ GameId "completed"
-                & #name ?~ "Completed Game"
-                & #gameStatus .~ WhiteWonKingEscaped
-                & #endTime ?~ currentTime
+                & #gameId
+                .~ GameId "completed"
+                & #name
+                ?~ "Completed Game"
+                & #gameStatus
+                .~ WhiteWonKingEscaped
+                & #endTime
+                ?~ currentTime
 
         -- Insert games and get the list all in one transaction
         result <- runStorageTest conn $ do

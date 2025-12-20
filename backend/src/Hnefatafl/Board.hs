@@ -1,4 +1,4 @@
-module Hnefatafl.Board (printBoard, moveResultToArray, formatMoveResult) where
+module Hnefatafl.Board (printBoard, moveResultToArray, formatMoveResult, formatGameMove) where
 
 import Control.Monad.ST
 import Data.Array.MArray
@@ -10,6 +10,7 @@ import Data.List.Split (chunksOf)
 import Data.Text (intercalate)
 import Hnefatafl.Core.Data (
   ExternBoard (..),
+  GameMove (..),
   Layer (..),
   Move (..),
   MoveResult (..),
@@ -89,3 +90,21 @@ printBoard b = formatSquares $ runST $ freeze =<< boardToArray b
 
 formatMoveResult :: MoveResult -> Text
 formatMoveResult = formatSquares . moveResultToArray
+
+-- | Format a GameMove with move and capture highlighting
+formatGameMove :: GameMove -> Text
+formatGameMove gameMove = formatSquares $ gameMoveToBoardArray gameMove
+ where
+  gameMoveToBoardArray :: GameMove -> Array Int Square
+  gameMoveToBoardArray gm = runST $ do
+    arr <- boardToArray gm.boardStateAfter
+    -- Mark captures
+    traverse_ (\i -> writeArray arr i Captured) (layerPositions gm.captures)
+    -- Mark move origin and destination
+    _ <- writeArray arr (fromIntegral gm.move.orig) Orig
+    _ <- updateMArrayIndex arr (fromIntegral gm.move.dest) toArrival
+    freeze arr
+
+  toArrival s = case s of
+    Static p -> Dest p
+    other -> other

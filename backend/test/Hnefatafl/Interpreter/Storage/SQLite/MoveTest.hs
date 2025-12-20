@@ -18,11 +18,12 @@ import TestUtil (realMoveResults)
 makeRealGameMoves :: Int -> Time -> [GameMove]
 makeRealGameMoves count timestamp =
   take count $ map
-    (\(MoveResult move board _ wasBlackTurn) ->
+    (\(MoveResult move board captures wasBlackTurn) ->
       GameMove
         { playerColor = if wasBlackTurn then Black else White
         , move = move
         , boardStateAfter = board
+        , captures = captures
         , timestamp = timestamp
         })
     (toList realMoveResults)

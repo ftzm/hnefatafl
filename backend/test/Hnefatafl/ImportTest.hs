@@ -4,6 +4,7 @@ module Hnefatafl.ImportTest where
 
 import Chronos (timeFromYmdhms)
 import Data.Aeson (decode, encode)
+import Data.Text (isInfixOf)
 import Database.SQLite.Simple (Connection)
 import Effectful
 import Effectful.Error.Static (Error, runErrorNoCallStack)
@@ -183,3 +184,36 @@ spec_ImportGame =
           Left err -> expectationFailure $ "Test setup failed: " ++ err
           Right (Left _) -> pure () -- Expected failure due to invalid moves
           Right (Right _) -> expectationFailure "Expected import to fail with invalid moves"
+
+      it "fails gracefully with duplicate game name" $ \conn -> do
+        let testMoves = take 1 (map move (toList realMoveResults))
+            testMovesNE = fromList testMoves
+            gameImport =
+              GameImport
+                { gameName = Just "Duplicate Name Game"
+                , blackPlayerName = "Alice"
+                , whitePlayerName = "Bob"
+                , startTime = Nothing
+                , endTime = Nothing
+                , gameStatus = Nothing
+                , moves = testMovesNE
+                }
+
+        result <- runImportTest conn $ do
+          -- First import should succeed
+          firstResult <- importGame gameImport
+          case firstResult of
+            Left err -> error $ "First import should succeed but got: " <> err
+            Right _ -> do
+              -- Second import with same name should fail gracefully
+              secondResult <- importGame gameImport
+              case secondResult of
+                Left err ->
+                  if "Import failed" `isInfixOf` err
+                    then pure () -- Expected failure with correct error message
+                    else error $ "Expected error to contain 'Import failed' but got: " <> err
+                Right _ -> error "Expected import to fail with duplicate name"
+
+        case result of
+          Left err -> expectationFailure $ "Test failed: " ++ err
+          Right _ -> pure ()

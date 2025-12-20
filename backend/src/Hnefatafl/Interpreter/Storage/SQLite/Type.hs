@@ -211,6 +211,8 @@ data MoveDb = MoveDb
   , whiteLower :: Int64
   , whiteUpper :: Int64
   , king :: Word8
+  , capturesLower :: Int64
+  , capturesUpper :: Int64
   , timestamp :: Time
   }
   deriving (Show, Generic, ToRow, FromRow)
@@ -232,6 +234,8 @@ instance DomainMapping MoveDb GameMove where
       , whiteLower
       , whiteUpper
       , king
+      , capturesLower
+      , capturesUpper
       , timestamp
       } =
       GameMove
@@ -243,9 +247,10 @@ instance DomainMapping MoveDb GameMove where
               , white = Layer whiteLower whiteUpper
               , king = king
               }
+        , captures = Layer capturesLower capturesUpper
         , timestamp = timestamp
         }
-  fromDomain GameMove{playerColor, move, boardStateAfter, timestamp} =
+  fromDomain GameMove{playerColor, move, boardStateAfter, captures, timestamp} =
     MoveDb
       { playerColor = fromDomain playerColor
       , fromPosition = orig move
@@ -255,6 +260,8 @@ instance DomainMapping MoveDb GameMove where
       , whiteLower = boardStateAfter.white.lower
       , whiteUpper = boardStateAfter.white.upper
       , king = boardStateAfter.king
+      , capturesLower = captures.lower
+      , capturesUpper = captures.upper
       , timestamp = timestamp
       }
 

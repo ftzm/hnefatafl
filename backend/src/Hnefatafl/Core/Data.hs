@@ -122,6 +122,7 @@ data GameMove = GameMove
   { playerColor :: PlayerColor
   , move :: Move
   , boardStateAfter :: ExternBoard
+  , captures :: Layer
   , timestamp :: Time
   }
   deriving (Show, Eq, Generic)

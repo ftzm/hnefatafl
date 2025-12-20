@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://hnefatafl.example/schemas/game-import.json",
+  "title": "Game Import Schema",
+  "description": "Schema for importing Hnefatafl games from JSON format. The file should contain an array of game import objects.",
+  "type": "array",
+  "items": {
+    "$ref": "#/definitions/GameImport"
+  },
+  "definitions": {
+    "GameImport": {
+      "type": "object",
+      "title": "Game Import Object",
+      "description": "A single game to be imported into the Hnefatafl database",
+      "required": ["blackPlayerName", "whitePlayerName", "moves"],
+      "properties": {
+        "gameName": {
+          "type": "string",
+          "description": "Optional name for the game",
+          "examples": ["Championship Final", "Practice Game", "Tournament Round 1"]
+        },
+        "blackPlayerName": {
+          "type": "string",
+          "description": "Name of the player controlling black pieces",
+          "examples": ["Alice", "PlayerOne", "GM_Smith"]
+        },
+        "whitePlayerName": {
+          "type": "string",
+          "description": "Name of the player controlling white pieces",
+          "examples": ["Bob", "PlayerTwo", "IM_Jones"]
+        },
+        "startTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the game started",
+          "examples": ["2023-01-01T10:00:00Z", "2023-12-15T14:30:00+01:00"]
+        },
+        "endTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the game ended",
+          "examples": ["2023-01-01T10:30:00Z", "2023-12-15T15:00:00+01:00"]
+        },
+        "gameStatus": {
+          "type": "string",
+          "description": "Final status of the game",
+          "enum": [
+            "ongoing",
+            "black_won_king_captured",
+            "black_won_white_surrounded",
+            "black_won_no_white_moves",
+            "black_won_resignation",
+            "black_won_timeout",
+            "white_won_king_escaped",
+            "white_won_exit_fort",
+            "white_won_no_black_moves",
+            "white_won_resignation",
+            "white_won_timeout",
+            "draw",
+            "abandoned"
+          ],
+          "examples": ["white_won_king_escaped", "black_won_king_captured", "ongoing"]
+        },
+        "moves": {
+          "type": "string",
+          "description": "Space-separated sequence of moves in algebraic notation. Each move consists of an origin position and destination position. Positions are denoted by file (letter a-k, left to right) and rank (number 1-11, bottom to top). Moves can optionally include capture notation with 'x' followed by captured piece positions.",
+          "pattern": "^[a-k](1[01]|[1-9])(-?[a-k](1[01]|[1-9]))(x[a-k](1[01]|[1-9]))*( [a-k](1[01]|[1-9])(-?[a-k](1[01]|[1-9]))(x[a-k](1[01]|[1-9]))*)*$",
+          "examples": [
+            "d11-d9 h6-h3 k7-i7",
+            "f6-f4 d5-d7 e4-e6",
+            "k4-j4xj5 f5-j5 h11-h4xi4",
+            "d11-d9 h6-h3 k7-i7 f8-c8 a4-c4 f4-i4 g1-g2 e5-c5 d1-d3 g5-j5 k4-j4xj5 f5-j5 h11-h4xi4 c5-h5xh4 i7-i5xj5 g7-g9 g2-g5xh5 f7-k7 i5-i9 f6-f8 j6-h6xg6 f8-j8 i9-j9 j8-i8 k6-i6 i8-i11 j9-j11 i11-i10 j11-j10 g9-k9xk8 g11-i11 k9-k10xj10 j4-j10 k10-k9 h6-h10 k9-k10xj10 d9-k9xk10 i10-k10 h10-j10 k10-k11"
+          ],
+          "_moveFormatDocumentation": {
+            "description": "Move Format Documentation",
+            "boardCoordinates": {
+              "files": "Letters a, b, c, d, e, f, g, h, i, j, k (from left to right)",
+              "ranks": "Numbers 1-11 (from bottom to top)"
+            },
+            "moveNotation": {
+              "basicMove": "origin-destination (e.g., 'd5-e5')",
+              "optionalDash": "The dash (-) between positions is optional (e.g., 'd5e5')",
+              "captures": "Append 'x' followed by captured piece positions (e.g., 'k4-j4xj5')",
+              "multipleMoves": "Separate moves with spaces",
+              "examples": {
+                "simpleMove": "d5-e5 (move piece from d5 to e5)",
+                "withCapture": "k4-j4xj5 (move from k4 to j4, capturing piece at j5)",
+                "gameSequence": "d11-d9 h6-h3 k7-i7 (three consecutive moves)"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "gameName": "Practice Game",
+          "blackPlayerName": "Alice",
+          "whitePlayerName": "Bob",
+          "startTime": "2023-01-01T10:00:00Z",
+          "endTime": "2023-01-01T10:30:00Z",
+          "gameStatus": "white_won_king_escaped",
+          "moves": "d11-d9 h6-h3 k7-i7 f8-c8 a4-c4"
+        }
+      ]
+    }
+  },
+  "examples": [
+    [
+      {
+        "gameName": "Championship Final",
+        "blackPlayerName": "Alice",
+        "whitePlayerName": "Bob",
+        "startTime": "2023-01-01T10:00:00Z",
+        "endTime": "2023-01-01T10:30:00Z",
+        "gameStatus": "white_won_king_escaped",
+        "moves": "d11-d9 h6-h3 k7-i7 f8-c8 a4-c4 f4-i4"
+      },
+      {
+        "blackPlayerName": "Charlie",
+        "whitePlayerName": "Diana",
+        "moves": "f6-f4 d5-d7 e4-e6"
+      }
+    ]
+  ]
+}

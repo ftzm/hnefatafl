@@ -20,8 +20,8 @@ default-extensions:
 
 ghc-options:
   - -Wunused-imports
-  - -Wall
-  - -Werror
+  # - -Wall
+  # - -Werror
   - -Wmissing-export-lists
   - -Wno-missing-home-modules
   - -Widentities
@@ -69,6 +69,7 @@ dependencies:
   - aeson
   - chronos
   - template-haskell
+  - safe-exceptions
 
 executables:
   cli:

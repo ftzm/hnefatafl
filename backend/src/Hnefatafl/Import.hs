@@ -8,7 +8,13 @@ module Hnefatafl.Import (
   getOrCreateHumanPlayer,
 ) where
 
-import Chronos (Time)
+import Chronos (
+  Time,
+  datetimeToTime,
+  decode_lenient,
+  encodeIso8601,
+  timeToDatetime,
+ )
 import Data.Aeson (
   FromJSON (..),
   ToJSON (..),
@@ -21,6 +27,8 @@ import Data.Aeson (
  )
 import Data.Either.Combinators (mapLeft)
 import Effectful (Eff, (:>))
+import Effectful.Console.ByteString
+import Effectful.Error.Static (Error, tryError)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO.ByteString
 import Hnefatafl.Bindings (
@@ -50,7 +58,7 @@ import Hnefatafl.Effect.Storage (
   insertMoves,
  )
 import Hnefatafl.Serialization (movesToNotation, parseMoveList)
-import Prelude hiding (readFile)
+import Prelude hiding (putStrLn, readFile)
 
 data GameImport = GameImport
   { gameName :: Maybe Text
@@ -63,13 +71,27 @@ data GameImport = GameImport
   }
   deriving (Show, Eq, Generic)
 
+-- | Parse ISO8601 datetime string to Chronos Time
+parseTimeFromString :: Text -> Maybe Time
+parseTimeFromString t = datetimeToTime <$> decode_lenient t
+
 instance FromJSON GameImport where
   parseJSON = withObject "GameImport" $ \o -> do
     gameName <- o .:? "gameName"
     blackPlayerName <- o .: "blackPlayerName"
     whitePlayerName <- o .: "whitePlayerName"
-    startTime <- o .:? "startTime"
-    endTime <- o .:? "endTime"
+    startTimeText <- o .:? "startTime"
+    startTime <- case startTimeText of
+      Nothing -> pure Nothing
+      Just t -> case parseTimeFromString t of
+        Just time -> pure (Just time)
+        Nothing -> fail $ "Invalid startTime format: " <> toString t
+    endTimeText <- o .:? "endTime"
+    endTime <- case endTimeText of
+      Nothing -> pure Nothing
+      Just t -> case parseTimeFromString t of
+        Just time -> pure (Just time)
+        Nothing -> fail $ "Invalid endTime format: " <> toString t
     gameStatus <- o .:? "gameStatus"
     movesText <- o .: "moves"
     moves <- case parseMoveList movesText of
@@ -91,8 +113,8 @@ instance ToJSON GameImport where
       [ "gameName" .= gameName
       , "blackPlayerName" .= blackPlayerName
       , "whitePlayerName" .= whitePlayerName
-      , "startTime" .= startTime
-      , "endTime" .= endTime
+      , "startTime" .= fmap (encodeIso8601 . timeToDatetime) startTime
+      , "endTime" .= fmap (encodeIso8601 . timeToDatetime) endTime
       , "gameStatus" .= gameStatus
       , "moves" .= movesToNotation (toList moves)
       ]
@@ -128,57 +150,78 @@ getOrCreateHumanPlayer name =
       pure newPlayer
 
 importGame ::
-  (Clock :> es, Storage :> es, IdGen :> es) =>
+  (Clock :> es, Storage :> es, IdGen :> es, Error String :> es) =>
   GameImport -> Eff es (Either Text ())
-importGame input =
-  forM
-    validStatus
-    \engineStatus -> do
-      gameId <- generateId @GameId
-      currentTime <- now
-      let startTime = fromMaybe currentTime input.startTime
-      blackPlayerId <- playerId <$> getOrCreateHumanPlayer input.blackPlayerName
-      whitePlayerId <- playerId <$> getOrCreateHumanPlayer input.whitePlayerName
-      -- The engine status can be relied on when the game ends in normal
-      -- victory condition, but in the event of a timeout or resignation
-      -- when the game is technically ongoing we'll need to defer to the
-      -- explicitly defined status.
-      let status = case toGameStatus engineStatus of
-            Ongoing -> fromMaybe Ongoing (input.gameStatus >>= parseGameStatus)
-            other -> other
-      let game =
-            Game
-              { gameId = gameId
-              , name = input.gameName
-              , blackPlayerId = Just blackPlayerId
-              , whitePlayerId = Just whitePlayerId
-              , startTime = startTime
-              , endTime = input.endTime
-              , gameStatus = status
-              , createdAt = currentTime
-              }
+importGame input = do
+  result <- tryError @String $ do
+    case validStatus of
+      Left err -> pure $ Left err
+      Right engineStatus -> do
+        gameId <- generateId @GameId
+        currentTime <- now
+        let startTime = fromMaybe currentTime input.startTime
+        blackPlayerId <- playerId <$> getOrCreateHumanPlayer input.blackPlayerName
+        whitePlayerId <- playerId <$> getOrCreateHumanPlayer input.whitePlayerName
+        -- The engine status can be relied on when the game ends in normal
+        -- victory condition, but in the event of a timeout or resignation
+        -- when the game is technically ongoing we'll need to defer to the
+        -- explicitly defined status.
+        let status = case toGameStatus engineStatus of
+              Ongoing -> fromMaybe Ongoing (input.gameStatus >>= parseGameStatus)
+              other -> other
+        let game =
+              Game
+                { gameId = gameId
+                , name = input.gameName
+                , blackPlayerId = Just blackPlayerId
+                , whitePlayerId = Just whitePlayerId
+                , startTime = startTime
+                , endTime = input.endTime
+                , gameStatus = status
+                , createdAt = currentTime
+                }
 
-      let gameMoves = map (moveResultToGameMove startTime) (toList $ applyMoveSequence input.moves)
+        let gameMoves = map (moveResultToGameMove startTime) (toList $ applyMoveSequence input.moves)
 
-      insertGame game
-      insertMoves gameId gameMoves
+        insertGame game
+        insertMoves gameId gameMoves
+        pure $ Right ()
+  case result of
+    Left (_, err) -> pure $ Left $ "Import failed: " <> toText err
+    Right eitherResult -> pure eitherResult
  where
   validStatus :: Either Text EngineGameStatus = mapLeft show $ nextGameState input.moves True
   moveResultToGameMove :: Time -> MoveResult -> GameMove
-  moveResultToGameMove time (MoveResult move board _ wasBlackTurn) =
+  moveResultToGameMove time (MoveResult move board captures wasBlackTurn) =
     GameMove
       { playerColor = if wasBlackTurn then Black else White
       , move = move
       , boardStateAfter = board
+      , captures = captures
       , timestamp = time
       }
 
 importGameFromFile ::
-  (FileSystem :> es, Clock :> es, Storage :> es, IdGen :> es) =>
+  ( FileSystem :> es
+  , Clock :> es
+  , Storage :> es
+  , IdGen :> es
+  , Error String :> es
+  , Console :> es
+  ) =>
   Text -> Eff es (Either Text ())
 importGameFromFile filename = do
   fileContent <- readFile $ toString filename
   case eitherDecodeStrict fileContent of
     Left err -> pure $ Left $ "Failed to parse JSON: " <> toText err
-    Right gameImport -> do
-      importGame gameImport
+    Right gameImports -> do
+      results <- forM (zip [1 :: Int ..] gameImports) \(i, g) -> do
+        let gameNumber :: ByteString = "processing game: " <> show i
+        putStrLn gameNumber
+        importGame g
+      case partitionEithers results of
+        ([], _) -> pure $ Right ()
+        (errors, _) ->
+          pure $
+            Left $
+              "Failed to import some games: " <> mconcat (intersperse ", " errors)

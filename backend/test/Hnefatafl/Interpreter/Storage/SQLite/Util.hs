@@ -1,9 +1,12 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BlockArguments #-}
 
 module Hnefatafl.Interpreter.Storage.SQLite.Util where
 
 import Chronos (Time)
 import Control.Concurrent.MVar qualified as MVar
+import Control.Exception.Safe (tryAny)
+import Data.Typeable (typeRep)
 import Database.SQLite.Simple hiding (Error)
 import Database.SQLite3 qualified as SQLite3
 import Effectful
@@ -46,7 +49,9 @@ runStorageTest ::
   (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
   IO (Either String a)
 runStorageTest connectionVar action =
-  runEff $ runErrorNoCallStack @String $ runStorageSQLiteWithRollback connectionVar action
+  runEff $
+    runErrorNoCallStack @String $
+      runStorageSQLiteWithRollback connectionVar action
 
 -- | Test utility that runs a storage action and asserts it completes without error
 shouldSucceed ::
@@ -95,6 +100,25 @@ shouldBeTrue action connectionVar = do
     Right False -> expectationFailure "Expected True but got False"
     Right True -> pure ()
 
+-- | Test utility that runs a storage action and asserts it throws a specific exception type
+shouldThrowException ::
+  forall e a.
+  Exception e =>
+  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
+  MVar Connection ->
+  Expectation
+shouldThrowException action connectionVar = do
+  result <- liftIO $ tryAny $ runStorageTest connectionVar action
+  case result of
+    Left exception -> case fromException @e exception of
+      Just _ -> pure () -- Expected exception type
+      Nothing ->
+        expectationFailure $
+          "Expected " ++ show (typeRep (Proxy @e)) ++ " but got: " ++ show exception
+    Right _ ->
+      expectationFailure $
+        "Expected " ++ show (typeRep (Proxy @e)) ++ " but action completed normally"
+
 -- * Test data utilities
 
 -- | Base human player for testing
@@ -135,6 +159,7 @@ baseMove currentTime =
     { playerColor = White
     , move = Move 0 1
     , boardStateAfter = emptyBoard
+    , captures = Layer 0 0  -- Empty captures layer
     , timestamp = currentTime
     }
 
@@ -169,5 +194,6 @@ generateMoves timestamp = zipWith makeGameMove (cycle [White, Black])
       { playerColor = color
       , move = move
       , boardStateAfter = emptyBoard
+      , captures = Layer 0 0  -- Empty captures layer
       , timestamp = timestamp
       }
