@@ -20,7 +20,6 @@ typedef struct {
   bool was_black_turn;
 } move_result;
 
-/* Function declarations */
 compact_board to_compact(const board *b);
 board from_compact(compact_board *b);
 void start_board_extern(compact_board *b);
