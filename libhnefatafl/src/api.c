@@ -4,7 +4,10 @@
 #include "layer.h"
 #include "move.h"
 #include "position_set.h"
+#include "score.h"
+#include "search.h"
 #include "victory.h"
+#include "zobrist.h"
 
 compact_board to_compact(const board *b) {
   return (compact_board){b->black, b->white, LOWEST_INDEX(b->king)};
@@ -274,4 +277,119 @@ move_result *apply_move_sequence(const move *moves, int move_count) {
   }
 
   return move_results;
+}
+
+void search_trusted(
+    compact_board *trusted_board,
+    bool is_black_turn,
+    u64 *zobrist_hashes,
+    int hash_count,
+    _Atomic bool *should_stop,
+    move *move_out,
+    compact_board *board_out,
+    u64 *hash_out,
+    game_status *status_out) {
+
+  // Convert compact board to full board
+  board board_state = from_compact(trusted_board);
+
+  // Create position set with hash_count + 100 capacity
+  position_set *positions = create_position_set(hash_count + 100);
+
+  // Populate position set with provided zobrist hashes
+  for (int i = 0; i < hash_count; i++) {
+    int deletion_index;
+    insert_position(positions, zobrist_hashes[i], &deletion_index);
+  }
+
+  // Initialize search infrastructure
+  score_weights weights = init_default_weights();
+  score_state s = init_score_state(&weights, &board_state);
+
+  // Calculate current position hash
+  u64 position_hash = hash_for_board(board_state, is_black_turn);
+
+  // Set up PV data and stats
+  pv pv_data = {0};
+  stats statistics = {0};
+
+  // Run search directly using the low-level search functions
+  if (is_black_turn) {
+    search_black(
+        &pv_data,
+        positions,
+        &weights,
+        s,
+        board_state,
+        position_hash,
+        0,           // ply
+        5,           // depth
+        -INFINITY,   // alpha
+        INFINITY,    // beta
+        &statistics, // statistics
+        true,        // is_pv
+        should_stop);
+  } else {
+    search_white(
+        &pv_data,
+        positions,
+        &weights,
+        s,
+        board_state,
+        position_hash,
+        0,           // ply
+        5,           // depth
+        -INFINITY,   // alpha
+        INFINITY,    // beta
+        &statistics, // statistics
+        true,        // is_pv
+        should_stop);
+  }
+
+  // Extract the best move from PV
+  move best_move = pv_data.pv_table[0][0];
+
+  // Apply the move and calculate updated state
+  board new_board_state = board_state;
+  u64 new_hash = position_hash;
+
+  if (is_black_turn) {
+    new_board_state =
+        apply_black_move_m(new_board_state, best_move.orig, best_move.dest);
+    new_hash = next_hash_black(new_hash, best_move.orig, best_move.dest);
+    apply_captures_z_black(&new_board_state, &new_hash, best_move.dest);
+  } else {
+    // Check if it's a king move by comparing origin with king position
+    u8 king_pos = LOWEST_INDEX(board_state.king);
+    if (best_move.orig == king_pos) {
+      new_board_state =
+          apply_king_move_m(new_board_state, best_move.orig, best_move.dest);
+      new_hash = next_hash_king(new_hash, best_move.orig, best_move.dest);
+      apply_captures_z_white(&new_board_state, &new_hash, best_move.dest);
+    } else {
+      new_board_state =
+          apply_white_move_m(new_board_state, best_move.orig, best_move.dest);
+      new_hash = next_hash_white(new_hash, best_move.orig, best_move.dest);
+      apply_captures_z_white(&new_board_state, &new_hash, best_move.dest);
+    }
+  }
+
+  // Check game status on the updated board
+  game_status status;
+  if (is_black_turn) {
+    // After black moves, check if white has won
+    status = white_victory_check(&new_board_state);
+  } else {
+    // After white moves, check if black has won
+    status = black_victory_check(&new_board_state);
+  }
+
+  // Clean up
+  destroy_position_set(positions);
+
+  // Write results to output parameters
+  *move_out = best_move;
+  *board_out = to_compact(&new_board_state);
+  *hash_out = new_hash;
+  *status_out = status;
 }
