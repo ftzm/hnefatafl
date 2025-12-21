@@ -20,6 +20,13 @@ typedef struct {
   bool was_black_turn;
 } move_result;
 
+typedef struct {
+  move move;
+  compact_board updated_board;
+  u64 updated_zobrist_hash;
+  game_status status;
+} search_trusted_result;
+
 compact_board to_compact(const board *b);
 board from_compact(compact_board *b);
 void start_board_extern(compact_board *b);
@@ -78,3 +85,19 @@ int next_game_state_with_moves_trusted(
  * Caller must free the returned array.
  */
 move_result *apply_move_sequence(const move *moves, int move_count);
+
+/* Perform search from a trusted board state with zobrist hash history.
+ * Writes the best move, updated board state, updated zobrist hash, and game
+ * status to the provided output parameters. The should_stop flag can be set by
+ * external code to cancel the search.
+ */
+void search_trusted(
+    compact_board *trusted_board,
+    bool is_black_turn,
+    u64 *zobrist_hashes,
+    int hash_count,
+    _Atomic bool *should_stop,
+    move *move_out,
+    compact_board *board_out,
+    u64 *hash_out,
+    game_status *status_out);
