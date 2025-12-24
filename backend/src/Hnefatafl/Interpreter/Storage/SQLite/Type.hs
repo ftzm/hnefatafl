@@ -206,13 +206,13 @@ data MoveDb = MoveDb
   { playerColor :: PlayerColorDb
   , fromPosition :: Word8
   , toPosition :: Word8
-  , blackLower :: Int64
-  , blackUpper :: Int64
-  , whiteLower :: Int64
-  , whiteUpper :: Int64
+  , blackLower :: Word64
+  , blackUpper :: Word64
+  , whiteLower :: Word64
+  , whiteUpper :: Word64
   , king :: Word8
-  , capturesLower :: Int64
-  , capturesUpper :: Int64
+  , capturesLower :: Word64
+  , capturesUpper :: Word64
   , timestamp :: Time
   }
   deriving (Show, Generic, ToRow, FromRow)

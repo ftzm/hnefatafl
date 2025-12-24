@@ -11,13 +11,16 @@ module Hnefatafl.Bindings (
   nextGameStateWithMoves,
   nextGameStateWithMovesTrusted,
   applyMoveSequence,
+  searchTrusted,
   toGameStatus,
   EngineGameStatus (..),
   MoveError (..),
   MoveValidationResult (..),
+  SearchTrustedResult (..),
 ) where
 
 import Control.Monad.Trans.Cont
+import Data.Aeson (FromJSON, ToJSON)
 import Foreign (
   Ptr,
   Storable (alignment, peek, poke, sizeOf),
@@ -51,7 +54,8 @@ data EngineGameStatus
   | EngineKingEscaped -- white victory
   | EngineExitFort -- white victory
   | EngineNoBlackMoves -- white victory
-  deriving (Show, Read, Eq, Enum)
+  deriving (Show, Read, Eq, Enum, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 toGameStatus :: EngineGameStatus -> GameStatus
 toGameStatus = \case
@@ -64,7 +68,7 @@ toGameStatus = \case
   EngineNoBlackMoves -> WhiteWonNoBlackMoves
 
 -- Internal storable types for FFI
-data StorableLayer = StorableLayer {lower :: Int64, upper :: Int64}
+data StorableLayer = StorableLayer {lower :: Word64, upper :: Word64}
   deriving (Show, Read, Generic, GStorable)
 
 data StorableExternBoard = StorableExternBoard
@@ -108,6 +112,15 @@ data MoveValidationResult = MoveValidationResult
   , moveIndex :: CInt
   }
   deriving (Eq, Show, Read, Generic, GStorable)
+
+data SearchTrustedResult = SearchTrustedResult
+  { searchMove :: Move
+  , updatedBoard :: ExternBoard
+  , updatedZobristHash :: Word64
+  , gameStatus :: EngineGameStatus
+  }
+  deriving (Show, Read, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 instance Storable StorableGameStatus where
   sizeOf _ = sizeOf (0 :: CInt)
@@ -370,3 +383,53 @@ applyMoveSequence moves = unsafePerformIO $ evalContT $ do
     liftIO $ peekArray (fromIntegral moveCount) moveResultsPtr
   liftIO $ free moveResultsPtr
   return $ fromList $ map toDomain storableMoveResults
+
+foreign import ccall safe "search_trusted"
+  c_search_trusted ::
+    Ptr StorableExternBoard ->
+    CBool ->
+    Ptr Word64 ->
+    CInt ->
+    Ptr CBool ->
+    Ptr StorableMove ->
+    Ptr StorableExternBoard ->
+    Ptr Word64 ->
+    Ptr StorableGameStatus ->
+    IO ()
+
+searchTrusted ::
+  ExternBoard -> Bool -> [Word64] -> Ptr CBool -> IO SearchTrustedResult
+searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr = evalContT $ do
+  let
+    storableBoard = fromDomain @StorableExternBoard trustedBoard
+    hashCount = fromIntegral $ length zobristHashes
+  boardPtr <- ContT $ with storableBoard
+  hashArrayPtr <- ContT $ withArray zobristHashes
+  movePtr <- ContT (alloca @StorableMove)
+  outBoardPtr <- ContT (alloca @StorableExternBoard)
+  hashPtr <- ContT (alloca @Word64)
+  statusPtr <- ContT (alloca @StorableGameStatus)
+
+  liftIO $
+    c_search_trusted
+      boardPtr
+      (if isBlackTurn then 1 else 0)
+      hashArrayPtr
+      hashCount
+      shouldStopPtr
+      movePtr
+      outBoardPtr
+      hashPtr
+      statusPtr
+
+  storableMove <- liftIO $ peek movePtr
+  storableOutBoard <- liftIO $ peek outBoardPtr
+  outHash <- liftIO $ peek hashPtr
+  storableStatus <- liftIO $ peek statusPtr
+  return $
+    SearchTrustedResult
+      { searchMove = toDomain storableMove
+      , updatedBoard = toDomain storableOutBoard
+      , updatedZobristHash = outHash
+      , gameStatus = toDomain storableStatus
+      }

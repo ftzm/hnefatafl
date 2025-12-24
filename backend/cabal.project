@@ -3,3 +3,8 @@ packages: hnefatafl.cabal
 allow-newer: derive-storable-plugin:ghc, derive-storable-plugin:ghci, heptapod:base
 constraints: derive-storable +sumtypes
 
+source-repository-package
+  type: git
+  location: https://github.com/Kleidukos/servant-effectful
+  tag: 1e574e6c0144456ee7d161a586fcc82377c9454d
+  --sha256: 1s3jzgqrrv7z35vf9srf16r5jl0cr4nvqcaa5mmlk9mhf1zasz0v

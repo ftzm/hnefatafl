@@ -70,6 +70,16 @@ dependencies:
   - chronos
   - template-haskell
   - safe-exceptions
+  - servant
+  - servant-server
+  - servant-client
+  - servant-client-core
+  - servant-effectful
+  - wai
+  - warp
+  - time
+  - async
+  - clock
 
 executables:
   cli:
@@ -101,6 +111,9 @@ tests:
       - process
       - direct-sqlite
       - optics
+      - http-client
+      - servant-client
+      - async
 
 # benchmarks:
 #   board:
