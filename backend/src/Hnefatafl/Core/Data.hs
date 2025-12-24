@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
 module Hnefatafl.Core.Data (
@@ -29,6 +30,7 @@ module Hnefatafl.Core.Data (
 ) where
 
 import Chronos (Time)
+import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.=))
 
 newtype PlayerId = PlayerId Text
   deriving (Show, Eq)
@@ -85,10 +87,25 @@ data Game = Game
 
 -- | Represents a layer of the board using bit manipulation
 data Layer = Layer
-  { lower :: Int64
-  , upper :: Int64
+  { lower :: Word64
+  , upper :: Word64
   }
   deriving (Show, Read, Eq)
+
+instance ToJSON Layer where
+  toJSON (Layer lower upper) =
+    object
+      [ "lower" .= show lower
+      , "upper" .= show upper
+      ]
+
+instance FromJSON Layer where
+  parseJSON = withObject "Layer" $ \o -> do
+    lowerStr <- o .: "lower"
+    upperStr <- o .: "upper"
+    case (readMaybe lowerStr, readMaybe upperStr) of
+      (Just lower, Just upper) -> return $ Layer lower upper
+      _ -> fail "Invalid Word64 values in Layer"
 
 -- | External board representation with piece positions
 data ExternBoard = ExternBoard
@@ -96,7 +113,8 @@ data ExternBoard = ExternBoard
   , white :: Layer
   , king :: Word8
   }
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | A move from one position to another
 data Move = Move
@@ -104,6 +122,7 @@ data Move = Move
   , dest :: Word8
   }
   deriving (Show, Read, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | Result of applying a move, including captures and board state
 data MoveResult = MoveResult
@@ -112,7 +131,8 @@ data MoveResult = MoveResult
   , captures :: Layer
   , wasBlackTurn :: Bool
   }
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 data PlayerColor = White | Black
   deriving (Show, Eq)

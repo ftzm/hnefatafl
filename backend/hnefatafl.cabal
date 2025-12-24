@@ -15,13 +15,16 @@ library
       Hnefatafl.Bindings
       Hnefatafl.Board
       Hnefatafl.CLI
+      Hnefatafl.Client
       Hnefatafl.Core.Data
       Hnefatafl.Effect.Clock
       Hnefatafl.Effect.IdGen
+      Hnefatafl.Effect.Search
       Hnefatafl.Effect.Storage
       Hnefatafl.Import
       Hnefatafl.Interpreter.Clock.IO
       Hnefatafl.Interpreter.IdGen.UUIDv7
+      Hnefatafl.Interpreter.Search.Local
       Hnefatafl.Interpreter.Storage.SQLite
       Hnefatafl.Interpreter.Storage.SQLite.Game
       Hnefatafl.Interpreter.Storage.SQLite.Move
@@ -30,7 +33,9 @@ library
       Hnefatafl.Interpreter.Storage.SQLite.Type
       Hnefatafl.Interpreter.Storage.SQLite.Util
       Hnefatafl.QQ.Move
+      Hnefatafl.Search
       Hnefatafl.Serialization
+      Hnefatafl.Server
   other-modules:
       Paths_hnefatafl
   autogen-modules:
@@ -52,9 +57,11 @@ library
       
     , aeson
     , array
+    , async
     , attoparsec
     , base
     , chronos
+    , clock
     , derive-storable
     , derive-storable-plugin
     , effectful
@@ -65,12 +72,20 @@ library
     , optparse-applicative
     , relude
     , safe-exceptions
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-effectful
+    , servant-server
     , split
     , sqlite-simple
     , template-haskell
     , text
+    , time
     , transformers
     , uuid-types
+    , wai
+    , warp
   mixins:
        relude
     , base hiding (Prelude)
@@ -100,9 +115,11 @@ executable cli
       
     , aeson
     , array
+    , async
     , attoparsec
     , base
     , chronos
+    , clock
     , derive-storable
     , derive-storable-plugin
     , effectful
@@ -114,12 +131,20 @@ executable cli
     , optparse-applicative
     , relude
     , safe-exceptions
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-effectful
+    , servant-server
     , split
     , sqlite-simple
     , template-haskell
     , text
+    , time
     , transformers
     , uuid-types
+    , wai
+    , warp
   mixins:
        relude
     , base hiding (Prelude)
@@ -131,6 +156,7 @@ test-suite hnefatafl-test
   main-is: Driver.hs
   other-modules:
       Hnefatafl.BindingsTest
+      Hnefatafl.ClientTest
       Hnefatafl.ImportTest
       Hnefatafl.Interpreter.Storage.SQLite.GameTest
       Hnefatafl.Interpreter.Storage.SQLite.MoveTest
@@ -138,6 +164,7 @@ test-suite hnefatafl-test
       Hnefatafl.Interpreter.Storage.SQLite.TokenTest
       Hnefatafl.Interpreter.Storage.SQLite.Util
       Hnefatafl.QQ.MoveTest
+      Hnefatafl.SearchTest
       TestUtil
       Paths_hnefatafl
   autogen-modules:
@@ -161,9 +188,11 @@ test-suite hnefatafl-test
       
     , aeson
     , array
+    , async
     , attoparsec
     , base
     , chronos
+    , clock
     , derive-storable
     , derive-storable-plugin
     , direct-sqlite
@@ -174,11 +203,17 @@ test-suite hnefatafl-test
     , hnefatafl
     , hspec
     , hspec-expectations-pretty-diff
+    , http-client
     , optics
     , optparse-applicative
     , process
     , relude
     , safe-exceptions
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-effectful
+    , servant-server
     , split
     , sqlite-simple
     , tasty
@@ -188,8 +223,11 @@ test-suite hnefatafl-test
     , template-haskell
     , temporary
     , text
+    , time
     , transformers
     , uuid-types
+    , wai
+    , warp
   mixins:
        relude
     , base hiding (Prelude)
