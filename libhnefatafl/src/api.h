@@ -82,9 +82,13 @@ int next_game_state_with_moves_trusted(
 /* Apply a sequence of moves and return detailed data about each move.
  * Does not perform move validation or game state logic - just applies moves
  * and captures. Returns dynamically allocated array of move_result structures.
+ * Writes the final game status to final_status_out.
  * Caller must free the returned array.
  */
-move_result *apply_move_sequence(const move *moves, int move_count);
+move_result *apply_move_sequence(
+    const move *moves,
+    int move_count,
+    game_status *final_status_out);
 
 /* Perform search from a trusted board state with zobrist hash history.
  * Writes the best move, updated board state, updated zobrist hash, and game

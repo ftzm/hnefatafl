@@ -158,7 +158,7 @@ formatMoves ms =
     zipWith
       (\i r -> "Move: " <> show i <> "\n" <> formatMoveResult r)
       [1 :: Integer ..]
-      (toList $ applyMoveSequence ms)
+      (toList $ fst $ applyMoveSequence ms)
 
 printMoves :: EngineGameStatus -> NonEmpty Move -> IO ()
 printMoves status ms = do

@@ -181,7 +181,8 @@ importGame input = do
                 , createdAt = currentTime
                 }
 
-        let gameMoves = map (moveResultToGameMove startTime) (toList $ applyMoveSequence input.moves)
+        let (moveResults, _finalStatus) = applyMoveSequence input.moves
+            gameMoves = map (moveResultToGameMove startTime) (toList moveResults)
 
         insertGame game
         insertMoves gameId gameMoves

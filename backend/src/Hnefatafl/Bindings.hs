@@ -370,19 +370,22 @@ foreign import ccall unsafe "apply_move_sequence"
   c_apply_move_sequence ::
     Ptr StorableMove ->
     CInt ->
+    Ptr StorableGameStatus ->
     IO (Ptr StorableMoveResult)
 
-applyMoveSequence :: NonEmpty Move -> NonEmpty MoveResult
-applyMoveSequence moves = unsafePerformIO $ evalContT $ do
+applyMoveSequence :: NonEmpty Move -> (NonEmpty MoveResult, EngineGameStatus)
+applyMoveSequence moves = unsafePerformIO $ do
   let
     moveCount :: CInt = fromIntegral $ length moves
     storableMoves = map (fromDomain @StorableMove) (toList moves)
-  movesPtr <- ContT $ withArray storableMoves
-  moveResultsPtr <- liftIO $ c_apply_move_sequence movesPtr moveCount
-  storableMoveResults <-
-    liftIO $ peekArray (fromIntegral moveCount) moveResultsPtr
-  liftIO $ free moveResultsPtr
-  return $ fromList $ map toDomain storableMoveResults
+
+  withArray storableMoves $ \movesPtr ->
+    alloca $ \statusPtr -> do
+      moveResultsPtr <- c_apply_move_sequence movesPtr moveCount statusPtr
+      storableMoveResults <- peekArray (fromIntegral moveCount) moveResultsPtr
+      finalStatus <- peek statusPtr
+      free moveResultsPtr
+      return (fromList $ map toDomain storableMoveResults, toDomain finalStatus)
 
 foreign import ccall safe "search_trusted"
   c_search_trusted ::

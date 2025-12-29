@@ -235,9 +235,13 @@ int next_game_state_with_moves_trusted(
 /* Apply a sequence of moves and return detailed data about each move.
  * Does not perform move validation or game state logic - just applies moves
  * and captures. Returns dynamically allocated array of move_result structures.
+ * Writes the final game status to final_status_out.
  * Caller must free the returned array.
  */
-move_result *apply_move_sequence(const move *moves, int move_count) {
+move_result *apply_move_sequence(
+    const move *moves,
+    int move_count,
+    game_status *final_status_out) {
   move_result *move_results = malloc(sizeof(move_result) * move_count);
 
   board current_board = start_board;
@@ -274,6 +278,15 @@ move_result *apply_move_sequence(const move *moves, int move_count) {
 
     // Alternate turns
     is_black_turn = !is_black_turn;
+  }
+
+  // Check final game status after all moves are applied
+  if (is_black_turn) {
+    // It's black's turn, so check if white has won
+    *final_status_out = white_victory_check(&current_board);
+  } else {
+    // It's white's turn, so check if black has won
+    *final_status_out = black_victory_check(&current_board);
   }
 
   return move_results;

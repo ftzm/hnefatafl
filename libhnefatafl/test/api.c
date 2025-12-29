@@ -212,9 +212,53 @@ TEST test_search_trusted_white_move() {
   PASS();
 }
 
+TEST test_apply_move_sequence_real_game() {
+  // Real game sequence from TestUtil.hs that should end with king escape
+  move test_moves[] = {
+      read_move("d11d9"),  read_move("h6h3"),   read_move("k7i7"),
+      read_move("f8c8"),   read_move("a4c4"),   read_move("f4i4"),
+      read_move("g1g2"),   read_move("e5c5"),   read_move("d1d3"),
+      read_move("g5j5"),   read_move("k4j4"),   read_move("f5j5"),
+      read_move("h11h4"),  read_move("c5h5"),   read_move("i7i5"),
+      read_move("g7g9"),   read_move("g2g5"),   read_move("f7k7"),
+      read_move("i5i9"),   read_move("f6f8"),   read_move("j6h6"),
+      read_move("f8j8"),   read_move("i9j9"),   read_move("j8i8"),
+      read_move("k6i6"),   read_move("i8i11"),  read_move("j9j11"),
+      read_move("i11i10"), read_move("j11j10"), read_move("g9k9"),
+      read_move("g11i11"), read_move("k9k10"),  read_move("j4j10"),
+      read_move("k10k9"),  read_move("h6h10"),  read_move("k9k10"),
+      read_move("d9k9"),   read_move("i10k10"), read_move("h10j10"),
+      read_move("k10k11")};
+
+  int move_count = sizeof(test_moves) / sizeof(test_moves[0]);
+  game_status final_status;
+  move_result *results =
+      apply_move_sequence(test_moves, move_count, &final_status);
+
+  if (results == NULL) {
+    printf("ERROR: apply_move_sequence returned NULL\n");
+    FAIL();
+  }
+
+  printf("Applied %d moves\n", move_count);
+  printf("Final game status: %d\n", final_status);
+  printf("Expected status_king_escaped: %d\n", status_king_escaped);
+  printf("Last move was k10k11 (king escape)\n");
+
+  // The final move k10k11 should be a king escape, so status should be
+  // status_king_escaped
+  ASSERT_EQ(final_status, status_king_escaped);
+
+  // Clean up
+  free(results);
+
+  PASS();
+}
+
 SUITE(api_suite) {
   RUN_TEST(test_get_possible_moves);
   RUN_TEST(test_next_game_state);
   RUN_TEST(test_search_trusted_black_move);
   RUN_TEST(test_search_trusted_white_move);
+  RUN_TEST(test_apply_move_sequence_real_game);
 }

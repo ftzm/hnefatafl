@@ -111,7 +111,7 @@ loadStartPositions = do
         concat $
           zipWith
             ( \i (notation, moveList) ->
-                let moveResults = applyMoveSequence moveList
+                let (moveResults, _finalStatus) = applyMoveSequence moveList
                     movesResult = last moveResults
                     b = movesResult.board
                     blackToMove = not movesResult.wasBlackTurn

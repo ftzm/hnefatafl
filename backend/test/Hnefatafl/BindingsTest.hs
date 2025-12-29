@@ -4,6 +4,7 @@ import Hnefatafl.Bindings
 import Hnefatafl.Core.Data (ExternBoard (..), Move (..), MoveResult (..))
 import Test.Hspec (Spec, describe, it)
 import Test.Hspec.Expectations.Pretty
+import TestUtil (realGameData)
 
 spec_MoveListSerialization :: Spec
 spec_MoveListSerialization =
@@ -71,9 +72,18 @@ spec_NextGameStateWithMovesTrusted =
 
 spec_ApplyMoveSequence :: Spec
 spec_ApplyMoveSequence =
-  it "should apply first black move and return board state" $ do
-    let firstBlackMove = head startBlackMoves
-        moveResults = applyMoveSequence (firstBlackMove :| [])
-        moveResult = head moveResults
-    length moveResults `shouldBe` 1
-    moveResult `shouldSatisfy` (\MoveResult{} -> True)
+  describe "ApplyMoveSequence" $ do
+    it "should apply first black move and return board state" $ do
+      let firstBlackMove = head startBlackMoves
+          (moveResults, _finalStatus) = applyMoveSequence (firstBlackMove :| [])
+          moveResult = head moveResults
+      length moveResults `shouldBe` 1
+      moveResult `shouldSatisfy` (\MoveResult{} -> True)
+
+    it "should return correct final game status for real game data" $ do
+      -- Debug: let's see what's actually happening
+      let (moveResults, finalStatus) = realGameData
+      putStrLn $ "Haskell got final status: " <> show finalStatus
+      putStrLn $ "Number of move results: " <> show (length moveResults)
+      -- The real game sequence ends with white winning by king escape (k10-k11 is king reaching edge)
+      finalStatus `shouldBe` EngineKingEscaped
