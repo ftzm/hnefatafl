@@ -12,7 +12,7 @@ import Data.Aeson (FromJSON, ToJSON)
 import Database.SQLite.Simple (close, open)
 import Effectful
 import Effectful.Console.ByteString
-import qualified Effectful.Console.ByteString as Console
+import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
 import Hnefatafl.Bindings (
@@ -22,17 +22,25 @@ import Hnefatafl.Bindings (
   nextGameState,
   startBoard,
  )
-import Hnefatafl.Board (formatMoveResult, printBoard, formatGameMove)
-import Hnefatafl.Core.Data (Game (..), GameId (..), GameMove (..), GameStatus (..), HumanPlayer (..), Move, PlayerId (..))
+import Hnefatafl.Board (formatGameMove, formatMoveResult, printBoard)
+import Hnefatafl.Core.Data (
+  Game (..),
+  GameId (..),
+  GameMove (..),
+  HumanPlayer (..),
+  Move,
+  PlayerId (..),
+ )
 import Hnefatafl.Effect.IdGen
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Import (importGameFromFile)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
 import Hnefatafl.Interpreter.Storage.SQLite
-import Hnefatafl.Serialization (parseMoveList, moveToNotation)
+import Hnefatafl.Serialization (moveToNotation, parseMoveList)
 import Options.Applicative
 import System.Exit (ExitCode (..))
+import Version (version)
 
 data ProcessMovesOptions = ProcessMovesOptions
   { moveText :: Text
@@ -102,7 +110,12 @@ commandParser =
   subparser
     ( command "process-moves" (info processMovesParser (progDesc "Process moves"))
         <> command "import" (info importParser (progDesc "Import games from JSON file"))
-        <> command "print-game" (info printGameParser (progDesc "Print all moves of a game with board representations"))
+        <> command
+          "print-game"
+          ( info
+              printGameParser
+              (progDesc "Print all moves of a game with board representations")
+          )
         <> command "other" (info otherParser (progDesc "Other command"))
     )
 
@@ -127,7 +140,7 @@ globalOptionsParser =
 versionOption :: Parser (a -> a)
 versionOption =
   infoOption
-    "hnefatafl version 0.0.0.2"
+    (toString version)
     ( long "version"
         <> short 'v'
         <> help "Show version"
@@ -232,7 +245,9 @@ printGameMoves ::
 printGameMoves gameId = do
   game <- getGame gameId
   moves <- getMovesForGame gameId
-  Console.putStrLn $ encodeUtf8 $ ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)
+  Console.putStrLn $
+    encodeUtf8 $
+      ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)
   Console.putStrLn $ encodeUtf8 $ ("Status: " <> show game.gameStatus :: Text)
   Console.putStrLn ""
 
@@ -245,13 +260,22 @@ printGameMoves gameId = do
       Console.putStrLn ""
 
       -- Print each move with board state
-      traverse_ printMoveWithBoard (zip [1..] moves)
-  where
-    printMoveWithBoard :: (Console :> es) => (Int, GameMove) -> Eff es ()
-    printMoveWithBoard (moveNum, gameMove) = do
-      Console.putStrLn $ encodeUtf8 $ ("Move " <> show moveNum <> " (" <> show gameMove.playerColor <> "): " <> moveToNotation gameMove.move :: Text)
-      Console.putStrLn $ encodeUtf8 $ formatGameMove gameMove
-      Console.putStrLn ""
+      traverse_ printMoveWithBoard (zip [1 ..] moves)
+ where
+  printMoveWithBoard :: Console :> es => (Int, GameMove) -> Eff es ()
+  printMoveWithBoard (moveNum, gameMove) = do
+    Console.putStrLn $
+      encodeUtf8 $
+        ( "Move "
+            <> show moveNum
+            <> " ("
+            <> show gameMove.playerColor
+            <> "): "
+            <> moveToNotation gameMove.move ::
+            Text
+        )
+    Console.putStrLn $ encodeUtf8 $ formatGameMove gameMove
+    Console.putStrLn ""
 
 --------------------------------------------------------------------------------
 -- import

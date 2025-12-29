@@ -35,6 +35,7 @@ library
       Hnefatafl.Interpreter.Storage.SQLite.Util
       Hnefatafl.QQ.Move
       Hnefatafl.Search
+      Hnefatafl.SelfPlay
       Hnefatafl.Serialization
       Hnefatafl.Server
   other-modules:
@@ -53,10 +54,11 @@ library
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
     , aeson
+    , aeson-pretty
     , array
     , async
     , attoparsec
@@ -68,7 +70,10 @@ library
     , effectful
     , effectful-th
     , either
+    , focus
     , heptapod
+    , hnefatafl-version
+    , list-t
     , optics
     , optparse-applicative
     , relude
@@ -80,6 +85,72 @@ library
     , servant-server
     , split
     , sqlite-simple
+    , stm
+    , stm-containers
+    , template-haskell
+    , text
+    , time
+    , transformers
+    , uuid-types
+    , wai
+    , warp
+  mixins:
+       relude
+    , base hiding (Prelude)
+    , relude (Relude as Prelude)
+  default-language: GHC2021
+
+library hnefatafl-version
+  exposed-modules:
+      Version
+  other-modules:
+      Paths_hnefatafl
+  autogen-modules:
+      Paths_hnefatafl
+  hs-source-dirs:
+      version
+  default-extensions:
+      TemplateHaskell
+      OverloadedStrings
+      OverloadedRecordDot
+      OverloadedLabels
+      DuplicateRecordFields
+      LambdaCase
+      DerivingVia
+      ImportQualifiedPost
+      MultilineStrings
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  build-depends:
+      
+    , aeson
+    , aeson-pretty
+    , array
+    , async
+    , attoparsec
+    , base
+    , chronos
+    , clock
+    , derive-storable
+    , derive-storable-plugin
+    , effectful
+    , effectful-th
+    , either
+    , focus
+    , heptapod
+    , list-t
+    , optics
+    , optparse-applicative
+    , relude
+    , safe-exceptions
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-effectful
+    , servant-server
+    , split
+    , sqlite-simple
+    , stm
+    , stm-containers
     , template-haskell
     , text
     , time
@@ -111,10 +182,11 @@ executable cli
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
     , aeson
+    , aeson-pretty
     , array
     , async
     , attoparsec
@@ -126,8 +198,10 @@ executable cli
     , effectful
     , effectful-th
     , either
+    , focus
     , heptapod
     , hnefatafl
+    , list-t
     , optics
     , optparse-applicative
     , relude
@@ -139,6 +213,8 @@ executable cli
     , servant-server
     , split
     , sqlite-simple
+    , stm
+    , stm-containers
     , template-haskell
     , text
     , time
@@ -167,6 +243,7 @@ test-suite hnefatafl-test
       Hnefatafl.Interpreter.Storage.SQLite.Util
       Hnefatafl.QQ.MoveTest
       Hnefatafl.SearchTest
+      Hnefatafl.SelfPlayTest
       TestUtil
       Paths_hnefatafl
   autogen-modules:
@@ -183,12 +260,13 @@ test-suite hnefatafl-test
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
   build-tool-depends:
       tasty-discover:tasty-discover
   build-depends:
       
     , aeson
+    , aeson-pretty
     , array
     , async
     , attoparsec
@@ -201,11 +279,14 @@ test-suite hnefatafl-test
     , effectful
     , effectful-th
     , either
+    , focus
     , heptapod
     , hnefatafl
+    , hnefatafl-version
     , hspec
     , hspec-expectations-pretty-diff
     , http-client
+    , list-t
     , optics
     , optparse-applicative
     , process
@@ -218,6 +299,8 @@ test-suite hnefatafl-test
     , servant-server
     , split
     , sqlite-simple
+    , stm
+    , stm-containers
     , tasty
     , tasty-discover
     , tasty-hspec

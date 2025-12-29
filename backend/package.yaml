@@ -20,8 +20,8 @@ default-extensions:
 
 ghc-options:
   - -Wunused-imports
-  # - -Wall
-  # - -Werror
+  - -Wall
+  - -Werror
   - -Wmissing-export-lists
   - -Wno-missing-home-modules
   - -Widentities
@@ -67,6 +67,7 @@ dependencies:
   - optparse-applicative
   - either
   - aeson
+  - aeson-pretty
   - chronos
   - template-haskell
   - safe-exceptions
@@ -80,6 +81,10 @@ dependencies:
   - time
   - async
   - clock
+  - stm
+  - stm-containers
+  - list-t
+  - focus
 
 executables:
   cli:
@@ -90,6 +95,15 @@ executables:
       
 library:
   source-dirs: src
+  dependencies:
+    - hnefatafl-version
+
+internal-libraries:
+  hnefatafl-version:
+    source-dirs: version
+    language: GHC2021
+    dependencies:
+      - template-haskell
 
 tests:
   hnefatafl-test:
@@ -100,6 +114,7 @@ tests:
     build-tools:
         tasty-discover:tasty-discover
     dependencies:
+      - hnefatafl-version
       - hnefatafl
       - hspec
       - hspec-expectations-pretty-diff

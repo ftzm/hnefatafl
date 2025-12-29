@@ -3,7 +3,7 @@ module Hnefatafl.SearchTest where
 import Control.Concurrent (forkIO, killThread, threadDelay)
 import Control.Concurrent qualified as Concurrent
 import Control.Exception (
-  AsyncException (UserInterrupt),
+  AsyncException (..),
   catch,
   finally,
   throwTo,
@@ -31,7 +31,6 @@ spec_successful_completion =
       let resultMove = searchMove result
       let resultBoard = updatedBoard result
       let resultHash = updatedZobristHash result
-      let resultStatus = gameStatus result
 
       -- Basic sanity checks on the results
       resultMove `shouldSatisfy` (\m -> orig m >= 0 && orig m <= 120) -- Valid board positions
@@ -52,12 +51,12 @@ spec_timeout_behavior =
         let timeout = SearchTimeout timeoutMs
         let marginMs = 10 -- Allow larger margin
         start <- getTime Monotonic
-        result <- searchWithTimeout board isBlackTurn zobristHashes timeout
+        _ <- searchWithTimeout board isBlackTurn zobristHashes timeout
         end <- getTime Monotonic
 
-        let elapsedMs = fromIntegral (toNanoSecs (diffTimeSpec end start)) / 1000000
-        let expectedMin = fromIntegral timeoutMs
-        let expectedMax = fromIntegral (timeoutMs + marginMs)
+        let elapsedMs = fromIntegral (toNanoSecs (diffTimeSpec end start)) / 1000000 :: Double
+        let expectedMin = fromIntegral timeoutMs :: Double
+        let expectedMax = fromIntegral (timeoutMs + marginMs) :: Double
 
         elapsedMs `shouldSatisfy` (\t -> t >= expectedMin && t <= expectedMax)
 
@@ -79,8 +78,9 @@ spec_exception_handling =
       searchThreadId <-
         forkIO $
           ( void (searchWithTimeout board isBlackTurn zobristHashes timeout)
-              `catch` \UserInterrupt ->
-                return () -- Catch the expected UserInterrupt
+              `catch` \case
+                UserInterrupt -> return () -- Catch the expected UserInterrupt
+                _ -> return () -- Handle other async exceptions
           )
             `finally` Concurrent.putMVar finishedMVar ()
 
@@ -95,8 +95,8 @@ spec_exception_handling =
       -- Clean up
       killThread searchThreadId
 
-      let elapsedMs = fromIntegral (toNanoSecs (diffTimeSpec end start)) / 1000000
-      let expectedMin = fromIntegral interruptAfterMs
-      let expectedMax = fromIntegral (interruptAfterMs + marginMs)
+      let elapsedMs = fromIntegral (toNanoSecs (diffTimeSpec end start)) / 1000000 :: Double
+      let expectedMin = fromIntegral interruptAfterMs :: Double
+      let expectedMax = fromIntegral (interruptAfterMs + marginMs) :: Double
 
       elapsedMs `shouldSatisfy` (\t -> t >= expectedMin && t <= expectedMax)

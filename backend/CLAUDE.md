@@ -70,3 +70,8 @@ This is a Haskell backend for a Hnefatafl (Viking board game) application using 
 - `cabal.project` - Cabal project settings
 - `flake.nix` - Nix development environment
 - `fourmolu.yaml` - Code formatter configuration
+
+## Implementation Guidelines
+- **NEVER change the user's designed approach without explicitly asking first**
+- When implementing technical solutions, follow the user's specified approach exactly
+- If there are issues, fix the implementation details rather than changing the approach

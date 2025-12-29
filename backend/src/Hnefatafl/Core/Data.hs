@@ -30,7 +30,11 @@ module Hnefatafl.Core.Data (
 ) where
 
 import Chronos (Time)
-import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.=))
+import Data.Aeson (
+  FromJSON (..),
+  ToJSON (..),
+  withText,
+ )
 
 newtype PlayerId = PlayerId Text
   deriving (Show, Eq)
@@ -93,19 +97,16 @@ data Layer = Layer
   deriving (Show, Read, Eq)
 
 instance ToJSON Layer where
-  toJSON (Layer lower upper) =
-    object
-      [ "lower" .= show lower
-      , "upper" .= show upper
-      ]
+  toJSON (Layer lower upper) = toJSON (show @Text lower <> " " <> show @Text upper)
 
 instance FromJSON Layer where
-  parseJSON = withObject "Layer" $ \o -> do
-    lowerStr <- o .: "lower"
-    upperStr <- o .: "upper"
-    case (readMaybe lowerStr, readMaybe upperStr) of
-      (Just lower, Just upper) -> return $ Layer lower upper
-      _ -> fail "Invalid Word64 values in Layer"
+  parseJSON = withText "Layer" $ \t ->
+    case words t of
+      [lowerStr, upperStr] ->
+        case (readMaybe (toString lowerStr), readMaybe (toString upperStr)) of
+          (Just lower, Just upper) -> return $ Layer lower upper
+          _ -> fail "Invalid Word64 values in Layer"
+      _ -> fail "Layer must be two space-separated Word64 values"
 
 -- | External board representation with piece positions
 data ExternBoard = ExternBoard
