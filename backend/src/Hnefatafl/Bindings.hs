@@ -84,6 +84,7 @@ data StorableMoveResult = StorableMoveResult
   , board :: StorableExternBoard
   , captures :: StorableLayer
   , was_black_turn :: Bool
+  , zobrist_hash :: Word64
   }
   deriving (Show, Read, Generic, GStorable)
 
@@ -155,8 +156,8 @@ instance DomainMapping StorableMove Move where
   fromDomain (Move o d) = StorableMove o d
 
 instance DomainMapping StorableMoveResult MoveResult where
-  toDomain (StorableMoveResult m b c wbt) = MoveResult (toDomain m) (toDomain b) (toDomain c) wbt
-  fromDomain (MoveResult m b c wbt) = StorableMoveResult (fromDomain m) (fromDomain b) (fromDomain c) wbt
+  toDomain (StorableMoveResult m b c wbt zh) = MoveResult (toDomain m) (toDomain b) (toDomain c) wbt zh
+  fromDomain (MoveResult m b c wbt zh) = StorableMoveResult (fromDomain m) (fromDomain b) (fromDomain c) wbt zh
 
 instance DomainMapping StorableGameStatus EngineGameStatus where
   toDomain Hnefatafl.Bindings.Ongoing = EngineOngoing

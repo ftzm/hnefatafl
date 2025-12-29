@@ -18,6 +18,7 @@ typedef struct {
   compact_board board;
   layer captures;
   bool was_black_turn;
+  u64 zobrist_hash;
 } move_result;
 
 typedef struct {

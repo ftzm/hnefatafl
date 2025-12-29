@@ -131,6 +131,7 @@ data MoveResult = MoveResult
   , board :: ExternBoard
   , captures :: Layer
   , wasBlackTurn :: Bool
+  , zobristHash :: Word64
   }
   deriving (Show, Read, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)

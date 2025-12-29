@@ -54,6 +54,11 @@ Each sub-project has its own CLAUDE.md with specific instructions:
 
 ## Development Guidelines for Claude
 
+### Critical Testing Requirements
+- **TEST FAILURES ARE NEVER TO BE IGNORED**: All tests must pass before any task is considered complete
+- **No exceptions**: If tests fail, the work is not done - investigate and fix all failures
+- **Full test coverage**: Run both C library tests and Haskell tests after any changes
+
 ### When Working on Both Projects
 1. **Always build libhnefatafl first** before building backend
 2. **Run tests for both projects** to ensure integration works

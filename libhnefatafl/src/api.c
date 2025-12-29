@@ -246,6 +246,7 @@ move_result *apply_move_sequence(
 
   board current_board = start_board;
   bool is_black_turn = true;
+  u64 current_hash = hash_for_board(start_board, is_black_turn);
 
   for (int i = 0; i < move_count; i++) {
     move m = moves[i];
@@ -254,27 +255,28 @@ move_result *apply_move_sequence(
     move_results[i].move = m;
     move_results[i].was_black_turn = is_black_turn;
 
-    // Apply the move and captures
+    // Apply the move and captures, calculating the new hash
     layer captures;
     if (is_black_turn) {
       current_board = apply_black_move_m(current_board, m.orig, m.dest);
-      u64 dummy_hash = 0;
-      captures = apply_captures_z_black(&current_board, &dummy_hash, m.dest);
+      current_hash = next_hash_black(current_hash, m.orig, m.dest);
+      captures = apply_captures_z_black(&current_board, &current_hash, m.dest);
     } else if (LOWEST_INDEX(current_board.king) == m.orig) {
       // King move
       current_board = apply_king_move_m(current_board, m.orig, m.dest);
-      u64 dummy_hash = 0;
-      captures = apply_captures_z_white(&current_board, &dummy_hash, m.dest);
+      current_hash = next_hash_king(current_hash, m.orig, m.dest);
+      captures = apply_captures_z_white(&current_board, &current_hash, m.dest);
     } else {
       // White pawn move
       current_board = apply_white_move_m(current_board, m.orig, m.dest);
-      u64 dummy_hash = 0;
-      captures = apply_captures_z_white(&current_board, &dummy_hash, m.dest);
+      current_hash = next_hash_white(current_hash, m.orig, m.dest);
+      captures = apply_captures_z_white(&current_board, &current_hash, m.dest);
     }
 
-    // Store the captures and final board state
+    // Store the captures, final board state, and zobrist hash
     move_results[i].captures = captures;
     move_results[i].board = to_compact(&current_board);
+    move_results[i].zobrist_hash = current_hash;
 
     // Alternate turns
     is_black_turn = !is_black_turn;
