@@ -75,6 +75,11 @@
                 ];
                 shellHook = ''
                   export LD_LIBRARY_PATH="${pkgs.zlib}/lib:$LD_LIBRARY_PATH"
+                  # Find backend directory from git root and prioritize local libhnefatafl.a
+                  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+                  BACKEND_DIR="$REPO_ROOT/backend"
+                  export NIX_LDFLAGS="-L$BACKEND_DIR $NIX_LDFLAGS"
+                  export LIBRARY_PATH="$BACKEND_DIR:$LIBRARY_PATH"
                 '';
               };
             };

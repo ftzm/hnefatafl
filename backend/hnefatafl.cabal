@@ -26,6 +26,7 @@ library
       Hnefatafl.Interpreter.IdGen.UUIDv7
       Hnefatafl.Interpreter.Search.Local
       Hnefatafl.Interpreter.Search.Remote
+      Hnefatafl.Interpreter.Search.Test
       Hnefatafl.Interpreter.Storage.SQLite
       Hnefatafl.Interpreter.Storage.SQLite.Game
       Hnefatafl.Interpreter.Storage.SQLite.Move
@@ -236,6 +237,7 @@ test-suite hnefatafl-test
       Hnefatafl.ClientTest
       Hnefatafl.ImportTest
       Hnefatafl.Interpreter.Search.RemoteTest
+      Hnefatafl.Interpreter.Search.TestTest
       Hnefatafl.Interpreter.Storage.SQLite.GameTest
       Hnefatafl.Interpreter.Storage.SQLite.MoveTest
       Hnefatafl.Interpreter.Storage.SQLite.PlayerTest

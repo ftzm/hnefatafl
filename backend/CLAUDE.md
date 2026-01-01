@@ -29,6 +29,7 @@ This is a Haskell backend for a Hnefatafl (Viking board game) application using 
 - **Always verify compilation**: After any code changes, run `cabal build` to ensure code compiles
 - **Test verification**: When creating new tests, run `cabal test` to verify they pass
 - **Regenerate .cabal**: Run `hpack` if package.yaml is modified
+- **C library dependency**: After changes to C library files and running `make static` in libhnefatafl, you must clean and rebuild the Haskell project: `cabal clean && cabal build`
 
 ## Code Style
 - Uses GHC2021 language standard
