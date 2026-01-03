@@ -22,10 +22,12 @@ module Hnefatafl.SelfPlay (
   mkProcessingState,
   runSelfPlayParallel,
   saveProcessingStateSnapshot,
+  snapshotTimerActor,
   takeSnapshot,
   updateGameProgress,
 ) where
 
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM (stateTVar)
 import Data.Aeson (
   FromJSON (..),
@@ -433,6 +435,24 @@ gameActor processingState eventChan = do
       liftIO $ putStrLn $ "Actor: game " <> show gameDef.name <> " completed, looping"
       gameActor processingState eventChan
 
+-- | Actor that periodically takes snapshots and saves them to disk
+snapshotTimerActor ::
+  (IOE :> es, Concurrent :> es, Error Text :> es, FileSystem :> es) =>
+  FilePath ->
+  ProcessingState ->
+  Eff es ()
+snapshotTimerActor stateFilePath processingState = do
+  liftIO $ putStrLn "Snapshot timer: starting snapshot timer (10 second intervals)"
+  snapshotLoop
+ where
+  snapshotLoop = do
+    liftIO $ threadDelay (10 * 1000 * 1000) -- 10 seconds in microseconds
+    liftIO $ putStrLn "Snapshot timer: taking snapshot"
+    snapshot <- atomically $ takeSnapshot processingState
+    saveProcessingStateSnapshot stateFilePath snapshot
+    liftIO $ putStrLn "Snapshot timer: snapshot saved"
+    snapshotLoop
+
 runGameActors ::
   ( Labeled "new" Search :> es
   , Labeled "old" Search :> es
@@ -471,4 +491,5 @@ runSelfPlayParallel numActors version1 version2 stateDir startPositionsFile = do
   eventChan <- atomically newTChan
   liftIO $ putStrLn "chan created"
   _ <- async (runGameActors numActors processingState eventChan)
+  _ <- async (snapshotTimerActor stateFilePath processingState)
   pure eventChan
