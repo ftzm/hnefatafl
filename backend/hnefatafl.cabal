@@ -68,9 +68,11 @@ library
     , clock
     , derive-storable
     , derive-storable-plugin
+    , directory
     , effectful
     , effectful-th
     , either
+    , filepath
     , focus
     , heptapod
     , hnefatafl-version
@@ -89,6 +91,7 @@ library
     , stm
     , stm-containers
     , template-haskell
+    , temporary
     , text
     , time
     , transformers
@@ -133,9 +136,11 @@ library hnefatafl-version
     , clock
     , derive-storable
     , derive-storable-plugin
+    , directory
     , effectful
     , effectful-th
     , either
+    , filepath
     , focus
     , heptapod
     , list-t
@@ -153,6 +158,7 @@ library hnefatafl-version
     , stm
     , stm-containers
     , template-haskell
+    , temporary
     , text
     , time
     , transformers
@@ -196,9 +202,11 @@ executable cli
     , clock
     , derive-storable
     , derive-storable-plugin
+    , directory
     , effectful
     , effectful-th
     , either
+    , filepath
     , focus
     , heptapod
     , hnefatafl
@@ -217,6 +225,7 @@ executable cli
     , stm
     , stm-containers
     , template-haskell
+    , temporary
     , text
     , time
     , transformers
@@ -278,9 +287,11 @@ test-suite hnefatafl-test
     , derive-storable
     , derive-storable-plugin
     , direct-sqlite
+    , directory
     , effectful
     , effectful-th
     , either
+    , filepath
     , focus
     , heptapod
     , hnefatafl

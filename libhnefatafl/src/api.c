@@ -302,6 +302,7 @@ void search_trusted(
     _Atomic bool *should_stop,
     move *move_out,
     compact_board *board_out,
+    layer *captures_out,
     u64 *hash_out,
     game_status *status_out) {
 
@@ -367,12 +368,14 @@ void search_trusted(
   // Apply the move and calculate updated state
   board new_board_state = board_state;
   u64 new_hash = position_hash;
+  layer captures;
 
   if (is_black_turn) {
     new_board_state =
         apply_black_move_m(new_board_state, best_move.orig, best_move.dest);
     new_hash = next_hash_black(new_hash, best_move.orig, best_move.dest);
-    apply_captures_z_black(&new_board_state, &new_hash, best_move.dest);
+    captures =
+        apply_captures_z_black(&new_board_state, &new_hash, best_move.dest);
   } else {
     // Check if it's a king move by comparing origin with king position
     u8 king_pos = LOWEST_INDEX(board_state.king);
@@ -380,12 +383,14 @@ void search_trusted(
       new_board_state =
           apply_king_move_m(new_board_state, best_move.orig, best_move.dest);
       new_hash = next_hash_king(new_hash, best_move.orig, best_move.dest);
-      apply_captures_z_white(&new_board_state, &new_hash, best_move.dest);
+      captures =
+          apply_captures_z_white(&new_board_state, &new_hash, best_move.dest);
     } else {
       new_board_state =
           apply_white_move_m(new_board_state, best_move.orig, best_move.dest);
       new_hash = next_hash_white(new_hash, best_move.orig, best_move.dest);
-      apply_captures_z_white(&new_board_state, &new_hash, best_move.dest);
+      captures =
+          apply_captures_z_white(&new_board_state, &new_hash, best_move.dest);
     }
   }
 
@@ -405,6 +410,7 @@ void search_trusted(
   // Write results to output parameters
   *move_out = best_move;
   *board_out = to_compact(&new_board_state);
+  *captures_out = captures;
   *hash_out = new_hash;
   *status_out = status;
 }

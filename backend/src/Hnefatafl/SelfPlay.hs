@@ -4,27 +4,50 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.SelfPlay (
-  module Hnefatafl.SelfPlay,
+  Player (..),
+  GameResult (..),
+  GameDefinition (..),
+  InProgressGame (..),
+  CompletedGame (..),
+  StateUpdate (..),
+  GameName (..),
+  ProcessingState (..),
+  ProcessingStateSnapshot (..),
+  VersionId (..),
+  beginGame,
+  claimNextGame,
+  completeGame,
+  gameActor,
+  loadOrCreateStateSnapshot,
+  mkProcessingState,
+  runSelfPlayParallel,
+  saveProcessingStateSnapshot,
+  takeSnapshot,
+  updateGameProgress,
 ) where
 
 import Control.Concurrent.STM (stateTVar)
 import Data.Aeson (
-  FromJSON,
+  FromJSON (..),
   FromJSONKey,
   ToJSON,
   ToJSONKey,
   eitherDecodeStrict,
+  withObject,
+  (.!=),
+  (.:),
+  (.:?),
  )
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy qualified as BSL
-import Data.Map.Strict qualified as Map
 import Data.Traversable (for)
-import Effectful (Eff (), IOE, runEff, (:>))
-import Effectful.Concurrent.Chan.Strict
+import Effectful (Eff (), IOE, (:>))
+import Effectful.Concurrent (Concurrent)
+import Effectful.Concurrent.Async (async, wait)
+import Effectful.Concurrent.STM (TChan, newTChan, writeTChan)
 import Effectful.Dispatch.Dynamic (send)
-import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
-import Effectful.FileSystem.IO (runFileSystem)
 import Effectful.FileSystem.IO.ByteString (readFile)
 import Effectful.FileSystem.IO.ByteString qualified as FSBS
 import Effectful.Labeled (Labeled (..))
@@ -36,6 +59,8 @@ import Hnefatafl.Bindings (
  )
 import Hnefatafl.Core.Data (
   ExternBoard,
+  Layer (..),
+  Move (..),
   MoveResult (..),
  )
 import Hnefatafl.Effect.Search (Search (..))
@@ -43,10 +68,8 @@ import Hnefatafl.Search (SearchTimeout (..))
 import Hnefatafl.Serialization (parseMoveList)
 import ListT qualified
 import StmContainers.Map qualified as STMMap
+import System.FilePath ((</>))
 import Prelude hiding (readFile)
-
-data EngineVersion = New | Old
-  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 data Player = Black | White
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
@@ -63,19 +86,39 @@ data GameDefinition = GameDefinition
   , board :: ExternBoard
   , blackToMove :: Bool
   , newAsBlack :: Bool
+  , hashes :: [Word64]
+  , moveCount :: Int
   }
-  deriving (Show, Read, Eq, Generic, ToJSON, FromJSON)
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON)
+
+instance FromJSON GameDefinition where
+  parseJSON = withObject "GameDefinition" $ \o -> do
+    name <- o .: "name"
+    notation <- o .: "notation"
+    board <- o .: "board"
+    blackToMove <- o .: "blackToMove"
+    newAsBlack <- o .: "newAsBlack"
+    hashes <- o .: "hashes"
+    moveCount <- o .:? "moveCount" .!= 0
+    pure $
+      GameDefinition name notation board blackToMove newAsBlack hashes moveCount
 
 data InProgressGame
   = Claimed GameDefinition
-  | Running GameDefinition SearchTrustedResult
+  | Running GameDefinition Move Layer
   deriving (Show, Read, Eq, Generic, ToJSON, FromJSON)
 
 data CompletedGame = CompletedGame
   { gameDefinition :: GameDefinition
   , result :: GameResult
   }
-  deriving (Show, Read, Eq, Generic, ToJSON, FromJSON)
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
+
+data StateUpdate
+  = GameClaimed GameName GameDefinition
+  | GameProgressed GameName SearchTrustedResult
+  | GameCompleted GameName GameResult
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 newtype GameName = GameName Text
   deriving (Show, Read, Eq, Ord, Generic)
@@ -90,7 +133,6 @@ data ProcessingState = ProcessingState
 -- For serialization, we need to extract data from STM
 data ProcessingStateSnapshot = ProcessingStateSnapshot
   { unprocessedGames :: [GameDefinition]
-  , inProgressGames :: Map GameName InProgressGame
   , completedGames :: [CompletedGame]
   }
   deriving (Show, Eq, Generic, ToJSON, FromJSON)
@@ -102,9 +144,10 @@ mkGameName index newIsBlack = GameName $ show index <> " " <> players
 
 loadStartPositions ::
   (IOE :> es, Error Text :> es, FileSystem :> es) =>
+  FilePath ->
   Eff es ProcessingStateSnapshot
-loadStartPositions = do
-  ls <- lines . decodeUtf8 <$> readFile "engine_comparison_positions.txt"
+loadStartPositions startPositionsFile = do
+  ls <- lines . decodeUtf8 <$> readFile startPositionsFile
   let (errors, moveLists) = partitionEithers $ map (\l -> (l,) <$> parseMoveList l) ls
   unless (null errors) $ throwError $ "Got errors: \n" <> unlines errors
   let definitions =
@@ -115,28 +158,23 @@ loadStartPositions = do
                     movesResult = last moveResults
                     b = movesResult.board
                     blackToMove = not movesResult.wasBlackTurn
-                 in [ GameDefinition
-                        { name = mkGameName (i * 2) True
+                    mkGameDef newAsBlack =
+                      GameDefinition
+                        { name = mkGameName i newAsBlack
                         , notation = notation
                         , board = b
                         , blackToMove = blackToMove
-                        , newAsBlack = True
+                        , newAsBlack = newAsBlack
+                        , hashes = map (.zobristHash) $ toList moveResults
+                        , moveCount = 0
                         }
-                    , GameDefinition
-                        { name = mkGameName (i * 2 + 1) False
-                        , notation = notation
-                        , board = b
-                        , blackToMove = blackToMove
-                        , newAsBlack = False
-                        }
-                    ]
+                 in [mkGameDef True, mkGameDef False]
             )
             [0 ..]
             moveLists
   pure $
     ProcessingStateSnapshot
       { unprocessedGames = definitions
-      , inProgressGames = mempty
       , completedGames = mempty
       }
 
@@ -148,15 +186,6 @@ saveProcessingStateSnapshot filePath processingStateSnapshot = do
   let jsonBytes = encodePretty processingStateSnapshot
   FSBS.writeFile filePath (BSL.toStrict jsonBytes)
 
--- | Runner for saveProcessingState that handles all required effects
-runSaveProcessingState ::
-  FilePath -> ProcessingStateSnapshot -> IO (Either Text ())
-runSaveProcessingState filePath processingStateSnapshot =
-  runEff
-    . runErrorNoCallStack @Text
-    . runFileSystem
-    $ saveProcessingStateSnapshot filePath processingStateSnapshot
-
 -- | Generate canonical filename for state file based on engine versions
 getStateFileName :: VersionId -> VersionId -> FilePath
 getStateFileName (VersionId v1) (VersionId v2) =
@@ -167,8 +196,8 @@ getStateFileName (VersionId v1) (VersionId v2) =
 -- | Load existing state file or create new one from start positions
 loadOrCreateStateSnapshot ::
   (IOE :> es, Error Text :> es, FileSystem :> es) =>
-  FilePath -> Eff es ProcessingStateSnapshot
-loadOrCreateStateSnapshot stateFilePath = do
+  FilePath -> FilePath -> Eff es ProcessingStateSnapshot
+loadOrCreateStateSnapshot stateFilePath startPositionsFile = do
   exists <- doesFileExist stateFilePath
   if exists
     then do
@@ -177,58 +206,9 @@ loadOrCreateStateSnapshot stateFilePath = do
         Left err -> throwError $ "Failed to parse state file: " <> toText err
         Right processingStateSnapshot -> pure processingStateSnapshot
     else do
-      initialState <- loadStartPositions
+      initialState <- loadStartPositions startPositionsFile
       saveProcessingStateSnapshot stateFilePath initialState
       pure initialState
-
--- | Load or create state for specific engine versions
-loadOrCreateStateForVersions ::
-  (IOE :> es, Error Text :> es, FileSystem :> es) =>
-  VersionId -> VersionId -> Eff es ProcessingStateSnapshot
-loadOrCreateStateForVersions version1 version2 =
-  loadOrCreateStateSnapshot $ getStateFileName version1 version2
-
--- | Runner for loadOrCreateState that handles all required effects
-runLoadOrCreateState :: FilePath -> IO (Either Text ProcessingStateSnapshot)
-runLoadOrCreateState stateFilePath =
-  runEff
-    . runErrorNoCallStack @Text
-    . runFileSystem
-    $ loadOrCreateStateSnapshot stateFilePath
-
--- | Save state for specific engine versions using canonical filename
-saveStateForVersions ::
-  (IOE :> es, Error Text :> es, FileSystem :> es) =>
-  VersionId -> VersionId -> ProcessingStateSnapshot -> Eff es ()
-saveStateForVersions version1 version2 processingStateSnapshot = do
-  let stateFilePath = getStateFileName version1 version2
-  saveProcessingStateSnapshot stateFilePath processingStateSnapshot
-
--- | Runner for loadOrCreateStateForVersions that handles all required effects
-runLoadOrCreateStateForVersions ::
-  VersionId -> VersionId -> IO (Either Text ProcessingStateSnapshot)
-runLoadOrCreateStateForVersions version1 version2 =
-  runEff
-    . runErrorNoCallStack @Text
-    . runFileSystem
-    $ loadOrCreateStateForVersions version1 version2
-
--- | Runner for saveStateForVersions that handles all required effects
-runSaveStateForVersions ::
-  VersionId -> VersionId -> ProcessingStateSnapshot -> IO (Either Text ())
-runSaveStateForVersions version1 version2 processingStateSnapshot =
-  runEff
-    . runErrorNoCallStack @Text
-    . runFileSystem
-    $ saveStateForVersions version1 version2 processingStateSnapshot
-
--- | Runner for loadStartPositions that handles all required effects
-runLoadStartPositions :: IO (Either Text ProcessingStateSnapshot)
-runLoadStartPositions =
-  runEff
-    . runErrorNoCallStack @Text
-    . runFileSystem
-    $ loadStartPositions
 
 newtype VersionId = VersionId Text
   deriving (Show, Read, Eq, Ord, Generic)
@@ -241,54 +221,103 @@ mkProcessingState snapshot = do
   inProgressMap <- STMMap.new
   completedVar <- newTVar snapshot.completedGames
 
-  -- Populate in-progress map
-  forM_ (Map.toList snapshot.inProgressGames) $ \(name, game) -> do
-    STMMap.insert game name inProgressMap
-
   pure $ ProcessingState unprocessedVar inProgressMap completedVar
 
 -- | Take snapshot of current state for serialization
+-- Convert in-progress games back to unprocessed with their current state
 takeSnapshot :: ProcessingState -> STM ProcessingStateSnapshot
 takeSnapshot processingState = do
   unprocessed <- readTVar processingState.unprocessedGames
-  inProgress <-
-    fromList <$> ListT.toList (STMMap.listT processingState.inProgressGames)
+  inProgressList <-
+    ListT.toList (STMMap.listT processingState.inProgressGames)
   completed <- readTVar processingState.completedGames
-  pure $ ProcessingStateSnapshot unprocessed inProgress completed
 
--- | Atomically claim the next unprocessed game
-claimNextGame :: ProcessingState -> STM (Maybe GameDefinition)
-claimNextGame processingState = do
-  maybeGame <- stateTVar processingState.unprocessedGames $ \case
-    [] -> (Nothing, [])
-    (game : rest) -> (Just game, rest)
+  -- Convert in-progress games back to GameDefinition
+  let inProgressAsUnprocessed = map (convertToGameDefinition . snd) inProgressList
+      allUnprocessed = unprocessed ++ inProgressAsUnprocessed
 
-  for maybeGame $ \game -> do
-    STMMap.insert (Claimed game) game.name processingState.inProgressGames
-    pure game
+  pure $ ProcessingStateSnapshot allUnprocessed completed
+ where
+  convertToGameDefinition :: InProgressGame -> GameDefinition
+  convertToGameDefinition = \case
+    Claimed gameDef -> gameDef
+    Running gameDef _ _ -> gameDef -- GameDefinition already has current state
+
+-- | Atomically claim the next unprocessed game and send event
+claimNextGame ::
+  (IOE :> es, Concurrent :> es) =>
+  ProcessingState ->
+  TChan StateUpdate ->
+  Eff es (Maybe GameDefinition)
+claimNextGame processingState eventChan = do
+  maybeGame <- atomically $ do
+    maybeGame <- stateTVar processingState.unprocessedGames $ \case
+      [] -> (Nothing, [])
+      (game : rest) -> (Just game, rest)
+
+    for maybeGame $ \game -> do
+      STMMap.insert (Claimed game) game.name processingState.inProgressGames
+      pure game
+
+  for_ maybeGame $ \game -> do
+    atomically $ writeTChan eventChan (GameClaimed game.name game)
+
+  pure maybeGame
 
 updateGameProgress ::
-  GameName -> SearchTrustedResult -> ProcessingState -> STM ()
-updateGameProgress name result processingState = do
-  STMMap.focus (Focus.adjust updateGame) name processingState.inProgressGames
+  (IOE :> es, Concurrent :> es) =>
+  GameName ->
+  SearchTrustedResult ->
+  ProcessingState ->
+  TChan StateUpdate ->
+  Eff es ()
+updateGameProgress name result processingState eventChan = do
+  atomically $
+    STMMap.focus (Focus.adjust updateGame) name processingState.inProgressGames
+  atomically $ writeTChan eventChan (GameProgressed name result)
  where
   updateGame = \case
-    Claimed gameDef -> Running gameDef result
-    Running gameDef _ -> Running gameDef result
+    Claimed gameDef ->
+      let updatedGameDef =
+            gameDef
+              { board = result.updatedBoard
+              , blackToMove = not gameDef.blackToMove
+              , hashes = result.updatedZobristHash : gameDef.hashes
+              , moveCount = gameDef.moveCount + 1
+              }
+       in Running updatedGameDef result.searchMove result.captures
+    Running gameDef _ _ ->
+      let updatedGameDef =
+            gameDef
+              { board = result.updatedBoard
+              , blackToMove = not gameDef.blackToMove
+              , hashes = result.updatedZobristHash : gameDef.hashes
+              , moveCount = gameDef.moveCount + 1
+              }
+       in Running updatedGameDef result.searchMove result.captures
 
--- | Complete a game by moving it from in-progress to completed
-completeGame :: GameName -> GameResult -> ProcessingState -> STM ()
-completeGame name gameResult processingState = do
-  maybeGame <-
-    STMMap.focus Focus.lookupAndDelete name processingState.inProgressGames
-  let gameDefinition =
-        maybeGame <&> \case
-          Claimed def -> def
-          Running def _ -> def
-  for_
-    gameDefinition
-    \def ->
-      modifyTVar' processingState.completedGames (++ [CompletedGame def gameResult])
+-- | Complete a game by moving it from in-progress to completed and send event
+completeGame ::
+  (IOE :> es, Concurrent :> es) =>
+  GameName ->
+  GameResult ->
+  ProcessingState ->
+  TChan StateUpdate ->
+  Eff es ()
+completeGame name gameResult processingState eventChan = do
+  atomically $ do
+    maybeGame <-
+      STMMap.focus Focus.lookupAndDelete name processingState.inProgressGames
+    let gameDefinition =
+          maybeGame <&> \case
+            Claimed def -> def
+            Running def _ _ -> def
+    for_
+      gameDefinition
+      \def ->
+        modifyTVar' processingState.completedGames (++ [CompletedGame def gameResult])
+
+  atomically $ writeTChan eventChan (GameCompleted name gameResult)
 
 getWinner :: EngineGameStatus -> Maybe Player
 getWinner = \case
@@ -309,9 +338,11 @@ playGame ::
   , Concurrent :> es
   ) =>
   -- | The name of game
-  Text ->
-  -- | a chan to which we send processing updates
-  Chan' (Text, SearchTrustedResult) ->
+  GameName ->
+  -- | Processing state to update
+  ProcessingState ->
+  -- | Event channel for updates
+  TChan StateUpdate ->
   -- | the number of moves played
   Int ->
   -- | the current board
@@ -321,19 +352,123 @@ playGame ::
   -- | the zobrist hashes to point
   [Word64] ->
   Eff es GameResult
-playGame name chan moveCount board blackToMove hashes = do
+playGame gameName processingState eventChan moveCount board blackToMove hashes = do
   result <-
     send $
       (Labeled @current) $
         SearchTrusted board blackToMove hashes (SearchTimeout 1000)
   case getWinner result.gameStatus of
     Nothing -> do
-      writeChan' chan (name, result)
+      updateGameProgress gameName result processingState eventChan
       playGame @next @current
-        name
-        chan
+        gameName
+        processingState
+        eventChan
         (moveCount + 1)
         result.updatedBoard
         (not blackToMove)
         (result.updatedZobristHash : hashes)
     Just winner -> pure $ GameResult winner moveCount
+
+-- run game loop
+beginGame ::
+  ( Labeled "new" Search :> es
+  , Labeled "old" Search :> es
+  , IOE :> es
+  , Concurrent :> es
+  ) =>
+  GameDefinition ->
+  ProcessingState ->
+  TChan StateUpdate ->
+  Eff es GameResult
+beginGame gameDef processingState eventChan = do
+  if (gameDef.blackToMove && gameDef.newAsBlack)
+    || (not gameDef.blackToMove && not gameDef.newAsBlack)
+    then do
+      liftIO $ putStrLn $ "Actor: playing as new@old for " <> show gameDef.name
+      playGame @"new" @"old"
+        gameDef.name
+        processingState
+        eventChan
+        gameDef.moveCount
+        gameDef.board
+        gameDef.blackToMove
+        gameDef.hashes
+    else do
+      liftIO $ putStrLn $ "Actor: playing as old@new for " <> show gameDef.name
+      playGame @"old" @"new"
+        gameDef.name
+        processingState
+        eventChan
+        gameDef.moveCount
+        gameDef.board
+        gameDef.blackToMove
+        gameDef.hashes
+
+gameActor ::
+  ( Labeled "new" Search :> es
+  , Labeled "old" Search :> es
+  , IOE :> es
+  , Concurrent :> es
+  ) =>
+  ProcessingState ->
+  TChan StateUpdate ->
+  Eff es ()
+gameActor processingState eventChan = do
+  liftIO $ putStrLn "Actor: trying to claim game"
+  maybeGame <- claimNextGame processingState eventChan
+  case maybeGame of
+    Nothing -> do
+      liftIO $ putStrLn "Actor: no games available, terminating"
+      pure () -- No more games to process
+    Just gameDef -> do
+      liftIO $
+        putStrLn $
+          "Actor: claimed game " <> show gameDef.name <> ", starting play"
+      result <- beginGame gameDef processingState eventChan
+      liftIO $
+        putStrLn $
+          "Actor: game " <> show gameDef.name <> " finished, completing"
+      completeGame gameDef.name result processingState eventChan
+      liftIO $ putStrLn $ "Actor: game " <> show gameDef.name <> " completed, looping"
+      gameActor processingState eventChan
+
+runGameActors ::
+  ( Labeled "new" Search :> es
+  , Labeled "old" Search :> es
+  , IOE :> es
+  , Concurrent :> es
+  ) =>
+  Int ->
+  ProcessingState ->
+  TChan StateUpdate ->
+  Eff es ()
+runGameActors numActors processingState eventChan = do
+  let spawnActor = gameActor processingState eventChan
+  actors <- replicateM numActors (async spawnActor)
+  mapM_ wait actors
+
+runSelfPlayParallel ::
+  ( Labeled "new" Search :> es
+  , Labeled "old" Search :> es
+  , IOE :> es
+  , Concurrent :> es
+  , Error Text :> es
+  , FileSystem :> es
+  ) =>
+  Int ->
+  VersionId ->
+  VersionId ->
+  FilePath ->
+  FilePath ->
+  Eff es (TChan StateUpdate)
+runSelfPlayParallel numActors version1 version2 stateDir startPositionsFile = do
+  liftIO $ putStrLn "runSelfPlayParallel "
+  let stateFilePath = stateDir </> getStateFileName version1 version2
+  snapshot <- loadOrCreateStateSnapshot stateFilePath startPositionsFile
+  processingState <- atomically $ mkProcessingState snapshot
+  liftIO $ putStrLn "state created"
+  eventChan <- atomically newTChan
+  liftIO $ putStrLn "chan created"
+  _ <- async (runGameActors numActors processingState eventChan)
+  pure eventChan

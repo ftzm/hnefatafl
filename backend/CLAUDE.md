@@ -39,6 +39,7 @@ This is a Haskell backend for a Hnefatafl (Viking board game) application using 
   - Example: `import Module (SomeRecord (..), ...)`
   - Without `(..)`, record fields are not accessible and `record.field` will fail to compile
 - Uses Relude as custom Prelude
+- **Text vs String**: Always prefer `Text` over `String`. Do not convert `Text` to `String` unnecessarily with `toString`
 - Strict GHC warnings enabled (unused imports, missing exports, etc.)
 - Uses optics for lens-like operations
 

@@ -94,7 +94,7 @@ data Layer = Layer
   { lower :: Word64
   , upper :: Word64
   }
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Ord)
 
 instance ToJSON Layer where
   toJSON (Layer lower upper) = toJSON (show @Text lower <> " " <> show @Text upper)
@@ -114,7 +114,7 @@ data ExternBoard = ExternBoard
   , white :: Layer
   , king :: Word8
   }
-  deriving (Show, Read, Eq, Generic)
+  deriving (Show, Read, Eq, Ord, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 -- | A move from one position to another
@@ -122,7 +122,7 @@ data Move = Move
   { orig :: Word8
   , dest :: Word8
   }
-  deriving (Show, Read, Eq, Generic)
+  deriving (Show, Read, Eq, Ord, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 -- | Result of applying a move, including captures and board state

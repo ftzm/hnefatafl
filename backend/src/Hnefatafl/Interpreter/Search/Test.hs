@@ -74,7 +74,16 @@ runSearchTest config =
               -- Look up the current position's hash to find the next move
               (currentHash : _) -> do
                 case Map.lookup currentHash testState.hashToNextMove of
-                  Nothing -> throwError $ ("No next move found for hash: " :: Text) <> show currentHash
+                  Nothing ->
+                    let mapKeys :: [Text] = map show $ Map.keys testState.hashToNextMove
+                        hashLines :: Text = mconcat $ intersperse "\n" mapKeys
+                        msg =
+                          "No next move found for hash: "
+                            <> show @Text currentHash
+                            <> "\n"
+                            <> "Available hashes:\n"
+                            <> hashLines
+                     in throwError msg
                   Just (nextMoveResult, gameStatus) -> pure $ moveResultToSearchResult nextMoveResult gameStatus
 
 -- | Convert a MoveResult to SearchTrustedResult with game status
@@ -84,6 +93,7 @@ moveResultToSearchResult moveResult gameStatus =
   SearchTrustedResult
     { searchMove = moveResult.move
     , updatedBoard = moveResult.board
+    , captures = moveResult.captures
     , updatedZobristHash = moveResult.zobristHash
     , gameStatus = gameStatus
     }

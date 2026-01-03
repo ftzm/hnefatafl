@@ -54,7 +54,7 @@ data EngineGameStatus
   | EngineKingEscaped -- white victory
   | EngineExitFort -- white victory
   | EngineNoBlackMoves -- white victory
-  deriving (Show, Read, Eq, Enum, Generic)
+  deriving (Show, Read, Eq, Ord, Enum, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 toGameStatus :: EngineGameStatus -> GameStatus
@@ -117,10 +117,11 @@ data MoveValidationResult = MoveValidationResult
 data SearchTrustedResult = SearchTrustedResult
   { searchMove :: Move
   , updatedBoard :: ExternBoard
+  , captures :: Layer
   , updatedZobristHash :: Word64
   , gameStatus :: EngineGameStatus
   }
-  deriving (Show, Read, Eq, Generic)
+  deriving (Show, Read, Eq, Ord, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 instance Storable StorableGameStatus where
@@ -397,6 +398,7 @@ foreign import ccall safe "search_trusted"
     Ptr CBool ->
     Ptr StorableMove ->
     Ptr StorableExternBoard ->
+    Ptr StorableLayer ->
     Ptr Word64 ->
     Ptr StorableGameStatus ->
     IO ()
@@ -411,6 +413,7 @@ searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr = evalContT $
   hashArrayPtr <- ContT $ withArray zobristHashes
   movePtr <- ContT (alloca @StorableMove)
   outBoardPtr <- ContT (alloca @StorableExternBoard)
+  capturesPtr <- ContT (alloca @StorableLayer)
   hashPtr <- ContT (alloca @Word64)
   statusPtr <- ContT (alloca @StorableGameStatus)
 
@@ -423,17 +426,20 @@ searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr = evalContT $
       shouldStopPtr
       movePtr
       outBoardPtr
+      capturesPtr
       hashPtr
       statusPtr
 
   storableMove <- liftIO $ peek movePtr
   storableOutBoard <- liftIO $ peek outBoardPtr
+  storableCaptures <- liftIO $ peek capturesPtr
   outHash <- liftIO $ peek hashPtr
   storableStatus <- liftIO $ peek statusPtr
   return $
     SearchTrustedResult
       { searchMove = toDomain storableMove
       , updatedBoard = toDomain storableOutBoard
+      , captures = toDomain storableCaptures
       , updatedZobristHash = outHash
       , gameStatus = toDomain storableStatus
       }

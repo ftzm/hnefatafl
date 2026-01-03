@@ -24,6 +24,7 @@ typedef struct {
 typedef struct {
   move move;
   compact_board updated_board;
+  layer captures;
   u64 updated_zobrist_hash;
   game_status status;
 } search_trusted_result;
@@ -92,9 +93,9 @@ move_result *apply_move_sequence(
     game_status *final_status_out);
 
 /* Perform search from a trusted board state with zobrist hash history.
- * Writes the best move, updated board state, updated zobrist hash, and game
- * status to the provided output parameters. The should_stop flag can be set by
- * external code to cancel the search.
+ * Writes the best move, updated board state, captures, updated zobrist hash,
+ * and game status to the provided output parameters. The should_stop flag can
+ * be set by external code to cancel the search.
  */
 void search_trusted(
     compact_board *trusted_board,
@@ -104,5 +105,6 @@ void search_trusted(
     _Atomic bool *should_stop,
     move *move_out,
     compact_board *board_out,
+    layer *captures_out,
     u64 *hash_out,
     game_status *status_out);
