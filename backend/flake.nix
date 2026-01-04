@@ -51,6 +51,11 @@
                     # balloon in size.
                     dontStrip = false;
                   };
+                  packages.hnefatafl.components.exes.cli = {
+                    libs = [libhnefatafl.static];
+                    # Don't depend on GHC in build artifacts.
+                    dontStrip = false;
+                  };
                 }
               ];
               # This is used by `nix develop .` to open a shell for use with

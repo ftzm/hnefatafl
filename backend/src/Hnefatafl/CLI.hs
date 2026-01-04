@@ -38,6 +38,7 @@ import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
 import Hnefatafl.Interpreter.Storage.SQLite
 import Hnefatafl.Serialization (moveToNotation, parseMoveList)
+import Hnefatafl.Server (runServer)
 import Options.Applicative
 import System.Exit (ExitCode (..))
 import Version (version)
@@ -59,10 +60,16 @@ data PrintGameOptions = PrintGameOptions
   }
   deriving (Show)
 
+data ServerOptions = ServerOptions
+  { port :: Int
+  }
+  deriving (Show)
+
 data Command
   = ProcessMoves ProcessMovesOptions
   | Import ImportOptions
   | PrintGame PrintGameOptions
+  | Server ServerOptions
   | Other
   deriving (Show)
 
@@ -102,6 +109,13 @@ printGameParser =
             <$> strArgument (metavar "GAME_ID" <> help "Game ID to print moves for")
         )
 
+serverParser :: Parser Command
+serverParser =
+  Server
+    <$> ( ServerOptions
+            <$> argument auto (metavar "PORT" <> help "Port number to run the server on")
+        )
+
 otherParser :: Parser Command
 otherParser = pure Other
 
@@ -116,6 +130,7 @@ commandParser =
               printGameParser
               (progDesc "Print all moves of a game with board representations")
           )
+        <> command "server" (info serverParser (progDesc "Run the web server"))
         <> command "other" (info otherParser (progDesc "Other command"))
     )
 
@@ -235,6 +250,9 @@ runOptions options = case options.cmd of
         putTextLn $ "Error: " <> toText err
         pure $ ExitFailure 1
       Right _ -> pure ExitSuccess
+  Server ServerOptions{port} -> do
+    runServer port
+    pure ExitSuccess
   Other -> do
     putTextLn "other"
     pure ExitSuccess
