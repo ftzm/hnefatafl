@@ -8,10 +8,10 @@ import Data.List (findIndex, (!!), (\\))
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
+import Effectful.Concurrent.Async (async, wait)
 import Effectful.Concurrent.STM (
   TChan,
   newTChan,
-  readTChan,
   tryReadTChan,
  )
 import Effectful.Error.Static (runErrorNoCallStack)
@@ -612,41 +612,6 @@ runGenerateTestPositionsFile filePath =
     . runFileSystem
     $ generateTestPositionsFile filePath
 
--- | Collect events from the channel until all games are completed, with debugging
-collectEvents ::
-  (IOE :> es, Concurrent :> es) =>
-  TChan StateUpdate ->
-  Int -> -- Expected number of games
-  Eff es [StateUpdate]
-collectEvents eventChan expectedGames = go [] (0 :: Int) (0 :: Int)
- where
-  go events completedCount totalEvents
-    | completedCount >= expectedGames = do
-        liftIO $
-          putStrLn $
-            "Collected "
-              <> show totalEvents
-              <> " total events, "
-              <> show completedCount
-              <> " completed"
-        pure (reverse events)
-    | otherwise = do
-        event <- atomically $ readTChan eventChan
-        let newCompletedCount = case event of
-              GameCompleted _ _ -> completedCount + 1
-              _ -> completedCount
-        -- Debug logging every 10 events
-        when (totalEvents `mod` 10 == 0) $ do
-          liftIO $
-            putStrLn $
-              "Event "
-                <> show totalEvents
-                <> ": "
-                <> take 50 (show event)
-                <> "... (completed: "
-                <> show newCompletedCount
-                <> ")"
-        go (event : events) newCompletedCount (totalEvents + 1)
 
 testGameNotation :: Text
 testGameNotation =
@@ -686,7 +651,7 @@ spec_single_game_actor =
 
                   gameActor processingState eventChan
                   liftIO $ putStrLn "Actor run, collecting events..."
-                  collectEvents eventChan 20
+                  drainTChan eventChan
 
       removeDirectoryRecursive tempDir
 
@@ -785,23 +750,30 @@ spec_end_to_end_parallel_self_play =
             runConcurrent $
               runLabeled @"new" (runSearchTest config) $
                 runLabeled @"old" (runSearchTest config) $ do
-                  eventChan <-
+                  eventChan <- atomically newTChan
+
+                  -- Start self-play in the background
+                  selfPlayAsync <- async $
                     runSelfPlayParallel
                       4 -- 4 actors
                       (VersionId "test-new")
                       (VersionId "test-old")
                       tempDir
                       testPositionsFile
+                      eventChan
 
                   -- Add initial logging
-                  liftIO $ putStrLn "Starting event collection..."
+                  liftIO $ putStrLn "Starting self-play, will wait for completion..."
 
-                  -- Collect all events until 10 games complete
-                  events <- collectEvents eventChan 20
+                  -- Wait for self-play to complete
+                  wait selfPlayAsync
+
+                  -- Collect all events now that processing is done
+                  events <- drainTChan eventChan
 
                   liftIO $
                     putStrLn $
-                      "Event collection complete. Total events: " <> show (length events)
+                      "Self-play complete. Total events: " <> show (length events)
                   pure events
 
       -- Cleanup

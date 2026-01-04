@@ -45,8 +45,8 @@ import Data.ByteString.Lazy qualified as BSL
 import Data.Traversable (for)
 import Effectful (Eff (), IOE, (:>))
 import Effectful.Concurrent (Concurrent)
-import Effectful.Concurrent.Async (async, wait)
-import Effectful.Concurrent.STM (TChan, newTChan, writeTChan)
+import Effectful.Concurrent.Async (async, cancel, wait)
+import Effectful.Concurrent.STM (TChan, writeTChan)
 import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
@@ -442,7 +442,8 @@ snapshotTimerActor ::
   ProcessingState ->
   Eff es ()
 snapshotTimerActor stateFilePath processingState = do
-  liftIO $ putStrLn "Snapshot timer: starting snapshot timer (10 second intervals)"
+  liftIO $
+    putStrLn "Snapshot timer: starting snapshot timer (10 second intervals)"
   snapshotLoop
  where
   snapshotLoop = do
@@ -481,15 +482,31 @@ runSelfPlayParallel ::
   VersionId ->
   FilePath ->
   FilePath ->
-  Eff es (TChan StateUpdate)
-runSelfPlayParallel numActors version1 version2 stateDir startPositionsFile = do
+  TChan StateUpdate ->
+  Eff es ()
+runSelfPlayParallel numActors version1 version2 stateDir startPositionsFile eventChan = do
   liftIO $ putStrLn "runSelfPlayParallel "
   let stateFilePath = stateDir </> getStateFileName version1 version2
   snapshot <- loadOrCreateStateSnapshot stateFilePath startPositionsFile
   processingState <- atomically $ mkProcessingState snapshot
   liftIO $ putStrLn "state created"
-  eventChan <- atomically newTChan
-  liftIO $ putStrLn "chan created"
-  _ <- async (runGameActors numActors processingState eventChan)
-  _ <- async (snapshotTimerActor stateFilePath processingState)
-  pure eventChan
+  liftIO $ putStrLn "chan provided"
+
+  -- Start snapshot timer
+  snapshotAsync <- async (snapshotTimerActor stateFilePath processingState)
+  liftIO $ putStrLn "snapshot timer started"
+
+  -- Wait for all game actors to complete
+  runGameActors numActors processingState eventChan
+  liftIO $ putStrLn "all game actors completed"
+
+  -- Take final snapshot before terminating
+  liftIO $ putStrLn "taking final snapshot"
+  finalSnapshot <- atomically $ takeSnapshot processingState
+  saveProcessingStateSnapshot stateFilePath finalSnapshot
+  liftIO $ putStrLn "final snapshot saved"
+
+  -- Cancel snapshot timer since all processing is done
+  liftIO $ putStrLn "terminating snapshot timer"
+  cancel snapshotAsync
+  liftIO $ putStrLn "runSelfPlayParallel completed"
