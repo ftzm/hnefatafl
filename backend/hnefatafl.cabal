@@ -37,6 +37,8 @@ library
       Hnefatafl.QQ.Move
       Hnefatafl.Search
       Hnefatafl.SelfPlay
+      Hnefatafl.SelfPlay.Runner
+      Hnefatafl.SelfPlay.UI
       Hnefatafl.Serialization
       Hnefatafl.Server
   other-modules:
@@ -64,6 +66,7 @@ library
     , async
     , attoparsec
     , base
+    , brick
     , chronos
     , clock
     , derive-storable
@@ -96,6 +99,8 @@ library
     , time
     , transformers
     , uuid-types
+    , vty
+    , vty-unix
     , wai
     , warp
   mixins:
@@ -132,6 +137,7 @@ library hnefatafl-version
     , async
     , attoparsec
     , base
+    , brick
     , chronos
     , clock
     , derive-storable
@@ -163,6 +169,8 @@ library hnefatafl-version
     , time
     , transformers
     , uuid-types
+    , vty
+    , vty-unix
     , wai
     , warp
   mixins:
@@ -198,6 +206,7 @@ executable cli
     , async
     , attoparsec
     , base
+    , brick
     , chronos
     , clock
     , derive-storable
@@ -230,6 +239,8 @@ executable cli
     , time
     , transformers
     , uuid-types
+    , vty
+    , vty-unix
     , wai
     , warp
   mixins:
@@ -282,6 +293,7 @@ test-suite hnefatafl-test
     , async
     , attoparsec
     , base
+    , brick
     , chronos
     , clock
     , derive-storable
@@ -324,6 +336,8 @@ test-suite hnefatafl-test
     , time
     , transformers
     , uuid-types
+    , vty
+    , vty-unix
     , wai
     , warp
   mixins:

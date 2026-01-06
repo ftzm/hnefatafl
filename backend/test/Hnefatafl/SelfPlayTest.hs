@@ -246,7 +246,7 @@ spec_update_game_progress =
                   [] -- no unprocessed games
                   (Map.singleton (GameName "test-game") (Claimed testGameDef)) -- game already claimed
                   [] -- no completed games
-            updateGameProgress (GameName "test-game") searchResult procState eventChan
+            updateGameProgress (GameName "test-game") searchResult True procState eventChan
             atomically $ takeSnapshot procState
 
       let expectedGameDef =
@@ -294,7 +294,7 @@ spec_update_game_progress =
                       (Running currentGameDef (Move 0 1) (Layer 0 0)) -- game already running
                   )
                   [] -- no completed games
-            updateGameProgress (GameName "test-game") newResult procState eventChan
+            updateGameProgress (GameName "test-game") newResult False procState eventChan
             atomically $ takeSnapshot procState
 
       let expectedGameDef =

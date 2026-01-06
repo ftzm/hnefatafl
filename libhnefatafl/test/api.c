@@ -86,6 +86,7 @@ TEST test_search_trusted_black_move() {
 
   move result_move;
   compact_board result_board;
+  layer result_captures;
   u64 result_hash;
   game_status result_status;
 
@@ -97,16 +98,15 @@ TEST test_search_trusted_black_move() {
       &should_stop,
       &result_move,
       &result_board,
+      &result_captures,
       &result_hash,
       &result_status);
 
   // Verify the move is a valid black move from the starting position
   bool found_move = false;
   for (int i = 0; i < 116; i++) {
-    if (start_black_moves[i].orig
-        == result_move.orig
-        && start_black_moves[i].dest
-        == result_move.dest) {
+    if ((start_black_moves[i].orig == result_move.orig)
+        && (start_black_moves[i].dest == result_move.dest)) {
       found_move = true;
       break;
     }
@@ -161,6 +161,7 @@ TEST test_search_trusted_white_move() {
 
   move result_move;
   compact_board result_board;
+  layer result_captures;
   u64 result_hash;
   game_status result_status;
 
@@ -172,6 +173,7 @@ TEST test_search_trusted_white_move() {
       &should_stop,
       &result_move,
       &result_board,
+      &result_captures,
       &result_hash,
       &result_status);
 

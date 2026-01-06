@@ -88,6 +88,9 @@ dependencies:
   - filepath
   - temporary
   - directory
+  - brick
+  - vty
+  - vty-unix
 
 executables:
   cli:

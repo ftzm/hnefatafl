@@ -76,23 +76,32 @@ i32 quiesce_white(
     stats *statistics);
 
 pv_line quiesce_white_runner(board b);
+
 pv_line quiesce_black_runner(board b);
+
 search_result
 search_white_runner(board b, int depth, _Atomic bool *should_stop);
+
 search_result
 search_black_runner(board b, int depth, _Atomic bool *should_stop);
+
 search_result search_white_runner_iterative(
     board b,
     int max_depth,
     _Atomic bool *should_stop);
+
 search_result search_black_runner_iterative(
     board b,
     int max_depth,
     _Atomic bool *should_stop);
+
 pv_line search_white_with_timeout(board b, int depth, int time_limit);
+
 pv_line search_black_with_timeout(board b, int depth, int time_limit);
+
 pv_line
 search_white_with_timeout_iterative(board b, int max_depth, int time_limit);
+
 pv_line
 search_black_with_timeout_iterative(board b, int max_depth, int time_limit);
 
@@ -119,6 +128,7 @@ search_result search_runner_generic(
     _Atomic bool *should_stop,
     search_func search_fn,
     bool is_black);
+
 search_result search_runner_iterative_generic(
     board b,
     int max_depth,

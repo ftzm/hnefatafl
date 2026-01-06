@@ -542,7 +542,7 @@ i32 quiesce_black(
     // we consider the position a draw, and thus score it 0
     // return 0;
     statistics->repeat_moves_encountered++;
-    return MIN_SCORE;
+    return MAX_SCORE;
   }
 
   // Start with a static eval as best_value
@@ -573,7 +573,7 @@ i32 quiesce_black(
   // Generate move layers once for reuse throughout function
   // Defer generation until needed
   bool layers_generated = false;
-  move_layers layers;
+  move_layers layers = {0};
 
   // ---------------------------------------------------------------------------
   // escape-in-1 blocking dests
@@ -1006,7 +1006,7 @@ i32 quiesce_white(
     // we consider the position a draw, and thus score it 0
     // return 0;
     statistics->repeat_moves_encountered++;
-    return MIN_SCORE;
+    return MAX_SCORE;
   }
 
   // white to move, so we score for white
@@ -1617,7 +1617,7 @@ i32 search_black(
     // we consider the position a draw, and thus score it 0
     // return 0;
     statistics->repeat_moves_encountered++;
-    return MIN_SCORE;
+    return MAX_SCORE;
   }
 
   if (depth <= 0) {
@@ -1867,7 +1867,7 @@ i32 search_white(
     // we consider the position a draw, and thus score it 0
     // return 0;
     statistics->repeat_moves_encountered++;
-    return MIN_SCORE;
+    return MAX_SCORE;
   }
 
   if (depth <= 0) {

@@ -9,12 +9,16 @@ module Hnefatafl.SelfPlay (
   GameDefinition (..),
   InProgressGame (..),
   CompletedGame (..),
+  GameMoveEvent (..),
   StateUpdate (..),
   GameName (..),
   ProcessingState (..),
   ProcessingStateSnapshot (..),
   VersionId (..),
+  searchResultToGameMoveEvent,
+  gameMoveEventToMoveResult,
   beginGame,
+  getStateFileName,
   claimNextGame,
   completeGame,
   gameActor,
@@ -70,6 +74,8 @@ import Hnefatafl.Search (SearchTimeout (..))
 import Hnefatafl.Serialization (parseMoveList)
 import ListT qualified
 import StmContainers.Map qualified as STMMap
+
+-- import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
 import Prelude hiding (readFile)
 
@@ -116,15 +122,49 @@ data CompletedGame = CompletedGame
   }
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
+-- | Superset type containing all move information for event stream
+data GameMoveEvent = GameMoveEvent
+  { move :: Move
+  , board :: ExternBoard
+  , captures :: Layer
+  , zobristHash :: Word64
+  , wasBlackTurn :: Bool
+  , gameStatus :: EngineGameStatus
+  }
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
+
 data StateUpdate
   = GameClaimed GameName GameDefinition
-  | GameProgressed GameName SearchTrustedResult
+  | GameProgressed GameName GameMoveEvent
   | GameCompleted GameName GameResult
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 newtype GameName = GameName Text
   deriving (Show, Read, Eq, Ord, Generic)
   deriving newtype (ToJSON, FromJSON, ToJSONKey, FromJSONKey, Hashable)
+
+-- | Convert SearchTrustedResult + Bool to GameMoveEvent
+searchResultToGameMoveEvent :: SearchTrustedResult -> Bool -> GameMoveEvent
+searchResultToGameMoveEvent result wasBlackTurn =
+  GameMoveEvent
+    { move = result.searchMove
+    , board = result.updatedBoard
+    , captures = result.captures
+    , zobristHash = result.updatedZobristHash
+    , wasBlackTurn = wasBlackTurn
+    , gameStatus = result.gameStatus
+    }
+
+-- | Convert GameMoveEvent to MoveResult (for UI)
+gameMoveEventToMoveResult :: GameMoveEvent -> MoveResult
+gameMoveEventToMoveResult event =
+  MoveResult
+    { move = event.move
+    , board = event.board
+    , captures = event.captures
+    , zobristHash = event.zobristHash
+    , wasBlackTurn = event.wasBlackTurn
+    }
 
 data ProcessingState = ProcessingState
   { unprocessedGames :: TVar [GameDefinition]
@@ -167,7 +207,7 @@ loadStartPositions startPositionsFile = do
                         , board = b
                         , blackToMove = blackToMove
                         , newAsBlack = newAsBlack
-                        , hashes = map (.zobristHash) $ toList moveResults
+                        , hashes = reverse $ map (.zobristHash) $ toList moveResults
                         , moveCount = 0
                         }
                  in [mkGameDef True, mkGameDef False]
@@ -270,13 +310,15 @@ updateGameProgress ::
   (IOE :> es, Concurrent :> es) =>
   GameName ->
   SearchTrustedResult ->
+  Bool ->
   ProcessingState ->
   TChan StateUpdate ->
   Eff es ()
-updateGameProgress name result processingState eventChan = do
+updateGameProgress name result wasBlackTurn processingState eventChan = do
   atomically $
     STMMap.focus (Focus.adjust updateGame) name processingState.inProgressGames
-  atomically $ writeTChan eventChan (GameProgressed name result)
+  let moveEvent = searchResultToGameMoveEvent result wasBlackTurn
+  atomically $ writeTChan eventChan (GameProgressed name moveEvent)
  where
   updateGame = \case
     Claimed gameDef ->
@@ -358,10 +400,10 @@ playGame gameName processingState eventChan moveCount board blackToMove hashes =
   result <-
     send $
       (Labeled @current) $
-        SearchTrusted board blackToMove hashes (SearchTimeout 1000)
+        SearchTrusted board blackToMove hashes (SearchTimeout 100000)
   case getWinner result.gameStatus of
     Nothing -> do
-      updateGameProgress gameName result processingState eventChan
+      updateGameProgress gameName result blackToMove processingState eventChan
       playGame @next @current
         gameName
         processingState
@@ -448,10 +490,8 @@ snapshotTimerActor stateFilePath processingState = do
  where
   snapshotLoop = do
     liftIO $ threadDelay (10 * 1000 * 1000) -- 10 seconds in microseconds
-    liftIO $ putStrLn "Snapshot timer: taking snapshot"
     snapshot <- atomically $ takeSnapshot processingState
     saveProcessingStateSnapshot stateFilePath snapshot
-    liftIO $ putStrLn "Snapshot timer: snapshot saved"
     snapshotLoop
 
 runGameActors ::
@@ -485,28 +525,19 @@ runSelfPlayParallel ::
   TChan StateUpdate ->
   Eff es ()
 runSelfPlayParallel numActors version1 version2 stateDir startPositionsFile eventChan = do
-  liftIO $ putStrLn "runSelfPlayParallel "
   let stateFilePath = stateDir </> getStateFileName version1 version2
   snapshot <- loadOrCreateStateSnapshot stateFilePath startPositionsFile
-  processingState <- atomically $ mkProcessingState snapshot
-  liftIO $ putStrLn "state created"
-  liftIO $ putStrLn "chan provided"
 
+  processingState <- atomically $ mkProcessingState snapshot
   -- Start snapshot timer
   snapshotAsync <- async (snapshotTimerActor stateFilePath processingState)
-  liftIO $ putStrLn "snapshot timer started"
 
   -- Wait for all game actors to complete
   runGameActors numActors processingState eventChan
-  liftIO $ putStrLn "all game actors completed"
 
   -- Take final snapshot before terminating
-  liftIO $ putStrLn "taking final snapshot"
   finalSnapshot <- atomically $ takeSnapshot processingState
   saveProcessingStateSnapshot stateFilePath finalSnapshot
-  liftIO $ putStrLn "final snapshot saved"
 
   -- Cancel snapshot timer since all processing is done
-  liftIO $ putStrLn "terminating snapshot timer"
   cancel snapshotAsync
-  liftIO $ putStrLn "runSelfPlayParallel completed"

@@ -1,6 +1,7 @@
 #include "api.h"
 #include "board.h"
 #include "game_state.h"
+#include "io.h"
 #include "layer.h"
 #include "move.h"
 #include "position_set.h"
@@ -294,6 +295,38 @@ move_result *apply_move_sequence(
   return move_results;
 }
 
+void print_search_stats(const stats *s) {
+  int total_search_positions =
+      s->search_positions_black + s->search_positions_white;
+  int total_search_cutoffs =
+      s->search_beta_cutoff_black + s->search_beta_cutoff_white;
+  int total_quiescence_positions =
+      s->quiescence_positions_black + s->quiescence_positions_white;
+  int total_quiescence_cutoffs =
+      s->quiencence_beta_cutoff_black + s->quiencence_beta_cutoff_white;
+
+  printf("=== Search Stats ===\n");
+  printf("Search - Black positions: %d\n", s->search_positions_black);
+  printf("Search - Black beta cutoffs: %d\n", s->search_beta_cutoff_black);
+  printf("Search - White positions: %d\n", s->search_positions_white);
+  printf("Search - White beta cutoffs: %d\n", s->search_beta_cutoff_white);
+  printf("Search - Total positions: %d\n", total_search_positions);
+  printf("Search - Total beta cutoffs: %d\n", total_search_cutoffs);
+  printf("Quiescence - Black positions: %d\n", s->quiescence_positions_black);
+  printf(
+      "Quiescence - Black beta cutoffs: %d\n",
+      s->quiencence_beta_cutoff_black);
+  printf("Quiescence - White positions: %d\n", s->quiescence_positions_white);
+  printf(
+      "Quiescence - White beta cutoffs: %d\n",
+      s->quiencence_beta_cutoff_white);
+  printf("Quiescence - Total positions: %d\n", total_quiescence_positions);
+  printf("Quiescence - Total beta cutoffs: %d\n", total_quiescence_cutoffs);
+  printf("Quiescence - Limit reached: %d\n", s->quiescence_limit_reached);
+  printf("Repeat moves encountered: %d\n", s->repeat_moves_encountered);
+  printf("===================\n");
+}
+
 void search_trusted(
     compact_board *trusted_board,
     bool is_black_turn,
@@ -309,11 +342,47 @@ void search_trusted(
   // Convert compact board to full board
   board board_state = from_compact(trusted_board);
 
+  // Calculate current position hash BEFORE populating position set
+  u64 position_hash = hash_for_board(board_state, is_black_turn);
+
+  for (int i = 0; i < hash_count; i++) {
+    printf("Hash %d: %lull\n", i, zobrist_hashes[i]);
+  }
+  printf("calculated hash: %lull\n", position_hash);
+
+  if (position_hash != zobrist_hashes[0]) {
+    printf("first hash is wrong\n");
+    exit(1);
+  } else {
+    printf("first hash is right\n");
+  }
+
+  // Check for duplicate hashes in input array
+  for (int i = 0; i < hash_count; i++) {
+    for (int j = i + 1; j < hash_count; j++) {
+      if (zobrist_hashes[i] == zobrist_hashes[j]) {
+        fprintf(stderr, "Error: Duplicate hash detected in input array\n");
+        fprintf(
+            stderr,
+            "  Hash %llu appears at indices %d and %d\n",
+            (unsigned long long)zobrist_hashes[i],
+            i,
+            j);
+        exit(1);
+      }
+    }
+  }
+
   // Create position set with hash_count + 100 capacity
   position_set *positions = create_position_set(hash_count + 100);
 
   // Populate position set with provided zobrist hashes
+  // Skip the first element if it matches the current board hash
   for (int i = 0; i < hash_count; i++) {
+    if (i == 0 && zobrist_hashes[i] == position_hash) {
+      // Skip first element if it matches current position
+      continue;
+    }
     int deletion_index;
     insert_position(positions, zobrist_hashes[i], &deletion_index);
   }
@@ -321,9 +390,6 @@ void search_trusted(
   // Initialize search infrastructure
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &board_state);
-
-  // Calculate current position hash
-  u64 position_hash = hash_for_board(board_state, is_black_turn);
 
   // Set up PV data and stats
   pv pv_data = {0};
@@ -343,7 +409,7 @@ void search_trusted(
         -INFINITY,   // alpha
         INFINITY,    // beta
         &statistics, // statistics
-        true,        // is_pv
+        false,       // is_pv
         should_stop);
   } else {
     search_white(
@@ -358,12 +424,26 @@ void search_trusted(
         -INFINITY,   // alpha
         INFINITY,    // beta
         &statistics, // statistics
-        true,        // is_pv
+        false,       // is_pv
         should_stop);
+  }
+
+  if ((statistics.search_positions_black
+       + statistics.search_positions_white
+       < 2)
+      && (statistics.repeat_moves_encountered > 0)) {
+    printf("search immediately aborted due to illegal repetition\n");
+    exit(1);
   }
 
   // Extract the best move from PV
   move best_move = pv_data.pv_table[0][0];
+
+  if (best_move.orig == 0 && best_move.dest == 0) {
+    printf("null move encountered\n");
+    print_search_stats(&statistics);
+    exit(1);
+  }
 
   // Apply the move and calculate updated state
   board new_board_state = board_state;
@@ -392,6 +472,27 @@ void search_trusted(
       captures =
           apply_captures_z_white(&new_board_state, &new_hash, best_move.dest);
     }
+  }
+
+  // Check if new position hash already exists in the position set
+  if (check_position(positions, new_hash)) {
+    printf("ERROR: Position repetition detected after move!\n");
+    print_board(new_board_state);
+
+    // Find which index in zobrist_hashes matches new_hash
+    int matching_index = -1;
+    for (int i = 0; i < hash_count; i++) {
+      if (zobrist_hashes[i] == new_hash) {
+        matching_index = i;
+        break;
+      }
+    }
+
+    printf(
+        "Matching hash found at index %d out of %d total hashes\n",
+        matching_index,
+        hash_count);
+    exit(1);
   }
 
   // Check game status on the updated board

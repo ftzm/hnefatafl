@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.CLI (
@@ -11,10 +12,13 @@ import Chronos (Time)
 import Data.Aeson (FromJSON, ToJSON)
 import Database.SQLite.Simple (close, open)
 import Effectful
+import Effectful.Concurrent
+import Effectful.Concurrent.QSem
 import Effectful.Console.ByteString
 import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
+import Effectful.Labeled
 import Hnefatafl.Bindings (
   EngineGameStatus,
   MoveValidationResult (..),
@@ -36,7 +40,10 @@ import Hnefatafl.Effect.Storage
 import Hnefatafl.Import (importGameFromFile)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
+import Hnefatafl.Interpreter.Search.Local
 import Hnefatafl.Interpreter.Storage.SQLite
+import Hnefatafl.SelfPlay (VersionId (..))
+import Hnefatafl.SelfPlay.Runner (runSelfPlayWithUI)
 import Hnefatafl.Serialization (moveToNotation, parseMoveList)
 import Hnefatafl.Server (runServer)
 import Options.Applicative
@@ -65,11 +72,19 @@ data ServerOptions = ServerOptions
   }
   deriving (Show)
 
+data SelfPlayOptions = SelfPlayOptions
+  { numActors :: Int
+  , stateDir :: Text
+  , startPositionsFile :: Text
+  }
+  deriving (Show)
+
 data Command
   = ProcessMoves ProcessMovesOptions
   | Import ImportOptions
   | PrintGame PrintGameOptions
   | Server ServerOptions
+  | SelfPlay SelfPlayOptions
   | Other
   deriving (Show)
 
@@ -116,6 +131,22 @@ serverParser =
             <$> argument auto (metavar "PORT" <> help "Port number to run the server on")
         )
 
+selfPlayParser :: Parser Command
+selfPlayParser =
+  SelfPlay
+    <$> ( SelfPlayOptions
+            <$> option
+              auto
+              (long "actors" <> metavar "N" <> value 4 <> help "Number of parallel game actors")
+            <*> strOption
+              ( long "state-dir"
+                  <> metavar "DIR"
+                  <> value "."
+                  <> help "Directory for state files"
+              )
+            <*> strArgument (metavar "POSITIONS_FILE" <> help "File containing start positions")
+        )
+
 otherParser :: Parser Command
 otherParser = pure Other
 
@@ -131,6 +162,7 @@ commandParser =
               (progDesc "Print all moves of a game with board representations")
           )
         <> command "server" (info serverParser (progDesc "Run the web server"))
+        <> command "self-play" (info selfPlayParser (progDesc "Run self-play with UI"))
         <> command "other" (info otherParser (progDesc "Other command"))
     )
 
@@ -253,9 +285,36 @@ runOptions options = case options.cmd of
   Server ServerOptions{port} -> do
     runServer port
     pure ExitSuccess
+  SelfPlay SelfPlayOptions{numActors, stateDir, startPositionsFile} -> do
+    runSelfPlayWithInterpreters
+      numActors
+      (toString stateDir)
+      (toString startPositionsFile)
+    pure ExitSuccess
   Other -> do
     putTextLn "other"
     pure ExitSuccess
+
+-- | Run self-play with all necessary effect interpreters
+runSelfPlayWithInterpreters :: Int -> FilePath -> FilePath -> IO ()
+runSelfPlayWithInterpreters numActors stateDir startPositionsFile = do
+  result <- runEff $
+    runErrorNoCallStack @Text $
+      runConcurrent $ do
+        qsem <- newQSem 1 -- Allow up to 4 concurrent searches
+        runFileSystem $
+          runLabeled @"new" (runSearchLocal qsem) $
+            runLabeled @"old" (runSearchLocal qsem) $
+              runSelfPlayWithUI
+                numActors
+                (VersionId "new")
+                (VersionId "old")
+                stateDir
+                startPositionsFile
+
+  case result of
+    Left err -> putTextLn $ "Self-play failed: " <> err
+    Right () -> putTextLn "Self-play completed successfully"
 
 printGameMoves ::
   (Storage :> es, Console :> es) =>
