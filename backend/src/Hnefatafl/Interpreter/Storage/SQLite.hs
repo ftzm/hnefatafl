@@ -4,8 +4,8 @@ module Hnefatafl.Interpreter.Storage.SQLite (
   runStorageSQLite,
 ) where
 
-import Control.Concurrent.MVar
 import Chronos (now)
+import Control.Concurrent.MVar
 import Database.SQLite.Simple (Connection, SQLError)
 import Effectful
 import Effectful.Dispatch.Dynamic
@@ -26,57 +26,55 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 runStorageSQLite ::
   (IOE :> es, Error String :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
-runStorageSQLite connectionVar = interpret $ \_ -> \case
-  InsertHumanPlayer player -> run $ \conn -> do
+runStorageSQLite connectionVar = interpret $ \_ cmd -> run $ case cmd of
+  InsertHumanPlayer player -> \conn -> do
     currentTime <- liftIO now
     createHumanPlayer (fromDomain player) currentTime conn
   GetHumanPlayer playerId ->
-    run $ toDomain <<$>> getHumanPlayerById (fromDomain playerId)
+    toDomain <<$>> getHumanPlayerById (fromDomain playerId)
   HumanPlayerFromName name ->
-    run $ toDomain <<<$>>> getHumanPlayerByName name
-  InsertEnginePlayer player -> run $ \conn -> do
+    toDomain <<<$>>> getHumanPlayerByName name
+  InsertEnginePlayer player -> \conn -> do
     currentTime <- liftIO now
     createEnginePlayer (fromDomain player) currentTime conn
   GetEnginePlayer playerId ->
-    run $ toDomain <<$>> getEnginePlayerById (fromDomain playerId)
-  GetPlayer playerId -> run $ \conn ->
+    toDomain <<$>> getEnginePlayerById (fromDomain playerId)
+  GetPlayer playerId -> \conn ->
     getPlayerById conn (fromDomain playerId)
   DeletePlayer playerId ->
-    run $ deletePlayerById (fromDomain playerId)
+    deletePlayerById (fromDomain playerId)
   InsertGame game ->
-    run $ createGame (fromDomain game)
+    createGame (fromDomain game)
   GetGame gameId ->
-    run $ toDomain <<$>> getGameById (fromDomain gameId)
+    toDomain <<$>> getGameById (fromDomain gameId)
   ListGames ->
-    run $ toDomain <<<$>>> listGamesDb
+    toDomain <<<$>>> listGamesDb
   UpdateGameStatus gameId gameStatus endTime ->
-    run $
-      updateGameStatusById (fromDomain gameId) (fromDomain gameStatus) endTime
+    updateGameStatusById (fromDomain gameId) (fromDomain gameStatus) endTime
   DeleteGame gameId ->
-    run $ deleteGameById (fromDomain gameId)
-  InsertMove gameId gameMove -> run $ \conn ->
+    deleteGameById (fromDomain gameId)
+  InsertMove gameId gameMove -> \conn ->
     MoveDb.insertMoveDb conn (fromDomain gameId) (fromDomain gameMove)
-  InsertMoves gameId gameMoves -> run $ \conn ->
+  InsertMoves gameId gameMoves -> \conn ->
     MoveDb.insertMovesDb conn (fromDomain gameId) (map fromDomain gameMoves)
   GetMove gameId moveNumber ->
-    run $ toDomain <<$>> MoveDb.getMoveByCompositeKey (fromDomain gameId) moveNumber
+    toDomain <<$>> MoveDb.getMoveByCompositeKey (fromDomain gameId) moveNumber
   GetMovesForGame gameId ->
-    run $ toDomain <<<$>>> MoveDb.getMovesForGameDb (fromDomain gameId)
+    toDomain <<<$>>> MoveDb.getMovesForGameDb (fromDomain gameId)
   GetLatestMoveForGame gameId ->
-    run $ toDomain <<<$>>> MoveDb.getLatestMoveForGameDb (fromDomain gameId)
+    toDomain <<<$>>> MoveDb.getLatestMoveForGameDb (fromDomain gameId)
   GetMoveCountForGame gameId ->
-    run $ MoveDb.getMoveCountForGameDb (fromDomain gameId)
+    MoveDb.getMoveCountForGameDb (fromDomain gameId)
   DeleteMove gameId moveNumber ->
-    run $ MoveDb.deleteMove (fromDomain gameId) moveNumber
-  CreateGameParticipantToken token -> run $ \conn -> do
+    MoveDb.deleteMove (fromDomain gameId) moveNumber
+  CreateGameParticipantToken token -> \conn -> do
     currentTime <- liftIO now
     createGameParticipantTokenDb (gameParticipantTokenToDb token currentTime) conn
   GetTokenByText tokenText ->
-    run $ gameParticipantTokenFromDb <<<$>>> getGameParticipantTokenByText tokenText
+    gameParticipantTokenFromDb <<<$>>> getGameParticipantTokenByText tokenText
   GetActiveTokenByGameAndRole gameId role ->
-    run $
-      gameParticipantTokenFromDb
-        <<<$>>> getActiveTokenByGameAndRoleDb (fromDomain gameId) (fromDomain role)
+    gameParticipantTokenFromDb
+      <<<$>>> getActiveTokenByGameAndRoleDb (fromDomain gameId) (fromDomain role)
  where
   run :: (Error String :> es, IOE :> es) => (Connection -> IO a) -> Eff es a
   run m =

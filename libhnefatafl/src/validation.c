@@ -1,4 +1,33 @@
 #include "validation.h"
+#include "io.h"
+#include <stdio.h>
+
+bool validate_board_state(board b) {
+  // Check that no pieces overlap
+  layer black_white = LAYER_AND(b.black, b.white);
+  layer black_king = LAYER_AND(b.black, b.king);
+  layer white_king = LAYER_AND(b.white, b.king);
+
+  if (NOT_EMPTY(black_white)) {
+    printf("Board validation failed: black and white pieces overlap\n");
+    print_board(b);
+    return false;
+  }
+
+  if (NOT_EMPTY(black_king)) {
+    printf("Board validation failed: black and king overlap\n");
+    print_board(b);
+    return false;
+  }
+
+  if (NOT_EMPTY(white_king)) {
+    printf("Board validation failed: white and king overlap\n");
+    print_board(b);
+    return false;
+  }
+
+  return true;
+}
 
 piece_type get_piece_at(board b, u8 position) {
   if (CHECK_INDEX(b.black, position)) {
@@ -98,6 +127,14 @@ bool has_clear_path(board b, move m) {
 
 move_error validate_move(board b, move m, bool is_black_turn) {
   piece_type moving_piece = get_piece_at(b, m.orig);
+
+  if (m.dest > 120) {
+    return move_error_position_out_of_bounds;
+  }
+
+  if (m.orig == m.dest) {
+    return move_error_dest_equals_origin;
+  }
 
   if (moving_piece == empty) {
     return move_error_no_piece_at_origin;

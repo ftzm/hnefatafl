@@ -147,16 +147,14 @@ TEST test_search_trusted_white_move() {
   move black_move = start_black_moves[0];
 
   // Apply black move to get to white's turn
+  u64 start_hash = hash_for_board(original_board, true);
   board after_black =
       apply_black_move_m(original_board, black_move.orig, black_move.dest);
-  u64 after_black_hash = next_hash_black(
-      hash_for_board(original_board, true),
-      black_move.orig,
-      black_move.dest);
+  u64 after_black_hash = next_hash_black(start_hash, black_move.orig, black_move.dest);
   apply_captures_z_black(&after_black, &after_black_hash, black_move.dest);
 
   compact_board white_turn_board = to_compact(&after_black);
-  u64 position_history[] = {after_black_hash};
+  u64 position_history[] = {start_hash};
   _Atomic bool should_stop = false;
 
   move result_move;

@@ -342,20 +342,8 @@ void search_trusted(
   // Convert compact board to full board
   board board_state = from_compact(trusted_board);
 
-  // Calculate current position hash BEFORE populating position set
+  // Calculate current position hash
   u64 position_hash = hash_for_board(board_state, is_black_turn);
-
-  for (int i = 0; i < hash_count; i++) {
-    printf("Hash %d: %lull\n", i, zobrist_hashes[i]);
-  }
-  printf("calculated hash: %lull\n", position_hash);
-
-  if (position_hash != zobrist_hashes[0]) {
-    printf("first hash is wrong\n");
-    exit(1);
-  } else {
-    printf("first hash is right\n");
-  }
 
   // Check for duplicate hashes in input array
   for (int i = 0; i < hash_count; i++) {
@@ -373,75 +361,31 @@ void search_trusted(
     }
   }
 
-  // Create position set with hash_count + 100 capacity
-  position_set *positions = create_position_set(hash_count + 100);
+  // Run iterative deepening search
+  search_result result = search_runner_iterative_trusted(
+      board_state, 5, should_stop, is_black_turn, zobrist_hashes, hash_count);
 
-  // Populate position set with provided zobrist hashes
-  // Skip the first element if it matches the current board hash
-  for (int i = 0; i < hash_count; i++) {
-    if (i == 0 && zobrist_hashes[i] == position_hash) {
-      // Skip first element if it matches current position
-      continue;
-    }
-    int deletion_index;
-    insert_position(positions, zobrist_hashes[i], &deletion_index);
-  }
-
-  // Initialize search infrastructure
-  score_weights weights = init_default_weights();
-  score_state s = init_score_state(&weights, &board_state);
-
-  // Set up PV data and stats
-  pv pv_data = {0};
-  stats statistics = {0};
-
-  // Run search directly using the low-level search functions
-  if (is_black_turn) {
-    search_black(
-        &pv_data,
-        positions,
-        &weights,
-        s,
-        board_state,
-        position_hash,
-        0,           // ply
-        5,           // depth
-        -INFINITY,   // alpha
-        INFINITY,    // beta
-        &statistics, // statistics
-        false,       // is_pv
-        should_stop);
-  } else {
-    search_white(
-        &pv_data,
-        positions,
-        &weights,
-        s,
-        board_state,
-        position_hash,
-        0,           // ply
-        5,           // depth
-        -INFINITY,   // alpha
-        INFINITY,    // beta
-        &statistics, // statistics
-        false,       // is_pv
-        should_stop);
-  }
-
-  if ((statistics.search_positions_black
-       + statistics.search_positions_white
+  // Check statistics for early abortion
+  if ((result.statistics.search_positions_black
+       + result.statistics.search_positions_white
        < 2)
-      && (statistics.repeat_moves_encountered > 0)) {
+      && (result.statistics.repeat_moves_encountered > 0)) {
     printf("search immediately aborted due to illegal repetition\n");
     exit(1);
   }
 
-  // Extract the best move from PV
-  move best_move = pv_data.pv_table[0][0];
+  // Extract the best move from result
+  if (result.pv.length == 0 || result.pv.moves == NULL) {
+    printf("null move encountered (no moves in PV)\n");
+    print_search_stats(&result.statistics);
+    exit(1);
+  }
+
+  move best_move = result.pv.moves[0];
 
   if (best_move.orig == 0 && best_move.dest == 0) {
     printf("null move encountered\n");
-    print_search_stats(&statistics);
+    print_search_stats(&result.statistics);
     exit(1);
   }
 
@@ -474,8 +418,18 @@ void search_trusted(
     }
   }
 
-  // Check if new position hash already exists in the position set
-  if (check_position(positions, new_hash)) {
+  // Check if new position hash already exists in the zobrist hashes
+  // We need to create a temporary position set to check this
+  position_set *temp_positions = create_position_set(hash_count + 100);
+  for (int i = 0; i < hash_count; i++) {
+    if (i == 0 && zobrist_hashes[i] == position_hash) {
+      continue;
+    }
+    int deletion_index;
+    insert_position(temp_positions, zobrist_hashes[i], &deletion_index);
+  }
+
+  if (check_position(temp_positions, new_hash)) {
     printf("ERROR: Position repetition detected after move!\n");
     print_board(new_board_state);
 
@@ -492,21 +446,24 @@ void search_trusted(
         "Matching hash found at index %d out of %d total hashes\n",
         matching_index,
         hash_count);
+    destroy_position_set(temp_positions);
     exit(1);
   }
+
+  destroy_position_set(temp_positions);
 
   // Check game status on the updated board
   game_status status;
   if (is_black_turn) {
-    // After black moves, check if white has won
-    status = white_victory_check(&new_board_state);
-  } else {
-    // After white moves, check if black has won
+    // After black moves, check if black has won
     status = black_victory_check(&new_board_state);
+  } else {
+    // After white moves, check if white has won
+    status = white_victory_check(&new_board_state);
   }
 
-  // Clean up
-  destroy_position_set(positions);
+  // Clean up result
+  destroy_pv_line(&result.pv);
 
   // Write results to output parameters
   *move_out = best_move;

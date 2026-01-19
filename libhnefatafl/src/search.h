@@ -95,14 +95,22 @@ search_result search_black_runner_iterative(
     int max_depth,
     _Atomic bool *should_stop);
 
-pv_line search_white_with_timeout(board b, int depth, int time_limit);
+search_result search_runner_iterative_trusted(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop,
+    bool is_black_turn,
+    u64 *zobrist_hashes,
+    int hash_count);
 
-pv_line search_black_with_timeout(board b, int depth, int time_limit);
+search_result search_white_with_timeout(board b, int depth, int time_limit);
 
-pv_line
+search_result search_black_with_timeout(board b, int depth, int time_limit);
+
+search_result
 search_white_with_timeout_iterative(board b, int max_depth, int time_limit);
 
-pv_line
+search_result
 search_black_with_timeout_iterative(board b, int max_depth, int time_limit);
 
 // Search function pointer type
@@ -129,16 +137,30 @@ search_result search_runner_generic(
     search_func search_fn,
     bool is_black);
 
+// Generic iterative deepening search runner
+//
+// Parameters:
+//   zobrist_hashes: Array of zobrist hashes representing PAST positions in the
+//                   game history. Must NOT include the current board position.
+//                   The current position hash will be calculated internally.
+//                   Pass NULL if no history tracking is needed.
+//   hash_count: Number of hashes in zobrist_hashes array
+//
+// The function will calculate the current position hash from the board and
+// is_black parameters, and use it for repetition detection along with the
+// provided history hashes.
 search_result search_runner_iterative_generic(
     board b,
     int max_depth,
     _Atomic bool *should_stop,
     search_func search_fn,
-    bool is_black);
+    bool is_black,
+    u64 *zobrist_hashes,
+    int hash_count);
 
 // Generic wrapper function for search with timeout
 typedef search_result (*search_runner_func)(board, int, _Atomic bool *);
-pv_line search_with_timeout(
+search_result search_with_timeout(
     search_runner_func runner,
     board b,
     int depth,

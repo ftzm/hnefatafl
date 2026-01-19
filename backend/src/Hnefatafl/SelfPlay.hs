@@ -400,7 +400,9 @@ playGame gameName processingState eventChan moveCount board blackToMove hashes =
   result <-
     send $
       (Labeled @current) $
-        SearchTrusted board blackToMove hashes (SearchTimeout 100000)
+        -- Drop first hash because it represents the current position
+        -- searchTrusted expects only past positions (game history)
+        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout 1000)
   case getWinner result.gameStatus of
     Nothing -> do
       updateGameProgress gameName result blackToMove processingState eventChan

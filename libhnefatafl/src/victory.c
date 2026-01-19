@@ -197,7 +197,7 @@ bool white_victory(const board *b) {
 game_status white_victory_check(const board *b) {
   if (black_moves_count(b) == 0) {
     return status_no_black_moves;
-  } else if (king_escaped(b)) {
+  } else if (king_effectively_escaped(b)) {
     return status_king_escaped;
   } else if (exit_fort(b)) {
     return status_exit_fort;

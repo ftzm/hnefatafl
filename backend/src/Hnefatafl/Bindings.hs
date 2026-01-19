@@ -106,6 +106,8 @@ data MoveError
   | MoveErrorNotOrthogonal
   | MoveErrorPathBlocked
   | MoveErrorThreefoldRepetition
+  | MoveErrorPositionOutOfBounds
+  | MoveErrorDestEqualsOrigin
   deriving (Show, Read, Eq, Enum)
 
 data MoveValidationResult = MoveValidationResult
