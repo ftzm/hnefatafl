@@ -402,7 +402,7 @@ playGame gameName processingState eventChan moveCount board blackToMove hashes =
       (Labeled @current) $
         -- Drop first hash because it represents the current position
         -- searchTrusted expects only past positions (game history)
-        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout 1000)
+        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout 5000)
   case getWinner result.gameStatus of
     Nothing -> do
       updateGameProgress gameName result blackToMove processingState eventChan

@@ -47,6 +47,7 @@ data UIState = UIState
   , completedGames :: Int
   , recentEvents :: [StateUpdate]
   , ongoingGames :: Map GameName MoveResult
+  , processingComplete :: Bool
   }
   deriving (Show, Eq, Generic)
 
@@ -64,6 +65,7 @@ mkInitialUIState snapshot =
     , completedGames = length snapshot.completedGames
     , recentEvents = []
     , ongoingGames = mempty
+    , processingComplete = False
     }
 
 -- | Handle events and update UI state
@@ -71,6 +73,10 @@ handleEvent :: BrickEvent () UIEvent -> EventM () UIState ()
 handleEvent = \case
   VtyEvent (EvKey (KChar 'q') []) -> halt
   VtyEvent (EvKey KEsc []) -> halt
+  VtyEvent (EvKey _ _) -> do
+    -- If processing is complete, any key exits
+    s <- get
+    when s.processingComplete halt
   AppEvent (SelfPlayEvent stateUpdate) -> do
     -- Add event to recent events (keep last 5)
     #recentEvents %= addEvent stateUpdate
@@ -83,6 +89,10 @@ handleEvent = \case
       GameCompleted gameName _ -> do
         #completedGames %= (+ 1)
         #ongoingGames %= delete gameName
+        -- Check if all games are completed
+        s <- get
+        when (s.completedGames >= s.totalGames) $
+          #processingComplete %= const True
   _ -> pure ()
  where
   addEvent :: StateUpdate -> [StateUpdate] -> [StateUpdate]
@@ -106,7 +116,10 @@ drawUI appState = [ui]
         <> show appState.totalGames
         <> " "
         <> progressBar appState
-        <> " | Press 'q' or 'Esc' to quit"
+        <> " | "
+        <> if appState.processingComplete
+          then "Processing complete! Press any key to exit"
+          else "Press 'q' or 'Esc' to quit"
 
   boardWidget = case getCurrentGame appState.ongoingGames of
     Nothing ->

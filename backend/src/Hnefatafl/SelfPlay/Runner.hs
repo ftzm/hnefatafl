@@ -6,7 +6,7 @@ module Hnefatafl.SelfPlay.Runner (
 
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
-import Effectful.Concurrent.Async (async, cancel, waitEither)
+import Effectful.Concurrent.Async (async, cancel, wait, waitEither)
 import Effectful.Concurrent.STM (newTChanIO)
 import Effectful.Error.Static (Error)
 import Effectful.FileSystem (FileSystem)
@@ -57,7 +57,7 @@ runSelfPlayWithUI numActors version1 version2 stateDir startPositionsFile = do
       liftIO $ putStrLn "UI closed, stopping self-play..."
       cancel gameAsync
     Right () -> do
-      liftIO $ putStrLn "Self-play completed, closing UI..."
-      cancel uiAsync
+      liftIO $ putStrLn "Self-play completed, waiting for user to close UI..."
+      wait uiAsync
 
   liftIO $ putStrLn "Self-play with UI completed"

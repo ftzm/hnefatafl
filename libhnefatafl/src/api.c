@@ -363,7 +363,12 @@ void search_trusted(
 
   // Run iterative deepening search
   search_result result = search_runner_iterative_trusted(
-      board_state, 5, should_stop, is_black_turn, zobrist_hashes, hash_count);
+      board_state,
+      8,
+      should_stop,
+      is_black_turn,
+      zobrist_hashes,
+      hash_count);
 
   // Check statistics for early abortion
   if ((result.statistics.search_positions_black

@@ -137,7 +137,7 @@ selfPlayParser =
     <$> ( SelfPlayOptions
             <$> option
               auto
-              (long "actors" <> metavar "N" <> value 4 <> help "Number of parallel game actors")
+              (long "actors" <> metavar "N" <> value 1 <> help "Number of parallel game actors")
             <*> strOption
               ( long "state-dir"
                   <> metavar "DIR"

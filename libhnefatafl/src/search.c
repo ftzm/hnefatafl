@@ -742,9 +742,9 @@ i32 quiesce_black(
       // If there are escape paths then we set the best value to a losing score.
       // We can only raise the score by finding a move that does not result in
       // an escape.
-      best_value = MIN_SCORE;
+      // best_value = MIN_SCORE;
       delete_position(positions, position_index);
-      return MIN_SCORE + 10000;
+      return best_value - 1000000;
     }
 
     if (!layers_generated) {
@@ -1125,7 +1125,10 @@ i32 quiesce_white(
 
   if (single_move_escape) {
     delete_position(positions, position_index);
-    return MAX_SCORE;
+    return best_value + 3000000;
+  } else if (corner_move_count > 0) {
+    delete_position(positions, position_index);
+    return best_value + 1000000;
   }
 
   // iterate
@@ -1767,7 +1770,11 @@ search_result search_runner_iterative_generic(
 
     // Debug king position
     int king_pos = LOWEST_INDEX(b.king);
-    printf("King position index: %d (rank %d, file %d)\n", king_pos, RANK(king_pos), FILE(king_pos));
+    printf(
+        "King position index: %d (rank %d, file %d)\n",
+        king_pos,
+        RANK(king_pos),
+        FILE(king_pos));
     printf("king._[0]: %lu\n", b.king._[0]);
     printf("king._[1]: %lu\n", b.king._[1]);
     printf("king_effectively_escaped: %d\n", king_effectively_escaped(&b));
@@ -1975,7 +1982,8 @@ i32 search_black(
 
   // Debug: Check if we should have detected a victory
   if (king_effectively_escaped(&b)) {
-    printf("ERROR: King effectively escaped but white_victory returned false!\n");
+    printf(
+        "ERROR: King effectively escaped but white_victory returned false!\n");
     printf("king_effectively_escaped: %d\n", king_effectively_escaped(&b));
     printf("exit_fort: %d\n", exit_fort(&b));
     printf("white_victory: %d\n", white_victory(&b));
