@@ -301,7 +301,7 @@ runSelfPlayWithInterpreters numActors stateDir startPositionsFile = do
   result <- runEff $
     runErrorNoCallStack @Text $
       runConcurrent $ do
-        qsem <- newQSem 1 -- Allow up to 4 concurrent searches
+        qsem <- newQSem 40 -- Allow up to 4 concurrent searches
         runFileSystem $
           runLabeled @"new" (runSearchLocal qsem) $
             runLabeled @"old" (runSearchLocal qsem) $

@@ -37,7 +37,7 @@ runSelfPlayWithUI ::
   FilePath ->
   Eff es ()
 runSelfPlayWithUI numActors version1 version2 stateDir startPositionsFile = do
-  liftIO $ putStrLn "Starting self-play with UI..."
+  -- liftIO $ putStrLn "Starting self-play with UI..."
   let stateFilePath = stateDir </> getStateFileName version1 version2
   snapshot <- loadOrCreateStateSnapshot stateFilePath startPositionsFile
   eventChan <- newTChanIO
@@ -46,18 +46,27 @@ runSelfPlayWithUI numActors version1 version2 stateDir startPositionsFile = do
   uiAsync <- async $ runSelfPlayUI snapshot eventChan
 
   -- Start self-play execution
-  gameAsync <- async $ runSelfPlayParallel numActors version1 version2 stateDir startPositionsFile eventChan
+  gameAsync <-
+    async $
+      runSelfPlayParallel
+        numActors
+        version1
+        version2
+        stateDir
+        startPositionsFile
+        eventChan
 
   -- Wait for either to complete (UI can quit early)
-  liftIO $ putStrLn "Waiting for self-play or UI to complete..."
+  -- liftIO $ putStrLn "Waiting for self-play or UI to complete..."
   result <- waitEither uiAsync gameAsync
 
   case result of
     Left () -> do
-      liftIO $ putStrLn "UI closed, stopping self-play..."
+      -- liftIO $ putStrLn "UI closed, stopping self-play..."
       cancel gameAsync
     Right () -> do
-      liftIO $ putStrLn "Self-play completed, waiting for user to close UI..."
+      -- liftIO $ putStrLn "Self-play completed, waiting for user to close UI..."
       wait uiAsync
 
-  liftIO $ putStrLn "Self-play with UI completed"
+  -- liftIO $ putStrLn "Self-play with UI completed"
+  pure ()

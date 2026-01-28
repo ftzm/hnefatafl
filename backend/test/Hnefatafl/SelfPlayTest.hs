@@ -81,7 +81,8 @@ spec_round_trip_state_snapshot =
     it "should preserve data when converting state to snapshot and back" $ do
       let testGameDef1 =
             GameDefinition
-              { name = GameName "test-game-1"
+              { id = 0
+              , name = GameName "test-game-1"
               , notation = "a1-a2"
               , board = startBoard
               , blackToMove = True
@@ -91,7 +92,8 @@ spec_round_trip_state_snapshot =
               }
       let testGameDef2 =
             GameDefinition
-              { name = GameName "test-game-2"
+              { id = 1
+              , name = GameName "test-game-2"
               , notation = "b1-b2"
               , board = startBoard
               , blackToMove = False
@@ -131,7 +133,8 @@ spec_claim_next_game =
     it "should move game from unprocessed to in-progress as Claimed" $ do
       let testGameDef =
             GameDefinition
-              { name = GameName "test-game"
+              { id = 0
+              , name = GameName "test-game"
               , notation = "a1-a2"
               , board = startBoard
               , blackToMove = True
@@ -183,7 +186,8 @@ spec_complete_game =
     it "should move game from in-progress to completed" $ do
       let testGameDef =
             GameDefinition
-              { name = GameName "test-game"
+              { id = 0
+              , name = GameName "test-game"
               , notation = "a1-a2"
               , board = startBoard
               , blackToMove = True
@@ -220,7 +224,8 @@ spec_update_game_progress =
     it "should update Claimed game to Running with search result" $ do
       let testGameDef =
             GameDefinition
-              { name = GameName "test-game"
+              { id = 0
+              , name = GameName "test-game"
               , notation = "a1-a2"
               , board = startBoard
               , blackToMove = True
@@ -259,7 +264,8 @@ spec_update_game_progress =
     it "should update Running game with new search result" $ do
       let testGameDef =
             GameDefinition
-              { name = GameName "test-game"
+              { id = 0
+              , name = GameName "test-game"
               , notation = "a1-a2"
               , board = startBoard
               , blackToMove = True
@@ -313,12 +319,13 @@ createComplexLiveState gameNotation = do
       allResults = toList moveResults
 
       -- Helper to create GameDefinition at specific move count
-      makeGameDef :: GameName -> Int -> Bool -> GameDefinition
-      makeGameDef name moveCount newAsBlack =
+      makeGameDef :: Int -> GameName -> Int -> Bool -> GameDefinition
+      makeGameDef gameId name moveCount newAsBlack =
         if moveCount == 0
           then
             GameDefinition
-              { name = name
+              { id = gameId
+              , name = name
               , notation = gameNotation
               , board = startBoard
               , blackToMove = True
@@ -330,7 +337,8 @@ createComplexLiveState gameNotation = do
             let result = allResults !! (moveCount - 1) -- 0-indexed
                 hashes = map (.zobristHash) (take moveCount allResults)
              in GameDefinition
-                  { name = name
+                  { id = gameId
+                  , name = name
                   , notation = gameNotation
                   , board = result.board
                   , blackToMove = not result.wasBlackTurn
@@ -340,17 +348,17 @@ createComplexLiveState gameNotation = do
                   }
 
       -- Create 3 unprocessed games - all starting from initial position
-      unprocessedGame1 = makeGameDef (GameName "unprocessed-1") 0 True
-      unprocessedGame2 = makeGameDef (GameName "unprocessed-2") 0 False
-      unprocessedGame3 = makeGameDef (GameName "unprocessed-3") 0 True
+      unprocessedGame1 = makeGameDef 0 (GameName "unprocessed-1") 0 True
+      unprocessedGame2 = makeGameDef 1 (GameName "unprocessed-2") 0 False
+      unprocessedGame3 = makeGameDef 2 (GameName "unprocessed-3") 0 True
 
       -- Create 6 in-progress games at different actual positions in the game
-      claimedGameStart = makeGameDef (GameName "claimed-game-start") 0 True
-      claimedGame = makeGameDef (GameName "claimed-game") 5 False
-      claimedGame2 = makeGameDef (GameName "claimed-game-2") 7 True
-      runningGameDef = makeGameDef (GameName "running-game") 12 True
-      runningGame2Def = makeGameDef (GameName "running-game-2") 15 False
-      runningGame3Def = makeGameDef (GameName "running-game-3") 20 False
+      claimedGameStart = makeGameDef 3 (GameName "claimed-game-start") 0 True
+      claimedGame = makeGameDef 4 (GameName "claimed-game") 5 False
+      claimedGame2 = makeGameDef 5 (GameName "claimed-game-2") 7 True
+      runningGameDef = makeGameDef 6 (GameName "running-game") 12 True
+      runningGame2Def = makeGameDef 7 (GameName "running-game-2") 15 False
+      runningGame3Def = makeGameDef 8 (GameName "running-game-3") 20 False
 
       -- Get actual moves and captures for running games
       move12 = allResults !! 11 -- The actual 12th move
@@ -373,17 +381,17 @@ createComplexLiveState gameNotation = do
       winner = engineStatusToPlayer finalStatus
       completedGame1 =
         CompletedGame
-          { gameDefinition = makeGameDef (GameName "completed-1") finalMoveCount True
+          { gameDefinition = makeGameDef 9 (GameName "completed-1") finalMoveCount True
           , result = GameResult winner finalMoveCount
           }
       completedGame2 =
         CompletedGame
-          { gameDefinition = makeGameDef (GameName "completed-2") finalMoveCount False
+          { gameDefinition = makeGameDef 10 (GameName "completed-2") finalMoveCount False
           , result = GameResult winner finalMoveCount
           }
       completedGame3 =
         CompletedGame
-          { gameDefinition = makeGameDef (GameName "completed-3") finalMoveCount True
+          { gameDefinition = makeGameDef 11 (GameName "completed-3") finalMoveCount True
           , result = GameResult winner finalMoveCount
           }
 
@@ -686,7 +694,7 @@ spec_single_game_actor =
   isGameProgressed (GameProgressed _ _) = True
   isGameProgressed _ = False
 
-  isGameCompleted (GameCompleted _ _) = True
+  isGameCompleted (GameCompleted _ _ _) = True
   isGameCompleted _ = False
 
   -- Check that for each game, GameClaimed comes before GameCompleted
@@ -714,14 +722,14 @@ spec_single_game_actor =
   isGameEvent :: GameName -> StateUpdate -> Bool
   isGameEvent name (GameClaimed n _) = n == name
   isGameEvent name (GameProgressed n _) = n == name
-  isGameEvent name (GameCompleted n _) = n == name
+  isGameEvent name (GameCompleted n _ _) = n == name
 
   isClaimedForGame :: GameName -> StateUpdate -> Bool
   isClaimedForGame name (GameClaimed n _) = n == name
   isClaimedForGame _ _ = False
 
   isCompletedForGame :: GameName -> StateUpdate -> Bool
-  isCompletedForGame name (GameCompleted n _) = n == name
+  isCompletedForGame name (GameCompleted n _ _) = n == name
   isCompletedForGame _ _ = False
 
 -- | End-to-end test for parallel self-play

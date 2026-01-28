@@ -89,7 +89,8 @@ data GameResult = GameResult
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 data GameDefinition = GameDefinition
-  { name :: GameName
+  { id :: Int
+  , name :: GameName
   , notation :: Text
   , board :: ExternBoard
   , blackToMove :: Bool
@@ -101,6 +102,7 @@ data GameDefinition = GameDefinition
 
 instance FromJSON GameDefinition where
   parseJSON = withObject "GameDefinition" $ \o -> do
+    gameId <- o .: "id"
     name <- o .: "name"
     notation <- o .: "notation"
     board <- o .: "board"
@@ -109,7 +111,7 @@ instance FromJSON GameDefinition where
     hashes <- o .: "hashes"
     moveCount <- o .:? "moveCount" .!= 0
     pure $
-      GameDefinition name notation board blackToMove newAsBlack hashes moveCount
+      GameDefinition gameId name notation board blackToMove newAsBlack hashes moveCount
 
 data InProgressGame
   = Claimed GameDefinition
@@ -136,7 +138,7 @@ data GameMoveEvent = GameMoveEvent
 data StateUpdate
   = GameClaimed GameName GameDefinition
   | GameProgressed GameName GameMoveEvent
-  | GameCompleted GameName GameResult
+  | GameCompleted GameName GameDefinition GameResult
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 newtype GameName = GameName Text
@@ -202,7 +204,8 @@ loadStartPositions startPositionsFile = do
                     blackToMove = not movesResult.wasBlackTurn
                     mkGameDef newAsBlack =
                       GameDefinition
-                        { name = mkGameName i newAsBlack
+                        { id = i
+                        , name = mkGameName i newAsBlack
                         , notation = notation
                         , board = b
                         , blackToMove = blackToMove
@@ -358,10 +361,9 @@ completeGame name gameResult processingState eventChan = do
             Running def _ _ -> def
     for_
       gameDefinition
-      \def ->
+      \def -> do
         modifyTVar' processingState.completedGames (++ [CompletedGame def gameResult])
-
-  atomically $ writeTChan eventChan (GameCompleted name gameResult)
+        writeTChan eventChan (GameCompleted name def gameResult)
 
 getWinner :: EngineGameStatus -> Maybe Player
 getWinner = \case
@@ -431,7 +433,7 @@ beginGame gameDef processingState eventChan = do
   if (gameDef.blackToMove && gameDef.newAsBlack)
     || (not gameDef.blackToMove && not gameDef.newAsBlack)
     then do
-      liftIO $ putStrLn $ "Actor: playing as new@old for " <> show gameDef.name
+      -- liftIO $ putStrLn $ "Actor: playing as new@old for " <> show gameDef.name
       playGame @"new" @"old"
         gameDef.name
         processingState
@@ -441,7 +443,7 @@ beginGame gameDef processingState eventChan = do
         gameDef.blackToMove
         gameDef.hashes
     else do
-      liftIO $ putStrLn $ "Actor: playing as old@new for " <> show gameDef.name
+      -- liftIO $ putStrLn $ "Actor: playing as old@new for " <> show gameDef.name
       playGame @"old" @"new"
         gameDef.name
         processingState
@@ -461,22 +463,22 @@ gameActor ::
   TChan StateUpdate ->
   Eff es ()
 gameActor processingState eventChan = do
-  liftIO $ putStrLn "Actor: trying to claim game"
+  -- liftIO $ putStrLn "Actor: trying to claim game"
   maybeGame <- claimNextGame processingState eventChan
   case maybeGame of
     Nothing -> do
-      liftIO $ putStrLn "Actor: no games available, terminating"
+      -- liftIO $ putStrLn "Actor: no games available, terminating"
       pure () -- No more games to process
     Just gameDef -> do
-      liftIO $
-        putStrLn $
-          "Actor: claimed game " <> show gameDef.name <> ", starting play"
+      -- liftIO $
+      --   putStrLn $
+      --     "Actor: claimed game " <> show gameDef.name <> ", starting play"
       result <- beginGame gameDef processingState eventChan
-      liftIO $
-        putStrLn $
-          "Actor: game " <> show gameDef.name <> " finished, completing"
+      -- liftIO $
+      --   putStrLn $
+      --     "Actor: game " <> show gameDef.name <> " finished, completing"
       completeGame gameDef.name result processingState eventChan
-      liftIO $ putStrLn $ "Actor: game " <> show gameDef.name <> " completed, looping"
+      -- liftIO $ putStrLn $ "Actor: game " <> show gameDef.name <> " completed, looping"
       gameActor processingState eventChan
 
 -- | Actor that periodically takes snapshots and saves them to disk
@@ -486,8 +488,8 @@ snapshotTimerActor ::
   ProcessingState ->
   Eff es ()
 snapshotTimerActor stateFilePath processingState = do
-  liftIO $
-    putStrLn "Snapshot timer: starting snapshot timer (10 second intervals)"
+  -- liftIO $
+  --   putStrLn "Snapshot timer: starting snapshot timer (10 second intervals)"
   snapshotLoop
  where
   snapshotLoop = do

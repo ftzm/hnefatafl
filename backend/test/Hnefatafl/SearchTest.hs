@@ -24,7 +24,7 @@ spec_successful_completion =
       let board = startBoard
       let isBlackTurn = True
       let zobristHashes = [] :: [Word64]
-      let timeout = SearchTimeout 10000 -- 10 seconds, should be plenty
+      let timeout = SearchTimeout 100
       result <- searchWithTimeout board isBlackTurn zobristHashes timeout
 
       -- Verify we got meaningful results

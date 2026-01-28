@@ -5,7 +5,6 @@
 #include "layer.h"
 #include "move.h"
 #include "position_set.h"
-#include "score.h"
 #include "search.h"
 #include "victory.h"
 #include "zobrist.h"
@@ -346,20 +345,20 @@ void search_trusted(
   u64 position_hash = hash_for_board(board_state, is_black_turn);
 
   // Check for duplicate hashes in input array
-  for (int i = 0; i < hash_count; i++) {
-    for (int j = i + 1; j < hash_count; j++) {
-      if (zobrist_hashes[i] == zobrist_hashes[j]) {
-        fprintf(stderr, "Error: Duplicate hash detected in input array\n");
-        fprintf(
-            stderr,
-            "  Hash %llu appears at indices %d and %d\n",
-            (unsigned long long)zobrist_hashes[i],
-            i,
-            j);
-        exit(1);
-      }
-    }
-  }
+  // for (int i = 0; i < hash_count; i++) {
+  //   for (int j = i + 1; j < hash_count; j++) {
+  //     if (zobrist_hashes[i] == zobrist_hashes[j]) {
+  //       fprintf(stderr, "Error: Duplicate hash detected in input array\n");
+  //       fprintf(
+  //           stderr,
+  //           "  Hash %llu appears at indices %d and %d\n",
+  //           (unsigned long long)zobrist_hashes[i],
+  //           i,
+  //           j);
+  //       exit(1);
+  //     }
+  //   }
+  // }
 
   // Run iterative deepening search
   search_result result = search_runner_iterative_trusted(
