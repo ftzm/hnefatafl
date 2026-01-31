@@ -31,18 +31,22 @@ import Hnefatafl.Interpreter.Search.Test (TestSearchConfig (..), runSearchTest)
 import Hnefatafl.SelfPlay (
   CompletedGame (..),
   GameDefinition (..),
-  GameName (..),
+  GameKey,
+  GameProgress (..),
   GameResult (..),
+  GameSetup (..),
   InProgressGame (..),
   Player (..),
   ProcessingState (..),
   ProcessingStateSnapshot (..),
   StateUpdate (..),
+  StateUpdatePayload (..),
   VersionId (..),
   beginGame,
   claimNextGame,
   completeGame,
   gameActor,
+  gameSetupKey,
   loadOrCreateStateSnapshot,
   mkProcessingState,
   runSelfPlayParallel,
@@ -61,7 +65,7 @@ import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 -- | Utility function to create ProcessingState directly from components
 mkProcessingStateFromComponents ::
   [GameDefinition] ->
-  Map GameName InProgressGame ->
+  Map GameKey InProgressGame ->
   [CompletedGame] ->
   STM ProcessingState
 mkProcessingStateFromComponents unprocessed inProgress completed = do
@@ -70,8 +74,8 @@ mkProcessingStateFromComponents unprocessed inProgress completed = do
   completedVar <- newTVar completed
 
   -- Populate in-progress map
-  forM_ (Map.toList inProgress) $ \(name, game) -> do
-    STMMap.insert game name inProgressMap
+  forM_ (Map.toList inProgress) $ \(key, game) -> do
+    STMMap.insert game key inProgressMap
 
   pure $ ProcessingState unprocessedVar inProgressMap completedVar
 
@@ -81,29 +85,48 @@ spec_round_trip_state_snapshot =
     it "should preserve data when converting state to snapshot and back" $ do
       let testGameDef1 =
             GameDefinition
-              { id = 0
-              , name = GameName "test-game-1"
-              , notation = "a1-a2"
-              , board = startBoard
-              , blackToMove = True
-              , newAsBlack = True
-              , hashes = []
-              , moveCount = 0
+              { setup =
+                  GameSetup
+                    { id = 0
+                    , setupNotation = "a1-a2"
+                    , startingBoard = startBoard
+                    , startingBlackToMove = True
+                    , newAsBlack = True
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = True
+                    , currentHashes = []
+                    , moveCount = 0
+                    , selfPlayMoves = []
+                    }
               }
       let testGameDef2 =
             GameDefinition
-              { id = 1
-              , name = GameName "test-game-2"
-              , notation = "b1-b2"
-              , board = startBoard
-              , blackToMove = False
-              , newAsBlack = False
-              , hashes = []
-              , moveCount = 0
+              { setup =
+                  GameSetup
+                    { id = 1
+                    , setupNotation = "b1-b2"
+                    , startingBoard = startBoard
+                    , startingBlackToMove = False
+                    , newAsBlack = False
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = False
+                    , currentHashes = []
+                    , moveCount = 0
+                    , selfPlayMoves = []
+                    }
               }
       let testCompletedGame =
             CompletedGame
-              { gameDefinition = testGameDef2
+              { setup = testGameDef2.setup
+              , moves = []
               , result = GameResult{winner = Black, moves = 42}
               }
 
@@ -133,14 +156,23 @@ spec_claim_next_game =
     it "should move game from unprocessed to in-progress as Claimed" $ do
       let testGameDef =
             GameDefinition
-              { id = 0
-              , name = GameName "test-game"
-              , notation = "a1-a2"
-              , board = startBoard
-              , blackToMove = True
-              , newAsBlack = True
-              , hashes = []
-              , moveCount = 0
+              { setup =
+                  GameSetup
+                    { id = 0
+                    , setupNotation = "a1-a2"
+                    , startingBoard = startBoard
+                    , startingBlackToMove = True
+                    , newAsBlack = True
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = True
+                    , currentHashes = []
+                    , moveCount = 0
+                    , selfPlayMoves = []
+                    }
               }
       let initialSnapshot =
             ProcessingStateSnapshot
@@ -186,14 +218,23 @@ spec_complete_game =
     it "should move game from in-progress to completed" $ do
       let testGameDef =
             GameDefinition
-              { id = 0
-              , name = GameName "test-game"
-              , notation = "a1-a2"
-              , board = startBoard
-              , blackToMove = True
-              , newAsBlack = True
-              , hashes = []
-              , moveCount = 0
+              { setup =
+                  GameSetup
+                    { id = 0
+                    , setupNotation = "a1-a2"
+                    , startingBoard = startBoard
+                    , startingBlackToMove = True
+                    , newAsBlack = True
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = True
+                    , currentHashes = []
+                    , moveCount = 0
+                    , selfPlayMoves = []
+                    }
               }
       let testResult = GameResult{winner = Black, moves = 42}
       finalSnapshot <- runEff $
@@ -204,14 +245,15 @@ spec_complete_game =
               atomically $
                 mkProcessingStateFromComponents
                   [] -- no unprocessed games
-                  (Map.singleton (GameName "test-game") (Claimed testGameDef)) -- game already claimed
+                  (Map.singleton (gameSetupKey testGameDef.setup) (Claimed testGameDef)) -- game already claimed
                   [] -- no completed games yet
-            completeGame (GameName "test-game") testResult procState eventChan
+            completeGame (gameSetupKey testGameDef.setup) testResult procState eventChan
             atomically $ takeSnapshot procState
 
       let expectedCompletedGame =
             CompletedGame
-              { gameDefinition = testGameDef
+              { setup = testGameDef.setup
+              , moves = []
               , result = testResult
               }
 
@@ -224,14 +266,23 @@ spec_update_game_progress =
     it "should update Claimed game to Running with search result" $ do
       let testGameDef =
             GameDefinition
-              { id = 0
-              , name = GameName "test-game"
-              , notation = "a1-a2"
-              , board = startBoard
-              , blackToMove = True
-              , newAsBlack = True
-              , hashes = []
-              , moveCount = 0
+              { setup =
+                  GameSetup
+                    { id = 0
+                    , setupNotation = "a1-a2"
+                    , startingBoard = startBoard
+                    , startingBlackToMove = True
+                    , newAsBlack = True
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = True
+                    , currentHashes = []
+                    , moveCount = 0
+                    , selfPlayMoves = []
+                    }
               }
       let searchResult =
             SearchTrustedResult
@@ -249,29 +300,42 @@ spec_update_game_progress =
               atomically $
                 mkProcessingStateFromComponents
                   [] -- no unprocessed games
-                  (Map.singleton (GameName "test-game") (Claimed testGameDef)) -- game already claimed
+                  (Map.singleton (gameSetupKey testGameDef.setup) (Claimed testGameDef)) -- game already claimed
                   [] -- no completed games
-            updateGameProgress (GameName "test-game") searchResult True procState eventChan
+            updateGameProgress (gameSetupKey testGameDef.setup) searchResult True procState eventChan
             atomically $ takeSnapshot procState
 
       let expectedGameDef =
             testGameDef
-              { moveCount = 1
-              , blackToMove = not testGameDef.blackToMove -- turn flipped after move
-              , hashes = [12345] -- hash added from search result
+              { progress =
+                  testGameDef.progress
+                    { moveCount = 1
+                    , currentBlackToMove = not testGameDef.progress.currentBlackToMove -- turn flipped after move
+                    , currentHashes = [12345] -- hash added from search result
+                    , selfPlayMoves = [Move 0 1] -- move added to history
+                    }
               }
       finalSnapshot.unprocessedGames `shouldBe` [expectedGameDef] -- game converted back with updated state
     it "should update Running game with new search result" $ do
       let testGameDef =
             GameDefinition
-              { id = 0
-              , name = GameName "test-game"
-              , notation = "a1-a2"
-              , board = startBoard
-              , blackToMove = True
-              , newAsBlack = True
-              , hashes = []
-              , moveCount = 0
+              { setup =
+                  GameSetup
+                    { id = 0
+                    , setupNotation = "a1-a2"
+                    , startingBoard = startBoard
+                    , startingBlackToMove = True
+                    , newAsBlack = True
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = True
+                    , currentHashes = []
+                    , moveCount = 0
+                    , selfPlayMoves = []
+                    }
               }
       let newResult =
             SearchTrustedResult
@@ -283,9 +347,13 @@ spec_update_game_progress =
               }
       let currentGameDef =
             testGameDef
-              { moveCount = 1
-              , blackToMove = not testGameDef.blackToMove
-              , hashes = [12345] -- already has the hash from first move
+              { progress =
+                  testGameDef.progress
+                    { moveCount = 1
+                    , currentBlackToMove = not testGameDef.progress.currentBlackToMove
+                    , currentHashes = [12345] -- already has the hash from first move
+                    , selfPlayMoves = [Move 0 1] -- first move already made
+                    }
               }
       finalSnapshot <- runEff $
         runFileSystem $
@@ -296,18 +364,22 @@ spec_update_game_progress =
                 mkProcessingStateFromComponents
                   [] -- no unprocessed games
                   ( Map.singleton
-                      (GameName "test-game")
+                      (gameSetupKey currentGameDef.setup)
                       (Running currentGameDef (Move 0 1) (Layer 0 0)) -- game already running
                   )
                   [] -- no completed games
-            updateGameProgress (GameName "test-game") newResult False procState eventChan
+            updateGameProgress (gameSetupKey currentGameDef.setup) newResult False procState eventChan
             atomically $ takeSnapshot procState
 
       let expectedGameDef =
             testGameDef
-              { moveCount = 2
-              , blackToMove = testGameDef.blackToMove -- flipped back after second move (True -> False -> True)
-              , hashes = [67890, 12345] -- both hashes added, newest first
+              { progress =
+                  testGameDef.progress
+                    { moveCount = 2
+                    , currentBlackToMove = testGameDef.progress.currentBlackToMove -- flipped back after second move (True -> False -> True)
+                    , currentHashes = [67890, 12345] -- both hashes added, newest first
+                    , selfPlayMoves = [Move 0 1, Move 1 2] -- both moves accumulated
+                    }
               }
       finalSnapshot.unprocessedGames `shouldBe` [expectedGameDef] -- game converted back with updated state
 
@@ -319,46 +391,64 @@ createComplexLiveState gameNotation = do
       allResults = toList moveResults
 
       -- Helper to create GameDefinition at specific move count
-      makeGameDef :: Int -> GameName -> Int -> Bool -> GameDefinition
-      makeGameDef gameId name moveCount newAsBlack =
+      makeGameDef :: Int -> Int -> Bool -> GameDefinition
+      makeGameDef gameId moveCount newAsBlack =
         if moveCount == 0
           then
             GameDefinition
-              { id = gameId
-              , name = name
-              , notation = gameNotation
-              , board = startBoard
-              , blackToMove = True
-              , newAsBlack = newAsBlack
-              , hashes = []
-              , moveCount = 0
+              { setup =
+                  GameSetup
+                    { id = gameId
+                    , setupNotation = gameNotation
+                    , startingBoard = startBoard
+                    , startingBlackToMove = True
+                    , newAsBlack = newAsBlack
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = True
+                    , currentHashes = []
+                    , moveCount = 0
+                    , selfPlayMoves = []
+                    }
               }
           else
             let result = allResults !! (moveCount - 1) -- 0-indexed
                 hashes = map (.zobristHash) (take moveCount allResults)
              in GameDefinition
-                  { id = gameId
-                  , name = name
-                  , notation = gameNotation
-                  , board = result.board
-                  , blackToMove = not result.wasBlackTurn
-                  , newAsBlack = newAsBlack
-                  , hashes = hashes
-                  , moveCount = moveCount
+                  { setup =
+                      GameSetup
+                        { id = gameId
+                        , setupNotation = gameNotation
+                        , startingBoard = startBoard
+                        , startingBlackToMove = True
+                        , newAsBlack = newAsBlack
+                        , startingHashes = []
+                        }
+                  , progress =
+                      GameProgress
+                        { currentBoard = result.board
+                        , currentBlackToMove = not result.wasBlackTurn
+                        , currentHashes = hashes
+                        , moveCount = moveCount
+                        , selfPlayMoves = []
+                        }
                   }
 
       -- Create 3 unprocessed games - all starting from initial position
-      unprocessedGame1 = makeGameDef 0 (GameName "unprocessed-1") 0 True
-      unprocessedGame2 = makeGameDef 1 (GameName "unprocessed-2") 0 False
-      unprocessedGame3 = makeGameDef 2 (GameName "unprocessed-3") 0 True
+      unprocessedGame1 = makeGameDef 0 0 True
+      unprocessedGame2 = makeGameDef 1 0 False
+      unprocessedGame3 = makeGameDef 2 0 True
 
       -- Create 6 in-progress games at different actual positions in the game
-      claimedGameStart = makeGameDef 3 (GameName "claimed-game-start") 0 True
-      claimedGame = makeGameDef 4 (GameName "claimed-game") 5 False
-      claimedGame2 = makeGameDef 5 (GameName "claimed-game-2") 7 True
-      runningGameDef = makeGameDef 6 (GameName "running-game") 12 True
-      runningGame2Def = makeGameDef 7 (GameName "running-game-2") 15 False
-      runningGame3Def = makeGameDef 8 (GameName "running-game-3") 20 False
+      claimedGameStart = makeGameDef 3 0 True
+      claimedGame = makeGameDef 4 5 False
+      claimedGame2 = makeGameDef 5 7 True
+      runningGameDef = makeGameDef 6 12 True
+      runningGame2Def = makeGameDef 7 15 False
+      runningGame3Def = makeGameDef 8 20 False
 
       -- Get actual moves and captures for running games
       move12 = allResults !! 11 -- The actual 12th move
@@ -381,29 +471,32 @@ createComplexLiveState gameNotation = do
       winner = engineStatusToPlayer finalStatus
       completedGame1 =
         CompletedGame
-          { gameDefinition = makeGameDef 9 (GameName "completed-1") finalMoveCount True
+          { setup = (makeGameDef 9 finalMoveCount True).setup
+          , moves = []
           , result = GameResult winner finalMoveCount
           }
       completedGame2 =
         CompletedGame
-          { gameDefinition = makeGameDef 10 (GameName "completed-2") finalMoveCount False
+          { setup = (makeGameDef 10 finalMoveCount False).setup
+          , moves = []
           , result = GameResult winner finalMoveCount
           }
       completedGame3 =
         CompletedGame
-          { gameDefinition = makeGameDef 11 (GameName "completed-3") finalMoveCount True
+          { setup = (makeGameDef 11 finalMoveCount True).setup
+          , moves = []
           , result = GameResult winner finalMoveCount
           }
 
       -- Use REAL moves and captures from the actual game
       inProgressGames =
         Map.fromList
-          [ (GameName "claimed-game-start", Claimed claimedGameStart)
-          , (GameName "claimed-game", Claimed claimedGame)
-          , (GameName "claimed-game-2", Claimed claimedGame2)
-          , (GameName "running-game", Running runningGameDef move12.move move12.captures)
-          , (GameName "running-game-2", Running runningGame2Def move15.move move15.captures)
-          , (GameName "running-game-3", Running runningGame3Def move20.move move20.captures)
+          [ (gameSetupKey claimedGameStart.setup, Claimed claimedGameStart)
+          , (gameSetupKey claimedGame.setup, Claimed claimedGame)
+          , (gameSetupKey claimedGame2.setup, Claimed claimedGame2)
+          , (gameSetupKey runningGameDef.setup, Running runningGameDef move12.move move12.captures)
+          , (gameSetupKey runningGame2Def.setup, Running runningGame2Def move15.move move15.captures)
+          , (gameSetupKey runningGame3Def.setup, Running runningGame3Def move20.move move20.captures)
           ]
 
   pure $
@@ -448,7 +541,7 @@ runAllGamesToCompletion processingState = do
   inProgressGames <- atomically $ getAllInProgressGames processingState
   for_ inProgressGames $ \gameDef -> do
     result <- beginGame gameDef processingState eventChan
-    completeGame gameDef.name result processingState eventChan
+    completeGame (gameSetupKey gameDef.setup) result processingState eventChan
 
   -- Then process any remaining unprocessed games using the standard gameActor
   gameActor processingState eventChan
@@ -486,7 +579,7 @@ compareEventSequences directEvents restoredEvents =
       allExtraAreGameClaimed = all isGameClaimed extraInRestored
    in noMissingEvents && allExtraAreGameClaimed
  where
-  isGameClaimed (GameClaimed _ _) = True
+  isGameClaimed (StateUpdate _ (GameClaimed _)) = True
   isGameClaimed _ = False
 
 -- | Round trip test: verify that snapshot serialization preserves all state
@@ -688,48 +781,46 @@ spec_single_game_actor =
           -- All events should be in logical order (claimed before completed for each game)
           events `shouldSatisfy` eventsInLogicalOrder
  where
-  isGameClaimed (GameClaimed _ _) = True
+  isGameClaimed (StateUpdate _ (GameClaimed _)) = True
   isGameClaimed _ = False
 
-  isGameProgressed (GameProgressed _ _) = True
+  isGameProgressed (StateUpdate _ (GameProgressed _)) = True
   isGameProgressed _ = False
 
-  isGameCompleted (GameCompleted _ _ _) = True
+  isGameCompleted (StateUpdate _ (GameCompleted _ _ _)) = True
   isGameCompleted _ = False
 
   -- Check that for each game, GameClaimed comes before GameCompleted
   eventsInLogicalOrder :: [StateUpdate] -> Bool
   eventsInLogicalOrder events =
-    let gameNames = getAllGameNames events
-     in all (gameEventsInOrder events) gameNames
+    let gameKeys = getAllGameKeys events
+     in all (gameEventsInOrder events) gameKeys
 
-  getAllGameNames :: [StateUpdate] -> [GameName]
-  getAllGameNames events = ordNub [name | GameClaimed name _ <- events]
+  getAllGameKeys :: [StateUpdate] -> [GameKey]
+  getAllGameKeys events = ordNub [key | StateUpdate key (GameClaimed _) <- events]
 
-  gameEventsInOrder :: [StateUpdate] -> GameName -> Bool
-  gameEventsInOrder events gameName =
-    let gameEvents = filter (isGameEvent gameName) events
-        hasClaimed = any (isClaimedForGame gameName) gameEvents
-        hasCompleted = any (isCompletedForGame gameName) gameEvents
-        claimedIndex = findIndex (isClaimedForGame gameName) gameEvents
-        completedIndex = findIndex (isCompletedForGame gameName) gameEvents
+  gameEventsInOrder :: [StateUpdate] -> GameKey -> Bool
+  gameEventsInOrder events gameKey =
+    let gameEvents = filter (isGameEvent gameKey) events
+        hasClaimed = any (isClaimedForGame gameKey) gameEvents
+        hasCompleted = any (isCompletedForGame gameKey) gameEvents
+        claimedIndex = findIndex (isClaimedForGame gameKey) gameEvents
+        completedIndex = findIndex (isCompletedForGame gameKey) gameEvents
      in hasClaimed
           && hasCompleted
           && case (claimedIndex, completedIndex) of
             (Just ci, Just coi) -> ci < coi
             _ -> False
 
-  isGameEvent :: GameName -> StateUpdate -> Bool
-  isGameEvent name (GameClaimed n _) = n == name
-  isGameEvent name (GameProgressed n _) = n == name
-  isGameEvent name (GameCompleted n _ _) = n == name
+  isGameEvent :: GameKey -> StateUpdate -> Bool
+  isGameEvent key (StateUpdate k _) = k == key
 
-  isClaimedForGame :: GameName -> StateUpdate -> Bool
-  isClaimedForGame name (GameClaimed n _) = n == name
+  isClaimedForGame :: GameKey -> StateUpdate -> Bool
+  isClaimedForGame key (StateUpdate k (GameClaimed _)) = k == key
   isClaimedForGame _ _ = False
 
-  isCompletedForGame :: GameName -> StateUpdate -> Bool
-  isCompletedForGame name (GameCompleted n _ _) = n == name
+  isCompletedForGame :: GameKey -> StateUpdate -> Bool
+  isCompletedForGame key (StateUpdate k (GameCompleted _ _ _)) = k == key
   isCompletedForGame _ _ = False
 
 -- | End-to-end test for parallel self-play

@@ -30,6 +30,7 @@ import Brick.AttrMap (attrMap)
 import Brick.BChan (BChan, newBChan, writeBChan)
 import Brick.Main (halt)
 import Brick.Types (Context (..), Size (..), getContext)
+import Brick.Widgets.Border (hBorder)
 import Brick.Widgets.Center (center)
 import Brick.Widgets.Core (Padding (..))
 import Data.List.Split (chunksOf)
@@ -45,13 +46,15 @@ import Hnefatafl.Board (formatMoveResult)
 import Hnefatafl.Core.Data (MoveResult (..))
 import Hnefatafl.SelfPlay (
   CompletedGame (..),
-  GameDefinition (..),
-  GameName (..),
+  GameKey,
+  GameSetup (..),
   GameResult (..),
   Player (..),
   ProcessingStateSnapshot (..),
   StateUpdate (..),
+  StateUpdatePayload (..),
   gameMoveEventToMoveResult,
+  mkGameName,
  )
 import Optics ((%~))
 import Optics.State.Operators ((%=))
@@ -77,7 +80,7 @@ data UIState = UIState
   { totalGames :: Int
   , completedGames :: Int
   , recentEvents :: [StateUpdate]
-  , ongoingGames :: Map GameName MoveResult
+  , ongoingGames :: Map GameKey MoveResult
   , processingComplete :: Bool
   , scoreState :: ScoreState
   }
@@ -106,10 +109,10 @@ newEngineWon :: Bool -> Player -> Bool
 newEngineWon newAsBlack winner = newAsBlack == (winner == Black)
 
 -- | Process a matched pair and update the score state
-processPair :: GameDefinition -> GameResult -> GameResult -> ScoreState -> ScoreState
-processPair gameDef gameResult partnerResult scoreState =
-  let newWonCurrent = newEngineWon gameDef.newAsBlack gameResult.winner
-      newWonPartner = newEngineWon (not gameDef.newAsBlack) partnerResult.winner
+processPair :: GameSetup -> GameResult -> GameResult -> ScoreState -> ScoreState
+processPair setup gameResult partnerResult scoreState =
+  let newWonCurrent = newEngineWon setup.newAsBlack gameResult.winner
+      newWonPartner = newEngineWon (not setup.newAsBlack) partnerResult.winner
    in case (newWonCurrent, newWonPartner) of
         (True, True) ->
           scoreState & #newPairWins %~ (+ 1)
@@ -129,14 +132,14 @@ processPair gameDef gameResult partnerResult scoreState =
 updateScoreState :: StateUpdate -> ScoreState -> ScoreState
 updateScoreState stateUpdate scoreState =
   case stateUpdate of
-    GameCompleted _gameName gameDef gameResult ->
-      let gameId = gameDef.id
+    StateUpdate _key (GameCompleted setup _moves gameResult) ->
+      let gameId = setup.id
        in case lookup gameId scoreState.unpaired of
             Nothing ->
               scoreState & #unpaired %~ insert gameId gameResult
             Just partnerResult ->
               let scoreState' = scoreState & #unpaired %~ delete gameId
-               in processPair gameDef gameResult partnerResult scoreState'
+               in processPair setup gameResult partnerResult scoreState'
     _ -> scoreState
 
 -- | Build initial ScoreState from completed games
@@ -153,14 +156,14 @@ mkInitialScoreState completedGames =
       , oldPairWins = 0
       }
 
-  processCompletedGame scoreState (CompletedGame gameDef gameResult) =
-    let gameId = gameDef.id
+  processCompletedGame scoreState (CompletedGame setup _moves gameResult) =
+    let gameId = setup.id
      in case lookup gameId scoreState.unpaired of
           Nothing ->
             scoreState & #unpaired %~ insert gameId gameResult
           Just partnerResult ->
             let scoreState' = scoreState & #unpaired %~ delete gameId
-             in processPair gameDef gameResult partnerResult scoreState'
+             in processPair setup gameResult partnerResult scoreState'
 
 -- | Format the score display: "4W-0L-2T (+8, 2 unpaired)"
 formatScore :: ScoreState -> Text
@@ -219,13 +222,13 @@ handleEvent = \case
     #recentEvents %= addEvent stateUpdate
     -- Update ongoing games and completed counter
     case stateUpdate of
-      GameClaimed _ _ -> pure () -- Game started, but no moves yet
-      GameProgressed gameName moveEvent -> do
+      StateUpdate _key (GameClaimed _setup) -> pure () -- Game started, but no moves yet
+      StateUpdate key (GameProgressed moveEvent) -> do
         let moveResult = gameMoveEventToMoveResult moveEvent
-        #ongoingGames %= insert gameName moveResult
-      GameCompleted gameName _ _ -> do
+        #ongoingGames %= insert key moveResult
+      StateUpdate key (GameCompleted _setup _moves _result) -> do
         #completedGames %= (+ 1)
-        #ongoingGames %= delete gameName
+        #ongoingGames %= delete key
         #scoreState %= updateScoreState stateUpdate
         -- Check if all games are completed
         s <- get
@@ -243,6 +246,7 @@ drawUI appState = [ui]
   ui =
     vBox
       [ statusWidget
+      , hBorder
       , padBottom Max boardsWidget
       ]
 
@@ -271,58 +275,64 @@ drawUI appState = [ui]
   boardWidth = 40 -- board width
   boardHeight = 15 -- 1 title line + 14 board lines (13 board + 1 blank from formatMoveResult)
 
-  renderBoardGrid :: [(GameName, MoveResult)] -> Widget ()
-  renderBoardGrid games = Widget Fixed Fixed $ do
-    -- Get available terminal space
+  -- | Render items in a grid with evenly distributed spacing
+  paddedGrid ::
+    Int -> -- item width
+    Int -> -- item height
+    [a] -> -- items to render
+    (a -> Widget ()) -> -- render function for each item
+    Widget ()
+  paddedGrid itemWidth itemHeight items renderItem = Widget Fixed Fixed $ do
     ctx <- getContext
-    let termWidth = ctx.availWidth
-        termHeight = ctx.availHeight
-        availableHeight = termHeight - 2 -- Account for status line
+    let availWidth = ctx.availWidth
+        availHeight = ctx.availHeight
 
-        -- Calculate how many boards fit
-        -- Start with 1 board per row and increase while they fit
-        calculateBoardsPerRow :: Int -> Int
-        calculateBoardsPerRow n =
-          let widthForBoards = n * boardWidth
-              minSpacing = n + 1  -- minimum 1 char spacing
-              required = widthForBoards + minSpacing
-           in if required <= termWidth && n < length games
-                then calculateBoardsPerRow (n + 1)
+        -- Calculate how many items fit per row
+        calculateItemsPerRow :: Int -> Int
+        calculateItemsPerRow n =
+          let widthForItems = n * itemWidth
+              minSpacing = n + 1 -- minimum 1 char spacing
+              required = widthForItems + minSpacing
+           in if required <= availWidth && n < length items
+                then calculateItemsPerRow (n + 1)
                 else n - 1
 
-        boardsPerRow = max 1 (calculateBoardsPerRow 1)
+        itemsPerRow = max 1 (calculateItemsPerRow 1)
 
-        -- Calculate spacing
-        totalBoardWidth = boardsPerRow * boardWidth
-        remainingWidth = termWidth - totalBoardWidth
-        hSpacing = max 1 (remainingWidth `div` (boardsPerRow + 1))
+        -- Calculate horizontal spacing
+        totalItemWidth = itemsPerRow * itemWidth
+        remainingWidth = availWidth - totalItemWidth
+        hSpacing = max 1 (remainingWidth `div` (itemsPerRow + 1))
 
         -- Calculate vertical layout
-        rowsToShow = max 1 (availableHeight `div` (boardHeight + 1))
-        totalBoardHeight = rowsToShow * boardHeight
-        remainingHeight = availableHeight - totalBoardHeight
+        rowsToShow = max 1 (availHeight `div` (itemHeight + 1))
+        totalItemHeight = rowsToShow * itemHeight
+        remainingHeight = availHeight - totalItemHeight
         vSpacing = max 1 (remainingHeight `div` (rowsToShow + 1))
 
-        displayGames = take (boardsPerRow * rowsToShow) games
-        groupedGames = chunksOf boardsPerRow displayGames
-
-        renderSingleBoard :: (GameName, MoveResult) -> Widget ()
-        renderSingleBoard (GameName name, moveResult) =
-          hLimit boardWidth $
-            vLimit boardHeight $
-              vBox
-                [ txt name
-                , txt $ formatMoveResult moveResult
-                ]
+        displayItems = take (itemsPerRow * rowsToShow) items
+        groupedItems = chunksOf itemsPerRow displayItems
 
         hSpacer = hLimit hSpacing $ fill ' '
         vSpacer = vLimit vSpacing $ fill ' '
 
-        renderRow :: [(GameName, MoveResult)] -> Widget ()
-        renderRow rowGames =
-          hBox $ hSpacer : intersperse hSpacer (map renderSingleBoard rowGames) ++ [hSpacer]
+        renderRow rowItems =
+          hBox $ hSpacer : intersperse hSpacer (map renderItem rowItems) ++ [hSpacer]
 
-    render $ vBox $ vSpacer : intersperse vSpacer (map renderRow groupedGames) ++ [vSpacer]
+    render $ vBox $ vSpacer : intersperse vSpacer (map renderRow groupedItems) ++ [vSpacer]
+
+  renderBoard :: (GameKey, MoveResult) -> Widget ()
+  renderBoard (key, moveResult) =
+    let name = mkGameName key
+     in hLimit boardWidth $
+          vLimit boardHeight $
+            vBox
+              [ txt name
+              , txt $ formatMoveResult moveResult
+              ]
+
+  renderBoardGrid :: [(GameKey, MoveResult)] -> Widget ()
+  renderBoardGrid games = paddedGrid boardWidth boardHeight games renderBoard
 
 -- | Brick application configuration
 app :: App UIState UIEvent ()

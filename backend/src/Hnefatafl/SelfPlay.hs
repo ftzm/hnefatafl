@@ -6,15 +6,20 @@
 module Hnefatafl.SelfPlay (
   Player (..),
   GameResult (..),
+  GameKey,
+  GameSetup (..),
+  GameProgress (..),
   GameDefinition (..),
   InProgressGame (..),
   CompletedGame (..),
   GameMoveEvent (..),
   StateUpdate (..),
-  GameName (..),
+  StateUpdatePayload (..),
   ProcessingState (..),
   ProcessingStateSnapshot (..),
   VersionId (..),
+  mkGameName,
+  gameSetupKey,
   searchResultToGameMoveEvent,
   gameMoveEventToMoveResult,
   beginGame,
@@ -35,14 +40,8 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM (stateTVar)
 import Data.Aeson (
   FromJSON (..),
-  FromJSONKey,
   ToJSON,
-  ToJSONKey,
   eitherDecodeStrict,
-  withObject,
-  (.!=),
-  (.:),
-  (.:?),
  )
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy qualified as BSL
@@ -73,6 +72,7 @@ import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Search (SearchTimeout (..))
 import Hnefatafl.Serialization (parseMoveList)
 import ListT qualified
+import Optics ((%~))
 import StmContainers.Map qualified as STMMap
 
 -- import System.Exit (ExitCode (..))
@@ -88,30 +88,45 @@ data GameResult = GameResult
   }
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
-data GameDefinition = GameDefinition
-  { id :: Int
-  , name :: GameName
-  , notation :: Text
-  , board :: ExternBoard
-  , blackToMove :: Bool
-  , newAsBlack :: Bool
-  , hashes :: [Word64]
-  , moveCount :: Int
-  }
-  deriving (Show, Read, Eq, Ord, Generic, ToJSON)
+-- Key type for identifying games
+type GameKey = (Int, Bool) -- (id, newAsBlack)
 
-instance FromJSON GameDefinition where
-  parseJSON = withObject "GameDefinition" $ \o -> do
-    gameId <- o .: "id"
-    name <- o .: "name"
-    notation <- o .: "notation"
-    board <- o .: "board"
-    blackToMove <- o .: "blackToMove"
-    newAsBlack <- o .: "newAsBlack"
-    hashes <- o .: "hashes"
-    moveCount <- o .:? "moveCount" .!= 0
-    pure $
-      GameDefinition gameId name notation board blackToMove newAsBlack hashes moveCount
+-- Helper to create display name from key
+mkGameName :: GameKey -> Text
+mkGameName (gameId, newAsBlack) =
+  show gameId <> " " <> if newAsBlack then "New vs. Old" else "Old vs. New"
+
+-- Extract key from setup
+gameSetupKey :: GameSetup -> GameKey
+gameSetupKey setup = (setup.id, setup.newAsBlack)
+
+-- Immutable game setup
+data GameSetup = GameSetup
+  { id :: Int
+  , setupNotation :: Text
+  , startingBoard :: ExternBoard
+  , startingBlackToMove :: Bool
+  , newAsBlack :: Bool
+  , startingHashes :: [Word64]
+  }
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
+
+-- Mutable game progress
+data GameProgress = GameProgress
+  { currentBoard :: ExternBoard
+  , currentBlackToMove :: Bool
+  , currentHashes :: [Word64]
+  , moveCount :: Int
+  , selfPlayMoves :: [Move]
+  }
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
+
+-- Combined definition (for unprocessed and in-progress)
+data GameDefinition = GameDefinition
+  { setup :: GameSetup
+  , progress :: GameProgress
+  }
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 data InProgressGame
   = Claimed GameDefinition
@@ -119,7 +134,8 @@ data InProgressGame
   deriving (Show, Read, Eq, Generic, ToJSON, FromJSON)
 
 data CompletedGame = CompletedGame
-  { gameDefinition :: GameDefinition
+  { setup :: GameSetup
+  , moves :: [Move]
   , result :: GameResult
   }
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
@@ -135,15 +151,14 @@ data GameMoveEvent = GameMoveEvent
   }
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
-data StateUpdate
-  = GameClaimed GameName GameDefinition
-  | GameProgressed GameName GameMoveEvent
-  | GameCompleted GameName GameDefinition GameResult
+data StateUpdate = StateUpdate GameKey StateUpdatePayload
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
-newtype GameName = GameName Text
-  deriving (Show, Read, Eq, Ord, Generic)
-  deriving newtype (ToJSON, FromJSON, ToJSONKey, FromJSONKey, Hashable)
+data StateUpdatePayload
+  = GameClaimed GameSetup
+  | GameProgressed GameMoveEvent
+  | GameCompleted GameSetup [Move] GameResult
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 -- | Convert SearchTrustedResult + Bool to GameMoveEvent
 searchResultToGameMoveEvent :: SearchTrustedResult -> Bool -> GameMoveEvent
@@ -170,7 +185,7 @@ gameMoveEventToMoveResult event =
 
 data ProcessingState = ProcessingState
   { unprocessedGames :: TVar [GameDefinition]
-  , inProgressGames :: STMMap.Map GameName InProgressGame
+  , inProgressGames :: STMMap.Map GameKey InProgressGame
   , completedGames :: TVar [CompletedGame]
   }
 
@@ -180,11 +195,6 @@ data ProcessingStateSnapshot = ProcessingStateSnapshot
   , completedGames :: [CompletedGame]
   }
   deriving (Show, Eq, Generic, ToJSON, FromJSON)
-
-mkGameName :: Int -> Bool -> GameName
-mkGameName index newIsBlack = GameName $ show index <> " " <> players
- where
-  players = if newIsBlack then "New vs. Old" else "Old vs. New"
 
 loadStartPositions ::
   (IOE :> es, Error Text :> es, FileSystem :> es) =>
@@ -203,23 +213,31 @@ loadStartPositions startPositionsFile = do
                     b = movesResult.board
                     blackToMove = not movesResult.wasBlackTurn
                     mkGameDef newAsBlack =
-                      GameDefinition
-                        { id = i
-                        , name = mkGameName i newAsBlack
-                        , notation = notation
-                        , board = b
-                        , blackToMove = blackToMove
-                        , newAsBlack = newAsBlack
-                        , hashes = reverse $ map (.zobristHash) $ toList moveResults
-                        , moveCount = 0
-                        }
+                      let setup =
+                            GameSetup
+                              { id = i
+                              , setupNotation = notation
+                              , startingBoard = b
+                              , startingBlackToMove = blackToMove
+                              , newAsBlack = newAsBlack
+                              , startingHashes = reverse $ map (.zobristHash) $ toList moveResults
+                              }
+                          progress =
+                            GameProgress
+                              { currentBoard = b
+                              , currentBlackToMove = blackToMove
+                              , currentHashes = reverse $ map (.zobristHash) $ toList moveResults
+                              , moveCount = 0
+                              , selfPlayMoves = []
+                              }
+                       in GameDefinition setup progress
                  in [mkGameDef True, mkGameDef False]
             )
             [0 ..]
             moveLists
   pure $
     ProcessingStateSnapshot
-      { unprocessedGames = definitions
+      { unprocessedGames = sortOn (.setup.id) definitions
       , completedGames = mempty
       }
 
@@ -249,7 +267,8 @@ loadOrCreateStateSnapshot stateFilePath startPositionsFile = do
       jsonData <- FSBS.readFile stateFilePath
       case eitherDecodeStrict jsonData of
         Left err -> throwError $ "Failed to parse state file: " <> toText err
-        Right processingStateSnapshot -> pure processingStateSnapshot
+        Right processingStateSnapshot ->
+          pure $ processingStateSnapshot & #unprocessedGames %~ sortOn (.setup.id)
     else do
       initialState <- loadStartPositions startPositionsFile
       saveProcessingStateSnapshot stateFilePath initialState
@@ -279,7 +298,7 @@ takeSnapshot processingState = do
 
   -- Convert in-progress games back to GameDefinition
   let inProgressAsUnprocessed = map (convertToGameDefinition . snd) inProgressList
-      allUnprocessed = unprocessed ++ inProgressAsUnprocessed
+      allUnprocessed = sortOn (.setup.id) (unprocessed ++ inProgressAsUnprocessed)
 
   pure $ ProcessingStateSnapshot allUnprocessed completed
  where
@@ -301,69 +320,73 @@ claimNextGame processingState eventChan = do
       (game : rest) -> (Just game, rest)
 
     for maybeGame $ \game -> do
-      STMMap.insert (Claimed game) game.name processingState.inProgressGames
+      let key = gameSetupKey game.setup
+      STMMap.insert (Claimed game) key processingState.inProgressGames
       pure game
 
   for_ maybeGame $ \game -> do
-    atomically $ writeTChan eventChan (GameClaimed game.name game)
+    let key = gameSetupKey game.setup
+    atomically $ writeTChan eventChan (StateUpdate key (GameClaimed game.setup))
 
   pure maybeGame
 
 updateGameProgress ::
   (IOE :> es, Concurrent :> es) =>
-  GameName ->
+  GameKey ->
   SearchTrustedResult ->
   Bool ->
   ProcessingState ->
   TChan StateUpdate ->
   Eff es ()
-updateGameProgress name result wasBlackTurn processingState eventChan = do
+updateGameProgress key result wasBlackTurn processingState eventChan = do
   atomically $
-    STMMap.focus (Focus.adjust updateGame) name processingState.inProgressGames
+    STMMap.focus (Focus.adjust updateGame) key processingState.inProgressGames
   let moveEvent = searchResultToGameMoveEvent result wasBlackTurn
-  atomically $ writeTChan eventChan (GameProgressed name moveEvent)
+  atomically $ writeTChan eventChan (StateUpdate key (GameProgressed moveEvent))
  where
   updateGame = \case
     Claimed gameDef ->
-      let updatedGameDef =
-            gameDef
-              { board = result.updatedBoard
-              , blackToMove = not gameDef.blackToMove
-              , hashes = result.updatedZobristHash : gameDef.hashes
-              , moveCount = gameDef.moveCount + 1
+      let updatedProgress =
+            gameDef.progress
+              { currentBoard = result.updatedBoard
+              , currentBlackToMove = not gameDef.progress.currentBlackToMove
+              , currentHashes = result.updatedZobristHash : gameDef.progress.currentHashes
+              , moveCount = gameDef.progress.moveCount + 1
+              , selfPlayMoves = [result.searchMove]
               }
-       in Running updatedGameDef result.searchMove result.captures
+       in Running (gameDef{progress = updatedProgress}) result.searchMove result.captures
     Running gameDef _ _ ->
-      let updatedGameDef =
-            gameDef
-              { board = result.updatedBoard
-              , blackToMove = not gameDef.blackToMove
-              , hashes = result.updatedZobristHash : gameDef.hashes
-              , moveCount = gameDef.moveCount + 1
+      let updatedProgress =
+            gameDef.progress
+              { currentBoard = result.updatedBoard
+              , currentBlackToMove = not gameDef.progress.currentBlackToMove
+              , currentHashes = result.updatedZobristHash : gameDef.progress.currentHashes
+              , moveCount = gameDef.progress.moveCount + 1
+              , selfPlayMoves = gameDef.progress.selfPlayMoves ++ [result.searchMove]
               }
-       in Running updatedGameDef result.searchMove result.captures
+       in Running (gameDef{progress = updatedProgress}) result.searchMove result.captures
 
 -- | Complete a game by moving it from in-progress to completed and send event
 completeGame ::
   (IOE :> es, Concurrent :> es) =>
-  GameName ->
+  GameKey ->
   GameResult ->
   ProcessingState ->
   TChan StateUpdate ->
   Eff es ()
-completeGame name gameResult processingState eventChan = do
+completeGame key gameResult processingState eventChan = do
   atomically $ do
     maybeGame <-
-      STMMap.focus Focus.lookupAndDelete name processingState.inProgressGames
-    let gameDefinition =
+      STMMap.focus Focus.lookupAndDelete key processingState.inProgressGames
+    let completedGame =
           maybeGame <&> \case
-            Claimed def -> def
-            Running def _ _ -> def
+            Claimed def -> CompletedGame def.setup [] gameResult
+            Running def _ _ -> CompletedGame def.setup def.progress.selfPlayMoves gameResult
     for_
-      gameDefinition
-      \def -> do
-        modifyTVar' processingState.completedGames (++ [CompletedGame def gameResult])
-        writeTChan eventChan (GameCompleted name def gameResult)
+      completedGame
+      \completed -> do
+        modifyTVar' processingState.completedGames (++ [completed])
+        writeTChan eventChan (StateUpdate key (GameCompleted completed.setup completed.moves gameResult))
 
 getWinner :: EngineGameStatus -> Maybe Player
 getWinner = \case
@@ -383,8 +406,8 @@ playGame ::
   , IOE :> es
   , Concurrent :> es
   ) =>
-  -- | The name of game
-  GameName ->
+  -- | The game key
+  GameKey ->
   -- | Processing state to update
   ProcessingState ->
   -- | Event channel for updates
@@ -398,7 +421,7 @@ playGame ::
   -- | the zobrist hashes to point
   [Word64] ->
   Eff es GameResult
-playGame gameName processingState eventChan moveCount board blackToMove hashes = do
+playGame gameKey processingState eventChan moveCount board blackToMove hashes = do
   result <-
     send $
       (Labeled @current) $
@@ -407,9 +430,9 @@ playGame gameName processingState eventChan moveCount board blackToMove hashes =
         SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout 5000)
   case getWinner result.gameStatus of
     Nothing -> do
-      updateGameProgress gameName result blackToMove processingState eventChan
+      updateGameProgress gameKey result blackToMove processingState eventChan
       playGame @next @current
-        gameName
+        gameKey
         processingState
         eventChan
         (moveCount + 1)
@@ -430,28 +453,29 @@ beginGame ::
   TChan StateUpdate ->
   Eff es GameResult
 beginGame gameDef processingState eventChan = do
-  if (gameDef.blackToMove && gameDef.newAsBlack)
-    || (not gameDef.blackToMove && not gameDef.newAsBlack)
+  let key = gameSetupKey gameDef.setup
+  if (gameDef.progress.currentBlackToMove && gameDef.setup.newAsBlack)
+    || (not gameDef.progress.currentBlackToMove && not gameDef.setup.newAsBlack)
     then do
-      -- liftIO $ putStrLn $ "Actor: playing as new@old for " <> show gameDef.name
+      -- liftIO $ putStrLn $ "Actor: playing as new@old for " <> show gameDef.setup.id
       playGame @"new" @"old"
-        gameDef.name
+        key
         processingState
         eventChan
-        gameDef.moveCount
-        gameDef.board
-        gameDef.blackToMove
-        gameDef.hashes
+        gameDef.progress.moveCount
+        gameDef.progress.currentBoard
+        gameDef.progress.currentBlackToMove
+        gameDef.progress.currentHashes
     else do
-      -- liftIO $ putStrLn $ "Actor: playing as old@new for " <> show gameDef.name
+      -- liftIO $ putStrLn $ "Actor: playing as old@new for " <> show gameDef.setup.id
       playGame @"old" @"new"
-        gameDef.name
+        key
         processingState
         eventChan
-        gameDef.moveCount
-        gameDef.board
-        gameDef.blackToMove
-        gameDef.hashes
+        gameDef.progress.moveCount
+        gameDef.progress.currentBoard
+        gameDef.progress.currentBlackToMove
+        gameDef.progress.currentHashes
 
 gameActor ::
   ( Labeled "new" Search :> es
@@ -470,15 +494,16 @@ gameActor processingState eventChan = do
       -- liftIO $ putStrLn "Actor: no games available, terminating"
       pure () -- No more games to process
     Just gameDef -> do
+      let key = gameSetupKey gameDef.setup
       -- liftIO $
       --   putStrLn $
-      --     "Actor: claimed game " <> show gameDef.name <> ", starting play"
+      --     "Actor: claimed game " <> show (mkGameName key) <> ", starting play"
       result <- beginGame gameDef processingState eventChan
       -- liftIO $
       --   putStrLn $
-      --     "Actor: game " <> show gameDef.name <> " finished, completing"
-      completeGame gameDef.name result processingState eventChan
-      -- liftIO $ putStrLn $ "Actor: game " <> show gameDef.name <> " completed, looping"
+      --     "Actor: game " <> show (mkGameName key) <> " finished, completing"
+      completeGame key result processingState eventChan
+      -- liftIO $ putStrLn $ "Actor: game " <> show (mkGameName key) <> " completed, looping"
       gameActor processingState eventChan
 
 -- | Actor that periodically takes snapshots and saves them to disk

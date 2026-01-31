@@ -3,11 +3,11 @@ module Hnefatafl.SelfPlay.UITest where
 import Hnefatafl.Bindings (startBoard)
 import Hnefatafl.SelfPlay (
   CompletedGame (..),
-  GameDefinition (..),
-  GameName (..),
+  GameSetup (..),
   GameResult (..),
   Player (..),
   StateUpdate (..),
+  StateUpdatePayload (..),
  )
 import Hnefatafl.SelfPlay.UI (ScoreState (..), mkInitialScoreState, updateScoreState)
 import Test.Hspec (Spec, describe, it, shouldBe)
@@ -15,21 +15,19 @@ import Test.Hspec (Spec, describe, it, shouldBe)
 -- | Utility to create test completed games
 mkTestCompletedGame :: Int -> Bool -> Player -> Int -> CompletedGame
 mkTestCompletedGame gameId newAsBlack winner moves =
-  let gameName = GameName $ show gameId <> " " <> if newAsBlack then "New vs. Old" else "Old vs. New"
-   in CompletedGame
-        { gameDefinition =
-            GameDefinition
-              { id = gameId
-              , name = gameName
-              , notation = "test"
-              , board = startBoard
-              , blackToMove = True
-              , newAsBlack = newAsBlack
-              , hashes = []
-              , moveCount = 0
-              }
-        , result = GameResult{winner = winner, moves = moves}
-        }
+  CompletedGame
+    { setup =
+        GameSetup
+          { id = gameId
+          , setupNotation = "test"
+          , startingBoard = startBoard
+          , startingBlackToMove = True
+          , newAsBlack = newAsBlack
+          , startingHashes = []
+          }
+    , moves = []
+    , result = GameResult{winner = winner, moves = moves}
+    }
 
 -- | Test that building ScoreState from completed games matches incremental updates
 spec_score_state_batch_vs_incremental :: Spec
@@ -68,12 +66,12 @@ spec_score_state_batch_vs_incremental =
 
           -- Create GameCompleted events
           events =
-            [ GameCompleted (GameName "0 New vs. Old") game0_new.gameDefinition game0_new.result
-            , GameCompleted (GameName "0 Old vs. New") game0_old.gameDefinition game0_old.result
-            , GameCompleted (GameName "1 New vs. Old") game1_new.gameDefinition game1_new.result
-            , GameCompleted (GameName "1 Old vs. New") game1_old.gameDefinition game1_old.result
-            , GameCompleted (GameName "2 New vs. Old") game2_new.gameDefinition game2_new.result
-            , GameCompleted (GameName "2 Old vs. New") game2_old.gameDefinition game2_old.result
+            [ StateUpdate (game0_new.setup.id, game0_new.setup.newAsBlack) (GameCompleted game0_new.setup game0_new.moves game0_new.result)
+            , StateUpdate (game0_old.setup.id, game0_old.setup.newAsBlack) (GameCompleted game0_old.setup game0_old.moves game0_old.result)
+            , StateUpdate (game1_new.setup.id, game1_new.setup.newAsBlack) (GameCompleted game1_new.setup game1_new.moves game1_new.result)
+            , StateUpdate (game1_old.setup.id, game1_old.setup.newAsBlack) (GameCompleted game1_old.setup game1_old.moves game1_old.result)
+            , StateUpdate (game2_new.setup.id, game2_new.setup.newAsBlack) (GameCompleted game2_new.setup game2_new.moves game2_new.result)
+            , StateUpdate (game2_old.setup.id, game2_old.setup.newAsBlack) (GameCompleted game2_old.setup game2_old.moves game2_old.result)
             ]
 
           incrementalScoreState = foldl' (flip updateScoreState) initialScoreState events
@@ -103,7 +101,7 @@ spec_score_state_batch_vs_incremental =
               , oldPairWins = 0
               }
 
-          event = GameCompleted (GameName "0 New vs. Old") game0_new.gameDefinition game0_new.result
+          event = StateUpdate (game0_new.setup.id, game0_new.setup.newAsBlack) (GameCompleted game0_new.setup game0_new.moves game0_new.result)
           incrementalScoreState = updateScoreState event initialScoreState
 
       -- Both methods should have the unpaired game
