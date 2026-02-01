@@ -35,7 +35,6 @@ import Hnefatafl.SelfPlay (
   GameProgress (..),
   GameResult (..),
   GameSetup (..),
-  InProgressGame (..),
   Player (..),
   ProcessingState (..),
   ProcessingStateSnapshot (..),
@@ -65,7 +64,7 @@ import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 -- | Utility function to create ProcessingState directly from components
 mkProcessingStateFromComponents ::
   [GameDefinition] ->
-  Map GameKey InProgressGame ->
+  Map GameKey GameDefinition ->
   [CompletedGame] ->
   STM ProcessingState
 mkProcessingStateFromComponents unprocessed inProgress completed = do
@@ -153,7 +152,7 @@ spec_round_trip_state_snapshot =
 spec_claim_next_game :: Spec
 spec_claim_next_game =
   describe "claimNextGame procState transition" $ do
-    it "should move game from unprocessed to in-progress as Claimed" $ do
+    it "should move game from unprocessed to in-progress" $ do
       let testGameDef =
             GameDefinition
               { setup =
@@ -245,7 +244,7 @@ spec_complete_game =
               atomically $
                 mkProcessingStateFromComponents
                   [] -- no unprocessed games
-                  (Map.singleton (gameSetupKey testGameDef.setup) (Claimed testGameDef)) -- game already claimed
+                  (Map.singleton (gameSetupKey testGameDef.setup) testGameDef) -- game already claimed
                   [] -- no completed games yet
             completeGame (gameSetupKey testGameDef.setup) testResult procState eventChan
             atomically $ takeSnapshot procState
@@ -260,10 +259,55 @@ spec_complete_game =
       finalSnapshot.unprocessedGames `shouldBe` []
       finalSnapshot.completedGames `shouldBe` [expectedCompletedGame]
 
+    it "should complete game that has accumulated moves" $ do
+      let testGameDef =
+            GameDefinition
+              { setup =
+                  GameSetup
+                    { id = 0
+                    , setupNotation = "a1-a2"
+                    , startingBoard = startBoard
+                    , startingBlackToMove = True
+                    , newAsBlack = True
+                    , startingHashes = []
+                    }
+              , progress =
+                  GameProgress
+                    { currentBoard = startBoard
+                    , currentBlackToMove = False
+                    , currentHashes = [67890, 12345]
+                    , moveCount = 2
+                    , selfPlayMoves = [Move 0 1, Move 1 2] -- Game has accumulated moves
+                    }
+              }
+      let testResult = GameResult{winner = White, moves = 2}
+      finalSnapshot <- runEff $
+        runFileSystem $
+          runConcurrent $ do
+            eventChan <- atomically newTChan
+            procState <-
+              atomically $
+                mkProcessingStateFromComponents
+                  [] -- no unprocessed games
+                  (Map.singleton (gameSetupKey testGameDef.setup) testGameDef) -- game already in progress with moves
+                  [] -- no completed games yet
+            completeGame (gameSetupKey testGameDef.setup) testResult procState eventChan
+            atomically $ takeSnapshot procState
+
+      let expectedCompletedGame =
+            CompletedGame
+              { setup = testGameDef.setup
+              , moves = [Move 0 1, Move 1 2] -- Moves should be preserved!
+              , result = testResult
+              }
+
+      finalSnapshot.unprocessedGames `shouldBe` []
+      finalSnapshot.completedGames `shouldBe` [expectedCompletedGame]
+
 spec_update_game_progress :: Spec
 spec_update_game_progress =
   describe "updateGameProgress state transition" $ do
-    it "should update Claimed game to Running with search result" $ do
+    it "should update game with first move starting from empty move list" $ do
       let testGameDef =
             GameDefinition
               { setup =
@@ -300,7 +344,7 @@ spec_update_game_progress =
               atomically $
                 mkProcessingStateFromComponents
                   [] -- no unprocessed games
-                  (Map.singleton (gameSetupKey testGameDef.setup) (Claimed testGameDef)) -- game already claimed
+                  (Map.singleton (gameSetupKey testGameDef.setup) testGameDef) -- game already claimed
                   [] -- no completed games
             updateGameProgress (gameSetupKey testGameDef.setup) searchResult True procState eventChan
             atomically $ takeSnapshot procState
@@ -316,7 +360,7 @@ spec_update_game_progress =
                     }
               }
       finalSnapshot.unprocessedGames `shouldBe` [expectedGameDef] -- game converted back with updated state
-    it "should update Running game with new search result" $ do
+    it "should update game with second search result" $ do
       let testGameDef =
             GameDefinition
               { setup =
@@ -365,7 +409,7 @@ spec_update_game_progress =
                   [] -- no unprocessed games
                   ( Map.singleton
                       (gameSetupKey currentGameDef.setup)
-                      (Running currentGameDef (Move 0 1) (Layer 0 0)) -- game already running
+                      currentGameDef -- game already in progress
                   )
                   [] -- no completed games
             updateGameProgress (gameSetupKey currentGameDef.setup) newResult False procState eventChan
@@ -450,11 +494,6 @@ createComplexLiveState gameNotation = do
       runningGame2Def = makeGameDef 7 15 False
       runningGame3Def = makeGameDef 8 20 False
 
-      -- Get actual moves and captures for running games
-      move12 = allResults !! 11 -- The actual 12th move
-      move15 = allResults !! 14 -- The actual 15th move
-      move20 = allResults !! 19 -- The actual 20th move
-
       -- Convert EngineGameStatus to Player
       engineStatusToPlayer :: EngineGameStatus -> Player
       engineStatusToPlayer = \case
@@ -491,12 +530,12 @@ createComplexLiveState gameNotation = do
       -- Use REAL moves and captures from the actual game
       inProgressGames =
         Map.fromList
-          [ (gameSetupKey claimedGameStart.setup, Claimed claimedGameStart)
-          , (gameSetupKey claimedGame.setup, Claimed claimedGame)
-          , (gameSetupKey claimedGame2.setup, Claimed claimedGame2)
-          , (gameSetupKey runningGameDef.setup, Running runningGameDef move12.move move12.captures)
-          , (gameSetupKey runningGame2Def.setup, Running runningGame2Def move15.move move15.captures)
-          , (gameSetupKey runningGame3Def.setup, Running runningGame3Def move20.move move20.captures)
+          [ (gameSetupKey claimedGameStart.setup, claimedGameStart)
+          , (gameSetupKey claimedGame.setup, claimedGame)
+          , (gameSetupKey claimedGame2.setup, claimedGame2)
+          , (gameSetupKey runningGameDef.setup, runningGameDef)
+          , (gameSetupKey runningGame2Def.setup, runningGame2Def)
+          , (gameSetupKey runningGame3Def.setup, runningGame3Def)
           ]
 
   pure $
@@ -509,11 +548,7 @@ createComplexLiveState gameNotation = do
 getAllInProgressGames :: ProcessingState -> STM [GameDefinition]
 getAllInProgressGames processingState = do
   inProgressList <- ListT.toList (STMMap.listT processingState.inProgressGames)
-  pure $ map extractGameDef inProgressList
- where
-  extractGameDef (_, inProgressGame) = case inProgressGame of
-    Claimed def -> def
-    Running def _ _ -> def
+  pure $ map snd inProgressList
 
 -- | Drain all available items from a TChan without blocking
 drainTChan :: (Concurrent :> es, IOE :> es) => TChan a -> Eff es [a]
