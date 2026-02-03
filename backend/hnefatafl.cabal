@@ -39,6 +39,8 @@ library
       Hnefatafl.SelfPlay
       Hnefatafl.SelfPlay.Runner
       Hnefatafl.SelfPlay.UI
+      Hnefatafl.SelfPlay.UI.State
+      Hnefatafl.SelfPlay.UI.Widgets
       Hnefatafl.Serialization
       Hnefatafl.Server
   other-modules:
@@ -265,6 +267,7 @@ test-suite hnefatafl-test
       Hnefatafl.Interpreter.Storage.SQLite.Util
       Hnefatafl.QQ.MoveTest
       Hnefatafl.SearchTest
+      Hnefatafl.SelfPlay.UITest
       Hnefatafl.SelfPlayTest
       TestUtil
       Paths_hnefatafl
