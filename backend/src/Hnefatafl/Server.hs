@@ -58,7 +58,11 @@ data HealthResponse = HealthResponse
 data Routes mode = Routes
   { version :: mode :- "version" :> Get '[JSON] VersionResponse
   , health :: mode :- "health" :> Get '[JSON] HealthResponse
-  , searchTrusted :: mode :- "searchTrusted" :> ReqBody '[JSON] SearchTrustedInput :> Post '[JSON] SearchTrustedResult
+  , searchTrusted ::
+      mode
+        :- "searchTrusted"
+          :> ReqBody '[JSON] SearchTrustedInput
+          :> Post '[JSON] SearchTrustedResult
   }
   deriving stock (Generic)
 
@@ -113,7 +117,7 @@ runServer port = do
       runErrorNoCallStack @ServerError $
         runConcurrent $
           do
-            qsem <- newQSem 4  -- Allow 4 concurrent searches
+            qsem <- newQSem 20 -- Allow 20 concurrent searches
             runSearchLocal qsem $
               runWarpServerSettings @HnefataflAPI settings (genericServerT server) id
   case result of

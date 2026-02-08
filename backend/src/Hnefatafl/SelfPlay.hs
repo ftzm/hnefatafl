@@ -349,11 +349,14 @@ completeGame ::
   TChan StateUpdate ->
   Eff es ()
 completeGame key gameResult processingState eventChan = atomically $ do
-  maybeGame <- STMMap.focus Focus.lookupAndDelete key processingState.inProgressGames
+  maybeGame <-
+    STMMap.focus Focus.lookupAndDelete key processingState.inProgressGames
   for_ maybeGame $ \def -> do
     let completed = CompletedGame def.setup def.progress.selfPlayMoves gameResult
     modifyTVar' processingState.completedGames (++ [completed])
-    writeTChan eventChan (StateUpdate key (GameCompleted completed.setup completed.moves gameResult))
+    writeTChan
+      eventChan
+      (StateUpdate key (GameCompleted completed.setup completed.moves gameResult))
 
 getWinner :: EngineGameStatus -> Maybe Player
 getWinner = \case

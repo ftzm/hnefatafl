@@ -27,6 +27,7 @@ import Hnefatafl.Bindings (
   startBoard,
  )
 import Hnefatafl.Board (formatGameMove, formatMoveResult, printBoard)
+import Hnefatafl.Client (createClient)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -41,12 +42,15 @@ import Hnefatafl.Import (importGameFromFile)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
 import Hnefatafl.Interpreter.Search.Local
+import Hnefatafl.Interpreter.Search.Remote
 import Hnefatafl.Interpreter.Storage.SQLite
 import Hnefatafl.SelfPlay (VersionId (..))
-import Hnefatafl.SelfPlay.Runner (runSelfPlayWithUI)
+import Hnefatafl.SelfPlay.Runner (runSelfPlayHeadless, runSelfPlayWithUI)
 import Hnefatafl.Serialization (moveToNotation, parseMoveList)
 import Hnefatafl.Server (runServer)
+import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Options.Applicative
+import Servant.Client (ClientError, mkClientEnv, parseBaseUrl)
 import System.Exit (ExitCode (..))
 import Version (version)
 
@@ -76,6 +80,8 @@ data SelfPlayOptions = SelfPlayOptions
   { numActors :: Int
   , stateDir :: Text
   , startPositionsFile :: Text
+  , oldServerUrl :: Text
+  , headless :: Bool
   }
   deriving (Show)
 
@@ -112,24 +118,18 @@ processMovesParser =
 
 importParser :: Parser Command
 importParser =
-  Import
-    <$> ( ImportOptions
-            <$> strArgument (metavar "FILE" <> help "JSON file to import games from")
-        )
+  Import . ImportOptions
+    <$> strArgument (metavar "FILE" <> help "JSON file to import games from")
 
 printGameParser :: Parser Command
 printGameParser =
-  PrintGame
-    <$> ( PrintGameOptions
-            <$> strArgument (metavar "GAME_ID" <> help "Game ID to print moves for")
-        )
+  PrintGame . PrintGameOptions
+    <$> strArgument (metavar "GAME_ID" <> help "Game ID to print moves for")
 
 serverParser :: Parser Command
 serverParser =
-  Server
-    <$> ( ServerOptions
-            <$> argument auto (metavar "PORT" <> help "Port number to run the server on")
-        )
+  Server . ServerOptions
+    <$> argument auto (metavar "PORT" <> help "Port number to run the server on")
 
 selfPlayParser :: Parser Command
 selfPlayParser =
@@ -145,6 +145,15 @@ selfPlayParser =
                   <> help "Directory for state files"
               )
             <*> strArgument (metavar "POSITIONS_FILE" <> help "File containing start positions")
+            <*> strOption
+              ( long "old-server"
+                  <> metavar "URL"
+                  <> help "URL of the server running the old version"
+              )
+            <*> switch
+              ( long "headless"
+                  <> help "Run without UI (for scripts)"
+              )
         )
 
 otherParser :: Parser Command
@@ -285,36 +294,47 @@ runOptions options = case options.cmd of
   Server ServerOptions{port} -> do
     runServer port
     pure ExitSuccess
-  SelfPlay SelfPlayOptions{numActors, stateDir, startPositionsFile} -> do
-    runSelfPlayWithInterpreters
-      numActors
-      (toString stateDir)
-      (toString startPositionsFile)
-    pure ExitSuccess
+  SelfPlay
+    SelfPlayOptions{numActors, stateDir, startPositionsFile, oldServerUrl, headless} -> do
+      runSelfPlayWithInterpreters
+        numActors
+        (toString stateDir)
+        (toString startPositionsFile)
+        (toString oldServerUrl)
+        headless
+      pure ExitSuccess
   Other -> do
     putTextLn "other"
     pure ExitSuccess
 
 -- | Run self-play with all necessary effect interpreters
-runSelfPlayWithInterpreters :: Int -> FilePath -> FilePath -> IO ()
-runSelfPlayWithInterpreters numActors stateDir startPositionsFile = do
+runSelfPlayWithInterpreters ::
+  Int -> FilePath -> FilePath -> String -> Bool -> IO ()
+runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlStr headless = do
+  manager <- newManager defaultManagerSettings
+  baseUrl <- parseBaseUrl oldServerUrlStr
+  let clientEnv = mkClientEnv manager baseUrl
+      client = createClient
+      runner = if headless then runSelfPlayHeadless else runSelfPlayWithUI
   result <- runEff $
     runErrorNoCallStack @Text $
-      runConcurrent $ do
-        qsem <- newQSem 40 -- Allow up to 4 concurrent searches
-        runFileSystem $
-          runLabeled @"new" (runSearchLocal qsem) $
-            runLabeled @"old" (runSearchLocal qsem) $
-              runSelfPlayWithUI
-                numActors
-                (VersionId "new")
-                (VersionId "old")
-                stateDir
-                startPositionsFile
+      runErrorNoCallStack @ClientError $
+        runConcurrent $ do
+          qsem <- newQSem (numActors `div` 2)
+          runFileSystem $
+            runLabeled @"new" (runSearchLocal qsem) $
+              runLabeled @"old" (runSearchRemote clientEnv client) $
+                runner
+                  numActors
+                  (VersionId "new")
+                  (VersionId "old")
+                  stateDir
+                  startPositionsFile
 
   case result of
     Left err -> putTextLn $ "Self-play failed: " <> err
-    Right () -> putTextLn "Self-play completed successfully"
+    Right (Left clientErr) -> putTextLn $ "Self-play failed (client error): " <> show clientErr
+    Right (Right ()) -> putTextLn "Self-play completed successfully"
 
 printGameMoves ::
   (Storage :> es, Console :> es) =>
@@ -323,9 +343,9 @@ printGameMoves gameId = do
   game <- getGame gameId
   moves <- getMovesForGame gameId
   Console.putStrLn $
-    encodeUtf8 $
+    encodeUtf8
       ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)
-  Console.putStrLn $ encodeUtf8 $ ("Status: " <> show game.gameStatus :: Text)
+  Console.putStrLn $ encodeUtf8 ("Status: " <> show game.gameStatus :: Text)
   Console.putStrLn ""
 
   if null moves
@@ -342,7 +362,7 @@ printGameMoves gameId = do
   printMoveWithBoard :: Console :> es => (Int, GameMove) -> Eff es ()
   printMoveWithBoard (moveNum, gameMove) = do
     Console.putStrLn $
-      encodeUtf8 $
+      encodeUtf8
         ( "Move "
             <> show moveNum
             <> " ("

@@ -6,6 +6,8 @@ module Hnefatafl.SelfPlay.UI (
   ScoreState (..),
   mkInitialScoreState,
   updateScoreState,
+  formatScore,
+  formatMoveAvg,
   runSelfPlayUI,
 ) where
 

@@ -5,7 +5,7 @@ cabal-version: 2.4
 -- see: https://github.com/sol/hpack
 
 name:           hnefatafl
-version:        0.0.0.2
+version:        0.0.3
 build-type:     Simple
 data-files:
     db/schema.sql
@@ -81,6 +81,7 @@ library
     , focus
     , heptapod
     , hnefatafl-version
+    , http-client
     , list-t
     , optics
     , optparse-applicative
@@ -151,6 +152,7 @@ library hnefatafl-version
     , filepath
     , focus
     , heptapod
+    , http-client
     , list-t
     , optics
     , optparse-applicative
@@ -221,6 +223,7 @@ executable cli
     , focus
     , heptapod
     , hnefatafl
+    , http-client
     , list-t
     , optics
     , optparse-applicative
