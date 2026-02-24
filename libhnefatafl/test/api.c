@@ -5,6 +5,30 @@
 #include "stdio.h"
 #include "types.h"
 #include "zobrist.h"
+#include <pthread.h>
+#include <unistd.h>
+
+// Helper to stop search after a timeout
+typedef struct {
+  _Atomic bool *should_stop;
+  int timeout_ms;
+} stop_timer_args;
+
+static void *stop_timer_thread(void *arg) {
+  stop_timer_args *args = (stop_timer_args *)arg;
+  usleep(args->timeout_ms * 1000);
+  atomic_store(args->should_stop, true);
+  return NULL;
+}
+
+static pthread_t start_stop_timer(_Atomic bool *should_stop, int timeout_ms) {
+  static stop_timer_args args;
+  args.should_stop = should_stop;
+  args.timeout_ms = timeout_ms;
+  pthread_t thread;
+  pthread_create(&thread, NULL, stop_timer_thread, &args);
+  return thread;
+}
 
 TEST test_get_possible_moves() {
 
@@ -84,6 +108,9 @@ TEST test_search_trusted_black_move() {
   u64 empty_hashes[] = {};
   _Atomic bool should_stop = false;
 
+  // Start a timer to stop search after 50ms
+  pthread_t timer = start_stop_timer(&should_stop, 50);
+
   move result_move;
   compact_board result_board;
   layer result_captures;
@@ -101,6 +128,8 @@ TEST test_search_trusted_black_move() {
       &result_captures,
       &result_hash,
       &result_status);
+
+  pthread_join(timer, NULL);
 
   // Verify the move is a valid black move from the starting position
   bool found_move = false;
@@ -157,6 +186,9 @@ TEST test_search_trusted_white_move() {
   u64 position_history[] = {start_hash};
   _Atomic bool should_stop = false;
 
+  // Start a timer to stop search after 50ms
+  pthread_t timer = start_stop_timer(&should_stop, 50);
+
   move result_move;
   compact_board result_board;
   layer result_captures;
@@ -174,6 +206,8 @@ TEST test_search_trusted_white_move() {
       &result_captures,
       &result_hash,
       &result_status);
+
+  pthread_join(timer, NULL);
 
   // Apply the move manually to verify board and hash
   u64 original_hash_white = hash_for_board(after_black, false);

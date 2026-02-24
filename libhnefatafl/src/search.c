@@ -524,8 +524,7 @@ i32 quiesce_black(
   // We only need to check for a king escape because the previous move will
   // have been white.
   if (white_victory(&b)) {
-    // printf("quiesce white score");
-    return MIN_SCORE;
+    return LOSS_SCORE(ply);
   }
 
   // If we can't find a quiet position in 6 moves we consider the line unstable
@@ -540,8 +539,12 @@ i32 quiesce_black(
   int position_index;
   int collision = insert_position(positions, position_hash, &position_index);
   if (collision) {
-    // we consider the position a draw, and thus score it 0
-    // return 0;
+    // We return MAX_SCORE for draws rather than 0 because our static eval isn't
+    // well-calibrated around zero, making the engine too eager to pursue draws.
+    // MAX_SCORE here means the side to move "accepts" the draw, but the opponent
+    // (who made the move leading here) sees -MAX_SCORE via negation, so they
+    // avoid it. This symmetrically discourages both sides from creating draw
+    // opportunities, so draws only occur when forced.
     statistics->repeat_moves_encountered++;
     return MAX_SCORE;
   }
@@ -633,8 +636,7 @@ i32 quiesce_black(
       // If black can't block an escape in one then they've lost.
       if (!total) {
         delete_position(positions, position_index);
-        // printf("black can't prevent an escape\n");
-        return MIN_SCORE;
+        return INEVITABLE_LOSS_SCORE(ply);
       }
 
       // hacky bounds check
@@ -647,6 +649,7 @@ i32 quiesce_black(
         layer move = ls[i];
         layer move_r = ls_r[i];
 
+#ifndef NDEBUG
         // Validate move before applying
         struct move m = ms[i];
         move_error error = validate_move(b, m, true);
@@ -660,8 +663,10 @@ i32 quiesce_black(
               error);
           exit(1);
         }
+#endif
 
         board new_b = apply_black_move(b, move, move_r);
+#ifndef NDEBUG
         if (!validate_board_state(new_b)) {
           printf(
               "Board corrupted after apply_black_move in quiesce_black at "
@@ -671,9 +676,11 @@ i32 quiesce_black(
           print_move(orig, dest);
           exit(1);
         }
+#endif
         u64 new_position_hash = next_hash_black(position_hash, orig, dest);
         layer captures =
             apply_captures_z_black(&new_b, &new_position_hash, dest);
+#ifndef NDEBUG
         if (!validate_board_state(new_b)) {
           printf(
               "Board corrupted after apply_captures_z_black in quiesce_black "
@@ -683,6 +690,7 @@ i32 quiesce_black(
           print_move(orig, dest);
           exit(1);
         }
+#endif
         score_state new_score_state = update_score_state_black_move_and_capture(
             w,
             &s,
@@ -783,6 +791,7 @@ i32 quiesce_black(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, true);
@@ -796,6 +805,7 @@ i32 quiesce_black(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
@@ -859,6 +869,7 @@ i32 quiesce_black(
         layer move = ls[i];
         layer move_r = ls_r[i];
 
+#ifndef NDEBUG
         // Validate move before applying
         struct move m = ms[i];
         move_error error = validate_move(b, m, true);
@@ -872,6 +883,7 @@ i32 quiesce_black(
               error);
           exit(1);
         }
+#endif
 
         board new_b = apply_black_move(b, move, move_r);
         u64 new_position_hash = next_hash_black(position_hash, orig, dest);
@@ -984,6 +996,7 @@ i32 quiesce_black(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, true);
@@ -997,6 +1010,7 @@ i32 quiesce_black(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
@@ -1067,8 +1081,7 @@ i32 quiesce_white(
   // We only need to check for a black_victory because the previous move will
   // have been black.
   if (black_victory(&b)) {
-    // printf("quiesce white score");
-    return MIN_SCORE;
+    return LOSS_SCORE(ply);
   }
 
   // If we can't find a quiet position in 6 moves we consider the line
@@ -1082,8 +1095,8 @@ i32 quiesce_white(
   int position_index;
   int collision = insert_position(positions, position_hash, &position_index);
   if (collision) {
-    // we consider the position a draw, and thus score it 0
-    // return 0;
+    // Return MAX_SCORE for draws to symmetrically discourage both sides from
+    // creating draw opportunities. See comment in quiesce_black for details.
     statistics->repeat_moves_encountered++;
     return MAX_SCORE;
   }
@@ -1125,7 +1138,7 @@ i32 quiesce_white(
 
   if (single_move_escape) {
     delete_position(positions, position_index);
-    return best_value + 3000000;
+    return INEVITABLE_VICTORY_SCORE(ply);
   } else if (corner_move_count > 0) {
     delete_position(positions, position_index);
     return best_value + 1000000;
@@ -1137,6 +1150,7 @@ i32 quiesce_white(
     u8 dest = dests[i];
     move m = {orig, dest};
 
+#ifndef NDEBUG
     // Validate move before applying
     move_error error = validate_move(b, m, false);
     if (error != move_error_no_error) {
@@ -1149,6 +1163,7 @@ i32 quiesce_white(
           error);
       exit(1);
     }
+#endif
 
     board new_b = b;
     CLEAR_INDEX(new_b.king, orig);
@@ -1156,6 +1171,7 @@ i32 quiesce_white(
     SET_INDEX(new_b.king, dest);
     SET_INDEX(new_b.king_r, rotate_right[dest]);
 
+#ifndef NDEBUG
     if (!validate_board_state(new_b)) {
       printf(
           "Board corrupted after king move in quiesce_white at line %d, ply "
@@ -1165,9 +1181,11 @@ i32 quiesce_white(
       print_move(orig, dest);
       exit(1);
     }
+#endif
 
     u64 new_position_hash = next_hash_king(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+#ifndef NDEBUG
     if (!validate_board_state(new_b)) {
       printf(
           "Board corrupted after apply_captures_z_white (king) in "
@@ -1177,6 +1195,7 @@ i32 quiesce_white(
       print_move(orig, dest);
       exit(1);
     }
+#endif
     score_state new_score_state =
         update_score_state_king_move_and_capture(w, &s, orig, dest, captures);
     i32 score = -quiesce_black(
@@ -1225,6 +1244,7 @@ i32 quiesce_white(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, false);
@@ -1238,8 +1258,10 @@ i32 quiesce_white(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_white_move(b, move, move_r);
+#ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
             "Board corrupted after apply_white_move (fallback) in "
@@ -1249,8 +1271,10 @@ i32 quiesce_white(
         print_move(orig, dest);
         exit(1);
       }
+#endif
       u64 new_position_hash = next_hash_white(position_hash, orig, dest);
       layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+#ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
             "Board corrupted after apply_captures_z_white (fallback) in "
@@ -1260,6 +1284,7 @@ i32 quiesce_white(
         print_move(orig, dest);
         exit(1);
       }
+#endif
       score_state new_score_state = update_score_state_white_move_and_capture(
           w,
           &s,
@@ -1332,6 +1357,7 @@ i32 quiesce_white(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, false);
@@ -1345,8 +1371,10 @@ i32 quiesce_white(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_king_move(b, move, move_r);
+#ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
             "Board corrupted after apply_king_move (capture) in quiesce_white "
@@ -1356,8 +1384,10 @@ i32 quiesce_white(
         print_move(orig, dest);
         exit(1);
       }
+#endif
       u64 new_position_hash = next_hash_king(position_hash, orig, dest);
       layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+#ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
             "Board corrupted after apply_captures_z_white (king capture) in "
@@ -1367,6 +1397,7 @@ i32 quiesce_white(
         print_move(orig, dest);
         exit(1);
       }
+#endif
       score_state new_score_state =
           update_score_state_king_move_and_capture(w, &s, orig, dest, captures);
 
@@ -1428,6 +1459,7 @@ i32 quiesce_white(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, false);
@@ -1441,8 +1473,10 @@ i32 quiesce_white(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_white_move(b, move, move_r);
+#ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
             "Board corrupted after apply_white_move (pawn capture) in "
@@ -1453,8 +1487,10 @@ i32 quiesce_white(
         print_move(orig, dest);
         exit(1);
       }
+#endif
       u64 new_position_hash = next_hash_white(position_hash, orig, dest);
       layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
+#ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
             "Board corrupted after apply_captures_z_white (pawn capture) in "
@@ -1464,6 +1500,7 @@ i32 quiesce_white(
         print_move(orig, dest);
         exit(1);
       }
+#endif
       score_state new_score_state = update_score_state_white_move_and_capture(
           w,
           &s,
@@ -1668,6 +1705,7 @@ create_position_set_with_hashes(u64 *zobrist_hashes, int hash_count) {
   return positions;
 }
 
+#ifndef NDEBUG
 // Helper function to validate a sequence of moves in a PV by applying them
 // sequentially and checking each move against the updated board state
 static void validate_pv_sequence(
@@ -1716,6 +1754,7 @@ static void validate_pv_sequence(
     is_black_turn = !is_black_turn;
   }
 }
+#endif
 
 search_result search_runner_iterative_generic(
     board b,
@@ -1760,6 +1799,7 @@ search_result search_runner_iterative_generic(
   result.pv = create_pv_line(&pv_data, is_black, search_result_score);
   result.statistics = statistics;
 
+#ifndef NDEBUG
   // Check if we got an empty PV after depth 1 search
   if (pv_data.pv_length[0] == 0) {
     printf("ERROR: Empty PV after depth 1 search!\n");
@@ -1781,6 +1821,7 @@ search_result search_runner_iterative_generic(
     printf("white_victory: %d\n", white_victory(&b));
     printf("exit_fort: %d\n", exit_fort(&b));
   }
+#endif
 
   // If max_depth is 1, we're done
   if (max_depth == 1) {
@@ -1795,6 +1836,7 @@ search_result search_runner_iterative_generic(
       sizeof(move) * pv_data.pv_length[0]);
   pv_data.prev_pv_length = pv_data.pv_length[0];
 
+#ifndef NDEBUG
   validate_pv_sequence(
       b,
       pv_data.pv_table[0],
@@ -1802,6 +1844,7 @@ search_result search_runner_iterative_generic(
       is_black,
       1);
   validate_pv_sequence(b, pv_data.prev_pv, pv_data.prev_pv_length, is_black, 1);
+#endif
 
   // Continue with iterative deepening from depth 2 to max_depth
   for (int depth = 2; depth <= max_depth; depth++) {
@@ -1821,6 +1864,7 @@ search_result search_runner_iterative_generic(
         sizeof(move) * pv_data.pv_length[0]);
     pv_data.prev_pv_length = pv_data.pv_length[0];
 
+#ifndef NDEBUG
     validate_pv_sequence(
         b,
         pv_data.pv_table[0],
@@ -1833,6 +1877,7 @@ search_result search_runner_iterative_generic(
         pv_data.prev_pv_length,
         is_black,
         depth);
+#endif
 
     search_result_score = search_fn(
         &pv_data,
@@ -1976,10 +2021,10 @@ i32 search_black(
   // We only need to check for a king escape because the previous move will
   // have been white.
   if (white_victory(&b)) {
-    // printf("search black victory detection\n");
-    return MIN_SCORE;
+    return LOSS_SCORE(ply);
   }
 
+#ifndef NDEBUG
   // Debug: Check if we should have detected a victory
   if (king_effectively_escaped(&b)) {
     printf(
@@ -1990,13 +2035,14 @@ i32 search_black(
     print_board(b);
     exit(1);
   }
+#endif
 
   // check for repetition
   int position_index;
   int collision = insert_position(positions, position_hash, &position_index);
   if (collision) {
-    // we consider the position a draw, and thus score it 0
-    // return 0;
+    // Return MAX_SCORE for draws to symmetrically discourage both sides from
+    // creating draw opportunities. See comment in quiesce_black for details.
     statistics->repeat_moves_encountered++;
     return MAX_SCORE;
   }
@@ -2025,6 +2071,7 @@ i32 search_black(
   if (is_pv) {
     move m = pv_data->prev_pv[ply];
 
+#ifndef NDEBUG
     move_error error = validate_move(b, m, true);
     if (error != move_error_no_error) {
       print_move(m.orig, m.dest);
@@ -2037,6 +2084,7 @@ i32 search_black(
           pv_data->prev_pv_length);
       exit(1);
     }
+#endif
 
     move m_r = ROTATE_MOVE(m);
     u8 orig = m.orig;
@@ -2070,6 +2118,7 @@ i32 search_black(
     }
     if (score > alpha) {
       alpha = score;
+#ifndef NDEBUG
       move_error error = validate_move(b, m, true);
       if (error != move_error_no_error) {
         print_move(m.orig, m.dest);
@@ -2079,6 +2128,7 @@ i32 search_black(
             error);
         exit(1);
       }
+#endif
       update_pv(pv_data, ply, m);
     }
     if (alpha > beta) {
@@ -2133,6 +2183,7 @@ i32 search_black(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, true);
@@ -2147,6 +2198,7 @@ i32 search_black(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_black_move(b, move, move_r);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
@@ -2210,6 +2262,7 @@ i32 search_black(
     layer move = ls[i];
     layer move_r = ls_r[i];
 
+#ifndef NDEBUG
     // Validate move before applying
     struct move m = ms[i];
     move_error error = validate_move(b, m, true);
@@ -2223,6 +2276,7 @@ i32 search_black(
           error);
       exit(1);
     }
+#endif
 
     board new_b = apply_black_move(b, move, move_r);
     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
@@ -2286,19 +2340,18 @@ i32 search_white(
 
   pv_data->pv_length[ply] = ply;
 
-  // We only need to check for a king escape because the previous move will
-  // have been white.
+  // We only need to check for a black_victory because the previous move will
+  // have been black.
   if (black_victory(&b)) {
-    // printf("search black victory detection\n");
-    return MIN_SCORE;
+    return LOSS_SCORE(ply);
   }
 
   // check for repetition
   int position_index;
   int collision = insert_position(positions, position_hash, &position_index);
   if (collision) {
-    // we consider the position a draw, and thus score it 0
-    // return 0;
+    // Return MAX_SCORE for draws to symmetrically discourage both sides from
+    // creating draw opportunities. See comment in quiesce_black for details.
     statistics->repeat_moves_encountered++;
     return MAX_SCORE;
   }
@@ -2331,6 +2384,7 @@ i32 search_white(
   if (is_pv) {
     move m = pv_data->prev_pv[ply];
 
+#ifndef NDEBUG
     move_error error = validate_move(b, m, false);
     if (error != move_error_no_error) {
       print_move(m.orig, m.dest);
@@ -2343,6 +2397,7 @@ i32 search_white(
           pv_data->prev_pv_length);
       exit(1);
     }
+#endif
 
     move m_r = ROTATE_MOVE(m);
     u8 orig = m.orig;
@@ -2393,6 +2448,7 @@ i32 search_white(
     }
     if (score > alpha) {
       alpha = score;
+#ifndef NDEBUG
       move_error error = validate_move(b, m, false);
       if (error != move_error_no_error) {
         print_move(m.orig, m.dest);
@@ -2402,6 +2458,7 @@ i32 search_white(
             error);
         exit(1);
       }
+#endif
       update_pv(pv_data, ply, m);
     }
     if (alpha > beta) {
@@ -2448,6 +2505,7 @@ i32 search_white(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, false);
@@ -2461,6 +2519,7 @@ i32 search_white(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_king_move(b, move, move_r);
       u64 new_position_hash = next_hash_king(position_hash, orig, dest);
@@ -2539,6 +2598,7 @@ i32 search_white(
       layer move = ls[i];
       layer move_r = ls_r[i];
 
+#ifndef NDEBUG
       // Validate move before applying
       struct move m = ms[i];
       move_error error = validate_move(b, m, false);
@@ -2552,6 +2612,7 @@ i32 search_white(
             error);
         exit(1);
       }
+#endif
 
       board new_b = apply_white_move(b, move, move_r);
       u64 new_position_hash = next_hash_white(position_hash, orig, dest);
@@ -2614,6 +2675,7 @@ i32 search_white(
     layer move = ls[i];
     layer move_r = ls_r[i];
 
+#ifndef NDEBUG
     // Validate move before applying
     struct move m = ms[i];
     move_error error = validate_move(b, m, false);
@@ -2627,6 +2689,7 @@ i32 search_white(
           error);
       exit(1);
     }
+#endif
 
     board new_b = apply_white_move(b, move, move_r);
     u64 new_position_hash = next_hash_white(position_hash, orig, dest);

@@ -369,6 +369,7 @@ void search_trusted(
       zobrist_hashes,
       hash_count);
 
+#ifndef NDEBUG
   // Check statistics for early abortion
   if ((result.statistics.search_positions_black
        + result.statistics.search_positions_white
@@ -377,21 +378,26 @@ void search_trusted(
     printf("search immediately aborted due to illegal repetition\n");
     exit(1);
   }
+#endif
 
   // Extract the best move from result
+#ifndef NDEBUG
   if (result.pv.length == 0 || result.pv.moves == NULL) {
     printf("null move encountered (no moves in PV)\n");
     print_search_stats(&result.statistics);
     exit(1);
   }
+#endif
 
   move best_move = result.pv.moves[0];
 
+#ifndef NDEBUG
   if (best_move.orig == 0 && best_move.dest == 0) {
     printf("null move encountered\n");
     print_search_stats(&result.statistics);
     exit(1);
   }
+#endif
 
   // Apply the move and calculate updated state
   board new_board_state = board_state;
@@ -422,6 +428,7 @@ void search_trusted(
     }
   }
 
+#ifndef NDEBUG
   // Check if new position hash already exists in the zobrist hashes
   // We need to create a temporary position set to check this
   position_set *temp_positions = create_position_set(hash_count + 100);
@@ -455,6 +462,7 @@ void search_trusted(
   }
 
   destroy_position_set(temp_positions);
+#endif
 
   // Check game status on the updated board
   game_status status;

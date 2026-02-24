@@ -9,20 +9,26 @@ bool validate_board_state(board b) {
   layer white_king = LAYER_AND(b.white, b.king);
 
   if (NOT_EMPTY(black_white)) {
+#ifndef NDEBUG
     printf("Board validation failed: black and white pieces overlap\n");
     print_board(b);
+#endif
     return false;
   }
 
   if (NOT_EMPTY(black_king)) {
+#ifndef NDEBUG
     printf("Board validation failed: black and king overlap\n");
     print_board(b);
+#endif
     return false;
   }
 
   if (NOT_EMPTY(white_king)) {
+#ifndef NDEBUG
     printf("Board validation failed: white and king overlap\n");
     print_board(b);
+#endif
     return false;
   }
 

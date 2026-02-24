@@ -7,6 +7,7 @@ module Hnefatafl.SelfPlay.UI.State (
   updateScoreState,
 ) where
 
+import Data.List (partition)
 import Data.Map.Strict (delete, insert, lookup)
 import Hnefatafl.Core.Data (MoveResult (..))
 import Hnefatafl.SelfPlay (
@@ -27,8 +28,8 @@ data ScoreState = ScoreState
   -- ^ running sum of (old_moves - new_moves) for tied pairs
   , tiedPairCount :: Int
   -- ^ count of pairs where each engine won once
-  , unpaired :: Map Int GameResult
-  -- ^ keyed by game id, value is the game result (partner has opposite newAsBlack)
+  , pending :: Map Int [(Bool, GameResult)]
+  -- ^ keyed by game id, collecting (newAsBlack, result) pairs until all 6 plays complete
   , newPairWins :: Int
   -- ^ count of pairs where new engine won both games
   , oldPairWins :: Int
@@ -65,29 +66,39 @@ mkInitialUIState snapshot =
     , scoreState = mkInitialScoreState snapshot.completedGames
     }
 
--- | Helper: did the "new" engine win this game?
-newEngineWon :: Bool -> Player -> Bool
-newEngineWon newAsBlack winner = newAsBlack == (winner == Black)
 
--- | Process a matched pair and update the score state
-processPair :: GameSetup -> GameResult -> GameResult -> ScoreState -> ScoreState
-processPair setup gameResult partnerResult scoreState =
-  let newWonCurrent = newEngineWon setup.newAsBlack gameResult.winner
-      newWonPartner = newEngineWon (not setup.newAsBlack) partnerResult.winner
-   in case (newWonCurrent, newWonPartner) of
-        (True, True) ->
-          scoreState & #newPairWins %~ (+ 1)
-        (False, False) ->
-          scoreState & #oldPairWins %~ (+ 1)
-        (True, False) ->
-          let moveDiff = partnerResult.moves - gameResult.moves
+-- | Aggregate results for one side (e.g., all plays where newAsBlack=True).
+-- Returns (newEngineWon, avgWinningMoves).
+-- Crashes if given an even or zero number of games.
+aggregateSide :: Bool -> [GameResult] -> (Bool, Int)
+aggregateSide newAsBlack results =
+  let len = length results
+   in if len == 0 || even len
+        then error $ "aggregateSide: expected odd number of games, got " <> show len
+        else
+          let blackWins = filter ((== Black) . (.winner)) results
+              whiteWins = filter ((== White) . (.winner)) results
+              blackWonMajority = length blackWins > length whiteWins
+              winningGames = if blackWonMajority then blackWins else whiteWins
+              avgMoves = sum (map (.moves) winningGames) `div` length winningGames
+              newWon = newAsBlack == blackWonMajority
+           in (newWon, avgMoves)
+
+-- | Process all plays for a game ID (6 total: 3 per side) and update the score state.
+processAllPlays :: [(Bool, GameResult)] -> ScoreState -> ScoreState
+processAllPlays plays scoreState =
+  let (side1Plays, side2Plays) = partition fst plays
+      (newWonSide1, side1Moves) = aggregateSide True (map snd side1Plays)
+      (newWonSide2, side2Moves) = aggregateSide False (map snd side2Plays)
+   in case (newWonSide1, newWonSide2) of
+        (True, True) -> scoreState & #newPairWins %~ (+ 1)
+        (False, False) -> scoreState & #oldPairWins %~ (+ 1)
+        _ ->
+          -- tie: one side won by each engine
+          let (newMoves, oldMoves) =
+                if newWonSide1 then (side1Moves, side2Moves) else (side2Moves, side1Moves)
            in scoreState
-                & #moveDifferenceSum %~ (+ moveDiff)
-                & #tiedPairCount %~ (+ 1)
-        (False, True) ->
-          let moveDiff = gameResult.moves - partnerResult.moves
-           in scoreState
-                & #moveDifferenceSum %~ (+ moveDiff)
+                & #moveDifferenceSum %~ (+ (oldMoves - newMoves))
                 & #tiedPairCount %~ (+ 1)
 
 updateScoreState :: StateUpdate -> ScoreState -> ScoreState
@@ -95,12 +106,15 @@ updateScoreState stateUpdate scoreState =
   case stateUpdate of
     StateUpdate _key (GameCompleted setup _moves gameResult) ->
       let gameId = setup.id
-       in case lookup gameId scoreState.unpaired of
+          entry = (setup.newAsBlack, gameResult)
+       in case lookup gameId scoreState.pending of
             Nothing ->
-              scoreState & #unpaired %~ insert gameId gameResult
-            Just partnerResult ->
-              let scoreState' = scoreState & #unpaired %~ delete gameId
-               in processPair setup gameResult partnerResult scoreState'
+              scoreState & #pending %~ insert gameId [entry]
+            Just existing ->
+              let updated = entry : existing
+               in if length updated == 6
+                    then processAllPlays updated (scoreState & #pending %~ delete gameId)
+                    else scoreState & #pending %~ insert gameId updated
     _ -> scoreState
 
 -- | Build initial ScoreState from completed games
@@ -112,16 +126,19 @@ mkInitialScoreState completedGames =
     ScoreState
       { moveDifferenceSum = 0
       , tiedPairCount = 0
-      , unpaired = mempty
+      , pending = mempty
       , newPairWins = 0
       , oldPairWins = 0
       }
 
   processCompletedGame scoreState (CompletedGame setup _moves gameResult) =
     let gameId = setup.id
-     in case lookup gameId scoreState.unpaired of
+        entry = (setup.newAsBlack, gameResult)
+     in case lookup gameId scoreState.pending of
           Nothing ->
-            scoreState & #unpaired %~ insert gameId gameResult
-          Just partnerResult ->
-            let scoreState' = scoreState & #unpaired %~ delete gameId
-             in processPair setup gameResult partnerResult scoreState'
+            scoreState & #pending %~ insert gameId [entry]
+          Just existing ->
+            let updated = entry : existing
+             in if length updated == 6
+                  then processAllPlays updated (scoreState & #pending %~ delete gameId)
+                  else scoreState & #pending %~ insert gameId updated

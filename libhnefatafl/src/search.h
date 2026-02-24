@@ -15,6 +15,27 @@ typedef struct position_set position_set;
 #define MAX_SCORE 2147483646
 #define MIN_SCORE -2147483646
 
+// Maximum ply depth for PV tables and score adjustment
+#define MAX_PLY 32
+
+// Base score for positions where victory is guaranteed but not yet realized
+#define INEVITABLE_VICTORY_BASE (MAX_SCORE - MAX_PLY - 1)
+
+// Base score for positions where loss is guaranteed but not yet realized
+#define INEVITABLE_LOSS_BASE (MIN_SCORE + MAX_PLY + 1)
+
+// Score for actual victory, adjusted by ply to prefer earlier wins
+#define VICTORY_SCORE(ply) (MAX_SCORE - (ply))
+
+// Score for actual loss, adjusted by ply to prefer later losses
+#define LOSS_SCORE(ply) (MIN_SCORE + (ply))
+
+// Score for inevitable victory, adjusted by ply to prefer earlier inevitability
+#define INEVITABLE_VICTORY_SCORE(ply) (INEVITABLE_VICTORY_BASE - (ply))
+
+// Score for inevitable loss, adjusted by ply to prefer later inevitability
+#define INEVITABLE_LOSS_SCORE(ply) (INEVITABLE_LOSS_BASE + (ply))
+
 typedef struct pv_line {
   bool is_black_turn;
   move *moves;
@@ -22,12 +43,10 @@ typedef struct pv_line {
   i32 score;
 } pv_line;
 
-#define MAX_DEPTH 32
-
 typedef struct pv {
-  int pv_length[MAX_DEPTH];
-  move pv_table[MAX_DEPTH][MAX_DEPTH];
-  move prev_pv[MAX_DEPTH];
+  int pv_length[MAX_PLY];
+  move pv_table[MAX_PLY][MAX_PLY];
+  move prev_pv[MAX_PLY];
   int prev_pv_length;
 } pv;
 

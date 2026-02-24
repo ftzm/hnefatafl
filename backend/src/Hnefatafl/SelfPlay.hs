@@ -87,20 +87,23 @@ data GameResult = GameResult
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
 -- Key type for identifying games
-type GameKey = (Int, Bool) -- (id, newAsBlack)
+type GameKey = (Int, Bool, Int) -- (id, newAsBlack, playIndex)
 
 -- Helper to create display name from key
 mkGameName :: GameKey -> Text
-mkGameName (gameId, newAsBlack) =
-  show gameId <> " " <> if newAsBlack then "New vs. Old" else "Old vs. New"
+mkGameName (gameId, newAsBlack, playIndex) =
+  show gameId <> "." <> show playIndex <> " " <> if newAsBlack then "New vs. Old" else "Old vs. New"
 
 -- Extract key from setup
 gameSetupKey :: GameSetup -> GameKey
-gameSetupKey setup = (setup.id, setup.newAsBlack)
+gameSetupKey setup = (setup.id, setup.newAsBlack, setup.playIndex)
 
 -- Immutable game setup
 data GameSetup = GameSetup
   { id :: Int
+  , -- | Index for repeated plays of the same game configuration.
+    -- Multiple plays allow majority voting to filter out timing variance.
+    playIndex :: Int
   , setupNotation :: Text
   , startingBoard :: ExternBoard
   , startingBlackToMove :: Bool
@@ -205,26 +208,28 @@ loadStartPositions startPositionsFile = do
                     movesResult = last moveResults
                     b = movesResult.board
                     blackToMove = not movesResult.wasBlackTurn
-                    mkGameDef newAsBlack =
+                    hashes = reverse $ map (.zobristHash) $ toList moveResults
+                    mkGameDef newAsBlack pIdx =
                       let setup =
                             GameSetup
                               { id = i
+                              , playIndex = pIdx
                               , setupNotation = notation
                               , startingBoard = b
                               , startingBlackToMove = blackToMove
                               , newAsBlack = newAsBlack
-                              , startingHashes = reverse $ map (.zobristHash) $ toList moveResults
+                              , startingHashes = hashes
                               }
                           progress =
                             GameProgress
                               { currentBoard = b
                               , currentBlackToMove = blackToMove
-                              , currentHashes = reverse $ map (.zobristHash) $ toList moveResults
+                              , currentHashes = hashes
                               , moveCount = 0
                               , selfPlayMoves = []
                               }
                        in GameDefinition setup progress
-                 in [mkGameDef True, mkGameDef False]
+                 in [mkGameDef newAsBlack pIdx | newAsBlack <- [True, False], pIdx <- [0 .. 2]]
             )
             [0 ..]
             moveLists

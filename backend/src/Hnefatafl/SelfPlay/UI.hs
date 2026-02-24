@@ -55,12 +55,12 @@ import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 import Prelude hiding (atomically, toList)
 
--- | Format the score display: "4W-0L-2T (+8, 2 unpaired)"
+-- | Format the score display: "4W-0L-2T (+8, 2 pending)"
 formatScore :: ScoreState -> Text
-formatScore scoreState = baseScore <> unpairedSuffix
+formatScore scoreState = baseScore <> pendingSuffix
  where
   totalPairs = scoreState.newPairWins + scoreState.oldPairWins + scoreState.tiedPairCount
-  unpairedCount = length scoreState.unpaired
+  pendingCount = length scoreState.pending
 
   baseScore
     | totalPairs == 0 = "--"
@@ -76,9 +76,9 @@ formatScore scoreState = baseScore <> unpairedSuffix
 
   netPoints = (scoreState.newPairWins - scoreState.oldPairWins) * 2
 
-  unpairedSuffix
-    | unpairedCount == 0 = ""
-    | otherwise = " (" <> show unpairedCount <> " unpaired)"
+  pendingSuffix
+    | pendingCount == 0 = ""
+    | otherwise = " (" <> show pendingCount <> " pending)"
 
   showSign n
     | n > 0 = "+" <> show n

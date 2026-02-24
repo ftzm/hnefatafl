@@ -87,6 +87,7 @@ spec_round_trip_state_snapshot =
               { setup =
                   GameSetup
                     { id = 0
+                    , playIndex = 0
                     , setupNotation = "a1-a2"
                     , startingBoard = startBoard
                     , startingBlackToMove = True
@@ -107,6 +108,7 @@ spec_round_trip_state_snapshot =
               { setup =
                   GameSetup
                     { id = 1
+                    , playIndex = 0
                     , setupNotation = "b1-b2"
                     , startingBoard = startBoard
                     , startingBlackToMove = False
@@ -158,6 +160,7 @@ spec_claim_next_game =
               { setup =
                   GameSetup
                     { id = 0
+                    , playIndex = 0
                     , setupNotation = "a1-a2"
                     , startingBoard = startBoard
                     , startingBlackToMove = True
@@ -220,6 +223,7 @@ spec_complete_game =
               { setup =
                   GameSetup
                     { id = 0
+                    , playIndex = 0
                     , setupNotation = "a1-a2"
                     , startingBoard = startBoard
                     , startingBlackToMove = True
@@ -265,6 +269,7 @@ spec_complete_game =
               { setup =
                   GameSetup
                     { id = 0
+                    , playIndex = 0
                     , setupNotation = "a1-a2"
                     , startingBoard = startBoard
                     , startingBlackToMove = True
@@ -313,6 +318,7 @@ spec_update_game_progress =
               { setup =
                   GameSetup
                     { id = 0
+                    , playIndex = 0
                     , setupNotation = "a1-a2"
                     , startingBoard = startBoard
                     , startingBlackToMove = True
@@ -366,6 +372,7 @@ spec_update_game_progress =
               { setup =
                   GameSetup
                     { id = 0
+                    , playIndex = 0
                     , setupNotation = "a1-a2"
                     , startingBoard = startBoard
                     , startingBlackToMove = True
@@ -443,6 +450,7 @@ createComplexLiveState gameNotation = do
               { setup =
                   GameSetup
                     { id = gameId
+                    , playIndex = 0
                     , setupNotation = gameNotation
                     , startingBoard = startBoard
                     , startingBlackToMove = True
@@ -465,6 +473,7 @@ createComplexLiveState gameNotation = do
                   { setup =
                       GameSetup
                         { id = gameId
+                        , playIndex = 0
                         , setupNotation = gameNotation
                         , startingBoard = startBoard
                         , startingBlackToMove = True
@@ -806,12 +815,12 @@ spec_single_game_actor =
               progressedEvents = filter isGameProgressed events
               completedEvents = filter isGameCompleted events
 
-          -- Should have exactly 10 games claimed and completed
-          length claimedEvents `shouldBe` 20
-          length completedEvents `shouldBe` 20
+          -- Should have exactly 60 games claimed and completed (10 positions × 6 games each)
+          length claimedEvents `shouldBe` 60
+          length completedEvents `shouldBe` 60
 
           -- Should have some progress events (at least one per game)
-          length progressedEvents `shouldSatisfy` (>= 20)
+          length progressedEvents `shouldSatisfy` (>= 60)
 
           -- All events should be in logical order (claimed before completed for each game)
           events `shouldSatisfy` eventsInLogicalOrder

@@ -32,7 +32,15 @@ BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 CC := gcc
 # CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror -Winline -fsanitize=address -Wformat
 CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror -Winline
-BENCH_CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror
+
+# Debug mode: use DEBUG=1 to enable debug code in library
+# Default is release (NDEBUG defined). Run `make clean` when switching modes.
+ifndef DEBUG
+  CFLAGS += -DNDEBUG
+endif
+
+# Benchmarks always use release mode
+BENCH_CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror -DNDEBUG
 LDFLAGS := 
 DEP_FLAGS = -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d
 
@@ -137,6 +145,7 @@ update-test-suites:
 # Test executable compilation and execution
 #
 # Running `make test` will run all tests.
+# For tests with debug code: `make clean && make test DEBUG=1`
 
 $(TEST_BIN_DIR)/%: $(TEST_OBJ_DIR)/%.o $(LIB_TARGET) | $(TEST_BIN_DIR)
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(TEST_LIBS)
