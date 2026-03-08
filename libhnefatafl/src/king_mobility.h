@@ -33,6 +33,15 @@ void corner_paths_2(
     layer *paths,
     layer *paths_r);
 
+void corner_paths_2_new(
+    const layer occ,
+    const layer occ_r,
+    const int rank,
+    const int file,
+    const int king_pos,
+    layer *paths,
+    layer *paths_r);
+
 void corner_paths_2_2(
     const layer king,
     const layer occ,

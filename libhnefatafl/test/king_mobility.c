@@ -144,7 +144,7 @@ corner_paths_2_cb(struct theft *t, void *env, void **instance) {
   layer occ = LAYER_OR(b.white, b.black);
   layer occ_r = LAYER_OR(b.white_r, b.black_r);
 
-  corner_paths_2(occ, occ_r, king_rank, king_file, &x, &x_r);
+  corner_paths_2_new(occ, occ_r, king_rank, king_file, king_pos, &x, &x_r);
   corner_paths_2_ref(board_occ(b), king_rank, king_file, &y, &y_r);
 
   struct layer_comparison c = {b, x, x_r, y, y_r};
@@ -1705,7 +1705,14 @@ TEST test_corner_paths_2(const char *b, const char *e) {
   layer paths_r = EMPTY_LAYER;
 
   // generate layers
-  corner_paths_2(occ, occ_r, king_rank, king_file, &paths, &paths_r);
+  corner_paths_2_new(
+      occ,
+      occ_r,
+      king_rank,
+      king_file,
+      king_pos,
+      &paths,
+      &paths_r);
 
   {
     // error string
