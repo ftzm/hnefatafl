@@ -738,11 +738,12 @@ i32 quiesce_black(
     layer corner_paths = EMPTY_LAYER;
     layer corner_paths_r = EMPTY_LAYER;
 
-    corner_paths_2(
+    corner_paths_2_new(
         LAYER_OR(b.black, b.white),
         LAYER_OR(b.black_r, b.white_r),
         king_rank,
         king_file,
+        king_pos,
         &corner_paths,
         &corner_paths_r);
 

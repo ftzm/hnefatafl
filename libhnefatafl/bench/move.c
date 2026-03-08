@@ -588,103 +588,151 @@ UBENCH_EX(king_mobility, corner_paths_1) {
   }
 }
 
-const char *corner_access_double2 = " .  .  X  .  X  .  .  O  .  .  . "
-                                    " .  X  .  X  .  .  .  .  .  .  . "
-                                    " X  .  .  O  O  X  .  .  X  .  . "
-                                    " .  .  .  .  .  .  X  .  .  X  . "
-                                    " .  X  .  .  .  .  O  .  .  .  X "
-                                    " X  .  .  O  O  .  O  .  .  X  X "
-                                    " X  .  .  .  O  O  O  .  .  .  X "
-                                    " X  .  .  .  .  O  .  .  .  .  X "
-                                    " .  #  .  .  .  .  .  .  O  .  . "
-                                    " .  .  .  .  .  X  .  .  .  .  . "
-                                    " .  .  X  .  X  X  X  X  .  .  . ";
-
-const char *corner_access_middle_no_escape =
-    " .  .  X  .  X  .  .  O  .  .  . "
-    " .  X  .  X  .  .  .  .  .  .  . "
-    " X  .  .  O  O  X  .  .  X  .  . "
-    " .  .  .  .  .  .  X  .  .  X  . "
-    " .  X  .  .  .  #  O  .  .  .  X "
-    " X  .  .  O  O  .  O  .  .  X  X "
-    " X  .  .  .  O  O  O  .  .  .  X "
-    " X  .  .  .  .  O  .  .  .  .  X "
-    " .  .  .  .  .  .  .  .  O  .  . "
-    " .  .  .  .  .  X  .  .  .  .  . "
-    " .  .  X  .  X  X  X  X  .  .  . ";
-
-UBENCH_EX(king_mobility, corner_paths_2) {
-  board b = read_board(corner_access_double2);
-
-  // setup to generate layers
-  layer occ = LAYER_OR(b.black, b.white);
-  layer occ_r = LAYER_OR(b.black_r, b.white_r);
-
-  int king_pos = LOWEST_INDEX(b.king);
-  int king_rank = RANK(king_pos);
-  int king_file = FILE(king_pos);
-
-  UBENCH_DO_BENCHMARK() {
-
-    layer paths = EMPTY_LAYER;
-    layer paths_r = EMPTY_LAYER;
-
-    corner_paths_2(occ, occ_r, king_rank, king_file, &paths, &paths_r);
-    UBENCH_DO_NOTHING(&paths);
-    UBENCH_DO_NOTHING(&paths_r);
-  }
+static void set_occ(layer *occ, layer *occ_r, int rank, int file) {
+  int idx = rank * 11 + file;
+  SET_INDEX_PTR(occ, idx);
+  SET_INDEX_PTR(occ_r, rotate_right[idx]);
 }
 
-UBENCH_EX(king_mobility, corner_paths_2_middle_no_escape) {
-  board b = read_board(corner_access_middle_no_escape);
+// corner_paths_2 benchmarks: 13 cases x 2 (empty / blocked)
+// Cases correspond to the branches in corner_paths_2:
+//   Edge:     file==0, file==10, rank==0, rank==10
+//   Interior: file x rank where file in {1, 9, default} and rank in {1, 9,
+//   default}
 
-  // setup to generate layers
-  layer occ = LAYER_OR(b.black, b.white);
-  layer occ_r = LAYER_OR(b.black_r, b.white_r);
-
-  int king_pos = LOWEST_INDEX(b.king);
-  int king_rank = RANK(king_pos);
-  int king_file = FILE(king_pos);
-
-  UBENCH_DO_BENCHMARK() {
-
-    layer paths = EMPTY_LAYER;
-    layer paths_r = EMPTY_LAYER;
-
-    corner_paths_2(occ, occ_r, king_rank, king_file, &paths, &paths_r);
-    UBENCH_DO_NOTHING(&paths);
-    UBENCH_DO_NOTHING(&paths_r);
+#define CP2_BENCH_EMPTY(_name, _rank, _file)                                   \
+  UBENCH_EX(cp2, _name##_empty) {                                              \
+    layer occ = EMPTY_LAYER;                                                   \
+    layer occ_r = EMPTY_LAYER;                                                 \
+    UBENCH_DO_BENCHMARK() {                                                    \
+      layer paths = EMPTY_LAYER;                                               \
+      layer paths_r = EMPTY_LAYER;                                             \
+      corner_paths_2(occ, occ_r, _rank, _file, &paths, &paths_r);              \
+      UBENCH_DO_NOTHING(&paths);                                               \
+      UBENCH_DO_NOTHING(&paths_r);                                             \
+    }                                                                          \
   }
-}
 
-UBENCH_EX(king_mobility, corner_paths_2_middle_no_escape_2) {
-  board b = read_board(corner_access_middle_no_escape);
-
-  // setup to generate layers
-  layer occ = LAYER_OR(b.black, b.white);
-  layer occ_r = LAYER_OR(b.black_r, b.white_r);
-
-  int king_pos = LOWEST_INDEX(b.king);
-  int king_rank = RANK(king_pos);
-  int king_file = FILE(king_pos);
-
-  UBENCH_DO_BENCHMARK() {
-
-    layer paths = EMPTY_LAYER;
-    layer paths_r = EMPTY_LAYER;
-
-    corner_paths_2_2(
-        b.king,
-        occ,
-        occ_r,
-        king_rank,
-        king_file,
-        &paths,
-        &paths_r);
-    UBENCH_DO_NOTHING(&paths);
-    UBENCH_DO_NOTHING(&paths_r);
+#define CP2_BENCH_BLOCKED(_name, _rank, _file)                                 \
+  UBENCH_EX(cp2, _name##_blocked) {                                            \
+    layer occ = EMPTY_LAYER;                                                   \
+    layer occ_r = EMPTY_LAYER;                                                 \
+    if (_rank > 0)                                                             \
+      set_occ(&occ, &occ_r, _rank - 1, _file);                                 \
+    if (_rank < 10)                                                            \
+      set_occ(&occ, &occ_r, _rank + 1, _file);                                 \
+    if (_file > 0)                                                             \
+      set_occ(&occ, &occ_r, _rank, _file - 1);                                 \
+    if (_file < 10)                                                            \
+      set_occ(&occ, &occ_r, _rank, _file + 1);                                 \
+    UBENCH_DO_BENCHMARK() {                                                    \
+      layer paths = EMPTY_LAYER;                                               \
+      layer paths_r = EMPTY_LAYER;                                             \
+      corner_paths_2(occ, occ_r, _rank, _file, &paths, &paths_r);              \
+      UBENCH_DO_NOTHING(&paths);                                               \
+      UBENCH_DO_NOTHING(&paths_r);                                             \
+    }                                                                          \
   }
-}
+
+#define CP2_BENCH(_name, _rank, _file)                                         \
+  CP2_BENCH_EMPTY(_name, _rank, _file)                                         \
+  CP2_BENCH_BLOCKED(_name, _rank, _file)
+
+// Edge cases
+CP2_BENCH(edge_f0, 5, 0)
+CP2_BENCH(edge_f10, 5, 10)
+CP2_BENCH(edge_r0, 0, 5)
+CP2_BENCH(edge_r10, 10, 5)
+
+// Interior: file==1
+CP2_BENCH(f1_r1, 1, 1)
+CP2_BENCH(f1_r9, 9, 1)
+CP2_BENCH(f1_mid, 5, 1)
+
+// Interior: file==9
+CP2_BENCH(f9_r1, 1, 9)
+CP2_BENCH(f9_r9, 9, 9)
+CP2_BENCH(f9_mid, 5, 9)
+
+// Interior: file==default (5)
+CP2_BENCH(mid_r1, 1, 5)
+CP2_BENCH(mid_r9, 9, 5)
+CP2_BENCH(mid_mid, 5, 5)
+
+#define CP2_NEW_BENCH_EMPTY(_name, _rank, _file)                               \
+  UBENCH_EX(cp2_new, _name##_empty) {                                          \
+    layer occ = EMPTY_LAYER;                                                   \
+    layer occ_r = EMPTY_LAYER;                                                 \
+    int king_pos = _rank * 11 + _file;                                         \
+    UBENCH_DO_BENCHMARK() {                                                    \
+      layer paths = EMPTY_LAYER;                                               \
+      layer paths_r = EMPTY_LAYER;                                             \
+      corner_paths_2_new(                                                      \
+          occ,                                                                 \
+          occ_r,                                                               \
+          _rank,                                                               \
+          _file,                                                               \
+          king_pos,                                                            \
+          &paths,                                                              \
+          &paths_r);                                                           \
+      UBENCH_DO_NOTHING(&paths);                                               \
+      UBENCH_DO_NOTHING(&paths_r);                                             \
+    }                                                                          \
+  }
+
+#define CP2_NEW_BENCH_BLOCKED(_name, _rank, _file)                             \
+  UBENCH_EX(cp2_new, _name##_blocked) {                                        \
+    layer occ = EMPTY_LAYER;                                                   \
+    layer occ_r = EMPTY_LAYER;                                                 \
+    int king_pos = _rank * 11 + _file;                                         \
+    if (_rank > 0)                                                             \
+      set_occ(&occ, &occ_r, _rank - 1, _file);                                 \
+    if (_rank < 10)                                                            \
+      set_occ(&occ, &occ_r, _rank + 1, _file);                                 \
+    if (_file > 0)                                                             \
+      set_occ(&occ, &occ_r, _rank, _file - 1);                                 \
+    if (_file < 10)                                                            \
+      set_occ(&occ, &occ_r, _rank, _file + 1);                                 \
+    UBENCH_DO_BENCHMARK() {                                                    \
+      layer paths = EMPTY_LAYER;                                               \
+      layer paths_r = EMPTY_LAYER;                                             \
+      corner_paths_2_new(                                                      \
+          occ,                                                                 \
+          occ_r,                                                               \
+          _rank,                                                               \
+          _file,                                                               \
+          king_pos,                                                            \
+          &paths,                                                              \
+          &paths_r);                                                           \
+      UBENCH_DO_NOTHING(&paths);                                               \
+      UBENCH_DO_NOTHING(&paths_r);                                             \
+    }                                                                          \
+  }
+
+#define CP2_NEW_BENCH(_name, _rank, _file)                                     \
+  CP2_NEW_BENCH_EMPTY(_name, _rank, _file)                                     \
+  CP2_NEW_BENCH_BLOCKED(_name, _rank, _file)
+
+// Edge cases
+CP2_NEW_BENCH(edge_f0, 5, 0)
+CP2_NEW_BENCH(edge_f10, 5, 10)
+CP2_NEW_BENCH(edge_r0, 0, 5)
+CP2_NEW_BENCH(edge_r10, 10, 5)
+
+// Interior: file==1
+CP2_NEW_BENCH(f1_r1, 1, 1)
+CP2_NEW_BENCH(f1_r9, 9, 1)
+CP2_NEW_BENCH(f1_mid, 5, 1)
+
+// Interior: file==9
+CP2_NEW_BENCH(f9_r1, 1, 9)
+CP2_NEW_BENCH(f9_r9, 9, 9)
+CP2_NEW_BENCH(f9_mid, 5, 9)
+
+// Interior: file==default (5)
+CP2_NEW_BENCH(mid_r1, 1, 5)
+CP2_NEW_BENCH(mid_r9, 9, 5)
+CP2_NEW_BENCH(mid_mid, 5, 5)
 int bench_king_capture_check(bool (*check)(const board *b)) {
   // this total is just to ensure that the code is not optimized away.
   int total = 0;
