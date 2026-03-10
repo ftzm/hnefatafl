@@ -1118,9 +1118,10 @@ static inline bool __attribute__((always_inline)) exit_check(
   return found;
 }
 
-// Exclusive exit_check: masks exclude king's position.
-// Use for king's own row or S&B branch rows (where landing square is verified
-// by CAN_REACH_POS / can_reach_right/left).
+// Identical to exit_check except the range masks exclude the king's
+// position (pos+1/pos-1 instead of pos). Used for the king's own row
+// where the king's bit is clear in row_occ and must not appear in the
+// path mask.
 static inline bool __attribute__((always_inline)) exit_check_exc(
     u16 row_occ,
     int pos,
@@ -1162,20 +1163,34 @@ enum escape_dir { DIR_RIGHT, DIR_LEFT };
 
 // Axis context for stem_and_branch and exit_check: captures all values
 // that depend on which axis the king stems along (rank vs file).
+//
+// "Below" and "above" are relative to the stem axis, defined as toward
+// decreasing (pos 0) and increasing (pos 10) stem position respectively.
+// For rank-axis stems, stem position = file, so below = toward file 0
+// and below_masks = below_n. For file-axis stems, stem position =
+// rot_row_pos = 10 - rank, so below = toward rot_row_pos 0 = toward
+// rank 10, and below_masks = above_n.
 typedef struct {
-  u16 stem_occ;           // occupancy of king's row on this axis
-  int stem_pos;           // king's position on stem row
-  layer branch_src;       // layer to extract branch rows from (occ or occ_r)
-  int branch_pos;         // king's coordinate on the branch axis
-  bool col_flip;          // true for file-axis stem (col_idx = 10 - row_idx)
-  int perp_idx;           // king's perpendicular coordinate
-  layer *par;             // parallel output layer (branch axis)
-  layer *perp;            // perpendicular output layer (stem axis)
-  const layer *left;      // exclusive half-board array (leftward/below)
-  const layer *right;     // exclusive half-board array (rightward/above)
-  const layer *left_inc;  // inclusive half-board array (leftward/below)
-  const layer *right_inc; // inclusive half-board array (rightward/above)
-  int stem_row_idx;       // row index for writing stem cells
+  u16 stem_occ;     // occupancy of king's row on this axis
+  int stem_pos;     // king's position on stem row
+  layer branch_src; // layer to extract branch rows from (occ or occ_r)
+  int branch_pos;   // king's coordinate on the branch axis
+  bool col_flip;    // true for file-axis stem (col_idx = 10 - row_idx)
+  int perp_idx;     // king's perpendicular coordinate
+  layer *par; // output layer where branch rows are rows (paths_r for rank-axis,
+              // paths for file-axis)
+  layer *perp; // output layer where branch rows are columns (paths for
+               // rank-axis, paths_r for file-axis)
+  const layer *below_masks; // row-range masks below the stem axis (exclusive)
+  const layer *above_masks; // row-range masks above the stem axis (exclusive)
+  const layer
+      *below_inc_masks; // row-range masks below the stem axis (inclusive)
+  const layer
+      *above_inc_masks; // row-range masks above the stem axis (inclusive)
+  int stem_row_idx;     // row index for writing stem cells
+  int perp_row_idx;     // king's row index in the perpendicular layer
+                        // (file for rank-axis, rank for file-axis);
+                        // indexes into below/above masks
 } axis_ctx;
 
 // col_idx helpers: resolve at compile time via token pasting.
@@ -1187,16 +1202,30 @@ typedef struct {
 // Inclusive exit_check using axis context (for adjacent rows).
 // flip must be a literal true/false matching ctx->col_flip.
 #define exit_check_ctx(row_occ, row_idx, flip, ctx)                            \
-  exit_check(row_occ, (ctx)->branch_pos, row_idx, COL_IDX(flip, row_idx),      \
-             (ctx)->perp_idx, (ctx)->par, (ctx)->perp,                         \
-             (ctx)->left_inc, (ctx)->right_inc)
+  exit_check(                                                                  \
+      row_occ,                                                                 \
+      (ctx)->branch_pos,                                                       \
+      row_idx,                                                                 \
+      COL_IDX(flip, row_idx),                                                  \
+      (ctx)->perp_idx,                                                         \
+      (ctx)->par,                                                              \
+      (ctx)->perp,                                                             \
+      (ctx)->below_inc_masks,                                                  \
+      (ctx)->above_inc_masks)
 
 // Exclusive exit_check using axis context (for king's own row).
 // flip must be a literal true/false matching ctx->col_flip.
 #define exit_check_exc_ctx(row_occ, row_idx, flip, ctx)                        \
-  exit_check_exc(row_occ, (ctx)->branch_pos, row_idx, COL_IDX(flip, row_idx),  \
-                 (ctx)->perp_idx, (ctx)->par, (ctx)->perp,                     \
-                 (ctx)->left, (ctx)->right)
+  exit_check_exc(                                                              \
+      row_occ,                                                                 \
+      (ctx)->branch_pos,                                                       \
+      row_idx,                                                                 \
+      COL_IDX(flip, row_idx),                                                  \
+      (ctx)->perp_idx,                                                         \
+      (ctx)->par,                                                              \
+      (ctx)->perp,                                                             \
+      (ctx)->below_masks,                                                      \
+      (ctx)->above_masks)
 
 // 2-move escape: check if the king can reach the near-edge row along its
 // own row (stem), then find exits along the near-edge and edge rows (branch).
@@ -1219,14 +1248,26 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
   if (!reached)
     return;
 
-  bool toward_low = (dir == DIR_RIGHT) != ctx->col_flip;
-  int near_row_n = toward_low ? 1 : 9;
-  int edge_row_n = toward_low ? 0 : 10;
+  // dir operates in stem coordinates where "right" = toward position 0.
+  // For rank-axis stems, stem position 0 is file 0, and the branch rows
+  // we check in occ_r are the low-numbered ones (files 1, 0). For
+  // file-axis stems, stem position 0 is rank 10 (because rot_row_pos = 10 -
+  // rank), and the branch rows we check in occ are the high-numbered
+  // ones (ranks 9, 10) — so the mapping inverts.
+  // toward_low_rows: true when the target branch rows are 1/0, false
+  // when they are 9/10.
+  bool toward_low_rows = (dir == DIR_RIGHT) != ctx->col_flip;
+  int near_row_n = toward_low_rows ? 1 : 9;
+  int edge_row_n = toward_low_rows ? 0 : 10;
   int near_col_idx = ctx->col_flip ? 10 - near_row_n : near_row_n;
   int edge_col_idx = ctx->col_flip ? 10 - edge_row_n : edge_row_n;
-  int perp_key = ctx->col_flip ? 10 - ctx->stem_pos : ctx->stem_pos;
-  layer stem_perp_half =
-      (dir == DIR_RIGHT) ? ctx->left[perp_key] : ctx->right[perp_key];
+  // When writing the stem to the escape path layer in which it has a
+  // column orientation, we compose a full-board column mask with this
+  // mask, which contains only the rows between the king and the board
+  // edge where the exit is happening.
+  layer stem_perp_half = (dir == DIR_RIGHT)
+                             ? ctx->below_masks[ctx->perp_row_idx]
+                             : ctx->above_masks[ctx->perp_row_idx];
 
   // Extract branch row occupancy only after confirming the stem is reachable.
   u16 near_occ = dirty_get_row_branchless(ctx->branch_src, near_row_n);
@@ -1245,8 +1286,8 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
       ctx->perp_idx,
       ctx->par,
       ctx->perp,
-      ctx->left,
-      ctx->right);
+      ctx->below_masks,
+      ctx->above_masks);
 
   bool found_edge = false;
   if (check_edge) {
@@ -1258,8 +1299,8 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
         ctx->perp_idx,
         ctx->par,
         ctx->perp,
-        ctx->left,
-        ctx->right);
+        ctx->below_masks,
+        ctx->above_masks);
   }
 
   // Stem cells go to perp (row representation) because the stem runs along
@@ -1271,7 +1312,7 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
     u16 stem_mask = (dir == DIR_RIGHT)
                         ? range_mask(ctx->stem_pos - 1, stem_target)
                         : range_mask(stem_target, ctx->stem_pos + 1);
-    into_row_branchless(ctx->perp, stem_mask, ctx->stem_row_idx);
+    into_row(ctx->perp, stem_mask, ctx->stem_row_idx);
     ctx->par->_[0] |=
         file_mask_adjacent[ctx->branch_pos]._[0] & stem_perp_half._[0];
     ctx->par->_[1] |=
@@ -1281,7 +1322,7 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
     u16 stem_mask = (dir == DIR_RIGHT)
                         ? range_mask(ctx->stem_pos - 1, edge_target)
                         : range_mask(edge_target, ctx->stem_pos + 1);
-    into_row_branchless(ctx->perp, stem_mask, ctx->stem_row_idx);
+    into_row(ctx->perp, stem_mask, ctx->stem_row_idx);
     ctx->par->_[0] |=
         legal_file_masks[ctx->branch_pos]._[0] & stem_perp_half._[0];
     ctx->par->_[1] |=
@@ -1339,83 +1380,91 @@ void corner_paths_2_new(
     layer *restrict paths_r) {
   (void)king_pos;
 
-  int fpos = 10 - rank; // king's position in a file column (rotated row)
+  int rot_row_pos = 10 - rank; // king's index within a row in occ_r
 
   // Edge cases: king on file 0/10 or rank 0/10.
   // Only need one row extraction (stem axis).
   if (file == 0) {
     u16 rank_occ = dirty_get_row(occ, rank);
     axis_ctx rc = {
-        rank_occ,
-        file,
-        occ_r,
-        fpos,
-        false,
-        rank,
-        paths_r,
-        paths,
-        below_n,
-        above_n,
-        below_n_inc,
-        above_n_inc,
-        rank};
+        .stem_occ = rank_occ,
+        .stem_pos = file,
+        .branch_src = occ_r,
+        .branch_pos = rot_row_pos,
+        .col_flip = false,
+        .perp_idx = rank,
+        .par = paths_r,
+        .perp = paths,
+        .below_masks = below_n,
+        .above_masks = above_n,
+        .below_inc_masks = below_n_inc,
+        .above_inc_masks = above_n_inc,
+        .stem_row_idx = rank,
+        .perp_row_idx = file,
+    };
     exit_check_exc_ctx(DIRTY_GET_ROW(0, occ_r), 0, false, &rc);
     exit_check_ctx(DIRTY_GET_ROW(1, occ_r), 1, false, &rc);
     stem_and_branch(DIR_LEFT, true, &rc);
   } else if (file == 10) {
     u16 rank_occ = dirty_get_row(occ, rank);
     axis_ctx rc = {
-        rank_occ,
-        file,
-        occ_r,
-        fpos,
-        false,
-        rank,
-        paths_r,
-        paths,
-        below_n,
-        above_n,
-        below_n_inc,
-        above_n_inc,
-        rank};
+        .stem_occ = rank_occ,
+        .stem_pos = file,
+        .branch_src = occ_r,
+        .branch_pos = rot_row_pos,
+        .col_flip = false,
+        .perp_idx = rank,
+        .par = paths_r,
+        .perp = paths,
+        .below_masks = below_n,
+        .above_masks = above_n,
+        .below_inc_masks = below_n_inc,
+        .above_inc_masks = above_n_inc,
+        .stem_row_idx = rank,
+        .perp_row_idx = file,
+    };
     stem_and_branch(DIR_RIGHT, true, &rc);
     exit_check_ctx(DIRTY_GET_ROW(9, occ_r), 9, false, &rc);
     exit_check_exc_ctx(DIRTY_GET_ROW(10, occ_r), 10, false, &rc);
   } else if (rank == 0) {
     u16 file_occ = dirty_get_row(occ_r, file);
     axis_ctx fc = {
-        file_occ,
-        fpos,
-        occ,
-        file,
-        true,
-        file,
-        paths,
-        paths_r,
-        above_n,
-        below_n,
-        above_n_inc,
-        below_n_inc,
-        file};
+        .stem_occ = file_occ,
+        .stem_pos = rot_row_pos,
+        .branch_src = occ,
+        .branch_pos = file,
+        .col_flip = true,
+        .perp_idx = file,
+        .par = paths,
+        .perp = paths_r,
+        .below_masks = above_n,
+        .above_masks = below_n,
+        .below_inc_masks = above_n_inc,
+        .above_inc_masks = below_n_inc,
+        .stem_row_idx = file,
+        .perp_row_idx = rank,
+    };
     exit_check_exc_ctx(DIRTY_GET_ROW(0, occ), 0, true, &fc);
     exit_check_ctx(DIRTY_GET_ROW(1, occ), 1, true, &fc);
     stem_and_branch(DIR_RIGHT, true, &fc);
   } else if (rank == 10) {
     u16 file_occ = dirty_get_row(occ_r, file);
     axis_ctx fc = {
-        file_occ,
-        fpos,
-        occ,
-        file,
-        true,
-        file,
-        paths,
-        paths_r,
-        above_n,
-        below_n,
-        above_n_inc,
-        below_n_inc,
-        file};
+        .stem_occ = file_occ,
+        .stem_pos = rot_row_pos,
+        .branch_src = occ,
+        .branch_pos = file,
+        .col_flip = true,
+        .perp_idx = file,
+        .par = paths,
+        .perp = paths_r,
+        .below_masks = above_n,
+        .above_masks = below_n,
+        .below_inc_masks = above_n_inc,
+        .above_inc_masks = below_n_inc,
+        .stem_row_idx = file,
+        .perp_row_idx = rank,
+    };
     stem_and_branch(DIR_LEFT, true, &fc);
     exit_check_ctx(DIRTY_GET_ROW(9, occ), 9, true, &fc);
     exit_check_exc_ctx(DIRTY_GET_ROW(10, occ), 10, true, &fc);
@@ -1424,33 +1473,37 @@ void corner_paths_2_new(
     u16 rank_occ = dirty_get_row(occ, rank);
     u16 file_occ = dirty_get_row(occ_r, file);
     axis_ctx rc = {
-        rank_occ,
-        file,
-        occ_r,
-        fpos,
-        false,
-        rank,
-        paths_r,
-        paths,
-        below_n,
-        above_n,
-        below_n_inc,
-        above_n_inc,
-        rank};
+        .stem_occ = rank_occ,
+        .stem_pos = file,
+        .branch_src = occ_r,
+        .branch_pos = rot_row_pos,
+        .col_flip = false,
+        .perp_idx = rank,
+        .par = paths_r,
+        .perp = paths,
+        .below_masks = below_n,
+        .above_masks = above_n,
+        .below_inc_masks = below_n_inc,
+        .above_inc_masks = above_n_inc,
+        .stem_row_idx = rank,
+        .perp_row_idx = file,
+    };
     axis_ctx fc = {
-        file_occ,
-        fpos,
-        occ,
-        file,
-        true,
-        file,
-        paths,
-        paths_r,
-        above_n,
-        below_n,
-        above_n_inc,
-        below_n_inc,
-        file};
+        .stem_occ = file_occ,
+        .stem_pos = rot_row_pos,
+        .branch_src = occ,
+        .branch_pos = file,
+        .col_flip = true,
+        .perp_idx = file,
+        .par = paths,
+        .perp = paths_r,
+        .below_masks = above_n,
+        .above_masks = below_n,
+        .below_inc_masks = above_n_inc,
+        .above_inc_masks = below_n_inc,
+        .stem_row_idx = file,
+        .perp_row_idx = rank,
+    };
 
     if (file == 1) {
       if (rank == 1) {
