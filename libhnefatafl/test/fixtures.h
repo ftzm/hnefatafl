@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assert.h"
 #include "board.h"
 #include "constants.h"
 #include "theft.h"
@@ -14,50 +15,6 @@ static inline int find_free_index(layer occ, u64 start) {
     }
   }
   return -1;
-}
-
-static inline board theft_create_board(struct theft *t) {
-  layer occ = corners;
-  // set throne in occ
-  OP_LAYER_BIT(occ, 60, |=);
-
-  layer black = EMPTY_LAYER;
-  u64 black_count = theft_random_choice(t, 24) + 1;
-  while (black_count) {
-    u64 start = theft_random_choice(t, 120);
-    int index = find_free_index(occ, start);
-    if (index < 0) break;
-    OP_LAYER_BIT(black, index, |=);
-    OP_LAYER_BIT(occ, index, |=);
-    black_count--;
-  }
-  layer black_r = rotate_layer_right(black);
-
-  layer white = EMPTY_LAYER;
-  u64 white_count = theft_random_choice(t, 12) + 1;
-  while (white_count) {
-    u64 start = theft_random_choice(t, 120);
-    int index = find_free_index(occ, start);
-    if (index < 0) break;
-    OP_LAYER_BIT(white, index, |=);
-    OP_LAYER_BIT(occ, index, |=);
-    white_count--;
-  }
-  layer white_r = rotate_layer_right(white);
-
-  // unset throne in occ so king can be placed there
-  CLEAR_INDEX(occ, 60);
-  layer king = EMPTY_LAYER;
-  u64 start = theft_random_choice(t, 120);
-  int index = find_free_index(occ, start);
-  if (index < 0) {
-    printf("failed to generate king position\n");
-    exit(1);
-  }
-  OP_LAYER_BIT(king, index, |=);
-  layer king_r = rotate_layer_right(king);
-
-  return (board){black, black_r, white, white_r, king, king_r};
 }
 
 // ---------------------------------------------------------------------------
@@ -107,4 +64,50 @@ static inline int board_is_valid(const board *b) {
          && board_has_no_pieces_on_corners(b)
          && board_has_no_pawns_on_throne(b)
          && board_has_consistent_rotations(b);
+}
+
+static board theft_create_board(struct theft *t) {
+  layer occ = corners;
+  // set throne in occ
+  OP_LAYER_BIT(occ, 60, |=);
+
+  layer black = EMPTY_LAYER;
+  u64 black_count = theft_random_choice(t, 24) + 1;
+  while (black_count) {
+    u64 start = theft_random_choice(t, 120);
+    int index = find_free_index(occ, start);
+    if (index < 0) break;
+    OP_LAYER_BIT(black, index, |=);
+    OP_LAYER_BIT(occ, index, |=);
+    black_count--;
+  }
+  layer black_r = rotate_layer_right(black);
+
+  layer white = EMPTY_LAYER;
+  u64 white_count = theft_random_choice(t, 12) + 1;
+  while (white_count) {
+    u64 start = theft_random_choice(t, 120);
+    int index = find_free_index(occ, start);
+    if (index < 0) break;
+    OP_LAYER_BIT(white, index, |=);
+    OP_LAYER_BIT(occ, index, |=);
+    white_count--;
+  }
+  layer white_r = rotate_layer_right(white);
+
+  // unset throne in occ so king can be placed there
+  CLEAR_INDEX(occ, 60);
+  layer king = EMPTY_LAYER;
+  u64 start = theft_random_choice(t, 120);
+  int index = find_free_index(occ, start);
+  if (index < 0) {
+    printf("failed to generate king position\n");
+    exit(1);
+  }
+  OP_LAYER_BIT(king, index, |=);
+  layer king_r = rotate_layer_right(king);
+
+  board result = {black, black_r, white, white_r, king, king_r};
+  assert(board_is_valid(&result));
+  return result;
 }
