@@ -142,11 +142,8 @@ $(TEST_BIN_DIR)/test: $(TEST_DIR)/test.c $(TEST_OBJS) $(LIB_TARGET) $(TEST_DEPS_
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(TEST_INCLUDES) -o $@ $(TEST_DIR)/test.c $(TEST_OBJS) $(TEST_LIBS)
 
 .PHONY: test
-.ONESHELL:
 test: update-test-suites $(TEST_BIN_DIR)/test vendor/greatest/contrib/greenest
-	@$(RUN_ENV) ./$(TEST_BIN_DIR)/test | vendor/greatest/contrib/greenest
-	RESULT=$${PIPESTATUS[0]}
-	@exit $$RESULT
+	@$(RUN_ENV) bash -o pipefail -c './$(TEST_BIN_DIR)/test | vendor/greatest/contrib/greenest'
 
 # ------------------------------------------------------------------------------
 # Automatic bench dispatch
