@@ -6,6 +6,7 @@
 typedef struct position_set {
   size_t size;
   u64 *elements;
+  bool *occupied;
 } position_set;
 
 position_set *create_position_set(size_t max_elems);

@@ -19,6 +19,7 @@ that.
 #include "position_set.h"
 #include "stddef.h"
 #include "stdlib.h"
+#include "string.h"
 
 /**
 from https://github.com/lemire/fastrange/blob/master/fastrange.h
@@ -36,25 +37,29 @@ position_set *create_position_set(size_t max_elems) {
   // TODO: document why 1.3 times expected size is a good capacity
   size_t size = MAX(max_elems + 1, max_elems * 1.3);
   position_set *set = malloc(sizeof(position_set));
-  *set = (position_set){.size = size, .elements = calloc(size, sizeof(u64))};
+  *set = (position_set){
+      .size = size,
+      .elements = calloc(size, sizeof(u64)),
+      .occupied = calloc(size, sizeof(bool)),
+  };
   return set;
 }
 
 void destroy_position_set(position_set *set) {
   free(set->elements);
+  free(set->occupied);
   free(set);
 }
 
 int insert_position(position_set *set, u64 position, int *deletion_index) {
-  u64 stored = position + 1; // offset by 1 so that hash value 0 is stored as 1
   u64 index = fastrange64(position, set->size);
 
   // iterate until we find an empty cell
-  while (set->elements[index]) {
+  while (set->occupied[index]) {
 
     // if a cell has the value we're trying to insert then we bail out
     // and return an error.
-    if (set->elements[index] == stored) {
+    if (set->elements[index] == position) {
       return 1;
     }
 
@@ -66,20 +71,20 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
   }
 
   // If we hit this point we've found an empty cell into which we insert
-  set->elements[index] = stored;
+  set->elements[index] = position;
+  set->occupied[index] = true;
   *deletion_index = index;
   return 0;
 }
 
 int check_position(position_set *set, u64 position) {
-  u64 stored = position + 1; // offset by 1 to match insert_position encoding
   u64 index = fastrange64(position, set->size);
 
   // iterate until we find an empty cell
-  while (set->elements[index]) {
+  while (set->occupied[index]) {
 
     // if a cell has the value we're looking for we return a match.
-    if (set->elements[index] == stored) {
+    if (set->elements[index] == position) {
       return 1;
     }
 
@@ -94,4 +99,6 @@ int check_position(position_set *set, u64 position) {
   return 0;
 }
 
-void delete_position(position_set *set, u64 index) { set->elements[index] = 0; }
+void delete_position(position_set *set, u64 index) {
+  set->occupied[index] = false;
+}
