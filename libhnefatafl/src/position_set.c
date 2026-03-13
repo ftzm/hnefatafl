@@ -16,9 +16,7 @@ that.
 
 NOTE: 0 is used as the empty-slot sentinel. A zobrist hash of exactly
 0 cannot be stored or looked up correctly. This is an accepted
-trade-off: the probability of a 64-bit zobrist hash being 0 is 1/2^64
-(effectively impossible), and avoiding a separate occupancy structure
-keeps the hot path fast and cache-friendly.
+trade-off, as the probability of a zobrist hash of 0 is low.
 
 *******************************************************************************/
 
