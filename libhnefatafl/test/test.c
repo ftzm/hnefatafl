@@ -3,6 +3,7 @@
 
 SUITE_EXTERN(api_suite);
 SUITE_EXTERN(base64_suite);
+SUITE_EXTERN(board_generation_suite);
 SUITE_EXTERN(capture_suite);
 SUITE_EXTERN(corner_moves_1_suite);
 SUITE_EXTERN(corner_moves_2_suite);
@@ -28,10 +29,12 @@ SUITE_EXTERN(zobrist_suite);
 GREATEST_MAIN_DEFS();
 
 int main(int argc, char **argv) {
+  
 
   GREATEST_MAIN_BEGIN();
   RUN_SUITE(api_suite);
   RUN_SUITE(base64_suite);
+  RUN_SUITE(board_generation_suite);
   RUN_SUITE(capture_suite);
   RUN_SUITE(corner_moves_1_suite);
   RUN_SUITE(corner_moves_2_suite);

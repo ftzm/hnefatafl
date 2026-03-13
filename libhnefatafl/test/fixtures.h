@@ -1,33 +1,34 @@
 #pragma once
 
+#include "assert.h"
 #include "board.h"
 #include "constants.h"
 #include "theft.h"
+#include "validation.h"
 
-inline u64 theft_random_choice_between(struct theft *t, u64 floor, u64 ceil) {
-  (void)t;
-  return random() % ceil + floor;
+// Find the next unoccupied index starting from 'start', wrapping around.
+// Returns the free index, or -1 if the board is completely full.
+static inline int find_free_index(layer occ, u64 start) {
+  for (u64 i = 0; i < 120; i++) {
+    u64 idx = (start + i) % 120;
+    if (!CHECK_INDEX(occ, idx)) {
+      return (int)idx;
+    }
+  }
+  return -1;
 }
 
-inline u64 my_random_choice(struct theft *t, int limit) {
-  (void)t;
-  return random() % limit;
-}
-
-static inline board theft_create_board(struct theft *t) {
+static board theft_create_board(struct theft *t) {
   layer occ = corners;
   // set throne in occ
   OP_LAYER_BIT(occ, 60, |=);
 
   layer black = EMPTY_LAYER;
-  u64 black_count = theft_random_choice_between(t, 1, 25);
-  // u64 black_count = 1;
+  u64 black_count = theft_random_choice(t, 24) + 1;
   while (black_count) {
-    u64 index = my_random_choice(t, 120);
-    // printf("black index: %ld\n", index);
-    if (CHECK_INDEX(occ, index)) {
-      continue;
-    }
+    u64 start = theft_random_choice(t, 120);
+    int index = find_free_index(occ, start);
+    if (index < 0) break;
     OP_LAYER_BIT(black, index, |=);
     OP_LAYER_BIT(occ, index, |=);
     black_count--;
@@ -35,41 +36,30 @@ static inline board theft_create_board(struct theft *t) {
   layer black_r = rotate_layer_right(black);
 
   layer white = EMPTY_LAYER;
-  u64 white_count = theft_random_choice_between(t, 1, 12);
-  // u64 white_count = 1;
+  u64 white_count = theft_random_choice(t, 12) + 1;
   while (white_count) {
-    u64 index = my_random_choice(t, 120);
-    // printf("white index: %ld\n", index);
-    if (CHECK_INDEX(occ, index)) {
-      continue;
-    }
+    u64 start = theft_random_choice(t, 120);
+    int index = find_free_index(occ, start);
+    if (index < 0) break;
     OP_LAYER_BIT(white, index, |=);
     OP_LAYER_BIT(occ, index, |=);
     white_count--;
   }
   layer white_r = rotate_layer_right(white);
 
-  // unset throne in occ
-  OP_LAYER_BIT(occ, 60, |=);
+  // unset throne in occ so king can be placed there
+  CLEAR_INDEX(occ, 60);
   layer king = EMPTY_LAYER;
-  int attempts = 100;
-  while (attempts) {
-    // printf("king attempts: %d\n", attempts);
-    u64 index = my_random_choice(t, 120);
-    // printf("king index: %ld\n", index);
-    if (CHECK_INDEX(occ, index)) {
-      attempts--;
-      continue;
-    }
-    OP_LAYER_BIT(king, index, |=);
-    // printf("prebreak\n");
-    break;
-  }
-  if (!attempts) {
+  u64 start = theft_random_choice(t, 120);
+  int index = find_free_index(occ, start);
+  if (index < 0) {
     printf("failed to generate king position\n");
     exit(1);
   }
+  OP_LAYER_BIT(king, index, |=);
   layer king_r = rotate_layer_right(king);
 
-  return (board){black, black_r, white, white_r, king, king_r};
+  board result = {black, black_r, white, white_r, king, king_r};
+  assert(board_is_valid(&result));
+  return result;
 }

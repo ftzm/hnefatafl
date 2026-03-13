@@ -498,7 +498,7 @@ void reference_dir_moves_black(
   int pos = i;
   while (true) {
     pos += dir;
-    if (pos == 60)
+    if (pos == 60 && !CHECK_INDEX(occ, pos))
       continue;
     int file = pos % 11;
     if (pos < 0 || pos > 120)
@@ -913,7 +913,7 @@ void reference_dir_moves_white(
   int pos = i;
   while (true) {
     pos += dir;
-    if (pos == 60)
+    if (pos == 60 && !CHECK_INDEX(occ, pos))
       continue;
     int file = pos % 11;
     if (pos < 0 || pos > 120)
