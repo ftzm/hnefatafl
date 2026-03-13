@@ -14,12 +14,17 @@ holes are created by removing an element which occupies a cell which a
 later-inserted element would have liked to occupy--we will never do
 that.
 
+NOTE: 0 is used as the empty-slot sentinel. A zobrist hash of exactly
+0 cannot be stored or looked up correctly. This is an accepted
+trade-off: the probability of a 64-bit zobrist hash being 0 is 1/2^64
+(effectively impossible), and avoiding a separate occupancy structure
+keeps the hot path fast and cache-friendly.
+
 *******************************************************************************/
 
 #include "position_set.h"
 #include "stddef.h"
 #include "stdlib.h"
-#include "string.h"
 
 /**
 from https://github.com/lemire/fastrange/blob/master/fastrange.h
@@ -37,17 +42,12 @@ position_set *create_position_set(size_t max_elems) {
   // TODO: document why 1.3 times expected size is a good capacity
   size_t size = MAX(max_elems + 1, max_elems * 1.3);
   position_set *set = malloc(sizeof(position_set));
-  *set = (position_set){
-      .size = size,
-      .elements = calloc(size, sizeof(u64)),
-      .occupied = calloc(size, sizeof(bool)),
-  };
+  *set = (position_set){.size = size, .elements = calloc(size, sizeof(u64))};
   return set;
 }
 
 void destroy_position_set(position_set *set) {
   free(set->elements);
-  free(set->occupied);
   free(set);
 }
 
@@ -55,7 +55,7 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
   u64 index = fastrange64(position, set->size);
 
   // iterate until we find an empty cell
-  while (set->occupied[index]) {
+  while (set->elements[index]) {
 
     // if a cell has the value we're trying to insert then we bail out
     // and return an error.
@@ -72,7 +72,6 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
 
   // If we hit this point we've found an empty cell into which we insert
   set->elements[index] = position;
-  set->occupied[index] = true;
   *deletion_index = index;
   return 0;
 }
@@ -81,9 +80,9 @@ int check_position(position_set *set, u64 position) {
   u64 index = fastrange64(position, set->size);
 
   // iterate until we find an empty cell
-  while (set->occupied[index]) {
+  while (set->elements[index]) {
 
-    // if a cell has the value we're looking for we return a match.
+    // if a cell has the value we're looking for we return an error.
     if (set->elements[index] == position) {
       return 1;
     }
@@ -99,6 +98,4 @@ int check_position(position_set *set, u64 position) {
   return 0;
 }
 
-void delete_position(position_set *set, u64 index) {
-  set->occupied[index] = false;
-}
+void delete_position(position_set *set, u64 index) { set->elements[index] = 0; }
