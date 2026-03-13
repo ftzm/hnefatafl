@@ -143,6 +143,67 @@ TEST test_validate_move_integration() {
   PASS();
 }
 
+TEST test_no_pawn_on_throne() {
+  // Start board should have no pawns on throne
+  board b = start_board;
+  ASSERT(board_has_no_pawns_on_throne(&b));
+
+  // Place a black pawn on the throne (index 60) - should fail
+  board b_black = start_board;
+  SET_INDEX(b_black.black, 60);
+  ASSERT_FALSE(board_has_no_pawns_on_throne(&b_black));
+
+  // Place a white pawn on the throne (index 60) - should fail
+  board b_white = start_board;
+  SET_INDEX(b_white.white, 60);
+  ASSERT_FALSE(board_has_no_pawns_on_throne(&b_white));
+
+  // King on throne is fine (start position has king at 60)
+  ASSERT(CHECK_INDEX(start_board.king, 60));
+  ASSERT(board_has_no_pawns_on_throne(&start_board));
+
+  PASS();
+}
+
+TEST test_no_pieces_out_of_bounds() {
+  // Start board should have no out-of-bounds pieces
+  board b = start_board;
+  ASSERT(board_has_no_pieces_out_of_bounds(&b));
+
+  // Set an invalid bit in the upper half of black layer (bit 57, beyond 121 squares)
+  board b_oob = start_board;
+  b_oob.black._[1] |= (1ULL << 57);
+  ASSERT_FALSE(board_has_no_pieces_out_of_bounds(&b_oob));
+
+  // Set an invalid bit in the upper half of white layer
+  board b_oob_white = start_board;
+  b_oob_white.white._[1] |= (1ULL << 60);
+  ASSERT_FALSE(board_has_no_pieces_out_of_bounds(&b_oob_white));
+
+  // Set an invalid bit in the upper half of king layer
+  board b_oob_king = start_board;
+  b_oob_king.king._[1] |= (1ULL << 63);
+  ASSERT_FALSE(board_has_no_pieces_out_of_bounds(&b_oob_king));
+
+  // Set an invalid bit in the upper half of a rotated layer
+  board b_oob_r = start_board;
+  b_oob_r.black_r._[1] |= (1ULL << 58);
+  ASSERT_FALSE(board_has_no_pieces_out_of_bounds(&b_oob_r));
+
+  // Valid bit in upper half (bit 56, last valid bit) should pass
+  board b_valid = {
+      .black = EMPTY_LAYER,
+      .black_r = EMPTY_LAYER,
+      .white = EMPTY_LAYER,
+      .white_r = EMPTY_LAYER,
+      .king = EMPTY_LAYER,
+      .king_r = EMPTY_LAYER};
+  b_valid.black._[1] = (1ULL << 56);
+  ASSERT(board_has_no_pieces_out_of_bounds(&b_valid));
+
+  PASS();
+}
+
 SUITE(validation_suite) {
   RUN_TEST(test_has_correct_piece);
   RUN_TEST(test_is_orthogonal_move);
@@ -151,4 +212,6 @@ SUITE(validation_suite) {
   RUN_TEST(test_draw_line_between);
   RUN_TEST(test_has_clear_path);
   RUN_TEST(test_validate_move_integration);
+  RUN_TEST(test_no_pawn_on_throne);
+  RUN_TEST(test_no_pieces_out_of_bounds);
 }
