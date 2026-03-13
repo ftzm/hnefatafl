@@ -135,8 +135,8 @@ TEST test_validate_move_integration() {
       move_error_wrong_piece_for_turn);
 
   // Test invalid diagonal move
-  // Position 60 = (row 5, col 5), position 50 = (row 4, col 6): truly diagonal
-  move diagonal = {60, 50};
+  // Position 3 = (row 0, col 3) has black piece, position 15 = (row 1, col 4) is empty
+  move diagonal = {3, 15};
   ASSERT_FALSE(is_orthogonal_move(diagonal));
   ASSERT_EQ(validate_move(b, diagonal, true), move_error_not_orthogonal);
 
