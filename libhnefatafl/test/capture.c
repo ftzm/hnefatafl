@@ -60,15 +60,17 @@ TEST test(
   SET_INDEX(pos_layer, pos);
   layer capture_dests_white = white_capture_destinations(&white);
   if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_white))) {
-    printf("capture_dests_white");
+    printf("%s (line %d): capture_dests_white missing pos %d\nExpected pos layer:\n", func, line, pos);
     print_layer(pos_layer);
+    printf("Actual capture destinations:\n");
     print_layer(capture_dests_white);
     FAIL();
   }
   layer capture_dests_black = black_capture_destinations(&black);
   if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_black))) {
-    printf("capture_dests_black");
+    printf("%s (line %d): capture_dests_black missing pos %d\nExpected pos layer:\n", func, line, pos);
     print_layer(pos_layer);
+    printf("Actual capture destinations:\n");
     print_layer(capture_dests_black);
     FAIL();
   }

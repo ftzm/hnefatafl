@@ -35,8 +35,8 @@ TEST test_add_and_remove_nullifies() {
 
   ASSERT_EQ_FMT(
       pre_elem_count,
-      69,
-      "elem count should be 69 after insertion, is %d");
+      70,
+      "elem count should be 70 after insertion, is %d");
   ASSERT_EQ_FMT(
       post_elem_count,
       0,
@@ -87,11 +87,15 @@ TEST test_position_value_zero() {
   int index;
   int res = insert_position(ps, 0, &index);
 
-  // cleanup
-  destroy_position_set(ps);
-
   // assert - should succeed since 0 is a valid position value
   ASSERT_EQ_FMT(res, 0, "insertion of position 0 should succeed, got %d");
+
+  // verify that position 0 can actually be retrieved
+  int found = check_position(ps, 0);
+  ASSERT_EQ_FMT(found, 1, "check_position(0) should find it, got %d");
+
+  // cleanup
+  destroy_position_set(ps);
 
   return GREATEST_TEST_RES_PASS;
 }
@@ -129,8 +133,8 @@ TEST test_wraparound_behavior() {
   // creation - use small size to force wraparound
   position_set *ps = create_position_set(3);
 
-  // Manually fill the last slot to force wraparound
-  ps->elements[ps->size - 1] = 999; // Fill last slot
+  // Manually fill the last slot to force wraparound (use non-zero value as occupied marker)
+  ps->elements[ps->size - 1] = 1000; // Fill last slot (non-zero = occupied)
 
   // Now insert a value that should probe at last index and wrap to beginning
   u64 val = ps->size - 1; // Should hash to last index but find it occupied

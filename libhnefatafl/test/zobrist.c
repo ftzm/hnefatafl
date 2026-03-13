@@ -77,16 +77,16 @@ TEST test_king_zobrist() {
   u64 start_zobrist = hash_for_board(b, false);
 
   moves_to_t r =
-      moves_to_white(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
+      moves_to_king(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
 
   for (int i = 0; i < r.total; i++) {
     move m = r.ms[i];
     board b2 = b;
-    OP_LAYER_BIT(b2.white, m.orig, ^=);
-    OP_LAYER_BIT(b2.white, m.dest, ^=);
+    OP_LAYER_BIT(b2.king, m.orig, ^=);
+    OP_LAYER_BIT(b2.king, m.dest, ^=);
 
-    u64 incremental_hash = next_hash_white(start_zobrist, m.orig, m.dest);
-    apply_captures_z_white(&b2, &incremental_hash, m.dest);
+    u64 incremental_hash = next_hash_king(start_zobrist, m.orig, m.dest);
+    apply_captures_z_king(&b2, &incremental_hash, m.dest);
 
     u64 re_hash = hash_for_board(b2, true);
 

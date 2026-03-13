@@ -3,7 +3,7 @@
 module Hnefatafl.Interpreter.Storage.SQLite.GameTest where
 
 import Chronos (now)
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, sort)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Util
@@ -183,11 +183,10 @@ spec_Game =
           Left err -> expectationFailure $ "Expected success but got error: " ++ err
           Right games -> do
             length games `shouldBe` 3
-            -- Games should be ordered by creation time (most recent first)
-            -- Since all have same timestamp, order by gameId for predictability
-            let gameNames = map (.name) games
+            -- Verify all games are present (order is indeterminate with same timestamp)
+            let gameNames = sort $ map (.name) games
             gameNames
-              `shouldContain` [Just "First Game", Just "Second Game", Just "Third Game"]
+              `shouldBe` [Just "First Game", Just "Second Game", Just "Third Game"]
 
       it "can list games with different statuses" $ \conn -> do
         currentTime <- now
@@ -234,9 +233,9 @@ spec_Game =
             , (Abandoned, "abandoned-game")
             ]
 
-      shouldSucceed
+      shouldBeTrue
         do
-          mapM_
+          results <- mapM
             ( \(status, gameIdSuffix) -> do
                 let gameId = GameId gameIdSuffix
                     testGame =
@@ -253,4 +252,5 @@ spec_Game =
                 pure $ retrievedGame.gameStatus == status
             )
             statusTests
+          pure $ and results
         conn

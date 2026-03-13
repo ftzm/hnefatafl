@@ -46,6 +46,7 @@ void destroy_position_set(position_set *set) {
 }
 
 int insert_position(position_set *set, u64 position, int *deletion_index) {
+  u64 stored = position + 1; // offset by 1 so that hash value 0 is stored as 1
   u64 index = fastrange64(position, set->size);
 
   // iterate until we find an empty cell
@@ -53,7 +54,7 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
 
     // if a cell has the value we're trying to insert then we bail out
     // and return an error.
-    if (set->elements[index] == position) {
+    if (set->elements[index] == stored) {
       return 1;
     }
 
@@ -65,19 +66,20 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
   }
 
   // If we hit this point we've found an empty cell into which we insert
-  set->elements[index] = position;
+  set->elements[index] = stored;
   *deletion_index = index;
   return 0;
 }
 
 int check_position(position_set *set, u64 position) {
+  u64 stored = position + 1; // offset by 1 to match insert_position encoding
   u64 index = fastrange64(position, set->size);
 
   // iterate until we find an empty cell
   while (set->elements[index]) {
 
-    // if a cell has the value we're looking for we return an error.
-    if (set->elements[index] == position) {
+    // if a cell has the value we're looking for we return a match.
+    if (set->elements[index] == stored) {
       return 1;
     }
 

@@ -77,7 +77,7 @@ TEST test_draw_line_between() {
   ASSERT_FALSE(CHECK_INDEX(h_line, 63)); // Destination not included
 
   // Test vertical line
-  move vertical = {60, 82}; // 2 ranks south (60 -> 71 -> 82)
+  move vertical = {60, 82}; // 2 ranks north (60 -> 71 -> 82)
   layer v_line = draw_line_between(vertical);
 
   // Should have bit set at position 71 (between 60 and 82)
@@ -135,10 +135,10 @@ TEST test_validate_move_integration() {
       move_error_wrong_piece_for_turn);
 
   // Test invalid diagonal move
-  move diagonal = {7, 18}; // Assuming this is diagonal
-  if (!is_orthogonal_move(diagonal)) {
-    ASSERT_EQ(validate_move(b, diagonal, true), move_error_not_orthogonal);
-  }
+  // Position 60 = (row 5, col 5), position 50 = (row 4, col 6): truly diagonal
+  move diagonal = {60, 50};
+  ASSERT_FALSE(is_orthogonal_move(diagonal));
+  ASSERT_EQ(validate_move(b, diagonal, true), move_error_not_orthogonal);
 
   PASS();
 }

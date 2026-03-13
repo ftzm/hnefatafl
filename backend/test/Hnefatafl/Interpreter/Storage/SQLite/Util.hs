@@ -184,9 +184,9 @@ emptyBoard =
 
 -- | Generate a sequence of GameMoves from a list of Moves
 -- Automatically handles alternating player colors
--- First move is always White, then alternates
+-- First move is always Black (the attacker), then alternates
 generateMoves :: Time -> [Move] -> [GameMove]
-generateMoves timestamp = zipWith makeGameMove (cycle [White, Black])
+generateMoves timestamp = zipWith makeGameMove (cycle [Black, White])
  where
   makeGameMove :: PlayerColor -> Move -> GameMove
   makeGameMove color move =

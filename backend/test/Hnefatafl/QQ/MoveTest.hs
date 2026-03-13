@@ -4,13 +4,13 @@ module Hnefatafl.QQ.MoveTest where
 
 -- import Hnefatafl.Core.Data (Move (..))
 -- import Hnefatafl.QQ.Move (moves, movesNE)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe, it, pendingWith)
 
 spec_MoveQQ :: Spec
 spec_MoveQQ = do
   describe "moves quasiquoter" $ do
-    it "TODO: re-enable when FFI/TH issues are resolved" $
-      True `shouldBe` True
+    it "parses move notation" $
+      pendingWith "Disabled until FFI/Template Haskell issues are resolved"
 
 {- TODO: Re-enable when FFI and Template Haskell issues are resolved
 
