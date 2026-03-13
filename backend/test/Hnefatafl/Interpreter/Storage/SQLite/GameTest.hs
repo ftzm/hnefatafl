@@ -4,6 +4,7 @@ module Hnefatafl.Interpreter.Storage.SQLite.GameTest where
 
 import Chronos (now)
 import Data.List (isInfixOf, sort)
+import Effectful (liftIO)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Util
@@ -233,24 +234,20 @@ spec_Game =
             , (Abandoned, "abandoned-game")
             ]
 
-      shouldBeTrue
+      shouldSucceed
         do
-          results <- mapM
-            ( \(status, gameIdSuffix) -> do
-                let gameId = GameId gameIdSuffix
-                    testGame =
-                      baseGame currentTime
-                        & #gameId
-                        .~ gameId
-                        & #name
-                        ?~ ("Test Game " <> gameIdSuffix)
-                        & #gameStatus
-                        .~ status
-                insertGame testGame
-                retrievedGame <- getGame gameId
-                -- Verify status was stored and retrieved correctly
-                pure $ retrievedGame.gameStatus == status
-            )
-            statusTests
-          pure $ and results
+          for_ statusTests $ \(status, gameIdSuffix) -> do
+            let gameId = GameId gameIdSuffix
+                testGame =
+                  baseGame currentTime
+                    & #gameId
+                    .~ gameId
+                    & #name
+                    ?~ ("Test Game " <> gameIdSuffix)
+                    & #gameStatus
+                    .~ status
+            insertGame testGame
+            retrievedGame <- getGame gameId
+            -- Verify status was stored and retrieved correctly
+            liftIO $ retrievedGame.gameStatus `shouldBe` status
         conn
