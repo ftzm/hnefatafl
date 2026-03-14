@@ -7,7 +7,7 @@ import Data.Aeson (decode, encode)
 import Data.Text (isInfixOf)
 import Database.SQLite.Simple (Connection)
 import Effectful
-import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
+import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Hnefatafl.Core.Data (
   Game (..),
   GameStatus (..),
@@ -100,7 +100,7 @@ spec_ImportGame =
         result <- runImportTest conn $ do
           importResult <- importGame gameImport
           case importResult of
-            Left importErr -> throwError $ "Import failed: " <> toString importErr
+            Left importErr -> error $ "Import failed: " <> importErr
             Right _ -> do
               -- Verify players were created
               alice <- humanPlayerFromName "Alice"
@@ -116,7 +116,7 @@ spec_ImportGame =
                   moves <- getMovesForGame game.gameId
                   moveCount <- getMoveCountForGame game.gameId
                   pure (alicePlayer, bobPlayer, game, moves, moveCount)
-                _ -> throwError "Players or game not found after import"
+                _ -> error "Players or game not found after import"
 
         case result of
           Left err -> expectationFailure $ "Expected success but got error: " ++ err
@@ -153,7 +153,7 @@ spec_ImportGame =
         result <- runImportTest conn $ do
           importResult <- importGame gameImport
           case importResult of
-            Left importErr -> throwError $ "Import failed: " <> toString importErr
+            Left importErr -> error $ "Import failed: " <> importErr
             Right _ -> do
               -- Verify players were created
               player1 <- humanPlayerFromName "Player 1"
@@ -203,7 +203,7 @@ spec_ImportGame =
           -- First import should succeed
           firstResult <- importGame gameImport
           case firstResult of
-            Left err -> throwError $ "First import should succeed but got: " <> toString err
+            Left err -> error $ "First import should succeed but got: " <> err
             Right _ -> do
               -- Second import with same name should fail gracefully
               secondResult <- importGame gameImport
@@ -211,8 +211,8 @@ spec_ImportGame =
                 Left err ->
                   if "Import failed" `isInfixOf` err
                     then pure () -- Expected failure with correct error message
-                    else throwError $ "Expected error to contain 'Import failed' but got: " <> toString err
-                Right _ -> throwError "Expected import to fail with duplicate name"
+                    else error $ "Expected error to contain 'Import failed' but got: " <> err
+                Right _ -> error "Expected import to fail with duplicate name"
 
         case result of
           Left err -> expectationFailure $ "Test failed: " ++ err
