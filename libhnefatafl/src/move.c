@@ -340,28 +340,34 @@ layers, only in the move.
 
 #define BOOKKEEP(_i)                                                           \
   ms[(*total)] = (move){orig, dest};                                           \
-  ls[(*total)]._[_i] |= orig_bit;                                              \
-  ls[(*total)]._[_i] |= dest_bit;                                              \
-  OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                    \
-  OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                    \
+  if (ls) {                                                                    \
+    ls[(*total)]._[_i] |= orig_bit;                                            \
+    ls[(*total)]._[_i] |= dest_bit;                                            \
+    OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                  \
+    OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                  \
+  }                                                                            \
   (*total)++;
 
 #define BOOKKEEP_R(_i)                                                         \
   ms[(*total)] = (move){orig_r, dest_r};                                       \
-  OP_LAYER_BIT(ls_r[(*total)], orig, |=);                                      \
-  OP_LAYER_BIT(ls_r[(*total)], dest, |=);                                      \
-  OP_LAYER_BIT(ls[(*total)], orig_r, |=);                                      \
-  OP_LAYER_BIT(ls[(*total)], dest_r, |=);                                      \
+  if (ls) {                                                                    \
+    OP_LAYER_BIT(ls_r[(*total)], orig, |=);                                    \
+    OP_LAYER_BIT(ls_r[(*total)], dest, |=);                                    \
+    OP_LAYER_BIT(ls[(*total)], orig_r, |=);                                    \
+    OP_LAYER_BIT(ls[(*total)], dest_r, |=);                                    \
+  }                                                                            \
   (*total)++;
 #define BOOKKEEP_r BOOKKEEP_R
 #define BOOKKEEP_CENTER_r BOOKKEEP_R
 
 #define BOOKKEEP_CENTER()                                                      \
   ms[(*total)] = (move){orig, dest};                                           \
-  OP_LAYER_BIT(ls[(*total)], orig, |=);                                        \
-  OP_LAYER_BIT(ls[(*total)], dest, |=);                                        \
-  OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                    \
-  OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                    \
+  if (ls) {                                                                    \
+    OP_LAYER_BIT(ls[(*total)], orig, |=);                                      \
+    OP_LAYER_BIT(ls[(*total)], dest, |=);                                      \
+    OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                  \
+    OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                  \
+  }                                                                            \
   (*total)++;
 
 #define BIT_AT(_i) ((u64)1 << _i)

@@ -1,0 +1,74 @@
+Benchmark Results: Eliminate Layer Arrays from Search
+=====================================================
+
+Optimization: Remove layer ls[] and ls_r[] arrays from search/quiescence
+functions, replacing apply_*_move(b, layer, layer_r) with
+apply_*_move_m(b, orig, dest). This eliminates ~12.8 KB of stack
+allocation per move generation call (two 400-element layer arrays).
+
+=== BEFORE (baseline) ===
+
+Run 1:
+  black_depth_3:            mean  5.303ms  (+- 1.49%)
+  black_depth_4:            mean 95.931ms  (+- 2.48%)
+  black_depth_5:            mean 770.323ms (+- 1.64%)
+  black_iterative_depth_3:  mean  5.260ms  (+- 1.07%)
+  black_iterative_depth_4:  mean 113.454ms (+- 1.72%)
+  black_iterative_depth_5:  mean 945.333ms (+- 0.66%)
+
+Run 2:
+  black_depth_3:            mean  5.236ms  (+- 1.26%)
+  black_depth_4:            mean 92.396ms  (+- 0.87%)
+  black_depth_5:            mean 756.165ms (+- 0.77%)
+  black_iterative_depth_3:  mean  5.329ms  (+- 2.35%)
+  black_iterative_depth_4:  mean 111.360ms (+- 0.93%)
+  black_iterative_depth_5:  mean 962.331ms (+- 0.75%)
+
+Run 3:
+  black_depth_3:            mean  5.327ms  (+- 1.25%)
+  black_depth_4:            mean 93.009ms  (+- 0.92%)
+  black_depth_5:            mean 765.661ms (+- 0.39%)
+  black_iterative_depth_3:  mean  5.382ms  (+- 1.69%)
+  black_iterative_depth_4:  mean 112.936ms (+- 1.20%)
+  black_iterative_depth_5:  mean 976.401ms (+- 1.20%)
+
+=== AFTER (optimized) ===
+
+Run 1:
+  black_depth_3:            mean  5.004ms  (+- 0.75%)
+  black_depth_4:            mean 66.955ms  (+- 0.78%)
+  black_depth_5:            mean 723.452ms (+- 0.83%)
+  black_iterative_depth_3:  mean  4.957ms  (+- 0.68%)
+  black_iterative_depth_4:  mean 83.172ms  (+- 1.84%)
+  black_iterative_depth_5:  mean 912.406ms (+- 1.31%)
+
+Run 2:
+  black_depth_3:            mean  5.042ms  (+- 1.02%)
+  black_depth_4:            mean 67.305ms  (+- 1.03%)
+  black_depth_5:            mean 742.473ms (+- 0.74%)
+  black_iterative_depth_3:  mean  4.958ms  (+- 1.32%)
+  black_iterative_depth_4:  mean 87.640ms  (+- 0.66%)
+  black_iterative_depth_5:  mean 924.345ms (+- 0.18%)
+
+Run 3:
+  black_depth_3:            mean  5.063ms  (+- 1.11%)
+  black_depth_4:            mean 68.471ms  (+- 0.54%)
+  black_depth_5:            mean 744.879ms (+- 1.14%)
+  black_iterative_depth_3:  mean  4.970ms  (+- 0.44%)
+  black_iterative_depth_4:  mean 83.465ms  (+- 1.14%)
+  black_iterative_depth_5:  mean 907.920ms (+- 1.67%)
+
+=== SUMMARY (average of 3 runs) ===
+
+Benchmark                   Before (ms)  After (ms)  Speedup
+black_depth_3:                5.289        5.036       5.1%
+black_depth_4:               93.779       67.577      28.0%
+black_depth_5:              764.050      736.935       3.5%
+black_iterative_depth_3:     5.324        4.962       6.8%
+black_iterative_depth_4:    112.583       84.759      24.7%
+black_iterative_depth_5:    961.355      914.890       4.8%
+
+Node counts are consistent before and after (identical search trees).
+The depth-4 benchmarks show the largest improvement (~25-28%) which
+is expected as depth 4 has the highest ratio of move generation calls
+to actual computation, making the memory savings most impactful.

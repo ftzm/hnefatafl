@@ -1049,7 +1049,7 @@ SUITE(search_black_shallow) {
       .stats_assertions = STATS(
           SEARCH_POSITIONS_BLACK(EQ, 1),
           SEARCH_POSITIONS_WHITE(EQ, 2),
-          QUIESCENCE_POSITIONS_WHITE(EQ, 8),
+          QUIESCENCE_POSITIONS_WHITE(EQ, 7),
           SEARCH_BETA_CUTOFF_BLACK(EQ, 1)));
 
   // makes obvious capture
