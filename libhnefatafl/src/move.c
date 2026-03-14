@@ -59,6 +59,14 @@ int cmp_moves(const move *a, const move *b) {
 #define ROTATE_r rotate_left
 #define ROTATE_DIR(_r) ROTATE##_r
 
+#define ROTATED_HALF rotated_half_right
+#define ROTATED_HALF_r rotated_half_left
+#define ROTATED_HALF_DIR(_r) ROTATED_HALF##_r
+
+#define ROTATED_OFFSET rotated_offset_right
+#define ROTATED_OFFSET_r rotated_offset_left
+#define ROTATED_OFFSET_DIR(_r) ROTATED_OFFSET##_r
+
 /*
 leftward
 */
@@ -338,30 +346,39 @@ don't actually need to distinguish between the orig and dest in the
 layers, only in the move.
 */
 
+#define _WRITE_LAYER_PAIR(_layer, _a, _b)                                      \
+  {                                                                            \
+    u8 _ah = SUB_LAYER(_a);                                                    \
+    u64 _ab = (u64)1 << sub_layer_offset_direct[_a];                           \
+    u8 _bh = SUB_LAYER(_b);                                                    \
+    u64 _bb = (u64)1 << sub_layer_offset_direct[_b];                           \
+    _layer._[_ah] = _ab;                                                       \
+    _layer._[_bh] |= _bb;                                                      \
+  }
+
 #define BOOKKEEP(_i)                                                           \
   ms[(*total)] = (move){orig, dest};                                           \
-  ls[(*total)]._[_i] |= orig_bit;                                              \
-  ls[(*total)]._[_i] |= dest_bit;                                              \
-  OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                    \
-  OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                    \
+  ls[(*total)]._[_i] = orig_bit | dest_bit;                                    \
+  _WRITE_LAYER_PAIR(ls_r[(*total)], orig_r, dest_r)                            \
   (*total)++;
 
 #define BOOKKEEP_R(_i)                                                         \
   ms[(*total)] = (move){orig_r, dest_r};                                       \
-  OP_LAYER_BIT(ls_r[(*total)], orig, |=);                                      \
-  OP_LAYER_BIT(ls_r[(*total)], dest, |=);                                      \
-  OP_LAYER_BIT(ls[(*total)], orig_r, |=);                                      \
-  OP_LAYER_BIT(ls[(*total)], dest_r, |=);                                      \
+  ls_r[(*total)]._[_i] = orig_bit | dest_bit;                                  \
+  _WRITE_LAYER_PAIR(ls[(*total)], orig_r, dest_r)                              \
   (*total)++;
 #define BOOKKEEP_r BOOKKEEP_R
-#define BOOKKEEP_CENTER_r BOOKKEEP_R
+#define BOOKKEEP_CENTER_R()                                                    \
+  ms[(*total)] = (move){orig_r, dest_r};                                       \
+  _WRITE_LAYER_PAIR(ls_r[(*total)], orig, dest)                                \
+  _WRITE_LAYER_PAIR(ls[(*total)], orig_r, dest_r)                              \
+  (*total)++;
+#define BOOKKEEP_CENTER_r() BOOKKEEP_CENTER_R()
 
 #define BOOKKEEP_CENTER()                                                      \
   ms[(*total)] = (move){orig, dest};                                           \
-  OP_LAYER_BIT(ls[(*total)], orig, |=);                                        \
-  OP_LAYER_BIT(ls[(*total)], dest, |=);                                        \
-  OP_LAYER_BIT(ls_r[(*total)], orig_r, |=);                                    \
-  OP_LAYER_BIT(ls_r[(*total)], dest_r, |=);                                    \
+  _WRITE_LAYER_PAIR(ls[(*total)], orig, dest)                                  \
+  _WRITE_LAYER_PAIR(ls_r[(*total)], orig_r, dest_r)                            \
   (*total)++;
 
 #define BIT_AT(_i) ((u64)1 << _i)
@@ -534,6 +551,183 @@ void moves_to_king_impl(
   // printf("rightward total: %d\n", *total);
 }
 
+/*
+ * leftward_moves_layer - Generate all leftward move destinations for all movers
+ * simultaneously.
+ *
+ * occ must include corners so that they act as blockers, preventing
+ * move generation into corner squares.
+ *
+ * "Leftward" = towards higher bit index = towards the MSB within each row.
+ * In diagrams, "/" marks squares belonging to the other half.
+ *
+ *
+ * ====== LOWER HALF: _[0] (rows 0-5)
+ *
+ * _[0] bit layout (bit = index):
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5 bits:  /  / 63 62 61 60 59 58 57 56 55
+ *   row 4 bits: 54 53 52 51 50 49 48 47 46 45 44
+ *   row 3 bits: 43 42 41 40 39 38 37 36 35 34 33
+ *   row 2 bits: 32 31 30 29 28 27 26 25 24 23 22
+ *   row 1 bits: 21 20 19 18 17 16 15 14 13 12 11
+ *   row 0 bits: 10  9  8  7  6  5  4  3  2  1  0
+ *
+ * Example — movers (M), other pieces (X), corners (C):
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  .  .  .  .  .  .  M  .  .
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 2:       .  .  .  .  X  .  .  M  .  .  .
+ *   row 1:       .  .  .  .  .  X  M  .  .  .  .
+ *   row 0:       C  .  .  .  .  .  .  M  .  .  C
+ *
+ * blockers = occ._[0] | file_mask_0._[0]
+ *
+ *   Column-0 sentinels prevent borrow propagation across row boundaries.
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  .  .  .  .  .  .  1  .  1
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  1
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  1
+ *   row 2:       .  .  .  .  1  .  .  1  .  .  1
+ *   row 1:       .  .  .  .  .  1  1  .  .  .  1
+ *   row 0:       1  .  .  .  .  .  .  1  .  .  1
+ *                ^                             ^
+ *             corner                       sentinels
+ *
+ * shifted_movers = movers._[0] << 1
+ *
+ *   Since movers are a subset of occ (and therefore blockers),
+ *   subtracting unshifted movers would just cancel out (1-1=0, no
+ *   borrow). We shift all movers to 1 bit to the left, so that that
+ *   bit is 0 we are able to trigger a borrow propagation ray.
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  .  .  .  .  .  1  .  .  .
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 2:       .  .  .  .  .  .  1  .  .  .  .
+ *   row 1:       .  .  .  .  .  1  .  .  .  .  .
+ *   row 0:       .  .  .  .  .  .  1  .  .  .  .
+ *
+ * subtraction = blockers - shifted_movers
+ *
+ *   Binary subtraction propagates borrows from each shifted mover
+ *   towards the MSB. Each 0-bit along the way is flipped to 1; the
+ *   first 1-bit (blocker) hit is flipped to 0, and the borrow stops.
+ *   The sentinel at col 0 prevents borrow from wrapping into the next
+ *   row. In row 1, the shifted mover lands directly on the blocker
+ *   (1-1=0), producing no ray. In row 5, the borrow overflows past
+ *   the MSB — the carryover logic (below) handles continuation into
+ *   _[1]. So we end up with a row that contains leftward rays and the
+ *   original blockers, modulo those that have been flipped to 0 when
+ *   a subtraction ray hits it.
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  1  1  1  1  1  1  1  .  1
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  1
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  1
+ *   row 2:       .  .  .  .  .  1  1  1  .  .  1
+ *   row 1:       .  .  .  .  .  .  1  .  .  .  .
+ *   row 0:       .  1  1  1  1  1  1  1  .  .  1
+ *
+ * dests = subtraction & ~(blockers | throne._[0])
+ *
+ *   Mask away the original blockers, sentinels, and throne square,
+ *   leaving only the ray destination squares.
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  1  1  1  .  1  1  .  .  .  (throne at col 5 masked)
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 2:       .  .  .  .  .  1  1  .  .  .  .
+ *   row 1:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 0:       .  1  1  1  1  1  1  .  .  .  .
+ *
+ * boundary_bit = dests | (movers._[0] & ((u64)1 << 63))
+ * carryover    = boundary_bit >> 63
+ *
+ *   Row 5 is split: cols 0-8 in _[0] (bits 55-63), cols 9-10 in _[1]
+ *   (bits 0-1). A leftward ray that reaches bit 63 — or a mover
+ *   sitting at bit 63 whose shift overflowed — needs to continue into
+ *   _[1]. boundary_bit captures bit 63 if it holds a dest or a mover,
+ *   and shifting right by 63 moves isolates it at index 0, which is
+ *   where the corresponding ray should start in the upper lay.
+ *
+ *   In our example, bit 63 (col 8) is set in dests, so carryover = 1.
+ *
+ *
+ * ====== UPPER HALF: _[1] (rows 5-10)
+ *
+ * _[1] bit layout (bit = index - 64):
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10 bits: 56 55 54 53 52 51 50 49 48 47 46
+ *   row  9 bits: 45 44 43 42 41 40 39 38 37 36 35
+ *   row  8 bits: 34 33 32 31 30 29 28 27 26 25 24
+ *   row  7 bits: 23 22 21 20 19 18 17 16 15 14 13
+ *   row  6 bits: 12 11 10  9  8  7  6  5  4  3  2
+ *   row  5 bits:  1  0  /  /  /  /  /  /  /  /  /
+ *
+ * Continuing the example with carryover = 1 (M=mover, X=other piece, C=corner):
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       C  .  .  .  .  .  .  .  .  .  C
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  8:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  7:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  6:       .  .  .  X  .  .  M  .  .  .  .
+ *   row  5:       .  .  /  /  /  /  /  /  /  /  /
+ *
+ * blockers = occ._[1] | file_mask_0._[1]
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       1  .  .  .  .  .  .  .  .  .  1
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  8:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  7:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  6:       .  .  .  1  .  .  1  .  .  .  1
+ *   row  5:       .  .  /  /  /  /  /  /  /  /  /
+ *                 ^                              ^
+ *              corner                        sentinels
+ *
+ * shifted_movers = (movers._[1] << 1) | carryover
+ *
+ *   The carryover injects a 1 at bit 0 (col 9 of row 5).
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  8:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  7:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  6:       .  .  .  .  .  1  .  .  .  .  .
+ *   row  5:       .  1  /  /  /  /  /  /  /  /  /
+ *
+ * subtraction = blockers - shifted_movers
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       1  .  .  .  .  .  .  .  .  .  1
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  8:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  7:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  6:       .  .  .  .  1  1  1  .  .  .  .
+ *   row  5:       1  1  /  /  /  /  /  /  /  /  /
+ *
+ * dests = subtraction & ~blockers
+ *
+ *   No throne mask needed (_[1] doesn't contain the throne).
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  8:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  7:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  6:       .  .  .  .  1  1  .  .  .  .  .
+ *   row  5:       1  1  /  /  /  /  /  /  /  /  /
+ */
 static inline layer leftward_moves_layer(layer movers, layer occ) {
   layer output = EMPTY_LAYER;
 
@@ -541,46 +735,270 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
   // lower
   {
     u64 blockers = occ._[0] | file_mask_0._[0];
-    // we & ~blockers to remove all blockers that haven't been bit flipped by
-    // a substraction, so that all we're left with are subtraction rays
-    u64 dests = (blockers - ((movers._[0]) << 1)) & ~(blockers | throne._[0]);
-    carryover = ((dests | (movers._[0] & (((u64)1) << 63))) >> 63) & ~occ._[1];
+    u64 shifted_movers = movers._[0] << 1;
+    u64 subtraction = blockers - shifted_movers;
+    u64 dests = subtraction & ~(blockers | throne._[0]);
+    u64 boundary_bit = dests | (movers._[0] & ((u64)1 << 63));
+    carryover = (boundary_bit >> 63);
     output._[0] = dests;
   }
 
   // upper
   {
     u64 blockers = occ._[1] | file_mask_0._[1];
-    u64 dests = (blockers - ((((movers._[1]) << 1)) | carryover)) & ~blockers;
+    u64 shifted_movers = (movers._[1] << 1) | carryover;
+    u64 subtraction = blockers - shifted_movers;
+    u64 dests = subtraction & ~blockers;
     output._[1] = dests;
   }
 
   return output;
 }
 
+/*
+ * rightward_moves_layer - Generate all rightward move destinations for all
+ * movers simultaneously.
+ *
+ * occ must include corners so that they act as blockers, preventing
+ * move generation into corner squares.
+ *
+ * "Rightward" = towards lower bit index = towards the LSB within each row.
+ * In diagrams, "/" marks squares belonging to the other half.
+ *
+ * Binary subtraction propagates borrows towards the MSB (leftward), so we
+ * cannot use the simple shift-and-subtract approach from leftward_moves_layer.
+ * Instead, pext/pdep remaps each mover to a position just left of its nearest
+ * rightward blocker, then `movers - deposited_movers` generates the ray via
+ * normal leftward borrow propagation.
+ *
+ * The upper half is processed first (rightward carryover flows from _[1]
+ * into _[0], the opposite direction of leftward).
+ *
+ *
+ * ====== UPPER HALF: _[1] (rows 5-10)
+ *
+ * _[1] bit layout (bit = index - 64):
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10 bits: 56 55 54 53 52 51 50 49 48 47 46
+ *   row  9 bits: 45 44 43 42 41 40 39 38 37 36 35
+ *   row  8 bits: 34 33 32 31 30 29 28 27 26 25 24
+ *   row  7 bits: 23 22 21 20 19 18 17 16 15 14 13
+ *   row  6 bits: 12 11 10  9  8  7  6  5  4  3  2
+ *   row  5 bits:  1  0  /  /  /  /  /  /  /  /  /
+ *
+ * Example — movers (M), other pieces (X), corners (C):
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       C  .  .  .  .  .  .  .  .  .  C
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  8:       .  .  .  .  .  M  .  .  X  .  .
+ *   row  7:       .  .  .  .  .  .  .  M  .  .  .
+ *   row  6:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  5:       .  M  /  /  /  /  /  /  /  /  /
+ *
+ * blockers = occ._[1] | file_mask_10._[1]
+ *
+ *   Column-10 sentinels prevent the pext/pdep mapping from crossing
+ *   row boundaries. Each sentinel also serves as the rightward
+ *   boundary for the row above it: the sentinel at col 10 of row N
+ *   is one bit below row (N+1)'s col 0, so a rightward ray in row
+ *   N+1 naturally stops there.
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       1  .  .  .  .  .  .  .  .  .  1
+ *   row  9:       1  .  .  .  .  .  .  .  .  .  .
+ *   row  8:       1  .  .  .  .  1  .  .  1  .  .
+ *   row  7:       1  .  .  .  .  .  .  1  .  .  .
+ *   row  6:       1  .  .  .  .  .  .  .  .  .  .
+ *   row  5:       1  1  /  /  /  /  /  /  /  /  /
+ *                 ^                             ^
+ *             sentinels                      corner
+ *
+ * extracted_movers = _pext_u64(movers._[1], blockers)
+ *
+ *   Since movers are a subset of occ (and therefore blockers), pext
+ *   compresses the movers into blocker-index space: bit k of the
+ *   result is 1 if the k-th blocker (sorted by position) has a mover.
+ *
+ * deposit_mask = 1 | (blockers << 1)
+ *
+ *   Shifting blockers left by 1 creates a position one to the LEFT of
+ *   each blocker. Without the `1 |`, the deposit mask would have the
+ *   same number of set bits as the extraction mask (blockers), so pdep
+ *   would map each mover back to its own blocker's shifted position —
+ *   useless. The `1` at bit 0 adds an extra position at the bottom of
+ *   the deposit mask, off-balancing it: now every deposit target is
+ *   shifted down by one slot in the ordering. A mover at blocker
+ *   index k deposits at (blocker k-1) + 1 instead of (blocker k) + 1.
+ *   This is exactly "one left of the nearest rightward blocker."
+ *
+ *   The `1` also provides the rightward boundary for row 5, the
+ *   bottommost row in _[1]. Unlike other rows, row 5 has no sentinel
+ *   from a row below it (row 4 is in _[0]), so without the `1` a
+ *   mover in row 5 would have no valid deposit target.
+ *
+ * deposited_movers = _pdep_u64(extracted_movers, deposit_mask)
+ *
+ *   pdep deposits each mover (in blocker-index space) back into board
+ *   space using the deposit_mask. The off-balanced mapping places each
+ *   mover one left of its nearest rightward blocker.
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  8:       .  .  .  .  .  .  .  1  .  .  .
+ *   row  7:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  6:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  5:       .  1  /  /  /  /  /  /  /  /  /
+ *
+ * dests = movers._[1] - deposited_movers
+ *
+ *   The subtraction propagates borrows from each deposited_mover
+ *   towards the MSB. Each 0-bit along the way is flipped to 1; the
+ *   first 1-bit (the mover itself) absorbs the borrow (1-0-1=0).
+ *   The result is the rightward ray between each mover and its
+ *   nearest rightward blocker, exclusive of both. In row 5,
+ *   deposited_movers equals movers (1-1=0), so no dests are
+ *   generated — its rightward ray continues via the carryover.
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  8:       .  .  .  .  .  .  1  1  .  .  .
+ *   row  7:       .  .  .  .  .  .  .  .  1  1  1
+ *   row  6:       .  .  .  .  .  .  .  .  .  .  .
+ *   row  5:       .  .  /  /  /  /  /  /  /  /  /
+ *
+ * boundary_bit = (dests | movers._[1]) & 1
+ * carryover    = (boundary_bit << 63) & ~occ._[0]
+ *
+ *   Row 5 is split: cols 9-10 in _[1] (bits 0-1), cols 0-8 in
+ *   _[0] (bits 55-63). A mover at bit 0 — or a dest that reaches
+ *   bit 0 — needs to continue into _[0]. boundary_bit captures
+ *   bit 0, and shifting left by 63 places it at the MSB of _[0].
+ *   The `& ~occ._[0]` check is necessary here (unlike leftward)
+ *   because pext/pdep remaps positions: the carryover bit is
+ *   deposited at a fixed position (bit 63) that may not correspond
+ *   to a blocker, so the natural cancellation doesn't apply.
+ *
+ *
+ * ====== LOWER HALF: _[0] (rows 0-5)
+ *
+ * _[0] bit layout (bit = index):
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5 bits:  /  / 63 62 61 60 59 58 57 56 55
+ *   row 4 bits: 54 53 52 51 50 49 48 47 46 45 44
+ *   row 3 bits: 43 42 41 40 39 38 37 36 35 34 33
+ *   row 2 bits: 32 31 30 29 28 27 26 25 24 23 22
+ *   row 1 bits: 21 20 19 18 17 16 15 14 13 12 11
+ *   row 0 bits: 10  9  8  7  6  5  4  3  2  1  0
+ *
+ * Continuing the example with carryover at bit 63 (M=mover, X=other piece,
+ * C=corner):
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  .  .  .  .  .  .  .  .  .
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 2:       .  .  .  M  .  .  X  .  .  .  .
+ *   row 1:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 0:       C  .  .  .  .  .  .  .  .  .  C
+ *
+ * blockers = occ._[0] | file_mask_10._[0]
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  .  .  .  .  .  .  .  .  .
+ *   row 4:       1  .  .  .  .  .  .  .  .  .  .
+ *   row 3:       1  .  .  .  .  .  .  .  .  .  .
+ *   row 2:       1  .  .  1  .  .  1  .  .  .  .
+ *   row 1:       1  .  .  .  .  .  .  .  .  .  .
+ *   row 0:       1  .  .  .  .  .  .  .  .  .  1
+ *                ^                             ^
+ *            sentinels                      corner
+ *
+ * combined_movers   = carryover | movers._[0]
+ * combined_blockers = carryover | blockers
+ *
+ *   The carryover injects a virtual mover at bit 63 (row 5, col 8)
+ *   into both movers and blockers for the pext step.
+ *
+ * extracted_movers = _pext_u64(combined_movers, combined_blockers) >> 1
+ *
+ *   Same compression as the upper half. The >> 1 achieves the same
+ *   off-balancing as the upper half's `1 |`, but from the other end:
+ *   instead of adding an extra deposit target at the bottom, it
+ *   shifts the extracted bits right by one, so each mover maps to one
+ *   position lower in the deposit ordering.
+ *
+ *   This exploits a property of the board: the lower right corner
+ *   (bit 0, row 0, col 0) is always in occ but can never be a mover.
+ *   It serves two roles simultaneously:
+ *   1. Boundary: shifted left via `blockers << 1`, the corner
+ *      creates a deposit target at bit 1 — the rightward boundary
+ *      for row 0, just as `1 |` provides for row 5 in the upper
+ *      half.
+ *   2. Off-balancing: the >> 1 discards the lowest extraction bit,
+ *      which always corresponds to the corner. Since no mover can
+ *      be at a corner, this bit is guaranteed to be 0, and is thus safe to
+ *      discard.
+ *
+ * deposited_movers = _pdep_u64(extracted_movers, blockers << 1)
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  .  .  .  .  .  .  .  .  1
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 2:       .  .  .  .  .  1  .  .  .  .  .
+ *   row 1:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 0:       .  .  .  .  .  .  .  .  .  .  .
+ *
+ * dests = (movers._[0] - deposited_movers) & ~throne._[0]
+ *
+ *   The subtraction uses movers._[0], not combined_movers: the
+ *   carryover position (bit 63, row 5 col 8) is a valid destination
+ *   square, not a real mover. Including it in the minuend would
+ *   absorb the borrow there, wrongly excluding it from dests. By
+ *   omitting it, the borrow from the carryover's deposited position
+ *   (bit 55) overflows the u64, and bit 63 correctly appears as a
+ *   dest — same harmless overflow as the leftward row 5 case.
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  1  1  1  .  1  1  1  1  1  (throne at col 5 masked)
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 2:       .  .  .  .  .  1  1  .  .  .  .
+ *   row 1:       .  .  .  .  .  .  .  .  .  .  .
+ *   row 0:       .  .  .  .  .  .  .  .  .  .  .
+ */
 static inline layer rightward_moves_layer(layer movers, layer occ) {
   layer output = EMPTY_LAYER;
 
   u64 carryover;
   // upper
   {
-    u64 blockers = (occ._[1] | file_mask_10._[1]);
-    u64 movers_ext = _pext_u64(movers._[1], blockers);
-    u64 movers_dep = _pdep_u64(movers_ext, 1 | (blockers << 1));
-    u64 move_mask = (movers._[1] - movers_dep);
-    carryover = (((move_mask | movers._[1]) & 1) << 63) & ~occ._[0];
-    output._[1] = move_mask;
+    u64 blockers = occ._[1] | file_mask_10._[1];
+    u64 extracted_movers = _pext_u64(movers._[1], blockers);
+    u64 deposit_mask = 1 | (blockers << 1);
+    u64 deposited_movers = _pdep_u64(extracted_movers, deposit_mask);
+    u64 dests = movers._[1] - deposited_movers;
+    u64 boundary_bit = (dests | movers._[1]) & 1;
+    carryover = (boundary_bit << 63) & ~occ._[0];
+    output._[1] = dests;
   }
 
+  // lower
   {
     u64 blockers = occ._[0] | file_mask_10._[0];
     // here I depend on the lower right corner being occupied to ensure that I
     // generate a ray towards it
-    u64 movers_ext =
-        _pext_u64(carryover | movers._[0], carryover | blockers) >> 1;
-    u64 movers_dep = _pdep_u64(movers_ext, (blockers << 1));
-    u64 move_mask = (movers._[0] - movers_dep) & (~throne._[0]);
-    output._[0] = move_mask;
+    u64 combined_movers = carryover | movers._[0];
+    u64 combined_blockers = carryover | blockers;
+    u64 extracted_movers = _pext_u64(combined_movers, combined_blockers) >> 1;
+    u64 deposited_movers = _pdep_u64(extracted_movers, blockers << 1);
+    u64 dests = (movers._[0] - deposited_movers) & ~throne._[0];
+    output._[0] = dests;
   }
 
   return output;
@@ -1134,10 +1552,9 @@ void moves_from_layers(
     layer *ls_r,
     int *total) {
 
-  // print_layer(layers->leftward);
-  // print_layer(layers->leftward_r);
-  // print_layer(layers->rightward);
-  // print_layer(layers->rightward_r);
+  int _local_total = *total;
+  int *_total_out = total;
+  total = &_local_total;
 
   EXTRACT_FROM_LAYERS_LEFTWARD(0, , movers);
   EXTRACT_FROM_LAYERS_LEFTWARD(1, , movers);
@@ -1154,6 +1571,8 @@ void moves_from_layers(
   EXTRACT_FROM_LAYERS_RIGHTWARD(0, _r, movers_r);
   EXTRACT_FROM_LAYERS_RIGHTWARD(1, _r, movers_r);
   EXTRACT_FROM_LAYERS_RIGHTWARD_CENTER(_r, movers_r);
+
+  *_total_out = _local_total;
 }
 
 /* all black moves, with any illegal repetitions removed */

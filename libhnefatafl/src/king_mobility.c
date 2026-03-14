@@ -1,4 +1,3 @@
-#include "board.h"
 #include "constants.h"
 #include "layer.h"
 #include "limits.h"
@@ -978,22 +977,6 @@ static const u8 row_shift[11] = {0, 11, 22, 33, 44, 55, 2, 13, 24, 35, 46};
 // For row 5: overflow bits 9-10 go to _[1] via row >> 9.
 // For all other rows: row >> 63 == 0 (row is 11 bits), making the write a
 // no-op.
-static const u8 row_overflow_shift[11] =
-    {63, 63, 63, 63, 63, 9, 63, 63, 63, 63, 63};
-// LEGAL_EDGE_MASK for rows 0 and 10 (clear corner positions); identity for
-// others.
-static const u16 edge_row_mask[11] = {
-    0x3fe,
-    0x7ff,
-    0x7ff,
-    0x7ff,
-    0x7ff,
-    0x7ff,
-    0x7ff,
-    0x7ff,
-    0x7ff,
-    0x7ff,
-    0x3fe};
 
 // For reading row 5: bits 0-8 come from _[0] >> 55, bits 9-10 from _[1] << 9.
 // For all other rows the secondary read produces 0 (shift of 63 on a u16 cast).
@@ -1005,13 +988,6 @@ dirty_get_row_branchless(layer l, int n) {
   u16 row = (u16)(l._[row_sub_layer[n]] >> row_shift[n]);
   row |= (u16)((u64)l._[1 - row_sub_layer[n]] << row_overflow_read_shift[n]);
   return row;
-}
-
-static inline void __attribute__((always_inline))
-into_row_branchless(layer *l, u16 row, int n) {
-  row &= edge_row_mask[n];
-  l->_[row_sub_layer[n]] |= (u64)row << row_shift[n];
-  l->_[1 - row_sub_layer[n]] |= (u64)row >> row_overflow_shift[n];
 }
 
 // Simplified row write for exit rows (0, 1, 9, 10) where row 5 straddling
@@ -1036,123 +1012,115 @@ static inline bool range_clear(u16 row_occ, int left, int right) {
   return !(row_occ & range_mask(left, right));
 }
 
-// Can the king slide rightward (toward 0) from king_pos to target_pos?
-// target_pos < king_pos.
+// Can a piece slide rightward (toward 0) from orig to dest?
+// dest < orig.
 // Uses a borrow trick (4 ops) that is faster than range_clear (5 ops)
-// but requires king_pos to be clear in row_occ. This holds because
-// row_occ is black | white, excluding the king. Not usable in exit_check
-// where the checked position (a landing square) may be occupied.
-static inline bool can_reach_right(u16 row_occ, int king_pos, int target_pos) {
-  u16 king_bit = 1 << king_pos;
-  u16 target_bit = 1 << target_pos;
-  // Subtracting target_bit borrows upward through clear bits until hitting
-  // a blocker. If no blocker exists between target and king, the borrow
-  // flips king_bit on; otherwise king_bit stays off.
-  return king_bit & (row_occ - target_bit);
+// but requires orig to be clear in row_occ.
+static inline bool can_reach_right(u16 row_occ, int orig, int dest) {
+  u16 orig_bit = 1 << orig;
+  u16 dest_bit = 1 << dest;
+  // Subtracting dest_bit borrows upward through clear bits until hitting
+  // a blocker. If no blocker exists between dest and orig, the borrow
+  // flips orig_bit on; otherwise orig_bit stays off.
+  return orig_bit & (row_occ - dest_bit);
 }
 
-// Can the king slide leftward (toward 10) from king_pos to target_pos?
-// target_pos > king_pos.
-static inline bool can_reach_left(u16 row_occ, int king_pos, int target_pos) {
-  // Mask of bits from king_pos+1 to target_pos inclusive.
+// Can a piece slide leftward (toward 10) from orig to dest?
+// dest > orig.
+static inline bool can_reach_left(u16 row_occ, int orig, int dest) {
+  // Mask of bits from orig+1 to dest inclusive.
   // True iff none of those bits are set in row_occ.
-  return range_clear(row_occ, target_pos, king_pos + 1);
+  return range_clear(row_occ, dest, orig + 1);
 }
 
-// Check both directions along a row from pos for clear paths to an exit.
-// Inclusive of pos: on a branch row, if the landing square is occupied
-// the check fails naturally. On the king's own row, pos is the king's
-// position which is clear in row_occ (king excluded from occ).
+// Check both directions along a row for clear routes from origin to an
+// exit square. Range is inclusive of origin: if the origin is occupied,
+// it appears in the range and the check fails naturally.
 //
-//   row_occ         - occupancy of the row being checked
-//   pos             - starting position on the row (king's coordinate on this
-//                     axis)
-//   row_idx         - index of this row, for into_row
-//   col_idx         - index into legal_file_masks for perpendicular mark.
-//                     File-axis: col_idx = row_idx (identity).
-//                     Rank-axis: col_idx = 10 - row_idx (rotated mapping).
-//   perp_idx        - king's coordinate on the perpendicular axis, indexes
-//                     into left_perp_arr / right_perp_arr
-//   par             - parallel path layer: receives the row mask of traversed
-//                     cells
-//   perp            - perpendicular path layer: receives column masks for
-//                     exit files
-//   left_perp_arr   - half-board array for leftward exits
-//   right_perp_arr  - half-board array for rightward exits
+// This could operate directly on a u64 layer half with pre-shifted masks,
+// but extracting and operating on u16 rows is simpler and equally fast.
 //
 // Returns true if at least one direction found an exit.
 static inline bool __attribute__((always_inline)) exit_check(
-    u16 row_occ,
-    int pos,
-    int row_idx,
-    int col_idx,
-    int perp_idx,
-    layer *par,
-    layer *perp,
-    const layer *left_perp_arr,
-    const layer *right_perp_arr) {
+    u16 row_occ,   // occupancy of the row being checked
+    int origin,    // position to check from
+    int row_idx,   // index of the row in row_occ's layer
+    bool col_flip, // true when file_mask_idx = 10 - row_idx
+    int perp_idx,  // origin's row in perp; clips column mask to relevant rows
+    layer *par,    // output layer where branch rows are rows
+    layer *perp,   // output layer where branch rows are columns
+    const layer *leftward_column_masks,  // row-range masks for leftward exits
+    const layer *rightward_column_masks) // row-range masks for rightward exits
+{
   bool found = false;
   int left_end = (row_idx == 0 || row_idx == 10) ? 9 : 10;
   int right_end = (row_idx == 0 || row_idx == 10) ? 1 : 0;
+  int file_mask_idx = col_flip ? 10 - row_idx : row_idx;
 
-  // Leftward: [pos, left_end]
-  u16 left_mask = range_mask(left_end, pos);
+  // Uses range_mask rather than can_reach_right's borrow trick because
+  // origin may be occupied in row_occ (on branch rows the landing square
+  // may have a piece).
+  u16 left_mask = range_mask(left_end, origin);
   if (!(row_occ & left_mask)) {
     into_row_exit(par, left_mask, row_idx);
-    perp->_[0] |= legal_file_masks[col_idx]._[0] & left_perp_arr[perp_idx]._[0];
-    perp->_[1] |= legal_file_masks[col_idx]._[1] & left_perp_arr[perp_idx]._[1];
+    perp->_[0] |= legal_file_masks[file_mask_idx]._[0]
+                  & leftward_column_masks[perp_idx]._[0];
+    perp->_[1] |= legal_file_masks[file_mask_idx]._[1]
+                  & leftward_column_masks[perp_idx]._[1];
     found = true;
   }
 
-  // Rightward: [right_end, pos]
-  u16 right_mask = range_mask(pos, right_end);
+  u16 right_mask = range_mask(origin, right_end);
   if (!(row_occ & right_mask)) {
     into_row_exit(par, right_mask, row_idx);
-    perp->_[0] |=
-        legal_file_masks[col_idx]._[0] & right_perp_arr[perp_idx]._[0];
-    perp->_[1] |=
-        legal_file_masks[col_idx]._[1] & right_perp_arr[perp_idx]._[1];
+    perp->_[0] |= legal_file_masks[file_mask_idx]._[0]
+                  & rightward_column_masks[perp_idx]._[0];
+    perp->_[1] |= legal_file_masks[file_mask_idx]._[1]
+                  & rightward_column_masks[perp_idx]._[1];
     found = true;
   }
 
   return found;
 }
 
-// Identical to exit_check except the range masks exclude the king's
-// position (pos+1/pos-1 instead of pos). Used for the king's own row
-// where the king's bit is clear in row_occ and must not appear in the
-// path mask.
+// Like exit_check, but the range excludes origin (origin+1 / origin-1).
+// Used when the origin is already occupied (e.g. the king's current row),
+// so origin's bit must not appear in the path mask.
+//
+// See exit_check for why this operates on extracted u16 rows.
 static inline bool __attribute__((always_inline)) exit_check_exc(
-    u16 row_occ,
-    int pos,
-    int row_idx,
-    int col_idx,
-    int perp_idx,
-    layer *par,
-    layer *perp,
-    const layer *left_perp_arr,
-    const layer *right_perp_arr) {
+    u16 row_occ,   // occupancy of the row being checked
+    int origin,    // position to check from
+    int row_idx,   // index of the row in row_occ's layer
+    bool col_flip, // true when file_mask_idx = 10 - row_idx
+    int perp_idx,  // origin's row in perp; clips column mask to relevant rows
+    layer *par,    // output layer where branch rows are rows
+    layer *perp,   // output layer where branch rows are columns
+    const layer *leftward_column_masks,  // row-range masks for leftward exits
+    const layer *rightward_column_masks) // row-range masks for rightward exits
+{
   bool found = false;
   int left_end = (row_idx == 0 || row_idx == 10) ? 9 : 10;
   int right_end = (row_idx == 0 || row_idx == 10) ? 1 : 0;
+  int file_mask_idx = col_flip ? 10 - row_idx : row_idx;
 
-  // Leftward: (pos, left_end] — excludes king
-  u16 left_mask = range_mask(left_end, pos + 1);
+  u16 left_mask = range_mask(left_end, origin + 1);
   if (!(row_occ & left_mask)) {
     into_row_exit(par, left_mask, row_idx);
-    perp->_[0] |= legal_file_masks[col_idx]._[0] & left_perp_arr[perp_idx]._[0];
-    perp->_[1] |= legal_file_masks[col_idx]._[1] & left_perp_arr[perp_idx]._[1];
+    perp->_[0] |= legal_file_masks[file_mask_idx]._[0]
+                  & leftward_column_masks[perp_idx]._[0];
+    perp->_[1] |= legal_file_masks[file_mask_idx]._[1]
+                  & leftward_column_masks[perp_idx]._[1];
     found = true;
   }
 
-  // Rightward: [right_end, pos) — excludes king
-  u16 right_mask = range_mask(pos - 1, right_end);
+  u16 right_mask = range_mask(origin - 1, right_end);
   if (!(row_occ & right_mask)) {
     into_row_exit(par, right_mask, row_idx);
-    perp->_[0] |=
-        legal_file_masks[col_idx]._[0] & right_perp_arr[perp_idx]._[0];
-    perp->_[1] |=
-        legal_file_masks[col_idx]._[1] & right_perp_arr[perp_idx]._[1];
+    perp->_[0] |= legal_file_masks[file_mask_idx]._[0]
+                  & rightward_column_masks[perp_idx]._[0];
+    perp->_[1] |= legal_file_masks[file_mask_idx]._[1]
+                  & rightward_column_masks[perp_idx]._[1];
     found = true;
   }
 
@@ -1162,7 +1130,7 @@ static inline bool __attribute__((always_inline)) exit_check_exc(
 enum escape_dir { DIR_RIGHT, DIR_LEFT };
 
 // Axis context for stem_and_branch and exit_check: captures all values
-// that depend on which axis the king stems along (rank vs file).
+// that depends on the orientation of the stem axis (rank vs file).
 //
 // "Below" and "above" are relative to the stem axis, defined as toward
 // decreasing (pos 0) and increasing (pos 10) stem position respectively.
@@ -1171,42 +1139,48 @@ enum escape_dir { DIR_RIGHT, DIR_LEFT };
 // rot_row_pos = 10 - rank, so below = toward rot_row_pos 0 = toward
 // rank 10, and below_masks = above_n.
 typedef struct {
-  u16 stem_occ;     // occupancy of king's row on this axis
-  int stem_pos;     // king's position on stem row
-  layer branch_src; // layer to extract branch rows from (occ or occ_r)
-  int branch_pos;   // king's coordinate on the branch axis
-  bool col_flip;    // true for file-axis stem (col_idx = 10 - row_idx)
-  int perp_idx;     // king's perpendicular coordinate
-  layer *par; // output layer where branch rows are rows (paths_r for rank-axis,
-              // paths for file-axis)
-  layer *perp; // output layer where branch rows are columns (paths for
-               // rank-axis, paths_r for file-axis)
-  const layer *below_masks; // row-range masks below the stem axis (exclusive)
-  const layer *above_masks; // row-range masks above the stem axis (exclusive)
-  const layer
-      *below_inc_masks; // row-range masks below the stem axis (inclusive)
-  const layer
-      *above_inc_masks; // row-range masks above the stem axis (inclusive)
-  int stem_row_idx;     // row index for writing stem cells
-  int perp_row_idx;     // king's row index in the perpendicular layer
-                        // (file for rank-axis, rank for file-axis);
-                        // indexes into below/above masks
+  // occupancy of king's row on this axis
+  u16 stem_occ;
+  // king's position on stem row
+  int stem_pos;
+  // layer to extract branch rows from (occ or occ_r)
+  layer branch_src;
+  // king's stem-perpendicular coordinate in the branch layer's row
+  // representation (rotated: 10-rank for rank-axis)
+  int branch_pos;
+  // true for file-axis stem (file_mask_idx = 10 - row_idx)
+  bool col_flip;
+  // king's stem-perpendicular coordinate in the unrotated layer's row
+  // numbering (rank for rank-axis, file for file-axis)
+  int perp_idx;
+  // output layer where branch rows are rows
+  // (paths_r for rank-axis, paths for file-axis)
+  layer *par;
+  // output layer where branch rows are columns
+  // (paths for rank-axis, paths_r for file-axis)
+  layer *perp;
+  // row-range masks below the stem axis (exclusive)
+  const layer *below_masks;
+  // row-range masks above the stem axis (exclusive)
+  const layer *above_masks;
+  // row-range masks below the stem axis (inclusive)
+  const layer *below_inc_masks;
+  // row-range masks above the stem axis (inclusive)
+  const layer *above_inc_masks;
+  // row index for writing stem cells
+  int stem_row_idx;
+  // king's row index in the perpendicular layer
+  // (file for rank-axis, rank for file-axis); indexes into below/above masks
+  int perp_row_idx;
 } axis_ctx;
 
-// col_idx helpers: resolve at compile time via token pasting.
-// true/false expand to 1/0 in C, so we define COL_IDX_0 and COL_IDX_1.
-#define COL_IDX_0(row_idx) (row_idx)
-#define COL_IDX_1(row_idx) (10 - (row_idx))
-#define COL_IDX(flip, row_idx) COL_IDX_##flip(row_idx)
-
 // Inclusive exit_check using axis context (for adjacent rows).
-// flip must be a literal true/false matching ctx->col_flip.
-#define exit_check_ctx(row_occ, row_idx, flip, ctx)                            \
+#define exit_check_ctx(row_occ, row_idx, ctx)                                  \
   exit_check(                                                                  \
       row_occ,                                                                 \
       (ctx)->branch_pos,                                                       \
       row_idx,                                                                 \
-      COL_IDX(flip, row_idx),                                                  \
+      (ctx)->col_flip,                                                         \
       (ctx)->perp_idx,                                                         \
       (ctx)->par,                                                              \
       (ctx)->perp,                                                             \
@@ -1214,13 +1188,12 @@ typedef struct {
       (ctx)->above_inc_masks)
 
 // Exclusive exit_check using axis context (for king's own row).
-// flip must be a literal true/false matching ctx->col_flip.
-#define exit_check_exc_ctx(row_occ, row_idx, flip, ctx)                        \
+#define exit_check_exc_ctx(row_occ, row_idx, ctx)                              \
   exit_check_exc(                                                              \
       row_occ,                                                                 \
       (ctx)->branch_pos,                                                       \
       row_idx,                                                                 \
-      COL_IDX(flip, row_idx),                                                  \
+      (ctx)->col_flip,                                                         \
       (ctx)->perp_idx,                                                         \
       (ctx)->par,                                                              \
       (ctx)->perp,                                                             \
@@ -1230,7 +1203,8 @@ typedef struct {
 // 2-move escape: check if the king can reach the near-edge row along its
 // own row (stem), then find exits along the near-edge and edge rows (branch).
 // dir and check_edge must be compile-time constants — the compiler eliminates
-// dead branches.
+// dead branches. This function only checks one direction along the stem, left,
+// or right, configured by escape_dir.
 //
 // The reach check only verifies the king can reach the near-edge (position
 // 1 or 9). Reachability to the edge (position 0 or 10) is handled implicitly:
@@ -1239,7 +1213,6 @@ typedef struct {
 static inline void __attribute__((always_inline))
 stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
   int stem_target = (dir == DIR_RIGHT) ? 1 : 9;
-  int edge_target = (dir == DIR_RIGHT) ? 0 : 10;
 
   bool reached =
       (dir == DIR_RIGHT)
@@ -1259,8 +1232,6 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
   bool toward_low_rows = (dir == DIR_RIGHT) != ctx->col_flip;
   int near_row_n = toward_low_rows ? 1 : 9;
   int edge_row_n = toward_low_rows ? 0 : 10;
-  int near_col_idx = ctx->col_flip ? 10 - near_row_n : near_row_n;
-  int edge_col_idx = ctx->col_flip ? 10 - edge_row_n : edge_row_n;
   // When writing the stem to the escape path layer in which it has a
   // column orientation, we compose a full-board column mask with this
   // mask, which contains only the rows between the king and the board
@@ -1274,20 +1245,20 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
   u16 edge_occ =
       check_edge ? dirty_get_row_branchless(ctx->branch_src, edge_row_n) : 0;
 
-  // Use inclusive exit_check: the landing square (branch_pos) must appear in
-  // par so that paths and paths_r stay consistent (the stem already marks it
-  // in perp). Exclusive perp arrays are passed through, so the king's row is
-  // not marked in the perpendicular layer.
+  // Inclusive exit_check because origin (branch_pos) is a landing square,
+  // not the king's current position — it should be included in the path.
+  // Inclusive row-range masks match: exit_check is inclusive of origin, so
+  // the column representation should include origin's row too.
   bool found_near = exit_check(
       near_occ,
       ctx->branch_pos,
       near_row_n,
-      near_col_idx,
+      ctx->col_flip,
       ctx->perp_idx,
       ctx->par,
       ctx->perp,
-      ctx->below_masks,
-      ctx->above_masks);
+      ctx->below_inc_masks,
+      ctx->above_inc_masks);
 
   bool found_edge = false;
   if (check_edge) {
@@ -1295,20 +1266,20 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
         edge_occ,
         ctx->branch_pos,
         edge_row_n,
-        edge_col_idx,
+        ctx->col_flip,
         ctx->perp_idx,
         ctx->par,
         ctx->perp,
-        ctx->below_masks,
-        ctx->above_masks);
+        ctx->below_inc_masks,
+        ctx->above_inc_masks);
   }
 
-  // Stem cells go to perp (row representation) because the stem runs along
-  // the king's row, which is perpendicular to the branch axis.
-  // The stem also goes to par (column representation) via the perpendicular
-  // stem component: file_mask_adjacent (for near) or legal_file_masks (for
-  // edge) masked by the pre-looked-up half-board layer.
-  if (found_near) {
+  // Write stem cells to both output layers. In perp, the stem is a row
+  // (into_row). In par, the stem is a column — file_mask_adjacent clipped
+  // by stem_perp_half. The stem only extends to near (position 1/9); the
+  // edge cell (position 0/10) is covered by exit_check, which is inclusive
+  // of origin.
+  if (found_near || found_edge) {
     u16 stem_mask = (dir == DIR_RIGHT)
                         ? range_mask(ctx->stem_pos - 1, stem_target)
                         : range_mask(stem_target, ctx->stem_pos + 1);
@@ -1317,16 +1288,6 @@ stem_and_branch(enum escape_dir dir, bool check_edge, const axis_ctx *ctx) {
         file_mask_adjacent[ctx->branch_pos]._[0] & stem_perp_half._[0];
     ctx->par->_[1] |=
         file_mask_adjacent[ctx->branch_pos]._[1] & stem_perp_half._[1];
-  }
-  if (found_edge) {
-    u16 stem_mask = (dir == DIR_RIGHT)
-                        ? range_mask(ctx->stem_pos - 1, edge_target)
-                        : range_mask(edge_target, ctx->stem_pos + 1);
-    into_row(ctx->perp, stem_mask, ctx->stem_row_idx);
-    ctx->par->_[0] |=
-        legal_file_masks[ctx->branch_pos]._[0] & stem_perp_half._[0];
-    ctx->par->_[1] |=
-        legal_file_masks[ctx->branch_pos]._[1] & stem_perp_half._[1];
   }
 }
 
@@ -1402,8 +1363,8 @@ void corner_paths_2_new(
         .stem_row_idx = rank,
         .perp_row_idx = file,
     };
-    exit_check_exc_ctx(DIRTY_GET_ROW(0, occ_r), 0, false, &rc);
-    exit_check_ctx(DIRTY_GET_ROW(1, occ_r), 1, false, &rc);
+    exit_check_exc_ctx(DIRTY_GET_ROW(0, occ_r), 0, &rc);
+    exit_check_ctx(DIRTY_GET_ROW(1, occ_r), 1, &rc);
     stem_and_branch(DIR_LEFT, true, &rc);
   } else if (file == 10) {
     u16 rank_occ = dirty_get_row(occ, rank);
@@ -1424,8 +1385,8 @@ void corner_paths_2_new(
         .perp_row_idx = file,
     };
     stem_and_branch(DIR_RIGHT, true, &rc);
-    exit_check_ctx(DIRTY_GET_ROW(9, occ_r), 9, false, &rc);
-    exit_check_exc_ctx(DIRTY_GET_ROW(10, occ_r), 10, false, &rc);
+    exit_check_ctx(DIRTY_GET_ROW(9, occ_r), 9, &rc);
+    exit_check_exc_ctx(DIRTY_GET_ROW(10, occ_r), 10, &rc);
   } else if (rank == 0) {
     u16 file_occ = dirty_get_row(occ_r, file);
     axis_ctx fc = {
@@ -1444,8 +1405,8 @@ void corner_paths_2_new(
         .stem_row_idx = file,
         .perp_row_idx = rank,
     };
-    exit_check_exc_ctx(DIRTY_GET_ROW(0, occ), 0, true, &fc);
-    exit_check_ctx(DIRTY_GET_ROW(1, occ), 1, true, &fc);
+    exit_check_exc_ctx(DIRTY_GET_ROW(0, occ), 0, &fc);
+    exit_check_ctx(DIRTY_GET_ROW(1, occ), 1, &fc);
     stem_and_branch(DIR_RIGHT, true, &fc);
   } else if (rank == 10) {
     u16 file_occ = dirty_get_row(occ_r, file);
@@ -1466,8 +1427,8 @@ void corner_paths_2_new(
         .perp_row_idx = rank,
     };
     stem_and_branch(DIR_LEFT, true, &fc);
-    exit_check_ctx(DIRTY_GET_ROW(9, occ), 9, true, &fc);
-    exit_check_exc_ctx(DIRTY_GET_ROW(10, occ), 10, true, &fc);
+    exit_check_ctx(DIRTY_GET_ROW(9, occ), 9, &fc);
+    exit_check_exc_ctx(DIRTY_GET_ROW(10, occ), 10, &fc);
   } else {
     // Interior cases: need both rows.
     u16 rank_occ = dirty_get_row(occ, rank);
@@ -1508,20 +1469,20 @@ void corner_paths_2_new(
     if (file == 1) {
       if (rank == 1) {
         // Z_IC_11: king's own file and rank, both exclusive
-        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ_r), 1, false, &rc);
-        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ), 1, true, &fc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ_r), 1, &rc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ), 1, &fc);
         stem_and_branch(DIR_LEFT, false, &rc);
         stem_and_branch(DIR_RIGHT, false, &fc);
       } else if (rank == 9) {
         // Z_IC_91: king's own file and rank, both exclusive
-        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ_r), 1, false, &rc);
-        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ), 9, true, &fc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ_r), 1, &rc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ), 9, &fc);
         stem_and_branch(DIR_LEFT, false, &rc);
         stem_and_branch(DIR_LEFT, false, &fc);
       } else {
         // Z_ADJ_F1: king's file exclusive, adjacent file 0 inclusive
-        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ_r), 1, false, &rc);
-        exit_check_ctx(DIRTY_GET_ROW(0, occ_r), 0, false, &rc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ_r), 1, &rc);
+        exit_check_ctx(DIRTY_GET_ROW(0, occ_r), 0, &rc);
         stem_and_branch(DIR_LEFT, true, &rc);
         stem_and_branch(DIR_RIGHT, false, &fc);
         stem_and_branch(DIR_LEFT, false, &fc);
@@ -1529,37 +1490,37 @@ void corner_paths_2_new(
     } else if (file == 9) {
       if (rank == 1) {
         // Z_IC_19: king's own file and rank, both exclusive
-        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ_r), 9, false, &rc);
-        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ), 1, true, &fc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ_r), 9, &rc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ), 1, &fc);
         stem_and_branch(DIR_RIGHT, false, &rc);
         stem_and_branch(DIR_RIGHT, false, &fc);
       } else if (rank == 9) {
         // Z_IC_99: king's own file and rank, both exclusive
-        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ_r), 9, false, &rc);
-        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ), 9, true, &fc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ_r), 9, &rc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ), 9, &fc);
         stem_and_branch(DIR_RIGHT, false, &rc);
         stem_and_branch(DIR_LEFT, false, &fc);
       } else {
         // Z_ADJ_F9: king's file exclusive, adjacent file 10 inclusive
         stem_and_branch(DIR_RIGHT, true, &rc);
-        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ_r), 9, false, &rc);
-        exit_check_ctx(DIRTY_GET_ROW(10, occ_r), 10, false, &rc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ_r), 9, &rc);
+        exit_check_ctx(DIRTY_GET_ROW(10, occ_r), 10, &rc);
         stem_and_branch(DIR_RIGHT, false, &fc);
         stem_and_branch(DIR_LEFT, false, &fc);
       }
     } else {
       if (rank == 1) {
         // Z_ADJ_R1: king's rank exclusive, adjacent rank 0 inclusive
-        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ), 1, true, &fc);
-        exit_check_ctx(DIRTY_GET_ROW(0, occ), 0, true, &fc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(1, occ), 1, &fc);
+        exit_check_ctx(DIRTY_GET_ROW(0, occ), 0, &fc);
         stem_and_branch(DIR_RIGHT, true, &fc);
         stem_and_branch(DIR_RIGHT, false, &rc);
         stem_and_branch(DIR_LEFT, false, &rc);
       } else if (rank == 9) {
         // Z_ADJ_R9: king's rank exclusive, adjacent rank 10 inclusive
         stem_and_branch(DIR_LEFT, true, &fc);
-        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ), 9, true, &fc);
-        exit_check_ctx(DIRTY_GET_ROW(10, occ), 10, true, &fc);
+        exit_check_exc_ctx(DIRTY_GET_ROW(9, occ), 9, &fc);
+        exit_check_ctx(DIRTY_GET_ROW(10, occ), 10, &fc);
         stem_and_branch(DIR_RIGHT, false, &rc);
         stem_and_branch(DIR_LEFT, false, &rc);
       } else {
