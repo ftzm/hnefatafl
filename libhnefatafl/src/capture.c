@@ -17,7 +17,7 @@ u8 apply_captures_niave(
     int dest) {
   u8 count = 0;
 
-  int modDest = dest % 11;
+  int modDest = FILE(dest);
   int target;
   int behind;
 
@@ -85,7 +85,7 @@ layer apply_captures_niave_z(
     int dest) {
   layer output = EMPTY_LAYER;
 
-  int modDest = dest % 11;
+  int modDest = FILE(dest);
   int target;
   int behind;
 
