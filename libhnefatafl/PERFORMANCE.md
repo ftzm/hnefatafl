@@ -8,276 +8,39 @@ evidence from generated assembly and benchmark data.
 
 - Assembly generated with `objdump -d -M intel` on `.o` files built with
   `-mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g`
-- Benchmarks run via `make run-benchmarks` (ubench framework)
+- Benchmarks run via `make bench_<name>` (ubench framework), 2-3 runs each
 - `perf` was not available in this environment; cache/branch miss analysis
   is inferred from instruction-level examination
 
 ---
 
-## 1. Instruction Cache Pressure from Macro Expansion
+## Optimization Results Summary
 
-### The Problem
+Four potential bottlenecks were identified, analyzed, and empirically tested.
+Each was benchmarked before/after with the criterion: keep if improved, revert
+if not.
 
-The move generation macros `LEFTWARD`, `RIGHTWARD2`, and `LEFTWARD_CENTER`
-(`move.c:123-179`) are instantiated multiple times with different `_i`
-(sub-layer index: 0 or 1) and `_r` (rotation: normal or rotated) parameters.
-Each instantiation produces near-identical machine code at a different
-address.
-
-### Evidence
-
-Object file `.text` section sizes:
-
-| File          | .text bytes |
-|---------------|-------------|
-| `move.o`      | 29,546      |
-| `search.o`    | 23,316      |
-| `capture.o`   | 20,409      |
-
-The largest functions in `move.o`, all generated from the same macro
-patterns:
-
-| Function              | Size (bytes) |
-|-----------------------|--------------|
-| `moves_to_king_impl`  | 4,662        |
-| `moves_to`            | 4,630        |
-| `moves_to2`           | 4,100        |
-| `moves_from_layers`   | 3,368        |
-| `extract_move`        | 2,188        |
-
-The top 5 move functions alone total **18,948 bytes** of machine code. A
-typical L1 instruction cache is 32KB. These functions consume ~59% of L1i
-by themselves, before accounting for the search code that calls them
-(search_white: 5,081 bytes, search_black: 3,463 bytes).
-
-### Why It Matters
-
-- **I-cache thrashing**: When the search loop calls into move generation,
-  the 5KB+ move functions compete with the 5KB search functions for L1i
-  space. Context-switching between these code regions causes evictions.
-- **Branch Target Buffer pollution**: The inner loops of each macro
-  expansion have the same branch structure (the `while (dests)` loop) but
-  at different addresses. The BTB treats these as separate prediction
-  entries, diluting predictor accuracy.
-- **Micro-op cache (DSB) pressure**: On Intel CPUs, the decoded micro-op
-  cache has limited capacity. Repeated near-identical code sequences waste
-  DSB entries that could otherwise cache hot search code.
-
-### Comparison: `moves_to` inner loop (lower half, normal orientation)
-
-The inner loop at offset `0x1c0-0x247` processes one destination per
-iteration:
-
-```asm
-; -- extract destination --
-blsi   rcx,rdi           ; isolate lowest set bit of dests
-; -- find origin (dependency chain) --
-blsmsk r12,rcx            ; mask below dest_bit
-and    r12,[rsp-0x78]     ; AND with occupied layer
-tzcnt  r10,rcx            ; dest index (parallel with above chain)
-lzcnt  r12,r12            ; leading zero count of masked occ
-sub    r11d,r12d          ; 63 - lzcnt = origin index
-; -- bookkeeping stores --
-mov    [r15+r8*2-1],r10b  ; store dest
-mov    [r15+r8*2-2],r11b  ; store orig
-; ... layer update via lookup tables and shlx ...
-; -- advance --
-sub    rdi,rcx            ; dests -= dest_bit (loop-carried)
-jne    0x1c0
-```
-
-This same pattern appears 8+ times across the function (lower/upper ×
-normal/rotated × leftward/rightward), plus the center row variant using
-16-bit operations. Each instance is ~120-180 bytes.
-
-### Possible Mitigations
-
-- Convert the macro body to a regular function parameterized by sub-layer
-  index and rotation lookup table pointer. The compiler may still inline
-  where profitable, but the single definition reduces I-cache footprint.
-- Alternatively, reduce the number of instantiations by handling both
-  sub-layers in a single loop body (iterating `_i` from 0 to 1).
+| # | Optimization | Result | Action |
+|---|-------------|--------|--------|
+| 1 | Modulo-by-11 → FILE() lookup in capture.c | Neutral (within noise) | **Kept** — cleaner code, zero risk |
+| 2 | Position set: power-of-2 sizing with bitmask | **+30-46% on microbench**, ~1% search | **Kept** |
+| 3 | I-cache: extract LEFTWARD into noinline functions | **-5-15% search regression** | **Reverted** |
+| 4 | Dependency chain: origin-first iteration in LEFTWARD | **-10-12% moves_to regression** | **Reverted** |
 
 ---
 
-## 2. Position Set Linear Probing & Cache Line Pollution
+## 1. Modulo-by-11 → FILE() Lookup (KEPT)
 
-### The Problem
+### Change
 
-The position set (`position_set.c:52-97`) uses linear probing over a flat
-`u64[]` array for repetition detection. Each probe step accesses a
-potentially distant cache line, and the access pattern is unpredictable
-from the hardware prefetcher's perspective.
+Replaced `dest % 11` with `FILE(dest)` in `capture.c` (2 occurrences).
+`FILE()` uses the existing `file_table[121]` lookup from `layer.h`.
 
-### Evidence: Assembly of `insert_position`
+### Assembly Difference
 
-```asm
-; fastrange64: 128-bit multiply for index computation
-mov    rcx,[rdi]          ; load set->size
-mov    rax,rsi            ; position hash
-mul    rcx                ; 128-bit multiply → rdx:rax, index in rdx
-sub    rcx,0x1            ; size - 1 for wraparound
-
-; probe loop
-.loop:
-  lea    rdi,[r8+rdx*8]   ; address of elements[index]
-  mov    rax,[rdi]         ; LOAD: potentially random cache line
-  test   rax,rax           ; empty slot?
-  jne    .check_collision
-  ; insert here
-  mov    [rdi],rsi         ; store position
-  mov    [r9],edx          ; store deletion_index
-  ret
-
-.check_collision:
-  cmp    rax,rsi           ; collision with same value?
-  je     .duplicate
-  cmp    rdx,rcx           ; wraparound check
-  lea    rax,[rdx+0x1]
-  cmovb  rdx,rax           ; branchless wraparound (good!)
-  jmp    .loop
-```
-
-The compiler has done a nice job here: the wraparound uses `cmovb`
-(branchless), and the loop body is tight (86 bytes total for
-`insert_position`). The concern is not code quality but **access pattern**:
-
-### Why It Matters
-
-- **128-bit multiply on every call**: The `mul rcx` instruction has ~3-4
-  cycle latency. This executes on every `insert_position` and
-  `check_position` call — at least once per search node.
-- **Random memory access**: The computed index is effectively random
-  (derived from a zobrist hash). Each probe step `elements[index]` may
-  touch a different cache line. At 8 bytes per element and 64 bytes per
-  cache line, there are 8 elements per line, but with linear probing the
-  first probe is rarely in L1.
-- **Cache pollution**: The position set array is large (1.3× the number
-  of positions searched). At depth 5, the search visits ~5.7M positions,
-  meaning the set could be ~7.4M × 8 bytes ≈ 59MB. Every probe loads a
-  cache line that's unlikely to be reused soon, evicting useful data.
-
-### Benchmark Data
-
-Position set microbenchmarks show clear load-factor sensitivity:
-
-| Operation | 10% load | 50% load | 75% load | 90% load |
-|-----------|----------|----------|----------|----------|
-| Insert    | 52ns     | 78ns     | 116ns    | 113ns    |
-| Lookup hit| 30ns     | 68ns     | 83ns     | 101ns    |
-| Lookup miss| 32ns    | 59ns     | —        | 165ns    |
-
-The jump from 50% to 90% load on miss lookups (59ns → 165ns, 2.8×) is
-consistent with longer probe chains causing additional cache misses.
-
-### Possible Mitigations
-
-- **Smaller set with Bloom filter pre-check**: A Bloom filter for fast
-  negative checks would avoid most probe sequences for non-repeating
-  positions (the common case). The Bloom filter itself would be small
-  enough to stay in L1.
-- **Power-of-2 sizing with bitmask**: Replace `fastrange64` (128-bit
-  multiply) with `hash & (size - 1)` (single AND instruction, 1 cycle).
-  Requires power-of-2 allocation.
-- **Consider the working set**: At depth 5, the set stores positions for
-  a single line of play (depth ~40 max with quiescence), not all 5.7M
-  nodes. The actual set size is bounded by `max_depth + quiescence_depth`
-  ≈ 40 entries. If this is the case, the set is tiny and these concerns
-  are minimal. Worth verifying the actual `max_elems` passed to
-  `create_position_set`.
-
----
-
-## 3. Data Dependency Chains in Move Generation
-
-### The Problem
-
-The inner loop of the `LEFTWARD` macro (`move.c:128-140`) contains a
-serial dependency chain for computing the origin square of each move.
-The CPU cannot exploit instruction-level parallelism within this chain.
-
-### Evidence: Critical Path Analysis
-
-From the disassembly of `moves_to` at offset `0x1c0`:
-
-```
-Cycle  Instruction              Latency  Depends on
-─────  ──────────────────────   ───────  ──────────
-  0    blsi   rcx, rdi          1        rdi (dests)
-  1    blsmsk r12, rcx          1        rcx
-  1    tzcnt  r10, rcx          3        rcx (parallel with blsmsk)
-  2    and    r12, [rsp-0x78]   1        r12, memory (L1 hit)
-  3    lzcnt  r12, r12          3        r12
-  6    sub    r11d, r12d        1        r12
-```
-
-**Origin computation critical path: 7 cycles** (blsi → blsmsk → and →
-lzcnt → sub)
-
-**Destination computation: 4 cycles** (blsi → tzcnt), runs in parallel.
-
-After computing orig and dest, there are ~15 instructions of bookkeeping
-(lookup table accesses, store to move/layer arrays) that can execute while
-the next iteration's `blsi` computes. But the **loop-carried dependency**
-is:
-
-```
-sub    rdi, rcx               ; dests -= dest_bit
-jne    .loop_top
-```
-
-This is only 1 cycle, so the carried dependency is not the bottleneck —
-the 7-cycle origin chain is. Each destination takes a minimum of ~7 cycles
-for the critical path, plus the bookkeeping instructions that may extend
-this if they compete for execution ports.
-
-### Throughput Estimate
-
-With 7-cycle minimum per destination and typical 10-30 destinations per
-piece set, the inner loop alone costs 70-210 cycles per direction per
-sub-layer. Across 4 directions × 2 sub-layers + center row = ~9 instances,
-that's 630-1890 cycles for complete move generation of one piece type.
-
-### Benchmark Context
-
-Move generation benchmarks:
-- `moves_to_black`: 466ns (~1400 cycles at 3GHz)
-- `moves_to_white`: 285ns (~855 cycles)
-
-This is consistent with the dependency chain analysis.
-
-### Possible Mitigations
-
-- **Software pipelining**: Process two destinations simultaneously by
-  extracting the next `dest_bit` while computing the current origin.
-  The `blsi` of the next iteration could overlap with the `lzcnt` of the
-  current one.
-- **Origin caching**: The same origin serves multiple destinations
-  (all squares a piece can slide to). Iterating by origin first, then
-  extracting its destinations, would compute each origin only once instead
-  of re-deriving it for each destination via `lzcnt`.
-  - Note from source (`move.c:116-121`): This was tried before with
-    "little speed difference" but might be worth revisiting with the
-    current macro structure.
-
----
-
-## 4. Modulo-by-11 in Capture Detection
-
-### The Problem
-
-`apply_captures_niave` (`capture.c:20`) computes `dest % 11` to determine
-the file (column) of the destination square for boundary checking on
-east/west captures.
-
-### Evidence: Compiler Output
-
-The compiler strength-reduces `dest % 11` to a multiply-shift-subtract
-sequence (at offset `0x0f` in `apply_captures_niave`):
-
+Before (8 instructions, ~7 cycles):
 ```asm
 movsxd rax, r8d               ; sign-extend dest
-mov    ecx, r8d
 imul   rax, rax, 0x2e8ba2e9   ; magic number multiply (3 cycles)
 sar    ecx, 0x1f              ; sign bit
 sar    rax, 0x21              ; arithmetic shift
@@ -287,59 +50,172 @@ lea    ecx, [rax+rcx*2]       ; quotient * 11
 sub    eax, ecx               ; dest - quotient*11 = dest % 11
 ```
 
-This is **8 instructions, ~7 cycles** for what is conceptually a single
-lookup. The `imul` has 3-cycle latency, and everything after it is
-serialized.
-
-### Context
-
-This modulo is computed once per call to `apply_captures_niave`/
-`apply_captures_niave_z`. It's used twice (for the `modDest < 9` and
-`modDest > 1` boundary checks). In the search, capture detection runs
-for every move at every node.
-
-The total `apply_captures_niave` function is 561 bytes / many branches.
-The 7-cycle modulo is a fraction of total cost, but it's pure overhead
-with a trivial fix.
-
-### Possible Mitigation
-
-Replace with a 121-byte lookup table:
-
-```c
-static const u8 file_of[121] = {
-    0,1,2,3,4,5,6,7,8,9,10,  // row 0
-    0,1,2,3,4,5,6,7,8,9,10,  // row 1
-    // ... 11 rows total
-};
+After (1 instruction, ~1 cycle + L1 hit):
+```asm
+movzx  eax, byte [file_table + rdi]  ; table lookup
 ```
 
-This replaces 8 instructions / 7 cycles with a single `movzx` from a
-table that fits in 2 cache lines and will be permanently hot in L1d.
-The table is small enough that it adds negligible data cache pressure.
+### Benchmark Results
 
-Note: `rank_table[121]` and `file_table[121]` already exist in `layer.h`
-for other purposes. If `file_table` contains the file (column) index,
-it can be reused directly — no new table needed.
+No measurable difference in capture or search benchmarks — the modulo cost
+is a small fraction of the total capture function cost. Kept for code clarity
+(reuses existing infrastructure) and because it's strictly non-negative.
 
 ---
 
-## Summary: Impact Ranking
+## 2. Position Set: Power-of-2 Bitmask (KEPT)
 
-| # | Issue | Estimated Impact | Effort |
-|---|-------|-----------------|--------|
-| 1 | I-cache pressure from macro expansion | High — 19KB of move gen code competes with 8.5KB of search code for 32KB L1i | Medium |
-| 2 | Position set cache pollution | Medium — depends on actual working set size; if set is small (just current line of play), impact is low | Low-Medium |
-| 3 | Dependency chain in move gen | Medium — 7-cycle minimum per destination, but total move gen is already fast (~300-470ns) | Medium-High |
-| 4 | Modulo-by-11 | Low — 7 cycles per capture call, but a trivial fix via existing lookup table | Very Low |
+### Change
 
-### Recommendation Order
+- Rounded set size up to next power-of-2 (with 2× overallocation)
+- Replaced `fastrange64(position, set->size)` (128-bit multiply) with
+  `position & set->mask` (single AND)
+- Stored `mask = size - 1` instead of `size` to avoid repeated subtraction
+- Replaced conditional wraparound with `(index + 1) & set->mask`
 
-1. **Modulo-by-11** (target 4): Trivial fix, zero risk, small but free gain
-2. **Position set sizing** (target 2): Verify actual `max_elems` to determine
-   if this is a real concern or a non-issue
-3. **I-cache pressure** (target 1): Highest potential impact but requires
-   careful restructuring; benchmark before/after to confirm improvement
-4. **Dependency chain** (target 3): Lowest ROI — the compiler has already
-   done reasonable scheduling, and the total move generation time is small
-   relative to search
+### Key Discovery
+
+The search uses `create_position_set(100)` — the set holds positions for
+a single line of play, not all search nodes. At ~100 entries × 8 bytes,
+the entire set fits in ~1.5 cache lines. Cache pollution was a non-issue.
+
+### Benchmark Results
+
+**Microbenchmarks (position_set):**
+
+| Operation | Before | After | Change |
+|-----------|--------|-------|--------|
+| Insert (90% load) | 113ns | 60ns | **-47%** |
+| Lookup hit (90%) | 101ns | 69ns | **-32%** |
+| Lookup miss (90%) | 165ns | 91ns | **-45%** |
+| Insert (50% load) | 78ns | 53ns | **-32%** |
+
+**Search benchmarks:**
+
+| Benchmark | Before | After | Change |
+|-----------|--------|-------|--------|
+| depth_4 | 96ms | 94ms | ~-2% |
+| depth_5 | 779ms | 764ms | ~-2% |
+
+The 128-bit multiply was genuinely expensive relative to the small function.
+Search improvement is modest because position set operations are a small
+fraction of total search time.
+
+---
+
+## 3. I-Cache Pressure: Function Extraction (REVERTED)
+
+### Approach
+
+Replaced 8 `EXTRACT_FROM_LAYERS_COMMON` macro instantiations in
+`moves_from_layers` with 2 `__attribute__((noinline))` functions:
+- `extract_half_leftward` (9 parameters)
+- `extract_half_rightward` (9 parameters)
+
+Each function took a `rotated` boolean to select between normal/rotated
+bookkeeping at runtime.
+
+### Results
+
+`moves_from_layers` shrank from 3,368 → 1,867 bytes (-45%), but:
+
+| Benchmark | Before | After | Change |
+|-----------|--------|-------|--------|
+| search depth_4 | 94ms | 99-108ms | **+5-15% SLOWER** |
+| search depth_5 | 764ms | 800-878ms | **+5-15% SLOWER** |
+
+### Analysis
+
+The function call overhead (9 parameters, many via stack; runtime `rotated`
+branch) outweighed the I-cache savings. The compiler's per-instance
+optimizations (constant propagation of `_i` and `_r`, dead code elimination
+of unused rotated paths) were more valuable than the code size reduction.
+
+**Reverted.**
+
+---
+
+## 4. Dependency Chain: Origin-First Iteration (REVERTED)
+
+### Approach
+
+Restructured the `LEFTWARD` macro to iterate movers (origins) in the outer
+loop and destinations in the inner loop, mirroring the existing `RIGHTWARD1`
+pattern. This eliminates the `blsmsk → and → lzcnt → sub` dependency chain
+(7 cycles) from the inner loop — origin is computed once per mover instead
+of re-derived for each destination.
+
+Before (destination-first):
+```c
+while (dests) {
+    dest_bit = _blsi_u64(dests);
+    dest = _tzcnt_u64(dest_bit);
+    orig = 63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & leftward_occ);  // 7-cycle chain
+    // ... bookkeep ...
+    dests -= dest_bit;
+}
+```
+
+After (origin-first):
+```c
+while (origs) {
+    orig = 63 - _lzcnt_u64(origs);       // computed once per mover
+    orig_bit = (u64)1 << orig;
+    dests = move_mask & ~(orig_bit | (orig_bit - 1));  // partition dests
+    while (dests) {
+        dest_bit = _blsi_u64(dests);
+        dest = _tzcnt_u64(dest_bit);     // no origin chain needed
+        // ... bookkeep ...
+        dests -= dest_bit;
+    }
+    move_mask &= orig_bit | (orig_bit - 1);  // cleanup
+}
+```
+
+### Results
+
+| Benchmark | Before | After | Change |
+|-----------|--------|-------|--------|
+| moves_to_black | 0.468us | 0.524us | **+12% SLOWER** |
+| moves_to_white | 0.291us | 0.321us | **+10% SLOWER** |
+| search depth_4 | 94ms | 93ms | neutral |
+| search depth_5 | 764ms | 763ms | neutral |
+
+### Analysis
+
+The overhead of the origin-first approach outweighs the dependency chain
+savings:
+- `63 - _lzcnt_u64(origs)` + shift to get highest bit is slower than
+  `_blsi_u64` for lowest bit (used in the original)
+- Extra masking per mover (`~(orig_bit | (orig_bit - 1))`,
+  `move_mask &= ...`) adds per-origin overhead
+- Movers with no destinations still incur outer-loop cost
+- The CPU was already pipelining the original code effectively — the 7-cycle
+  chain overlaps with bookkeeping stores from the previous iteration
+
+This confirms the code's own TODO comment (`move.c:116-121`): "I think I've
+tried this with little speed difference."
+
+**Reverted.**
+
+---
+
+## Lessons Learned
+
+1. **Micro-architectural bottlenecks don't always match textbook analysis.**
+   The dependency chain in LEFTWARD was real (7 cycles), but out-of-order
+   execution and store-buffer effects meant the CPU hid most of the latency.
+
+2. **Function call overhead in hot loops is severe.** Even with `noinline`,
+   the 9-parameter function extraction destroyed performance. The compiler's
+   constant propagation through macros was essential.
+
+3. **Small data structures benefit most from algorithmic improvements.**
+   The position set was tiny (~1KB), so cache pollution was irrelevant.
+   But replacing the 128-bit multiply with a bitmask AND was a clear win
+   because it reduced per-call overhead on a frequently-called function.
+
+4. **Always benchmark in the real workload.** Microbenchmarks showed large
+   improvements for the position set, but search improvement was modest.
+   Conversely, the I-cache reduction showed great code size metrics but
+   hurt real search performance.
