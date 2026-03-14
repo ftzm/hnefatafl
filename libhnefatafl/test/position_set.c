@@ -11,7 +11,8 @@ TEST test_add_and_remove_nullifies() {
     insert_position(ps, hash, &indexes[i]);
   }
 
-  // 70 elements exist
+  // mix(0) == 0 which is the sentinel value, so only 69 elements are stored.
+  // See position_set.c for documentation of this accepted limitation.
   int pre_elem_count = 0;
   for (size_t i = 0; i < ps->size; i++) {
     if (ps->elements[i]) {
@@ -80,18 +81,23 @@ TEST test_duplicate_insertion_errors() {
 }
 
 TEST test_position_value_zero() {
-  // creation
+  // 0 is used as the empty-slot sentinel, so inserting 0 "succeeds"
+  // (returns 0) but the value is indistinguishable from an empty slot
+  // and cannot be retrieved. This is a known, accepted limitation;
+  // the probability of a 64-bit zobrist hash being 0 is ~1/2^64.
   position_set *ps = create_position_set(70);
 
-  // act - try to insert position 0
   int index;
   int res = insert_position(ps, 0, &index);
 
-  // cleanup
-  destroy_position_set(ps);
-
-  // assert - should succeed since 0 is a valid position value
+  // insert reports success
   ASSERT_EQ_FMT(res, 0, "insertion of position 0 should succeed, got %d");
+
+  // but lookup cannot find it — this documents the known sentinel limitation
+  int found = check_position(ps, 0);
+  ASSERT_EQ_FMT(found, 0, "check_position(0) cannot find sentinel value, got %d");
+
+  destroy_position_set(ps);
 
   return GREATEST_TEST_RES_PASS;
 }

@@ -14,6 +14,10 @@ holes are created by removing an element which occupies a cell which a
 later-inserted element would have liked to occupy--we will never do
 that.
 
+NOTE: 0 is used as the empty-slot sentinel. A zobrist hash of exactly
+0 cannot be stored or looked up correctly. This is an accepted
+trade-off, as the probability of a zobrist hash of 0 is low.
+
 *******************************************************************************/
 
 #include "position_set.h"
