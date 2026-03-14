@@ -36,8 +36,12 @@ layer rotate_layer_left(const layer input);
 extern const u8 sub_layer_table[121];
 
 extern const u8 rotate_right[121];
+extern const u8 rotated_half_right[121];
+extern const u8 rotated_offset_right[121];
 
 extern const u8 rotate_left[121];
+extern const u8 rotated_half_left[121];
+extern const u8 rotated_offset_left[121];
 
 // #define sub_layer(i) (i > 63)
 // benchmarks suggest the lookup table is actually faster
