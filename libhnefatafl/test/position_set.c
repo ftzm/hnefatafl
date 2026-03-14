@@ -14,7 +14,7 @@ TEST test_add_and_remove_nullifies() {
   // mix(0) == 0 which is the sentinel value, so only 69 elements are stored.
   // See position_set.c for documentation of this accepted limitation.
   int pre_elem_count = 0;
-  for (size_t i = 0; i < ps->size; i++) {
+  for (size_t i = 0; i <= ps->mask; i++) {
     if (ps->elements[i]) {
       pre_elem_count++;
     }
@@ -26,7 +26,7 @@ TEST test_add_and_remove_nullifies() {
 
   // 0 elements exist
   int post_elem_count = 0;
-  for (size_t i = 0; i < ps->size; i++) {
+  for (size_t i = 0; i <= ps->mask; i++) {
     if (ps->elements[i]) {
       post_elem_count++;
     }
@@ -106,10 +106,11 @@ TEST test_hash_collisions_linear_probing() {
   // creation - use small size to force collisions
   position_set *ps = create_position_set(3);
 
-  // Find values that hash to the same index
-  u64 val1 = ps->size;     // Will hash to 0
-  u64 val2 = ps->size * 2; // Will also hash to 0
-  u64 val3 = ps->size * 3; // Will also hash to 0
+  // Find values that hash to the same index (same low bits with power-of-2 mask)
+  size_t size = ps->mask + 1;
+  u64 val1 = size;     // Will hash to 0
+  u64 val2 = size * 2; // Will also hash to 0
+  u64 val3 = size * 3; // Will also hash to 0
 
   // act - insert values that should collide
   int index1, index2, index3;
@@ -136,10 +137,10 @@ TEST test_wraparound_behavior() {
   position_set *ps = create_position_set(3);
 
   // Manually fill the last slot to force wraparound
-  ps->elements[ps->size - 1] = 999; // Fill last slot
+  ps->elements[ps->mask] = 999; // Fill last slot
 
   // Now insert a value that should probe at last index and wrap to beginning
-  u64 val = ps->size - 1; // Should hash to last index but find it occupied
+  u64 val = ps->mask; // Should hash to last index but find it occupied
   int index;
   int res = insert_position(ps, val, &index);
 

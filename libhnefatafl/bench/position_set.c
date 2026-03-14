@@ -55,14 +55,9 @@ int simple_set_contains(simple_set *set, u64 value) {
 
 void simple_set_clear(simple_set *set) { set->count = 0; }
 
-// From fastrange.h - needed for position_set_contains
-static inline u64 fastrange64(u64 word, u64 p) {
-  return (u64)(((__uint128_t)word * (__uint128_t)p) >> 64);
-}
-
 // Helper function to test membership in position_set without modifying it
 int position_set_contains(position_set *set, u64 value) {
-  u64 index = fastrange64(value, set->size);
+  u64 index = value & set->mask;
 
   // iterate until we find an empty cell or the value
   while (set->elements[index]) {
@@ -70,11 +65,7 @@ int position_set_contains(position_set *set, u64 value) {
       return 1; // Found
     }
 
-    if (index < (set->size - 1)) {
-      index++;
-    } else {
-      index = 0;
-    }
+    index = (index + 1) & set->mask;
   }
 
   return 0; // Not found
@@ -97,7 +88,7 @@ UBENCH_EX(position_set_insert, load_10_percent) {
 
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (size_t i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i <= ps->mask; i++) {
       ps->elements[i] = 0;
     }
 
@@ -121,7 +112,7 @@ UBENCH_EX(position_set_insert, load_25_percent) {
 
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (size_t i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i <= ps->mask; i++) {
       ps->elements[i] = 0;
     }
 
@@ -145,7 +136,7 @@ UBENCH_EX(position_set_insert, load_50_percent) {
 
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (size_t i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i <= ps->mask; i++) {
       ps->elements[i] = 0;
     }
 
@@ -169,7 +160,7 @@ UBENCH_EX(position_set_insert, load_75_percent) {
 
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (size_t i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i <= ps->mask; i++) {
       ps->elements[i] = 0;
     }
 
@@ -193,7 +184,7 @@ UBENCH_EX(position_set_insert, load_90_percent) {
 
   UBENCH_DO_BENCHMARK() {
     // Reset set
-    for (size_t i = 0; i < ps->size; i++) {
+    for (size_t i = 0; i <= ps->mask; i++) {
       ps->elements[i] = 0;
     }
 

@@ -24,23 +24,25 @@ trade-off, as the probability of a zobrist hash of 0 is low.
 #include "stddef.h"
 #include "stdlib.h"
 
-/**
-from https://github.com/lemire/fastrange/blob/master/fastrange.h
-
-Given a value "word", produces an integer in [0,p) without division.
-The function is as fair as possible in the sense that if you iterate
-through all possible values of "word", then you will generate all
-possible outputs as uniformly as possible.
-*/
-static inline u64 fastrange64(u64 word, u64 p) {
-  return (u64)(((__uint128_t)word * (__uint128_t)p) >> 64);
+static inline size_t next_power_of_2(size_t v) {
+  v--;
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  v |= v >> 32;
+  v++;
+  return v;
 }
 
 position_set *create_position_set(size_t max_elems) {
-  // TODO: document why 1.3 times expected size is a good capacity
-  size_t size = MAX(max_elems + 1, max_elems * 1.3);
+  // Use power-of-2 sizing so index computation is a bitmask (single AND)
+  // instead of a 128-bit multiply (fastrange64).
+  // Oversize by ~2x for low load factor with linear probing.
+  size_t size = next_power_of_2(MAX(max_elems * 2, 4));
   position_set *set = malloc(sizeof(position_set));
-  *set = (position_set){.size = size, .elements = calloc(size, sizeof(u64))};
+  *set = (position_set){.mask = size - 1, .elements = calloc(size, sizeof(u64))};
   return set;
 }
 
@@ -50,7 +52,7 @@ void destroy_position_set(position_set *set) {
 }
 
 int insert_position(position_set *set, u64 position, int *deletion_index) {
-  u64 index = fastrange64(position, set->size);
+  u64 index = position & set->mask;
 
   // iterate until we find an empty cell
   while (set->elements[index]) {
@@ -61,11 +63,7 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
       return 1;
     }
 
-    if (index < (set->size - 1)) {
-      index++;
-    } else {
-      index = 0;
-    }
+    index = (index + 1) & set->mask;
   }
 
   // If we hit this point we've found an empty cell into which we insert
@@ -75,7 +73,7 @@ int insert_position(position_set *set, u64 position, int *deletion_index) {
 }
 
 int check_position(position_set *set, u64 position) {
-  u64 index = fastrange64(position, set->size);
+  u64 index = position & set->mask;
 
   // iterate until we find an empty cell
   while (set->elements[index]) {
@@ -85,11 +83,7 @@ int check_position(position_set *set, u64 position) {
       return 1;
     }
 
-    if (index < (set->size - 1)) {
-      index++;
-    } else {
-      index = 0;
-    }
+    index = (index + 1) & set->mask;
   }
 
   // If we hit this point we've not encountered our value

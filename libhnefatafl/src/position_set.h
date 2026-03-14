@@ -4,7 +4,7 @@
 #include "util.h"
 
 typedef struct position_set {
-  size_t size;
+  size_t mask;
   u64 *elements;
 } position_set;
 
