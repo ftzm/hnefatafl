@@ -131,8 +131,14 @@ static struct theft_type_info board_info = {
 static enum theft_trial_res prop_board_printable(struct theft *t, void *arg1) {
   (void)t;
   board *input = (board *)arg1;
-  printf("\n");
-  print_board(*input);
+  FILE *devnull = fopen("/dev/null", "w");
+  if (!devnull)
+    return THEFT_TRIAL_ERROR;
+  char output[strlen(base) + 1];
+  strcpy(output, base);
+  fmt_board(*input, output);
+  fprintf(devnull, "%s", output);
+  fclose(devnull);
   return THEFT_TRIAL_PASS;
 }
 
