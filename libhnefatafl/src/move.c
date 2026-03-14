@@ -121,12 +121,12 @@ leftward
  *   - doing leading zero count of the result
  *   - subtracting the leading zero count from 64
  *
- * TODO: We end up recalculating the origin for each destination,
- *     which seems like it should be inefficient. one idea would be to
- *     iterate over each mover, isolate its destinations, and then
- *     iterate over those. I think I've tried this with little speed
- *     difference, but it would be nice to try again in macro
- *     benchmark
+ * NOTE: We recalculate the origin for each destination. The alternative
+ *     (iterating movers, partitioning destinations per mover via a nested
+ *     loop) has been benchmarked multiple times and is counterintuitively
+ *     slower—the overhead of iterating all movers (including those without
+ *     destinations) and computing partition masks outweighs the cost of the
+ *     per-destination lzcnt chain.
  */
 #define LEFTWARD(_i, _r)                                                       \
   {                                                                            \
@@ -655,7 +655,7 @@ void moves_to_king_impl(
  *   sitting at bit 63 whose shift overflowed — needs to continue into
  *   _[1]. boundary_bit captures bit 63 if it holds a dest or a mover,
  *   and shifting right by 63 moves isolates it at index 0, which is
- *   where the corresponding ray should start in the upper lay.
+ *   where the corresponding ray should start in the upper half.
  *
  *   In our example, bit 63 (col 8) is set in dests, so carryover = 1.
  *
@@ -762,14 +762,15 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  * occ must include corners so that they act as blockers, preventing
  * move generation into corner squares.
  *
- * "Rightward" = towards lower bit index = towards the LSB within each row.
+ * "Rightward" = towards column 0 = towards lower bit index within each row.
  * In diagrams, "/" marks squares belonging to the other half.
  *
  * Binary subtraction propagates borrows towards the MSB (leftward), so we
  * cannot use the simple shift-and-subtract approach from leftward_moves_layer.
  * Instead, pext/pdep remaps each mover to a position just left of its nearest
- * rightward blocker, then `movers - deposited_movers` generates the ray via
- * normal leftward borrow propagation.
+ * rightward blocker; subtracting this from the original movers generates the
+ * rightward ray via borrow propagation through the gap between them, turning
+ * all intermediate 0-bits into 1-bits (destinations).
  *
  * The upper half is processed first (rightward carryover flows from _[1]
  * into _[0], the opposite direction of leftward).
@@ -821,22 +822,36 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *   compresses the movers into blocker-index space: bit k of the
  *   result is 1 if the k-th blocker (sorted by position) has a mover.
  *
+ *     index: 10  9   8   7   6   5   4   3   2   1   0
+ *            .   .   .   .   1   .   .   1   .   .   1
+ *
  * deposit_mask = 1 | (blockers << 1)
  *
  *   Shifting blockers left by 1 creates a position one to the LEFT of
- *   each blocker. Without the `1 |`, the deposit mask would have the
- *   same number of set bits as the extraction mask (blockers), so pdep
- *   would map each mover back to its own blocker's shifted position —
- *   useless. The `1` at bit 0 adds an extra position at the bottom of
- *   the deposit mask, off-balancing it: now every deposit target is
- *   shifted down by one slot in the ordering. A mover at blocker
- *   index k deposits at (blocker k-1) + 1 instead of (blocker k) + 1.
- *   This is exactly "one left of the nearest rightward blocker."
+ *   each blocker. The `1 |` at bit 0 serves two independent purposes
+ *   simultaneously:
  *
- *   The `1` also provides the rightward boundary for row 5, the
- *   bottommost row in _[1]. Unlike other rows, row 5 has no sentinel
- *   from a row below it (row 4 is in _[0]), so without the `1` a
- *   mover in row 5 would have no valid deposit target.
+ *   (a) Off-balancing: without it, the deposit mask would have the
+ *       same number of set bits as the extraction mask (blockers), so
+ *       pdep would map each mover back to its own blocker's shifted
+ *       position — useless. The extra bit off-balances the deposit
+ *       mask: every deposit target is shifted down by one slot in the
+ *       ordering. A mover at blocker index k deposits at
+ *       (blocker k-1) + 1 instead of (blocker k) + 1. This is
+ *       exactly "one left of the nearest rightward blocker."
+ *
+ *   (b) Row 5 boundary: row 5 is the bottommost row in _[1]. Unlike
+ *       other rows, it has no sentinel from a row below (row 4 is in
+ *       _[0]), so without the `1` a mover in row 5 would have no
+ *       valid deposit target.
+ *
+ *           col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 10:       .  .  .  .  .  .  .  .  .  1  1
+ *   row  9:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  8:       .  .  .  .  1  .  .  1  .  .  1
+ *   row  7:       .  .  .  .  .  .  1  .  .  .  1
+ *   row  6:       .  .  .  .  .  .  .  .  .  .  1
+ *   row  5:       1  1  /  /  /  /  /  /  /  /  /
  *
  * deposited_movers = _pdep_u64(extracted_movers, deposit_mask)
  *
@@ -858,7 +873,8 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *   towards the MSB. Each 0-bit along the way is flipped to 1; the
  *   first 1-bit (the mover itself) absorbs the borrow (1-0-1=0).
  *   The result is the rightward ray between each mover and its
- *   nearest rightward blocker, exclusive of both. In row 5,
+ *   nearest rightward blocker, exclusive of both the mover and
+ *   the blocker. In row 5,
  *   deposited_movers equals movers (1-1=0), so no dests are
  *   generated — its rightward ray continues via the carryover.
  *
@@ -870,18 +886,22 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *   row  6:       .  .  .  .  .  .  .  .  .  .  .
  *   row  5:       .  .  /  /  /  /  /  /  /  /  /
  *
- * boundary_bit = (dests | movers._[1]) & 1
- * carryover    = (boundary_bit << 63) & ~occ._[0]
+ * carryover = ((dests | movers._[1]) << 63) & ~blockers
  *
  *   Row 5 is split: cols 9-10 in _[1] (bits 0-1), cols 0-8 in
  *   _[0] (bits 55-63). A mover at bit 0 — or a dest that reaches
- *   bit 0 — needs to continue into _[0]. boundary_bit captures
- *   bit 0, and shifting left by 63 places it at the MSB of _[0].
- *   The `& ~occ._[0]` check is necessary here (unlike leftward)
- *   because pext/pdep remaps positions: the carryover bit is
- *   deposited at a fixed position (bit 63) that may not correspond
- *   to a blocker, so the natural cancellation doesn't apply.
+ *   bit 0 — needs to continue into _[0]. Shifting left by 63
+ *   moves bit 0 to the MSB of _[0] (bit 63, row 5 col 8).
  *
+ *   The `& ~blockers` check is necessary here (unlike leftward).  In
+ *   the leftward case, if the boundary square is occupied, the
+ *   subtraction naturally produces 1-1=0 — the blocker and the
+ *   shifted carryover meet at the same bit, so no borrow propagates
+ *   and no ray is generated. In the rightward case, pext/pdep remaps
+ *   the carryover to a deposit position to the right of bit 63, which
+ *   means that bit 63 being occupied will not prevent a borrow
+ *   propagation, and a spurious ray will be generated. The explicit
+ *   occupancy check prevents this.
  *
  * ====== LOWER HALF: _[0] (rows 0-5)
  *
@@ -928,9 +948,9 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *
  *   Same compression as the upper half. The >> 1 achieves the same
  *   off-balancing as the upper half's `1 |`, but from the other end:
- *   instead of adding an extra deposit target at the bottom, it
- *   shifts the extracted bits right by one, so each mover maps to one
- *   position lower in the deposit ordering.
+ *   `1 |` adds an extra position at the bottom of the deposit mask;
+ *   `>> 1` removes a position from the bottom of the extraction.
+ *   Both shift the mover-to-deposit-slot mapping down by one.
  *
  *   This exploits a property of the board: the lower right corner
  *   (bit 0, row 0, col 0) is always in occ but can never be a mover.
@@ -944,7 +964,27 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *      be at a corner, this bit is guaranteed to be 0, and is thus safe to
  *      discard.
  *
+ *   extracted (before >> 1):
+ *     index:  8   7   6   5   4   3   2   1   0
+ *             1   .   .   .   1   .   .   .   .
+ *
+ *   extracted >> 1 (index 0 discarded):
+ *     index:  8   7   6   5   4   3   2   1   0
+ *             .   1   .   .   .   1   .   .   .
+ *
  * deposited_movers = _pdep_u64(extracted_movers, blockers << 1)
+ *
+ *   blockers << 1 (deposit mask):
+ *
+ *          col: 10  9  8  7  6  5  4  3  2  1  0
+ *   row 5:       /  /  .  .  .  .  .  .  .  .  1
+ *   row 4:       .  .  .  .  .  .  .  .  .  .  1
+ *   row 3:       .  .  .  .  .  .  .  .  .  .  1
+ *   row 2:       .  .  1  .  .  1  .  .  .  .  1
+ *   row 1:       .  .  .  .  .  .  .  .  .  .  1
+ *   row 0:       .  .  .  .  .  .  .  .  .  1  .
+ *
+ *   deposited_movers:
  *
  *          col: 10  9  8  7  6  5  4  3  2  1  0
  *   row 5:       /  /  .  .  .  .  .  .  .  .  1
@@ -983,14 +1023,14 @@ static inline layer rightward_moves_layer(layer movers, layer occ) {
     u64 deposit_mask = 1 | (blockers << 1);
     u64 deposited_movers = _pdep_u64(extracted_movers, deposit_mask);
     u64 dests = movers._[1] - deposited_movers;
-    u64 boundary_bit = (dests | movers._[1]) & 1;
-    carryover = (boundary_bit << 63) & ~occ._[0];
+    carryover = (dests | movers._[1]) << 63;
     output._[1] = dests;
   }
 
   // lower
   {
     u64 blockers = occ._[0] | file_mask_10._[0];
+    carryover &= ~blockers;
     // here I depend on the lower right corner being occupied to ensure that I
     // generate a ray towards it
     u64 combined_movers = carryover | movers._[0];

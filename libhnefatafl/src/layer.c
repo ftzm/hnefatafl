@@ -148,6 +148,9 @@ const u8 rotate_right[121] = {
 // Precomputed sub_layer_table[rotate_right[i]] and
 // sub_layer_offset_direct[rotate_right[i]], so that rotation + half/offset
 // lookups can proceed in parallel rather than serially.
+// NOTE: Benchmarked in moves_from_layers and found to be slower than the
+// serial lookup chain in the current code. Kept in case useful in a future
+// refactor.
 const u8 rotated_half_right[121] = {
     0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0,
     0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
