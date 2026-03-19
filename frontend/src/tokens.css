@@ -1,0 +1,99 @@
+:root {
+  /* === Color Primitives === */
+
+  /* Gray scale */
+  --color-gray-900: #1a1a1a;
+  --color-gray-850: #222;
+  --color-gray-800: #232323;
+  --color-gray-750: #252525;
+  --color-gray-700: #2e2e2e;
+  --color-gray-600: #333;
+  --color-gray-550: #383838;
+  --color-gray-500: #3a3a3a;
+  --color-gray-450: #444;
+  --color-gray-400: #555;
+  --color-gray-350: #666;
+  --color-gray-300: #888;
+
+  /* Warm palette */
+  --color-warm-100: #f2ead8;
+  --color-warm-200: #e8e0d0;
+  --color-warm-300: #ddd2c0;
+  --color-warm-400: #c8bfad;
+  --color-warm-500: #b0a48e;
+
+  /* Wood palette */
+  --color-wood-100: #5C4F3A;
+  --color-wood-200: #554833;
+  --color-wood-300: #4A3F2F;
+  --color-wood-400: #3D3526;
+  --color-wood-500: #3A3020;
+
+  /* Accent */
+  --color-capture: #6b1a12;
+
+  /* === Semantic Colors === */
+
+  /* Backgrounds */
+  --bg-page: var(--color-gray-900);
+  --bg-topbar: var(--color-gray-850);
+  --bg-surface: var(--color-gray-750);
+  --bg-inset: var(--color-gray-700);
+  --bg-control: var(--color-gray-600);
+  --bg-control-hover: var(--color-gray-450);
+  --bg-highlight: var(--color-gray-550);
+  --bg-active: var(--color-gray-500);
+
+  /* Text */
+  --text-primary: var(--color-warm-200);
+  --text-secondary: var(--color-gray-300);
+  --text-muted: var(--color-gray-350);
+  --text-on-dark: #fff;
+
+  /* Borders */
+  --border-subtle: var(--color-gray-700);
+  --border-control: var(--color-gray-550);
+  --border-strong: var(--color-gray-400);
+
+  /* Board */
+  --board-grid: var(--color-wood-400);
+  --board-square: var(--color-wood-100);
+  --board-square-inner: var(--color-wood-300);
+  --board-corner-bg: var(--color-wood-200);
+  --board-corner-border: var(--color-wood-500);
+
+  /* Pieces */
+  --piece-border: var(--color-gray-900);
+  --piece-black-start: var(--color-gray-800);
+  --piece-black-end: #131313;
+  --piece-white-start: var(--color-warm-100);
+  --piece-white-end: var(--color-warm-400);
+
+  /* === Spacing === */
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-3: 3px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+
+  /* === Typography === */
+  --font-family-base: system-ui, -apple-system, sans-serif;
+  --font-family-mono: monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+
+  /* === Radii === */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-full: 50%;
+}
