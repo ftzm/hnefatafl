@@ -130,7 +130,7 @@ export default function Board() {
   const highlightedSquares = createMemo(() => {
     const origin = showingMovesFrom();
     if (origin === null || movesDisabled()) return new Set();
-    const movesData = store.moves[origin];
+    const movesData = store.game.moves[origin];
     if (!movesData) return new Set();
     const destinations = new Set();
     movesData.forEach((move) => {
@@ -141,14 +141,14 @@ export default function Board() {
   });
 
   const getPieceAt = (index) => {
-    if (store.boardRep.black.has(index)) return "black";
-    if (store.boardRep.white.has(index)) return "white";
-    if (store.boardRep.king === index) return "king";
+    if (store.game.boardRep.black.has(index)) return "black";
+    if (store.game.boardRep.white.has(index)) return "white";
+    if (store.game.boardRep.king === index) return "king";
     return null;
   };
 
   const getCaptures = (origin, destination) => {
-    const movesData = store.moves[origin];
+    const movesData = store.game.moves[origin];
     if (!movesData) return [];
     const move = movesData.find((m) => {
       const [dest] = Array.isArray(m) ? m : [m];
@@ -228,7 +228,7 @@ export default function Board() {
     }
 
     const piece = getPieceAt(index);
-    if (piece && store.moves[index] && !movesDisabled()) {
+    if (piece && store.game.moves[index] && !movesDisabled()) {
       if (selectedOnDown) {
         selectedOnDown = false;
       } else if (showingMovesFrom() === index) {
@@ -244,7 +244,7 @@ export default function Board() {
   const handlePointerDown = (index, e) => {
     const piece = getPieceAt(index);
     if (!piece || movesDisabled()) return;
-    if (!store.moves[index]) return;
+    if (!store.game.moves[index]) return;
 
     const squareEl = squareRefs[index];
     if (!squareEl) return;

@@ -9,14 +9,21 @@ import {
 } from "./board-logic.js";
 import { AsyncLock } from "./async-lock.js";
 
-// Core game state
-const [store, setStore] = createStore({
+const initialGameState = () => ({
+  id: null,
+  mode: null,
+  players: { black: "Black", white: "White" },
   moveHistory: [],
   historyCursor: 0,
   currentPlayer: "black",
   boardRep: cloneBoardRep(startBoard),
   moves: generateMockMovesForColor(startBoard, "black"),
   capturedPieces: { black: 0, white: 0 },
+  gameOver: null,
+});
+
+const [store, setStore] = createStore({
+  game: initialGameState(),
 });
 
 // Navigation lock
@@ -28,19 +35,19 @@ export { pendingAnimation, setPendingAnimation };
 
 // Derived signals
 export const canViewPrev = createMemo(
-  () => store.historyCursor < store.moveHistory.length
+  () => store.game.historyCursor < store.game.moveHistory.length
 );
-export const canViewNext = createMemo(() => store.historyCursor > 0);
-export const movesDisabled = createMemo(() => store.historyCursor !== 0);
+export const canViewNext = createMemo(() => store.game.historyCursor > 0);
+export const movesDisabled = createMemo(() => store.game.historyCursor !== 0);
 export const currentViewMoveIndex = createMemo(() => {
-  if (store.moveHistory.length === 0) return -1;
-  return store.moveHistory.length - store.historyCursor - 1;
+  if (store.game.moveHistory.length === 0) return -1;
+  return store.game.moveHistory.length - store.game.historyCursor - 1;
 });
 
 export const lastMove = createMemo(() => {
   const viewIdx = currentViewMoveIndex();
-  if (viewIdx >= 0 && viewIdx < store.moveHistory.length) {
-    return store.moveHistory[viewIdx];
+  if (viewIdx >= 0 && viewIdx < store.game.moveHistory.length) {
+    return store.game.moveHistory[viewIdx];
   }
   return null;
 });
@@ -79,23 +86,23 @@ function computeCapturesAtCursor(moveHistory, cursor) {
  * @param {Object} move - { from, to, captures }
  */
 export function handleMoveMade(move) {
-  const newHistory = [...store.moveHistory, move];
-  const newBoard = applyMoveToBoardRep(store.boardRep, move);
+  const newHistory = [...store.game.moveHistory, move];
+  const newBoard = applyMoveToBoardRep(store.game.boardRep, move);
 
   // Count captured pieces
-  const newCaptured = { ...store.capturedPieces };
+  const newCaptured = { ...store.game.capturedPieces };
   if (move.captures) {
     for (const cap of move.captures) {
-      if (store.boardRep.black.has(cap)) newCaptured.black++;
-      else if (store.boardRep.white.has(cap) || store.boardRep.king === cap)
+      if (store.game.boardRep.black.has(cap)) newCaptured.black++;
+      else if (store.game.boardRep.white.has(cap) || store.game.boardRep.king === cap)
         newCaptured.white++;
     }
   }
 
-  const nextPlayer = store.currentPlayer === "black" ? "white" : "black";
+  const nextPlayer = store.game.currentPlayer === "black" ? "white" : "black";
   const nextMoves = generateMockMovesForColor(newBoard, nextPlayer);
 
-  setStore({
+  setStore("game", {
     moveHistory: newHistory,
     historyCursor: 0,
     currentPlayer: nextPlayer,
@@ -110,15 +117,15 @@ export function handleMoveMade(move) {
  */
 export async function handleViewPreviousMove() {
   return navigationLock.withLock(async () => {
-    if (store.historyCursor >= store.moveHistory.length) return;
+    if (store.game.historyCursor >= store.game.moveHistory.length) return;
 
-    const newCursor = store.historyCursor + 1;
-    const moveIndex = store.moveHistory.length - store.historyCursor - 1;
-    const move = store.moveHistory[moveIndex];
-    const newBoard = boardAtCursor(store.moveHistory, newCursor);
-    const newCaptured = computeCapturesAtCursor(store.moveHistory, newCursor);
+    const newCursor = store.game.historyCursor + 1;
+    const moveIndex = store.game.moveHistory.length - store.game.historyCursor - 1;
+    const move = store.game.moveHistory[moveIndex];
+    const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
+    const newCaptured = computeCapturesAtCursor(store.game.moveHistory, newCursor);
 
-    setStore({
+    setStore("game", {
       historyCursor: newCursor,
       boardRep: newBoard,
       capturedPieces: newCaptured,
@@ -136,19 +143,19 @@ export async function handleViewPreviousMove() {
  */
 export async function handleViewNextMove() {
   return navigationLock.withLock(async () => {
-    if (store.historyCursor <= 0) return;
+    if (store.game.historyCursor <= 0) return;
 
-    const newCursor = store.historyCursor - 1;
-    const moveIndex = store.moveHistory.length - newCursor - 1;
-    const move = store.moveHistory[moveIndex];
-    const newBoard = boardAtCursor(store.moveHistory, newCursor);
-    const newCaptured = computeCapturesAtCursor(store.moveHistory, newCursor);
+    const newCursor = store.game.historyCursor - 1;
+    const moveIndex = store.game.moveHistory.length - newCursor - 1;
+    const move = store.game.moveHistory[moveIndex];
+    const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
+    const newCaptured = computeCapturesAtCursor(store.game.moveHistory, newCursor);
 
     setPendingAnimation({
       from: move.from,
       to: move.to,
       captures: move.captures || [],
-      applyState: () => setStore({
+      applyState: () => setStore("game", {
         historyCursor: newCursor,
         boardRep: newBoard,
         capturedPieces: newCaptured,
@@ -162,13 +169,13 @@ export async function handleViewNextMove() {
  */
 export async function handleJumpToMove(moveIndex) {
   return navigationLock.withLock(async () => {
-    const newCursor = store.moveHistory.length - moveIndex - 1;
-    if (newCursor === store.historyCursor) return;
+    const newCursor = store.game.moveHistory.length - moveIndex - 1;
+    if (newCursor === store.game.historyCursor) return;
 
-    const newBoard = boardAtCursor(store.moveHistory, newCursor);
-    const newCaptured = computeCapturesAtCursor(store.moveHistory, newCursor);
+    const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
+    const newCaptured = computeCapturesAtCursor(store.game.moveHistory, newCursor);
 
-    setStore({
+    setStore("game", {
       historyCursor: newCursor,
       boardRep: newBoard,
       capturedPieces: newCaptured,
@@ -181,10 +188,10 @@ export async function handleJumpToMove(moveIndex) {
  */
 export async function handleViewStart() {
   return navigationLock.withLock(async () => {
-    if (store.historyCursor >= store.moveHistory.length) return;
+    if (store.game.historyCursor >= store.game.moveHistory.length) return;
 
-    setStore({
-      historyCursor: store.moveHistory.length,
+    setStore("game", {
+      historyCursor: store.game.moveHistory.length,
       boardRep: cloneBoardRep(startBoard),
       capturedPieces: { black: 0, white: 0 },
     });
@@ -196,15 +203,55 @@ export async function handleViewStart() {
  */
 export async function handleViewEnd() {
   return navigationLock.withLock(async () => {
-    if (store.historyCursor <= 0) return;
+    if (store.game.historyCursor <= 0) return;
 
-    const newBoard = boardAtCursor(store.moveHistory, 0);
-    const newCaptured = computeCapturesAtCursor(store.moveHistory, 0);
+    const newBoard = boardAtCursor(store.game.moveHistory, 0);
+    const newCaptured = computeCapturesAtCursor(store.game.moveHistory, 0);
 
-    setStore({
+    setStore("game", {
       historyCursor: 0,
       boardRep: newBoard,
       capturedPieces: newCaptured,
     });
+  });
+}
+
+export function handleResign() {
+  if (store.game.gameOver) return;
+  const winner = store.game.currentPlayer === "black" ? "white" : "black";
+  setStore("game", "gameOver", { winner, reason: "Resignation" });
+}
+
+export function handleOfferDraw() {
+  if (store.game.gameOver) return;
+  setStore("game", "gameOver", { winner: "draw", reason: "Draw agreed" });
+}
+
+export function handleNewGame(config = {}) {
+  setStore("game", {
+    ...initialGameState(),
+    ...config,
+  });
+}
+
+export function handleUndo() {
+  if (store.game.gameOver) return;
+  if (store.game.moveHistory.length === 0) return;
+
+  const newHistory = store.game.moveHistory.slice(0, -1);
+  const newBoard = newHistory.length > 0
+    ? boardAtCursor(newHistory, 0)
+    : cloneBoardRep(startBoard);
+  const newCaptured = computeCapturesAtCursor(newHistory, 0);
+  const prevPlayer = store.game.currentPlayer === "black" ? "white" : "black";
+  const newMoves = generateMockMovesForColor(newBoard, prevPlayer);
+
+  setStore("game", {
+    moveHistory: newHistory,
+    historyCursor: 0,
+    currentPlayer: prevPlayer,
+    boardRep: newBoard,
+    moves: newMoves,
+    capturedPieces: newCaptured,
   });
 }

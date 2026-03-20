@@ -7,10 +7,10 @@ export default function MoveHistory() {
 
   const movePairs = () => {
     const pairs = [];
-    for (let i = 0; i < store.moveHistory.length; i += 2) {
+    for (let i = 0; i < store.game.moveHistory.length; i += 2) {
       pairs.push({
-        black: store.moveHistory[i],
-        white: store.moveHistory[i + 1] || null,
+        black: store.game.moveHistory[i],
+        white: store.game.moveHistory[i + 1] || null,
         startIndex: i,
       });
     }
