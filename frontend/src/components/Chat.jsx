@@ -1,6 +1,5 @@
 import { createSignal, For } from "solid-js";
 import Button from "./ui/Button.jsx";
-import Panel from "./ui/Panel.jsx";
 
 export default function Chat() {
   const [messages, setMessages] = createSignal([]);
@@ -23,7 +22,7 @@ export default function Chat() {
   };
 
   return (
-    <Panel>
+    <div class="chat-panel">
       <div class="chat-messages" ref={messagesRef}>
         <For each={messages()}>
           {(msg) => (
@@ -44,6 +43,6 @@ export default function Chat() {
           Send
         </Button>
       </form>
-    </Panel>
+    </div>
   );
 }
