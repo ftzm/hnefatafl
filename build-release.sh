@@ -8,6 +8,6 @@ echo "Building hnefatafl version $version"
 nix build '.#packages.x86_64-linux.backend."hnefatafl:exe:cli"'
 
 mkdir -p "dist/$version"
-cp result/bin/cli "dist/$version/hnefatafl"
+cp -f result/bin/cli "dist/$version/hnefatafl"
 
 echo "Built to $version/hnefatafl"

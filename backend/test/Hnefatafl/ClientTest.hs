@@ -22,6 +22,7 @@ import Servant.Client (
   runClientM,
  )
 import Test.Hspec (Spec, afterAll, beforeAll, describe, it, shouldSatisfy)
+import Version qualified
 
 spec_client_integration :: Spec
 spec_client_integration = beforeAll setupTestServer $ afterAll teardownTestServer $ do
@@ -29,7 +30,7 @@ spec_client_integration = beforeAll setupTestServer $ afterAll teardownTestServe
     it "should get version information" $ \((clientEnv, client), _) -> do
       result <- runClientM client.version clientEnv
       result `shouldSatisfy` \case
-        Right versionResp -> versionResp.versionNumber == "0.0.0.2"
+        Right versionResp -> versionResp.versionNumber == Version.version
         Left _ -> False
 
     it "should get health status" $ \((clientEnv, client), _) -> do

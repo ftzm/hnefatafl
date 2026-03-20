@@ -19,7 +19,6 @@ module Hnefatafl.SelfPlay (
   VersionId (..),
   mkGameName,
   gameSetupKey,
-  searchResultToGameMoveEvent,
   gameMoveEventToMoveResult,
   beginGame,
   getStateFileName,
@@ -76,6 +75,18 @@ import StmContainers.Map qualified as STMMap
 
 import System.FilePath ((</>))
 import Prelude hiding (readFile)
+
+-- | Search timeout in milliseconds
+searchTimeoutMs :: Int
+searchTimeoutMs = 5000
+
+-- | Interval between state snapshots in microseconds (10 seconds)
+snapshotIntervalMicroseconds :: Int
+snapshotIntervalMicroseconds = 10 * 1000 * 1000
+
+-- | Number of times to play each position per side (for majority voting)
+playsPerSide :: Int
+playsPerSide = 3
 
 data Player = Black | White
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
@@ -229,7 +240,7 @@ loadStartPositions startPositionsFile = do
                               , selfPlayMoves = []
                               }
                        in GameDefinition setup progress
-                 in [mkGameDef newAsBlack pIdx | newAsBlack <- [True, False], pIdx <- [0 .. 2]]
+                 in [mkGameDef newAsBlack pIdx | newAsBlack <- [True, False], pIdx <- [0 .. playsPerSide - 1]]
             )
             [0 ..]
             moveLists
@@ -402,7 +413,7 @@ playGame gameKey processingState eventChan moveCount board blackToMove hashes = 
       (Labeled @current) $
         -- Drop first hash because it represents the current position
         -- searchTrusted expects only past positions (game history)
-        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout 5000)
+        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout searchTimeoutMs)
   case getWinner result.gameStatus of
     Nothing -> do
       updateGameProgress gameKey result blackToMove processingState eventChan
@@ -462,23 +473,13 @@ gameActor ::
   TChan StateUpdate ->
   Eff es ()
 gameActor processingState eventChan = do
-  -- liftIO $ putStrLn "Actor: trying to claim game"
   maybeGame <- claimNextGame processingState eventChan
   case maybeGame of
-    Nothing -> do
-      -- liftIO $ putStrLn "Actor: no games available, terminating"
-      pure () -- No more games to process
+    Nothing -> pure () -- No more games to process
     Just gameDef -> do
       let key = gameSetupKey gameDef.setup
-      -- liftIO $
-      --   putStrLn $
-      --     "Actor: claimed game " <> show (mkGameName key) <> ", starting play"
       result <- beginGame gameDef processingState eventChan
-      -- liftIO $
-      --   putStrLn $
-      --     "Actor: game " <> show (mkGameName key) <> " finished, completing"
       completeGame key result processingState eventChan
-      -- liftIO $ putStrLn $ "Actor: game " <> show (mkGameName key) <> " completed, looping"
       gameActor processingState eventChan
 
 -- | Actor that periodically takes snapshots and saves them to disk
@@ -487,16 +488,10 @@ snapshotTimerActor ::
   FilePath ->
   ProcessingState ->
   Eff es ()
-snapshotTimerActor stateFilePath processingState = do
-  -- liftIO $
-  --   putStrLn "Snapshot timer: starting snapshot timer (10 second intervals)"
-  snapshotLoop
- where
-  snapshotLoop = do
-    liftIO $ threadDelay (10 * 1000 * 1000) -- 10 seconds in microseconds
-    snapshot <- atomically $ takeSnapshot processingState
-    saveProcessingStateSnapshot stateFilePath snapshot
-    snapshotLoop
+snapshotTimerActor stateFilePath processingState = forever $ do
+  liftIO $ threadDelay snapshotIntervalMicroseconds
+  snapshot <- atomically $ takeSnapshot processingState
+  saveProcessingStateSnapshot stateFilePath snapshot
 
 runGameActors ::
   ( Labeled "new" Search :> es

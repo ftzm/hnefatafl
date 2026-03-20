@@ -36,6 +36,7 @@ import Hnefatafl.Core.Data (
   Move,
   PlayerId (..),
  )
+import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Import (importGameFromFile)
@@ -47,12 +48,12 @@ import Hnefatafl.Interpreter.Storage.SQLite
 import Hnefatafl.SelfPlay (VersionId (..))
 import Hnefatafl.SelfPlay.Runner (runSelfPlayHeadless, runSelfPlayWithUI)
 import Hnefatafl.Serialization (moveToNotation, parseMoveList)
-import Hnefatafl.Server (runServer)
+import Hnefatafl.Server (Routes (..), VersionResponse (..), runServer)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Options.Applicative
-import Servant.Client (ClientError, mkClientEnv, parseBaseUrl)
+import Servant.Client (ClientError, mkClientEnv, parseBaseUrl, runClientM)
 import System.Exit (ExitCode (..))
-import Version (version)
+import Version qualified
 
 data ProcessMovesOptions = ProcessMovesOptions
   { moveText :: Text
@@ -81,6 +82,7 @@ data SelfPlayOptions = SelfPlayOptions
   , stateDir :: Text
   , startPositionsFile :: Text
   , oldServerUrl :: Text
+  , oldVersion :: Maybe Text
   , headless :: Bool
   }
   deriving (Show)
@@ -91,12 +93,10 @@ data Command
   | PrintGame PrintGameOptions
   | Server ServerOptions
   | SelfPlay SelfPlayOptions
-  | Other
   deriving (Show)
 
 data GlobalOptions = GlobalOptions
   { db :: Maybe Text
-  , other :: Maybe Text
   }
   deriving (Show)
 
@@ -150,14 +150,18 @@ selfPlayParser =
                   <> metavar "URL"
                   <> help "URL of the server running the old version"
               )
+            <*> optional
+              ( strOption
+                  ( long "old-version"
+                      <> metavar "VERSION"
+                      <> help "Expected version of the old server (verified at startup)"
+                  )
+              )
             <*> switch
               ( long "headless"
                   <> help "Run without UI (for scripts)"
               )
         )
-
-otherParser :: Parser Command
-otherParser = pure Other
 
 commandParser :: Parser Command
 commandParser =
@@ -172,7 +176,6 @@ commandParser =
           )
         <> command "server" (info serverParser (progDesc "Run the web server"))
         <> command "self-play" (info selfPlayParser (progDesc "Run self-play with UI"))
-        <> command "other" (info otherParser (progDesc "Other command"))
     )
 
 globalOptionsParser :: Parser GlobalOptions
@@ -185,18 +188,11 @@ globalOptionsParser =
               <> help "Database file path"
           )
       )
-    <*> optional
-      ( strOption
-          ( long "other"
-              <> metavar "FAKE"
-              <> help "fake"
-          )
-      )
 
 versionOption :: Parser (a -> a)
 versionOption =
   infoOption
-    (toString version)
+    (toString Version.version)
     ( long "version"
         <> short 'v'
         <> help "Show version"
@@ -231,6 +227,29 @@ printError MoveValidationResult{err, moveIndex} (m :| ms) = do
   formattedResults = formatMoves movesUntilError
   errorMsg = "Error at last move (" <> show (1 + moveIdx) <> "): " <> show err
 
+-- | Run an effectful computation with standard CLI effects (storage, clock, ID gen, console, filesystem, error)
+withStandardEffects ::
+  Maybe Text ->
+  ( forall es.
+    (Storage :> es, Clock :> es, IdGen :> es, Console :> es, FileSystem :> es, Error String :> es) =>
+    Eff es a
+  ) ->
+  IO (Either String a)
+withStandardEffects dbPathOpt eff = do
+  let dbPath = fromMaybe "db.db" dbPathOpt
+  conn <- open (toString dbPath)
+  connectionVar <- newMVar conn
+  result <-
+    runEff $
+      runErrorNoCallStack @String $
+        runConsole $
+          runFileSystem $
+            runStorageSQLite connectionVar $
+              runClockIO $
+                runIdGenUUIDv7 eff
+  close conn
+  pure result
+
 runOptions :: Options -> IO ExitCode
 runOptions options = case options.cmd of
   ProcessMoves ProcessMovesOptions{moveText, silentSuccess, allowRepetition} -> do
@@ -249,92 +268,65 @@ runOptions options = case options.cmd of
             printError err moves
             pure $ ExitFailure 1
   Import ImportOptions{filePath} -> do
-    let dbPath = fromMaybe "db.db" options.globalOpts.db
-    conn <- open (toString dbPath)
-    connectionVar <- newMVar conn
-    result <-
-      runEff $
-        runErrorNoCallStack @String $
-          runConsole $
-            runFileSystem $
-              runStorageSQLite connectionVar $
-                runClockIO $
-                  runIdGenUUIDv7 $
-                    importGameFromFile filePath
-    close conn
+    result <- withStandardEffects options.globalOpts.db (importGameFromFile filePath)
     case result of
-      Left err -> do
-        putTextLn $ "Import failed: " <> toText err
-        pure $ ExitFailure 1
-      Right (Left importErr) -> do
-        putTextLn $ "Import failed: " <> importErr
-        pure $ ExitFailure 1
-      Right (Right _) -> do
-        putTextLn "Import successful"
-        pure ExitSuccess
+      Left err -> putTextLn ("Import failed: " <> toText err) >> pure (ExitFailure 1)
+      Right (Left importErr) -> putTextLn ("Import failed: " <> importErr) >> pure (ExitFailure 1)
+      Right (Right _) -> putTextLn "Import successful" >> pure ExitSuccess
   PrintGame PrintGameOptions{gameId} -> do
-    let dbPath = fromMaybe "db.db" options.globalOpts.db
-    conn <- open (toString dbPath)
-    connectionVar <- newMVar conn
-    result <-
-      runEff $
-        runErrorNoCallStack @String $
-          runConsole $
-            runFileSystem $
-              runStorageSQLite connectionVar $
-                runClockIO $
-                  runIdGenUUIDv7 $
-                    printGameMoves (GameId gameId)
-    close conn
+    result <- withStandardEffects options.globalOpts.db (printGameMoves (GameId gameId))
     case result of
-      Left err -> do
-        putTextLn $ "Error: " <> toText err
-        pure $ ExitFailure 1
+      Left err -> putTextLn ("Error: " <> toText err) >> pure (ExitFailure 1)
       Right _ -> pure ExitSuccess
   Server ServerOptions{port} -> do
     runServer port
     pure ExitSuccess
   SelfPlay
-    SelfPlayOptions{numActors, stateDir, startPositionsFile, oldServerUrl, headless} -> do
+    SelfPlayOptions{numActors, stateDir, startPositionsFile, oldServerUrl, oldVersion, headless} -> do
       runSelfPlayWithInterpreters
         numActors
         (toString stateDir)
         (toString startPositionsFile)
         (toString oldServerUrl)
+        oldVersion
         headless
-      pure ExitSuccess
-  Other -> do
-    putTextLn "other"
-    pure ExitSuccess
 
 -- | Run self-play with all necessary effect interpreters
 runSelfPlayWithInterpreters ::
-  Int -> FilePath -> FilePath -> String -> Bool -> IO ()
-runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlStr headless = do
+  Int -> FilePath -> FilePath -> String -> Maybe Text -> Bool -> IO ExitCode
+runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlStr expectedOldVersion headless = do
   manager <- newManager defaultManagerSettings
   baseUrl <- parseBaseUrl oldServerUrlStr
   let clientEnv = mkClientEnv manager baseUrl
       client = createClient
-      runner = if headless then runSelfPlayHeadless else runSelfPlayWithUI
+
+  -- Verify the old server's version if expected version provided
+  for_ expectedOldVersion $ \expected -> do
+    versionResult <- runClientM client.version clientEnv
+    case versionResult of
+      Left err -> do
+        putTextLn $ "Failed to query old server version: " <> show err
+        exitFailure
+      Right resp -> when (expected /= resp.versionNumber) $ do
+        putTextLn $ "Version mismatch: expected " <> expected <> " but server reports " <> resp.versionNumber
+        exitFailure
+
+  let runner = if headless then runSelfPlayHeadless else runSelfPlayWithUI
+      oldVersionLabel = fromMaybe "old" expectedOldVersion
   result <- runEff $
     runErrorNoCallStack @Text $
       runErrorNoCallStack @ClientError $
         runConcurrent $ do
-          qsem <- newQSem (numActors `div` 2)
+          qsem <- newQSem numActors
           runFileSystem $
             runLabeled @"new" (runSearchLocal qsem) $
               runLabeled @"old" (runSearchRemote clientEnv client) $
-                runner
-                  numActors
-                  (VersionId "new")
-                  (VersionId "old")
-                  stateDir
-                  startPositionsFile
+                runner numActors (VersionId Version.version) (VersionId oldVersionLabel) stateDir startPositionsFile
 
   case result of
-    Left err -> putTextLn $ "Self-play failed: " <> err
-    Right (Left clientErr) -> putTextLn $ "Self-play failed (client error): " <> show clientErr
-    Right (Right ()) -> putTextLn "Self-play completed successfully"
+    Left err -> putTextLn ("Self-play failed: " <> err) >> pure (ExitFailure 1)
+    Right (Left clientErr) -> putTextLn ("Self-play failed (client error): " <> show clientErr) >> pure (ExitFailure 1)
+    Right (Right ()) -> putTextLn "Self-play completed successfully" >> pure ExitSuccess
 
 printGameMoves ::
   (Storage :> es, Console :> es) =>

@@ -114,7 +114,6 @@ fi
 
 # Start the old version server
 echo "Starting old version server ($previous_version) on port $OLD_SERVER_PORT..."
-# "$previous_binary" server "$OLD_SERVER_PORT" </dev/null &
 "$previous_binary" server "$OLD_SERVER_PORT" &
 server_pid=$!
 echo "$server_pid" > "$PID_FILE"
@@ -152,6 +151,7 @@ echo ""
 "$current_binary" self-play \
     --actors "$NUM_ACTORS" \
     --old-server "$OLD_SERVER_URL" \
+    --old-version "$previous_version" \
     "$POSITIONS_FILE"
 
 echo ""

@@ -24,6 +24,7 @@ import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Servant (runWarpServerSettings)
 import Hnefatafl.Bindings (SearchTrustedResult)
+import Version qualified
 import Hnefatafl.Core.Data (ExternBoard)
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Interpreter.Search.Local (runSearchLocal)
@@ -80,8 +81,8 @@ versionHandler :: IOE E.:> es => Eff es VersionResponse
 versionHandler =
   pure $
     VersionResponse
-      { versionNumber = "0.0.0.2"
-      , buildDate = "2025-12-21"
+      { versionNumber = Version.version
+      , buildDate = Version.buildDate
       }
 
 healthHandler :: IOE E.:> es => Eff es HealthResponse

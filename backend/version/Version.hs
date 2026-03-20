@@ -2,11 +2,13 @@
 
 module Version (
   version,
+  buildDate,
 ) where
 
 import Data.Char (isSpace)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
+import Data.Time.Clock (getCurrentTime, utctDay)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (qAddDependentFile)
 
@@ -25,4 +27,11 @@ version =
            let versionStr = T.unpack $ T.dropWhile isSpace $ T.drop 8 line -- drop "version:"
            litE (stringL versionStr)
          Nothing -> fail "Could not find version in package.yaml"
+   )
+
+buildDate :: Text
+buildDate =
+  $( do
+       today <- runIO $ utctDay <$> getCurrentTime
+       litE (stringL (show today))
    )

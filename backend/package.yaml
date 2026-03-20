@@ -1,5 +1,5 @@
 name: hnefatafl
-version: 0.0.5
+version: 0.0.6
 
 spec-version: 0.35.0
 verbatim:
@@ -111,6 +111,7 @@ internal-libraries:
     language: GHC2021
     dependencies:
       - template-haskell
+      - time
 
 tests:
   hnefatafl-test:
