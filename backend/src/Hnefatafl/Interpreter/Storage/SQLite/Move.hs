@@ -18,14 +18,19 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 insertMovesDb :: Connection -> GameIdDb -> [MoveDb] -> IO ()
 insertMovesDb conn gameIdDb movesDb = do
   -- Get current max move number once
-  maxMoveNum <- fromOnly <$> selectSingle
-    "SELECT COALESCE(MAX(move_number), -1) FROM move WHERE game_id = ?"
-    (Only gameIdDb)
-    conn
+  maxMoveNum :: Int <-
+    fromOnly
+      <$> selectSingle
+        "SELECT COALESCE(MAX(move_number), -1) FROM move WHERE game_id = ?"
+        (Only gameIdDb)
+        conn
 
   -- Number moves sequentially starting from maxMoveNum + 1
-  let numberedMoves = zipWith (\i moveDb -> (gameIdDb, maxMoveNum + i) :. moveDb)
-                              [1..] movesDb
+  let numberedMoves =
+        zipWith
+          (\i moveDb -> (gameIdDb, maxMoveNum + i) :. moveDb)
+          [1 ..]
+          movesDb
 
   executeMany
     conn
@@ -88,4 +93,6 @@ getMoveCountForGameDb =
 
 deleteMove :: GameIdDb -> Int -> Connection -> IO ()
 deleteMove gameIdDb moveNumber =
-  execute' "DELETE FROM move WHERE game_id = ? AND move_number = ?" (gameIdDb, moveNumber)
+  execute'
+    "DELETE FROM move WHERE game_id = ? AND move_number = ?"
+    (gameIdDb, moveNumber)

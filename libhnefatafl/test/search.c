@@ -1,4 +1,5 @@
 #include "search.h"
+#include "api.h"
 #include "capture.h"
 #include "greatest.h"
 #include "greatest_extensions.h"
@@ -10,6 +11,39 @@
 #include "score.h"
 #include "stdbool.h"
 #include "zobrist.h" // IWYU pragma: export
+
+// Inline helper function for printing search statistics
+static void print_search_stats(const stats *s) {
+  int total_search_positions =
+      s->search_positions_black + s->search_positions_white;
+  int total_search_cutoffs =
+      s->search_beta_cutoff_black + s->search_beta_cutoff_white;
+  int total_quiescence_positions =
+      s->quiescence_positions_black + s->quiescence_positions_white;
+  int total_quiescence_cutoffs =
+      s->quiencence_beta_cutoff_black + s->quiencence_beta_cutoff_white;
+
+  printf("=== Search Stats ===\n");
+  printf("Search - Black positions: %d\n", s->search_positions_black);
+  printf("Search - Black beta cutoffs: %d\n", s->search_beta_cutoff_black);
+  printf("Search - White positions: %d\n", s->search_positions_white);
+  printf("Search - White beta cutoffs: %d\n", s->search_beta_cutoff_white);
+  printf("Search - Total positions: %d\n", total_search_positions);
+  printf("Search - Total beta cutoffs: %d\n", total_search_cutoffs);
+  printf("Quiescence - Black positions: %d\n", s->quiescence_positions_black);
+  printf(
+      "Quiescence - Black beta cutoffs: %d\n",
+      s->quiencence_beta_cutoff_black);
+  printf("Quiescence - White positions: %d\n", s->quiescence_positions_white);
+  printf(
+      "Quiescence - White beta cutoffs: %d\n",
+      s->quiencence_beta_cutoff_white);
+  printf("Quiescence - Total positions: %d\n", total_quiescence_positions);
+  printf("Quiescence - Total beta cutoffs: %d\n", total_quiescence_cutoffs);
+  printf("Quiescence - Limit reached: %d\n", s->quiescence_limit_reached);
+  printf("Repeat moves encountered: %d\n", s->repeat_moves_encountered);
+  printf("===================\n");
+}
 
 #ifdef __GNUC__
 #ifndef __clang__
@@ -35,9 +69,15 @@
 
 #define EMPTY_POSITION_SET create_position_set(100)
 
+// Score threshold constants
+#define SCORE_THRESHOLD_CERTAIN 100
+#define SCORE_THRESHOLD_LIKELY 5000
+
 typedef enum result_score {
   VICTORY,
+  VICTORY_LIKELY,
   LOSS,
+  LOSS_LIKELY,
   INCREASE,
   DECREASE,
   MIDDLING,
@@ -324,21 +364,49 @@ TEST assert_pv(
     ASSERT_GT_FMTm(
         "returns victory score",
         computed_pv.score,
-        MAX_SCORE - 100,
+        MAX_SCORE - SCORE_THRESHOLD_CERTAIN,
+        "%d");
+  } else if (args.score == VICTORY_LIKELY) {
+    ASSERT_GT_FMTm(
+        "returns victory likely score",
+        computed_pv.score,
+        MAX_SCORE - SCORE_THRESHOLD_LIKELY,
+        "%d");
+    ASSERT_LT_FMTm(
+        "not certain victory",
+        computed_pv.score,
+        MAX_SCORE - SCORE_THRESHOLD_CERTAIN + 1,
         "%d");
   } else if (args.score == LOSS) {
     ASSERT_LT_FMTm(
         "returns loss score",
         computed_pv.score,
-        MIN_SCORE + 100,
+        MIN_SCORE + SCORE_THRESHOLD_CERTAIN,
+        "%d");
+  } else if (args.score == LOSS_LIKELY) {
+    ASSERT_LT_FMTm(
+        "returns loss likely score",
+        computed_pv.score,
+        MIN_SCORE + SCORE_THRESHOLD_LIKELY,
+        "%d");
+    ASSERT_GT_FMTm(
+        "not certain loss",
+        computed_pv.score,
+        MIN_SCORE + SCORE_THRESHOLD_CERTAIN - 1,
         "%d");
   } else if (args.score == INCREASE) {
     ASSERT_GTm("returns score increase", computed_pv.score, static_eval);
   } else if (args.score == DECREASE) {
     ASSERT_LTm("returns score decrease", computed_pv.score, static_eval);
   } else if (args.score == MIDDLING) {
-    ASSERT_GTm("not losing", computed_pv.score, MIN_SCORE + 100);
-    ASSERT_LTm("not winning", computed_pv.score, MAX_SCORE - 100);
+    ASSERT_GTm(
+        "not losing",
+        computed_pv.score,
+        MIN_SCORE + SCORE_THRESHOLD_LIKELY);
+    ASSERT_LTm(
+        "not winning",
+        computed_pv.score,
+        MAX_SCORE - SCORE_THRESHOLD_LIKELY);
   } else if (args.score == ANY) {
   } else {
     printf("you've added a new element you fool");
@@ -637,25 +705,31 @@ SUITE(quiesce_white_shallow) {
 }
 /* Tests for quiesce_white which rely on full black quiescence logic */
 SUITE(quiesce_white_recursive) {
-  ASSERT_QUIESCE_WHITE(
-      "king pursues escape in 2 rather than capturing",
-      "     +---------------------------------+"
-      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
-      " 10  | .  X  .  .  .  .  .  .  O  .  . |"
-      "  9  | X  .  .  .  .  .  .  .  .  O  X |"
-      "  8  | .  .  .  .  .  .  #  .  .  .  . |"
-      "  7  | .  .  .  .  .  .  .  .  .  .  X |"
-      "  6  | .  .  .  .  .  .  .  .  .  .  O |"
-      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
-      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
-      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
-      "     +---------------------------------+"
-      "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = VICTORY,
-      .pv = PV(g8g11));
+  // TODO: re-enable this test if/when quiescence searches these positions
+  // exhaustively. Currently quiescence returns early for 2-move escapes with
+  // a boosted eval rather than searching to victory.
+  //
+  // ASSERT_QUIESCE_WHITE(
+  //     "king pursues escape in 2 rather than capturing",
+  //     "     +---------------------------------+"
+  //     " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+  //     " 10  | .  X  .  .  .  .  .  .  O  .  . |"
+  //     "  9  | X  .  .  .  .  .  .  .  .  O  X |"
+  //     "  8  | .  .  .  .  .  .  #  .  .  .  . |"
+  //     "  7  | .  .  .  .  .  .  .  .  .  .  X |"
+  //     "  6  | .  .  .  .  .  .  .  .  .  .  O |"
+  //     "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+  //     "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+  //     "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+  //     "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+  //     "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+  //     "     +---------------------------------+"
+  //     "       a  b  c  d  e  f  g  h  i  j  k  ",
+  //     .score = VICTORY,
+  //     .pv = PV(g8g11));
 
+  // Note: This is now a static evaluation rather than exhaustive search,
+  // since quiescence returns early for 2-move escapes with a boosted eval.
   ASSERT_QUIESCE_WHITE(
       "white does the tricky corner move",
       "     +---------------------------------+"
@@ -672,11 +746,10 @@ SUITE(quiesce_white_recursive) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = VICTORY
-      // There aren't more moves because no black moves beyond this point can
-      // prevent an escape, thus none can raise the best score.
-  );
+      .score = INCREASE);
 
+  // Note: This is now a static evaluation rather than exhaustive search,
+  // since quiescence returns early for 2-move escapes with a boosted eval.
   ASSERT_QUIESCE_WHITE(
       "white finds the tricky corner move",
       "     +---------------------------------+"
@@ -693,28 +766,28 @@ SUITE(quiesce_white_recursive) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = VICTORY
-      // There aren't more moves because no black moves beyond this point can
-      // prevent an escape, thus none can raise the best score.
-  );
+      .score = INCREASE);
 
-  ASSERT_QUIESCE_WHITE(
-      "white prevents escape from being blocked",
-      "     +---------------------------------+"
-      " 11  | .  .  X  O  .  .  .  .  .  .  . |"
-      " 10  | .  X  .  O  .  .  O  .  .  O  X |"
-      "  9  | X  .  .  O  .  .  O  .  .  O  X |"
-      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  7  | .  .  .  .  .  #  .  .  .  .  . |"
-      "  6  | .  .  .  .  .  .  .  .  O  .  . |"
-      "  5  | .  .  .  .  .  .  .  .  O  O  O |"
-      "  4  | .  .  .  .  .  .  .  X  .  .  . |"
-      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
-      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
-      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
-      "     +---------------------------------+"
-      "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = VICTORY);
+  // TODO: find an affordable way to detect this sequence. Quiescence no longer
+  // exhaustively searches positions with 2-move escapes.
+  //
+  // ASSERT_QUIESCE_WHITE(
+  //     "white prevents escape from being blocked",
+  //     "     +---------------------------------+"
+  //     " 11  | .  .  X  O  .  .  .  .  .  .  . |"
+  //     " 10  | .  X  .  O  .  .  O  .  .  O  X |"
+  //     "  9  | X  .  .  O  .  .  O  .  .  O  X |"
+  //     "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+  //     "  7  | .  .  .  .  .  #  .  .  .  .  . |"
+  //     "  6  | .  .  .  .  .  .  .  .  O  .  . |"
+  //     "  5  | .  .  .  .  .  .  .  .  O  O  O |"
+  //     "  4  | .  .  .  .  .  .  .  X  .  .  . |"
+  //     "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+  //     "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+  //     "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+  //     "     +---------------------------------+"
+  //     "       a  b  c  d  e  f  g  h  i  j  k  ",
+  //     .score = VICTORY);
   /*
    */
 }
@@ -783,24 +856,28 @@ SUITE(quiesce_black_shallow) {
       .score = ANY,
       .pv = PV(h8h11));
 
-  ASSERT_QUIESCE_BLACK(
-      "black prevents escape in 2",
-      "     +---------------------------------+"
-      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
-      " 10  | .  X  O  .  .  .  .  .  O  X  . |"
-      "  9  | X  O  .  .  .  #  .  .  .  O  X |"
-      "  8  | O  .  .  .  .  .  .  .  .  .  . |"
-      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  4  | O  .  .  .  .  .  .  .  .  .  O |"
-      "  3  | X  O  .  .  .  .  .  .  .  O  X |"
-      "  2  | .  X  O  .  .  .  .  .  O  X  . |"
-      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
-      "     +---------------------------------+"
-      "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = ANY,
-      .pv = PV(c11f11));
+  // TODO: re-enable if/when quiescence exhaustively searches 2-move escapes.
+  // Currently quiescence returns early with a boosted eval rather than
+  // searching to find the blocking move.
+  //
+  // ASSERT_QUIESCE_BLACK(
+  //     "black prevents escape in 2",
+  //     "     +---------------------------------+"
+  //     " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+  //     " 10  | .  X  O  .  .  .  .  .  O  X  . |"
+  //     "  9  | X  O  .  .  .  #  .  .  .  O  X |"
+  //     "  8  | O  .  .  .  .  .  .  .  .  .  . |"
+  //     "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+  //     "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+  //     "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+  //     "  4  | O  .  .  .  .  .  .  .  .  .  O |"
+  //     "  3  | X  O  .  .  .  .  .  .  .  O  X |"
+  //     "  2  | .  X  O  .  .  .  .  .  O  X  . |"
+  //     "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+  //     "     +---------------------------------+"
+  //     "       a  b  c  d  e  f  g  h  i  j  k  ",
+  //     .score = ANY,
+  //     .pv = PV(c11f11));
 
   ASSERT_QUIESCE_BLACK(
       "black loss when can't block 1 move king escape",
@@ -821,6 +898,8 @@ SUITE(quiesce_black_shallow) {
       .score = LOSS,
       .pv = EMPTY_PV);
 
+  // Note: This is now a static evaluation rather than exhaustive search,
+  // since quiescence returns early for 2-move escapes with a boosted eval.
   ASSERT_QUIESCE_BLACK(
       "black loss when can't block 2 move king escape",
       "     +---------------------------------+"
@@ -837,13 +916,14 @@ SUITE(quiesce_black_shallow) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = LOSS,
-      .pv = EMPTY_PV);
+      .score = DECREASE);
 }
 
 /* Tests for quiesce_white which rely on full white quiescence logic */
 SUITE(quiesce_black_recursive) {
   ASSERT_QUIESCE_BLACK(
+      // Note: This is now a static evaluation rather than exhaustive search,
+      // since quiescence returns early for 2-move escapes with a boosted eval.
       "test black loss when can only block 1 of 2 1 move escapes",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  #  .  .  .  .  . |"
@@ -859,10 +939,11 @@ SUITE(quiesce_black_recursive) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = LOSS,
-      .pv = EMPTY_PV);
+      .score = DECREASE);
 
   ASSERT_QUIESCE_BLACK(
+      // Note: This is now a static evaluation rather than exhaustive search,
+      // since quiescence returns early for 2-move escapes with a boosted eval.
       "black loss when can only block 1 of 2 2 move escapes",
       "     +---------------------------------+"
       " 11  | .  .  .  .  .  .  .  .  .  .  . |"
@@ -878,8 +959,7 @@ SUITE(quiesce_black_recursive) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = LOSS,
-      .pv = EMPTY_PV);
+      .score = DECREASE);
 
   ASSERT_QUIESCE_BLACK(
       "black survives when can block both 2 move escapes",
@@ -919,6 +999,8 @@ SUITE(quiesce_black_recursive) {
       .pv = PV(c10c11));
 
   ASSERT_QUIESCE_BLACK(
+      // Note: This is now a static evaluation rather than exhaustive search,
+      // since quiescence returns early for 2-move escapes with a boosted eval.
       "test tricky corner causes loss for black",
       "     +---------------------------------+"
       " 11  | .  .  X  .  .  .  .  .  #  .  . |"
@@ -934,10 +1016,7 @@ SUITE(quiesce_black_recursive) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .score = LOSS,
-      // There aren't more moves because no black moves beyond this point can
-      // prevent an escape, thus none can raise the best score.
-      .pv = EMPTY_PV);
+      .score = DECREASE);
 
   ASSERT_QUIESCE_BLACK(
       "black finds 2-move blocking move around obstacle",
@@ -1048,8 +1127,8 @@ SUITE(search_black_shallow) {
       // to white quiescence
       .stats_assertions = STATS(
           SEARCH_POSITIONS_BLACK(EQ, 1),
-          SEARCH_POSITIONS_WHITE(EQ, 2),
-          QUIESCENCE_POSITIONS_WHITE(EQ, 8),
+          SEARCH_POSITIONS_WHITE(EQ, 1),
+          QUIESCENCE_POSITIONS_WHITE(EQ, 1),
           SEARCH_BETA_CUTOFF_BLACK(EQ, 1)));
 
   // makes obvious capture
@@ -1090,10 +1169,70 @@ SUITE(search_black_shallow) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .pv = PV(b11c11));
 
+  // These tests verify that regular search (unlike quiescence) finds the
+  // actual loss when black can only block one of two escape paths.
+  ASSERT_SEARCH_BLACK(
+      "black loss when can only block 1 of 2 1 move escapes",
+      "     +---------------------------------+"
+      " 11  | .  .  .  .  .  #  .  .  .  .  . |"
+      " 10  | .  X  O  .  .  .  .  .  O  X  . |"
+      "  9  | X  O  .  .  .  .  .  .  .  O  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .depth = 4,
+      .score = LOSS);
+
+  ASSERT_SEARCH_BLACK(
+      "black loss when can only block 1 of 2 2 move escapes",
+      "     +---------------------------------+"
+      " 11  | .  .  .  .  .  .  .  .  .  .  . |"
+      " 10  | X  .  .  .  .  #  .  .  .  .  X |"
+      "  9  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  8  | .  O  O  X  .  .  .  X  O  O  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .depth = 4,
+      .score = LOSS);
+
   // takes trade that results in better position
   //
 }
 SUITE(search_white_shallow) {
+
+  ASSERT_SEARCH_WHITE(
+      "king pursues escape in 2 rather than capturing",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+      " 10  | .  X  .  .  .  .  .  .  O  .  . |"
+      "  9  | X  .  .  .  .  .  .  .  .  O  X |"
+      "  8  | .  .  .  .  .  .  #  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  .  .  X |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  O |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .depth = 4,
+      .score = VICTORY,
+      .pv = PV(g8g11, a9i9, g11k11));
 
   ASSERT_SEARCH_WHITE(
       "king makes an escape",
@@ -1210,6 +1349,28 @@ SUITE(search_white_shallow) {
       "       a  b  c  d  e  f  g  h  i  j  k  ",
       .score = VICTORY,
       .pv = PV(g5g1));
+
+  // Verifies that regular search finds the tricky corner move that quiescence
+  // no longer exhaustively searches (due to 2-move escape early return).
+  ASSERT_SEARCH_WHITE(
+      "white finds the tricky corner move",
+      "     +---------------------------------+"
+      " 11  | .  .  X  .  .  .  .  .  .  .  . |"
+      " 10  | .  .  .  .  .  .  .  .  .  X  X |"
+      "  9  | X  X  .  .  .  .  .  .  .  .  X |"
+      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  7  | .  .  .  .  .  .  .  .  #  .  . |"
+      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
+      "  4  | .  .  .  .  .  .  .  .  .  O  . |"
+      "  3  | X  .  .  .  .  .  .  .  .  .  X |"
+      "  2  | .  X  .  .  .  .  .  .  .  X  . |"
+      "  1  | .  .  X  .  .  .  .  .  X  .  . |"
+      "     +---------------------------------+"
+      "       a  b  c  d  e  f  g  h  i  j  k  ",
+      .depth = 6,
+      .score = VICTORY,
+      .pv = IGNORE_PV);
 }
 
 // Test time limiting functionality
@@ -1219,7 +1380,7 @@ TEST time_limit_works(void) {
   clock_gettime(CLOCK_MONOTONIC, &start);
 
   // Run search with depth 10 and 50ms time limit
-  pv_line result = search_black_with_timeout(start_board, 10, 50);
+  search_result result = search_black_with_timeout(start_board, 10, 50);
 
   // Record end time
   clock_gettime(CLOCK_MONOTONIC, &end);
@@ -1235,8 +1396,41 @@ TEST time_limit_works(void) {
   ASSERT_GTm("Search finished too early", elapsed_ms, 40L);
   ASSERT_LTm("Search took too long", elapsed_ms, 60L);
 
-  destroy_pv_line(&result);
+  destroy_pv_line(&result.pv);
+  PASS();
+}
+
+// Test time limiting functionality
+TEST test_search_completes(void) {
+  char board_string[] = "     +---------------------------------+"
+                        " 11  | .  .  X  .  .  X  X  .  .  .  . |"
+                        " 10  | .  .  X  .  .  .  .  .  .  X  . |"
+                        "  9  | .  X  .  .  .  .  O  .  X  .  . |"
+                        "  8  | .  .  . [#] .  .  .  X  .  .  X |"
+                        "  7  | X  .  .  .  .  .  .  X  .  .  . |"
+                        "  6  | X  .  .  .  .  .  .  .  .  .  . |"
+                        "  5  | .  .  O  .  .  O  .  .  .  .  X |"
+                        "  4  | .  .  .  .  .  .  .  O  X  .  . |"
+                        "  3  | X  O  .  .  O  X  X  .  .  .  . |"
+                        "  2  | .  .  .  .  .  .  .  .  .  X  . |"
+                        "  1  | .  .  X [ ] .  .  .  X  .  .  . |"
+                        "     +---------------------------------+"
+                        "       a  b  c  d  e  f  g  h  i  j  k  ";
+  board b = read_board(board_string);
+
+  // Run search with depth 10 and 50ms time limit
+  search_result result = search_black_with_timeout(b, 6, 1000);
+
+  // Extract the best move from result
+  if (result.pv.length == 0 || result.pv.moves == NULL) {
+    printf("null move encountered (no moves in PV)\n");
+    print_search_stats(&result.statistics);
+    exit(1);
+  }
+
+  destroy_pv_line(&result.pv);
   PASS();
 }
 
 SUITE(search_time_limiting) { RUN_TEST(time_limit_works); }
+SUITE(search_completes) { RUN_TEST(test_search_completes); }

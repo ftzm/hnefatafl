@@ -3,8 +3,7 @@
 module Hnefatafl.Interpreter.Storage.SQLite.GameTest where
 
 import Chronos (now)
-import Data.List (isInfixOf, sort)
-import Effectful (liftIO)
+import Data.List (isInfixOf)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Util

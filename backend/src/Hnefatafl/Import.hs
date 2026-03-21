@@ -181,7 +181,8 @@ importGame input = do
                 , createdAt = currentTime
                 }
 
-        let gameMoves = map (moveResultToGameMove startTime) (toList $ applyMoveSequence input.moves)
+        let (moveResults, _finalStatus) = applyMoveSequence input.moves
+            gameMoves = map (moveResultToGameMove startTime) (toList moveResults)
 
         insertGame game
         insertMoves gameId gameMoves
@@ -192,7 +193,7 @@ importGame input = do
  where
   validStatus :: Either Text EngineGameStatus = mapLeft show $ nextGameState input.moves True
   moveResultToGameMove :: Time -> MoveResult -> GameMove
-  moveResultToGameMove time (MoveResult move board captures wasBlackTurn) =
+  moveResultToGameMove time (MoveResult move board captures wasBlackTurn _) =
     GameMove
       { playerColor = if wasBlackTurn then Black else White
       , move = move

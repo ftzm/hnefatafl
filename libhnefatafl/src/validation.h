@@ -8,6 +8,9 @@
 // Main validation function
 move_error validate_move(board b, move m, bool is_black_turn);
 
+// Board state validation
+bool validate_board_state(board b);
+
 // Helper functions exposed for testing
 piece_type get_piece_at(board b, u8 position);
 bool is_correct_piece(bool is_black_turn, piece_type piece);

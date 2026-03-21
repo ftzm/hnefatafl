@@ -32,7 +32,15 @@ BENCH_BINS := $(patsubst $(BENCH_DIR)/%.c,$(BENCH_BIN_DIR)/%,$(BENCH_SRCS))
 CC := gcc
 # CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror -Winline -fsanitize=address -Wformat
 CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror -Winline
-BENCH_CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror
+
+# Debug mode: use DEBUG=1 to enable debug code in library
+# Default is release (NDEBUG defined). Run `make clean` when switching modes.
+ifndef DEBUG
+  CFLAGS += -DNDEBUG
+endif
+
+# Benchmarks always use release mode
+BENCH_CFLAGS := -mbmi -mbmi2 -mlzcnt -mavx -mavx2 -O3 -g -Wall -Wextra -Werror -DNDEBUG
 LDFLAGS := 
 DEP_FLAGS = -MMD -MP -MT $@ -MF $(DEP_DIR)/$*.d
 
@@ -48,6 +56,12 @@ TEST_DEPS_TARGET ?= test_deps
 TEST_LIBS := -L$(LIB_DIR) -lhnefatafl $(THEFT_LIB) -lm
 BENCH_LIBS := -L$(LIB_DIR) -lhnefatafl -lm
 RUN_ENV := LD_LIBRARY_PATH=$(LIB_DIR):$${LD_LIBRARY_PATH:-}
+
+# Perf profiling
+PERF_BIN := $(BENCH_BIN_DIR)/search_perf
+PERF_DATA := perf.data
+PERF_RECORD_OPTS := -g --call-graph dwarf -F 999
+PERF_REPORT_OPTS := --stdio -g graph,0.5,caller
 
 # Link commands
 LINK_BASE := $(CC) $(LDFLAGS)
@@ -131,6 +145,7 @@ update-test-suites:
 # Test executable compilation and execution
 #
 # Running `make test` will run all tests.
+# For tests with debug code: `make clean && make test DEBUG=1`
 
 $(TEST_BIN_DIR)/%: $(TEST_OBJ_DIR)/%.o $(LIB_TARGET) | $(TEST_BIN_DIR)
 	@$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(TEST_LIBS)
@@ -177,6 +192,22 @@ run-benchmarks: $(BENCH_BINS)
 	done
 
 # ------------------------------------------------------------------------------
+# Performance profiling with perf
+
+.PHONY: perf
+perf: $(PERF_BIN)
+	@echo "Recording performance profile..."
+	@rm -f $(PERF_DATA)
+	@$(RUN_ENV) perf record $(PERF_RECORD_OPTS) -o $(PERF_DATA) ./$(PERF_BIN)
+	@echo ""
+	@echo "=== Performance Report ==="
+	@perf report $(PERF_REPORT_OPTS) -i $(PERF_DATA)
+
+.PHONY: perf-clean
+perf-clean:
+	@rm -f $(PERF_DATA) $(PERF_DATA).old
+
+# ------------------------------------------------------------------------------
 # Bins
 
 .PHONY: gen_constants
@@ -219,6 +250,7 @@ clean:
 	@rm -f gen_black_moves
 	@rm -f gen_masks
 	@rm -f $(STATIC_LIB_TARGET)
+	@rm -f $(PERF_DATA) $(PERF_DATA).old
 
 # ------------------------------------------------------------------------------
 # Dependencies

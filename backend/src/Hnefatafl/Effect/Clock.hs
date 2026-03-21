@@ -8,8 +8,8 @@ module Hnefatafl.Effect.Clock (
 ) where
 
 import Chronos (Time)
-import Effectful
-import Effectful.TH
+import Effectful (Effect)
+import Effectful.TH (makeEffect)
 
 data Clock :: Effect where
   Now :: Clock m Time

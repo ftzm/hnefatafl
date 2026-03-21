@@ -52,6 +52,8 @@ typedef enum move_error {
   move_error_not_orthogonal = 4,
   move_error_path_blocked = 5,
   move_error_threefold_repetition = 6,
+  move_error_position_out_of_bounds = 7,
+  move_error_dest_equals_origin = 8,
 } move_error;
 
 typedef struct move_validation_result {

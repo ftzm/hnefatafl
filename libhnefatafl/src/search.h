@@ -15,6 +15,27 @@ typedef struct position_set position_set;
 #define MAX_SCORE 2147483646
 #define MIN_SCORE -2147483646
 
+// Maximum ply depth for PV tables and score adjustment
+#define MAX_PLY 32
+
+// Base score for positions where victory is guaranteed but not yet realized
+#define INEVITABLE_VICTORY_BASE (MAX_SCORE - MAX_PLY - 1)
+
+// Base score for positions where loss is guaranteed but not yet realized
+#define INEVITABLE_LOSS_BASE (MIN_SCORE + MAX_PLY + 1)
+
+// Score for actual victory, adjusted by ply to prefer earlier wins
+#define VICTORY_SCORE(ply) (MAX_SCORE - (ply))
+
+// Score for actual loss, adjusted by ply to prefer later losses
+#define LOSS_SCORE(ply) (MIN_SCORE + (ply))
+
+// Score for inevitable victory, adjusted by ply to prefer earlier inevitability
+#define INEVITABLE_VICTORY_SCORE(ply) (INEVITABLE_VICTORY_BASE - (ply))
+
+// Score for inevitable loss, adjusted by ply to prefer later inevitability
+#define INEVITABLE_LOSS_SCORE(ply) (INEVITABLE_LOSS_BASE + (ply))
+
 typedef struct pv_line {
   bool is_black_turn;
   move *moves;
@@ -22,12 +43,10 @@ typedef struct pv_line {
   i32 score;
 } pv_line;
 
-#define MAX_DEPTH 32
-
 typedef struct pv {
-  int pv_length[MAX_DEPTH];
-  move pv_table[MAX_DEPTH][MAX_DEPTH];
-  move prev_pv[MAX_DEPTH];
+  int pv_length[MAX_PLY];
+  move pv_table[MAX_PLY][MAX_PLY];
+  move prev_pv[MAX_PLY];
   int prev_pv_length;
 } pv;
 
@@ -76,24 +95,41 @@ i32 quiesce_white(
     stats *statistics);
 
 pv_line quiesce_white_runner(board b);
+
 pv_line quiesce_black_runner(board b);
+
 search_result
 search_white_runner(board b, int depth, _Atomic bool *should_stop);
+
 search_result
 search_black_runner(board b, int depth, _Atomic bool *should_stop);
+
 search_result search_white_runner_iterative(
     board b,
     int max_depth,
     _Atomic bool *should_stop);
+
 search_result search_black_runner_iterative(
     board b,
     int max_depth,
     _Atomic bool *should_stop);
-pv_line search_white_with_timeout(board b, int depth, int time_limit);
-pv_line search_black_with_timeout(board b, int depth, int time_limit);
-pv_line
+
+search_result search_runner_iterative_trusted(
+    board b,
+    int max_depth,
+    _Atomic bool *should_stop,
+    bool is_black_turn,
+    u64 *zobrist_hashes,
+    int hash_count);
+
+search_result search_white_with_timeout(board b, int depth, int time_limit);
+
+search_result search_black_with_timeout(board b, int depth, int time_limit);
+
+search_result
 search_white_with_timeout_iterative(board b, int max_depth, int time_limit);
-pv_line
+
+search_result
 search_black_with_timeout_iterative(board b, int max_depth, int time_limit);
 
 // Search function pointer type
@@ -119,16 +155,31 @@ search_result search_runner_generic(
     _Atomic bool *should_stop,
     search_func search_fn,
     bool is_black);
+
+// Generic iterative deepening search runner
+//
+// Parameters:
+//   zobrist_hashes: Array of zobrist hashes representing PAST positions in the
+//                   game history. Must NOT include the current board position.
+//                   The current position hash will be calculated internally.
+//                   Pass NULL if no history tracking is needed.
+//   hash_count: Number of hashes in zobrist_hashes array
+//
+// The function will calculate the current position hash from the board and
+// is_black parameters, and use it for repetition detection along with the
+// provided history hashes.
 search_result search_runner_iterative_generic(
     board b,
     int max_depth,
     _Atomic bool *should_stop,
     search_func search_fn,
-    bool is_black);
+    bool is_black,
+    u64 *zobrist_hashes,
+    int hash_count);
 
 // Generic wrapper function for search with timeout
 typedef search_result (*search_runner_func)(board, int, _Atomic bool *);
-pv_line search_with_timeout(
+search_result search_with_timeout(
     search_runner_func runner,
     board b,
     int depth,

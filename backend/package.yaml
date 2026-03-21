@@ -1,5 +1,5 @@
 name: hnefatafl
-version: 0.0.0.2
+version: 0.0.6
 
 spec-version: 0.35.0
 verbatim:
@@ -20,8 +20,8 @@ default-extensions:
 
 ghc-options:
   - -Wunused-imports
-  # - -Wall
-  # - -Werror
+  - -Wall
+  - -Werror
   - -Wmissing-export-lists
   - -Wno-missing-home-modules
   - -Widentities
@@ -67,9 +67,31 @@ dependencies:
   - optparse-applicative
   - either
   - aeson
+  - aeson-pretty
   - chronos
   - template-haskell
   - safe-exceptions
+  - servant
+  - servant-server
+  - servant-client
+  - servant-client-core
+  - servant-effectful
+  - wai
+  - warp
+  - time
+  - async
+  - clock
+  - stm
+  - stm-containers
+  - list-t
+  - focus
+  - filepath
+  - temporary
+  - directory
+  - brick
+  - vty
+  - vty-unix
+  - http-client
 
 executables:
   cli:
@@ -80,6 +102,16 @@ executables:
       
 library:
   source-dirs: src
+  dependencies:
+    - hnefatafl-version
+
+internal-libraries:
+  hnefatafl-version:
+    source-dirs: version
+    language: GHC2021
+    dependencies:
+      - template-haskell
+      - time
 
 tests:
   hnefatafl-test:
@@ -90,6 +122,7 @@ tests:
     build-tools:
         tasty-discover:tasty-discover
     dependencies:
+      - hnefatafl-version
       - hnefatafl
       - hspec
       - hspec-expectations-pretty-diff
@@ -101,6 +134,9 @@ tests:
       - process
       - direct-sqlite
       - optics
+      - http-client
+      - servant-client
+      - async
 
 # benchmarks:
 #   board:

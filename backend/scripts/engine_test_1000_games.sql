@@ -1,4 +1,4 @@
--- Select 100 different games, with 4 games at each depth (1-25 moves)
+-- Select 1000 different games, with 40 games at each depth (1-25 moves)
 -- Deterministic selection - same results every time
 
 WITH player_stats AS (
@@ -23,7 +23,7 @@ top_players AS (
   SELECT player_id
   FROM player_stats
   ORDER BY (100.0 * total_wins / total_games) DESC, total_games DESC
-  LIMIT 50
+  LIMIT 100
 ),
 
 high_quality_games AS (
@@ -51,14 +51,14 @@ ranked_games AS (
         id
     ) as game_rank
   FROM long_games
-  LIMIT 100  -- Take top 100 games
+  LIMIT 1000  -- Take top 1000 games
 ),
 
 -- Assign each game to a depth (1-25)
 games_with_depth AS (
   SELECT
     *,
-    ((game_rank - 1) / 4) + 1 as target_depth  -- Games 1-4 -> depth 1, Games 5-8 -> depth 2, etc.
+    ((game_rank - 1) / 40) + 1 as target_depth  -- Games 1-40 -> depth 1, Games 41-80 -> depth 2, etc.
   FROM ranked_games
 ),
 

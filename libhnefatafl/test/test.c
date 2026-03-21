@@ -20,6 +20,7 @@ SUITE_EXTERN(quiesce_white_recursive);
 SUITE_EXTERN(quiesce_white_shallow);
 SUITE_EXTERN(score_suite);
 SUITE_EXTERN(search_black_shallow);
+SUITE_EXTERN(search_completes);
 SUITE_EXTERN(search_time_limiting);
 SUITE_EXTERN(search_white_shallow);
 SUITE_EXTERN(validation_suite);
@@ -29,7 +30,6 @@ SUITE_EXTERN(zobrist_suite);
 GREATEST_MAIN_DEFS();
 
 int main(int argc, char **argv) {
-  
 
   GREATEST_MAIN_BEGIN();
   RUN_SUITE(api_suite);
@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
   RUN_SUITE(quiesce_white_shallow);
   RUN_SUITE(score_suite);
   RUN_SUITE(search_black_shallow);
+  RUN_SUITE(search_completes);
   RUN_SUITE(search_time_limiting);
   RUN_SUITE(search_white_shallow);
   RUN_SUITE(validation_suite);

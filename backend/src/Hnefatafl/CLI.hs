@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.CLI (
@@ -11,10 +12,13 @@ import Chronos (Time)
 import Data.Aeson (FromJSON, ToJSON)
 import Database.SQLite.Simple (close, open)
 import Effectful
+import Effectful.Concurrent
+import Effectful.Concurrent.QSem
 import Effectful.Console.ByteString
-import qualified Effectful.Console.ByteString as Console
+import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
+import Effectful.Labeled
 import Hnefatafl.Bindings (
   EngineGameStatus,
   MoveValidationResult (..),
@@ -22,17 +26,34 @@ import Hnefatafl.Bindings (
   nextGameState,
   startBoard,
  )
-import Hnefatafl.Board (formatMoveResult, printBoard, formatGameMove)
-import Hnefatafl.Core.Data (Game (..), GameId (..), GameMove (..), GameStatus (..), HumanPlayer (..), Move, PlayerId (..))
+import Hnefatafl.Board (formatGameMove, formatMoveResult, printBoard)
+import Hnefatafl.Client (createClient)
+import Hnefatafl.Core.Data (
+  Game (..),
+  GameId (..),
+  GameMove (..),
+  HumanPlayer (..),
+  Move,
+  PlayerId (..),
+ )
+import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Import (importGameFromFile)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
+import Hnefatafl.Interpreter.Search.Local
+import Hnefatafl.Interpreter.Search.Remote
 import Hnefatafl.Interpreter.Storage.SQLite
-import Hnefatafl.Serialization (parseMoveList, moveToNotation)
+import Hnefatafl.SelfPlay (VersionId (..))
+import Hnefatafl.SelfPlay.Runner (runSelfPlayHeadless, runSelfPlayWithUI)
+import Hnefatafl.Serialization (moveToNotation, parseMoveList)
+import Hnefatafl.Server (Routes (..), VersionResponse (..), runServer)
+import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Options.Applicative
+import Servant.Client (ClientError, mkClientEnv, parseBaseUrl, runClientM)
 import System.Exit (ExitCode (..))
+import Version qualified
 
 data ProcessMovesOptions = ProcessMovesOptions
   { moveText :: Text
@@ -51,16 +72,31 @@ data PrintGameOptions = PrintGameOptions
   }
   deriving (Show)
 
+data ServerOptions = ServerOptions
+  { port :: Int
+  }
+  deriving (Show)
+
+data SelfPlayOptions = SelfPlayOptions
+  { numActors :: Int
+  , stateDir :: Text
+  , startPositionsFile :: Text
+  , oldServerUrl :: Text
+  , oldVersion :: Maybe Text
+  , headless :: Bool
+  }
+  deriving (Show)
+
 data Command
   = ProcessMoves ProcessMovesOptions
   | Import ImportOptions
   | PrintGame PrintGameOptions
-  | Other
+  | Server ServerOptions
+  | SelfPlay SelfPlayOptions
   deriving (Show)
 
 data GlobalOptions = GlobalOptions
   { db :: Maybe Text
-  , other :: Maybe Text
   }
   deriving (Show)
 
@@ -82,28 +118,64 @@ processMovesParser =
 
 importParser :: Parser Command
 importParser =
-  Import
-    <$> ( ImportOptions
-            <$> strArgument (metavar "FILE" <> help "JSON file to import games from")
-        )
+  Import . ImportOptions
+    <$> strArgument (metavar "FILE" <> help "JSON file to import games from")
 
 printGameParser :: Parser Command
 printGameParser =
-  PrintGame
-    <$> ( PrintGameOptions
-            <$> strArgument (metavar "GAME_ID" <> help "Game ID to print moves for")
-        )
+  PrintGame . PrintGameOptions
+    <$> strArgument (metavar "GAME_ID" <> help "Game ID to print moves for")
 
-otherParser :: Parser Command
-otherParser = pure Other
+serverParser :: Parser Command
+serverParser =
+  Server . ServerOptions
+    <$> argument auto (metavar "PORT" <> help "Port number to run the server on")
+
+selfPlayParser :: Parser Command
+selfPlayParser =
+  SelfPlay
+    <$> ( SelfPlayOptions
+            <$> option
+              auto
+              (long "actors" <> metavar "N" <> value 1 <> help "Number of parallel game actors")
+            <*> strOption
+              ( long "state-dir"
+                  <> metavar "DIR"
+                  <> value "."
+                  <> help "Directory for state files"
+              )
+            <*> strArgument (metavar "POSITIONS_FILE" <> help "File containing start positions")
+            <*> strOption
+              ( long "old-server"
+                  <> metavar "URL"
+                  <> help "URL of the server running the old version"
+              )
+            <*> optional
+              ( strOption
+                  ( long "old-version"
+                      <> metavar "VERSION"
+                      <> help "Expected version of the old server (verified at startup)"
+                  )
+              )
+            <*> switch
+              ( long "headless"
+                  <> help "Run without UI (for scripts)"
+              )
+        )
 
 commandParser :: Parser Command
 commandParser =
   subparser
     ( command "process-moves" (info processMovesParser (progDesc "Process moves"))
         <> command "import" (info importParser (progDesc "Import games from JSON file"))
-        <> command "print-game" (info printGameParser (progDesc "Print all moves of a game with board representations"))
-        <> command "other" (info otherParser (progDesc "Other command"))
+        <> command
+          "print-game"
+          ( info
+              printGameParser
+              (progDesc "Print all moves of a game with board representations")
+          )
+        <> command "server" (info serverParser (progDesc "Run the web server"))
+        <> command "self-play" (info selfPlayParser (progDesc "Run self-play with UI"))
     )
 
 globalOptionsParser :: Parser GlobalOptions
@@ -116,18 +188,11 @@ globalOptionsParser =
               <> help "Database file path"
           )
       )
-    <*> optional
-      ( strOption
-          ( long "other"
-              <> metavar "FAKE"
-              <> help "fake"
-          )
-      )
 
 versionOption :: Parser (a -> a)
 versionOption =
   infoOption
-    "hnefatafl version 0.0.0.2"
+    (toString Version.version)
     ( long "version"
         <> short 'v'
         <> help "Show version"
@@ -145,7 +210,7 @@ formatMoves ms =
     zipWith
       (\i r -> "Move: " <> show i <> "\n" <> formatMoveResult r)
       [1 :: Integer ..]
-      (toList $ applyMoveSequence ms)
+      (toList $ fst $ applyMoveSequence ms)
 
 printMoves :: EngineGameStatus -> NonEmpty Move -> IO ()
 printMoves status ms = do
@@ -161,6 +226,29 @@ printError MoveValidationResult{err, moveIndex} (m :| ms) = do
   movesUntilError :: NonEmpty Move = m :| take moveIdx ms
   formattedResults = formatMoves movesUntilError
   errorMsg = "Error at last move (" <> show (1 + moveIdx) <> "): " <> show err
+
+-- | Run an effectful computation with standard CLI effects (storage, clock, ID gen, console, filesystem, error)
+withStandardEffects ::
+  Maybe Text ->
+  ( forall es.
+    (Storage :> es, Clock :> es, IdGen :> es, Console :> es, FileSystem :> es, Error String :> es) =>
+    Eff es a
+  ) ->
+  IO (Either String a)
+withStandardEffects dbPathOpt eff = do
+  let dbPath = fromMaybe "db.db" dbPathOpt
+  conn <- open (toString dbPath)
+  connectionVar <- newMVar conn
+  result <-
+    runEff $
+      runErrorNoCallStack @String $
+        runConsole $
+          runFileSystem $
+            runStorageSQLite connectionVar $
+              runClockIO $
+                runIdGenUUIDv7 eff
+  close conn
+  pure result
 
 runOptions :: Options -> IO ExitCode
 runOptions options = case options.cmd of
@@ -180,51 +268,65 @@ runOptions options = case options.cmd of
             printError err moves
             pure $ ExitFailure 1
   Import ImportOptions{filePath} -> do
-    let dbPath = fromMaybe "db.db" options.globalOpts.db
-    conn <- open (toString dbPath)
-    connectionVar <- newMVar conn
-    result <-
-      runEff $
-        runErrorNoCallStack @String $
-          runConsole $
-            runFileSystem $
-              runStorageSQLite connectionVar $
-                runClockIO $
-                  runIdGenUUIDv7 $
-                    importGameFromFile filePath
-    close conn
+    result <- withStandardEffects options.globalOpts.db (importGameFromFile filePath)
     case result of
-      Left err -> do
-        putTextLn $ "Import failed: " <> toText err
-        pure $ ExitFailure 1
-      Right (Left importErr) -> do
-        putTextLn $ "Import failed: " <> importErr
-        pure $ ExitFailure 1
-      Right (Right _) -> do
-        putTextLn "Import successful"
-        pure ExitSuccess
+      Left err -> putTextLn ("Import failed: " <> toText err) >> pure (ExitFailure 1)
+      Right (Left importErr) -> putTextLn ("Import failed: " <> importErr) >> pure (ExitFailure 1)
+      Right (Right _) -> putTextLn "Import successful" >> pure ExitSuccess
   PrintGame PrintGameOptions{gameId} -> do
-    let dbPath = fromMaybe "db.db" options.globalOpts.db
-    conn <- open (toString dbPath)
-    connectionVar <- newMVar conn
-    result <-
-      runEff $
-        runErrorNoCallStack @String $
-          runConsole $
-            runFileSystem $
-              runStorageSQLite connectionVar $
-                runClockIO $
-                  runIdGenUUIDv7 $
-                    printGameMoves (GameId gameId)
-    close conn
+    result <- withStandardEffects options.globalOpts.db (printGameMoves (GameId gameId))
     case result of
-      Left err -> do
-        putTextLn $ "Error: " <> toText err
-        pure $ ExitFailure 1
+      Left err -> putTextLn ("Error: " <> toText err) >> pure (ExitFailure 1)
       Right _ -> pure ExitSuccess
-  Other -> do
-    putTextLn "other"
+  Server ServerOptions{port} -> do
+    runServer port
     pure ExitSuccess
+  SelfPlay
+    SelfPlayOptions{numActors, stateDir, startPositionsFile, oldServerUrl, oldVersion, headless} -> do
+      runSelfPlayWithInterpreters
+        numActors
+        (toString stateDir)
+        (toString startPositionsFile)
+        (toString oldServerUrl)
+        oldVersion
+        headless
+
+-- | Run self-play with all necessary effect interpreters
+runSelfPlayWithInterpreters ::
+  Int -> FilePath -> FilePath -> String -> Maybe Text -> Bool -> IO ExitCode
+runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlStr expectedOldVersion headless = do
+  manager <- newManager defaultManagerSettings
+  baseUrl <- parseBaseUrl oldServerUrlStr
+  let clientEnv = mkClientEnv manager baseUrl
+      client = createClient
+
+  -- Verify the old server's version if expected version provided
+  for_ expectedOldVersion $ \expected -> do
+    versionResult <- runClientM client.version clientEnv
+    case versionResult of
+      Left err -> do
+        putTextLn $ "Failed to query old server version: " <> show err
+        exitFailure
+      Right resp -> when (expected /= resp.versionNumber) $ do
+        putTextLn $ "Version mismatch: expected " <> expected <> " but server reports " <> resp.versionNumber
+        exitFailure
+
+  let runner = if headless then runSelfPlayHeadless else runSelfPlayWithUI
+      oldVersionLabel = fromMaybe "old" expectedOldVersion
+  result <- runEff $
+    runErrorNoCallStack @Text $
+      runErrorNoCallStack @ClientError $
+        runConcurrent $ do
+          qsem <- newQSem numActors
+          runFileSystem $
+            runLabeled @"new" (runSearchLocal qsem) $
+              runLabeled @"old" (runSearchRemote clientEnv client) $
+                runner numActors (VersionId Version.version) (VersionId oldVersionLabel) stateDir startPositionsFile
+
+  case result of
+    Left err -> putTextLn ("Self-play failed: " <> err) >> pure (ExitFailure 1)
+    Right (Left clientErr) -> putTextLn ("Self-play failed (client error): " <> show clientErr) >> pure (ExitFailure 1)
+    Right (Right ()) -> putTextLn "Self-play completed successfully" >> pure ExitSuccess
 
 printGameMoves ::
   (Storage :> es, Console :> es) =>
@@ -232,8 +334,10 @@ printGameMoves ::
 printGameMoves gameId = do
   game <- getGame gameId
   moves <- getMovesForGame gameId
-  Console.putStrLn $ encodeUtf8 $ ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)
-  Console.putStrLn $ encodeUtf8 $ ("Status: " <> show game.gameStatus :: Text)
+  Console.putStrLn $
+    encodeUtf8
+      ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)
+  Console.putStrLn $ encodeUtf8 ("Status: " <> show game.gameStatus :: Text)
   Console.putStrLn ""
 
   if null moves
@@ -245,13 +349,22 @@ printGameMoves gameId = do
       Console.putStrLn ""
 
       -- Print each move with board state
-      traverse_ printMoveWithBoard (zip [1..] moves)
-  where
-    printMoveWithBoard :: (Console :> es) => (Int, GameMove) -> Eff es ()
-    printMoveWithBoard (moveNum, gameMove) = do
-      Console.putStrLn $ encodeUtf8 $ ("Move " <> show moveNum <> " (" <> show gameMove.playerColor <> "): " <> moveToNotation gameMove.move :: Text)
-      Console.putStrLn $ encodeUtf8 $ formatGameMove gameMove
-      Console.putStrLn ""
+      traverse_ printMoveWithBoard (zip [1 ..] moves)
+ where
+  printMoveWithBoard :: Console :> es => (Int, GameMove) -> Eff es ()
+  printMoveWithBoard (moveNum, gameMove) = do
+    Console.putStrLn $
+      encodeUtf8
+        ( "Move "
+            <> show moveNum
+            <> " ("
+            <> show gameMove.playerColor
+            <> "): "
+            <> moveToNotation gameMove.move ::
+            Text
+        )
+    Console.putStrLn $ encodeUtf8 $ formatGameMove gameMove
+    Console.putStrLn ""
 
 --------------------------------------------------------------------------------
 -- import
