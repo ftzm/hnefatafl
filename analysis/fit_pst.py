@@ -3,13 +3,14 @@
 Fit piece-square table values via logistic regression.
 
 For each position sampled from the game database, builds an 87-element feature
-vector (29 quarter-symmetric indices × 3 piece types: black, white, king) and
-fits P(white_wins) = sigmoid(Σ w·x + bias).
+vector (29 quarter-symmetric indices x 3 piece types: black, white, king) and
+fits P(white_wins) = sigmoid(sum w*x + bias).
 
 The learned weights are directly usable as PST values in the engine.
 
 Usage:
-    python fit_pst.py <path-to-db.db> [--samples-per-game N] [--min-move M] [--max-move M] [--C regularization]
+    python fit_pst.py stats <db>
+    python fit_pst.py fit <db> [--stages N] [--samples-per-game N] [--C val] [--scale val]
 """
 
 import argparse
@@ -19,7 +20,7 @@ import random
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Quarter-symmetry mapping: 121 squares → 29 canonical indices
+# Quarter-symmetry mapping: 121 squares -> 29 canonical indices
 # ---------------------------------------------------------------------------
 
 # The 29 canonical quarter-board positions (from score.c)
@@ -61,7 +62,7 @@ def build_square_to_quarter():
 
 SQ_TO_QUARTER = build_square_to_quarter()
 
-# Number of features: 29 quarter positions × 3 piece types
+# Number of features: 29 quarter positions x 3 piece types
 N_QUARTER = 29
 N_FEATURES = N_QUARTER * 3  # 87
 
@@ -72,18 +73,25 @@ N_FEATURES = N_QUARTER * 3  # 87
 
 def layer_squares(lower: int, upper: int):
     """Yield square indices where bits are set in a 121-bit layer."""
-    # Lower 64 bits → squares 0..63
+    # Lower 64 bits -> squares 0..63
     bits = lower & 0xFFFFFFFFFFFFFFFF
     while bits:
         sq = bits & (-bits)  # lowest set bit
         yield sq.bit_length() - 1
         bits ^= sq
-    # Upper 57 bits → squares 64..120
+    # Upper 57 bits -> squares 64..120
     bits = upper & 0x01FFFFFFFFFFFFFF
     while bits:
         sq = bits & (-bits)
         yield 64 + sq.bit_length() - 1
         bits ^= sq
+
+
+def count_bits(lower: int, upper: int):
+    """Count number of set bits in a 121-bit layer."""
+    lo = lower & 0xFFFFFFFFFFFFFFFF
+    hi = upper & 0x01FFFFFFFFFFFFFF
+    return bin(lo).count('1') + bin(hi).count('1')
 
 
 def position_to_features(black_lower, black_upper, white_lower, white_upper, king_pos):
@@ -111,13 +119,8 @@ def position_to_features(black_lower, black_upper, white_lower, white_upper, kin
 # Data loading
 # ---------------------------------------------------------------------------
 
-def load_data(db_path, samples_per_game, min_move, max_move, seed):
-    """Load (features, labels) from the database."""
-    random.seed(seed)
-    conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
-
-    # Get finished games with outcomes
+def get_decided_games(cur):
+    """Get all games with a definitive outcome (not ongoing/abandoned/draw)."""
     cur.execute("""
         SELECT id, game_status FROM game
         WHERE game_status IS NOT NULL
@@ -125,20 +128,40 @@ def load_data(db_path, samples_per_game, min_move, max_move, seed):
           AND game_status != 'abandoned'
           AND game_status != 'draw'
     """)
-    games = cur.fetchall()
+    return cur.fetchall()
 
-    X_rows = []
-    y_rows = []
+
+def game_label(status):
+    """Return 1 for white win, 0 for black win, None otherwise."""
+    if status.startswith("white_won"):
+        return 1
+    elif status.startswith("black_won"):
+        return 0
+    return None
+
+
+def load_data(db_path, samples_per_game, min_move, max_move, seed, stages=None):
+    """Load (features, labels) from the database.
+
+    If stages is set to N, each game is divided into N equal phases based on
+    its own length. Returns a dict mapping stage index -> (X, y).
+    If stages is None, returns a single (X, y) tuple.
+    """
+    random.seed(seed)
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    games = get_decided_games(cur)
+
+    if stages:
+        stage_data = {i: ([], []) for i in range(stages)}
+    else:
+        X_rows, y_rows = [], []
 
     for game_id, status in games:
-        if status.startswith("white_won"):
-            label = 1
-        elif status.startswith("black_won"):
-            label = 0
-        else:
+        label = game_label(status)
+        if label is None:
             continue
 
-        # Get total move count for this game
         cur.execute(
             "SELECT MAX(move_number) FROM move WHERE game_id = ?", (game_id,)
         )
@@ -147,7 +170,6 @@ def load_data(db_path, samples_per_game, min_move, max_move, seed):
             continue
         max_move_num = row[0]
 
-        # Determine which moves to sample
         lo = min(min_move, max_move_num)
         hi = min(max_move, max_move_num)
         if hi < lo:
@@ -169,10 +191,26 @@ def load_data(db_path, samples_per_game, min_move, max_move, seed):
                 continue
             bl, bu, wl, wu, king = mrow
             features = position_to_features(bl, bu, wl, wu, king)
-            X_rows.append(features)
-            y_rows.append(label)
+
+            if stages:
+                # Divide game into N equal phases
+                # move_num / max_move_num gives progress through the game (0..1)
+                progress = move_num / max_move_num if max_move_num > 0 else 0
+                stage_idx = min(int(progress * stages), stages - 1)
+                stage_data[stage_idx][0].append(features)
+                stage_data[stage_idx][1].append(label)
+            else:
+                X_rows.append(features)
+                y_rows.append(label)
 
     conn.close()
+
+    if stages:
+        return {
+            i: (np.array(xs) if xs else np.array([]).reshape(0, N_FEATURES),
+                np.array(ys) if ys else np.array([]))
+            for i, (xs, ys) in stage_data.items()
+        }
     return np.array(X_rows), np.array(y_rows)
 
 
@@ -211,98 +249,240 @@ def print_board_heatmap(name, values):
     print()
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def main():
-    parser = argparse.ArgumentParser(description="Fit PST values via logistic regression")
-    parser.add_argument("db", help="Path to SQLite database")
-    parser.add_argument("--samples-per-game", type=int, default=3,
-                        help="Positions to sample per game (default: 3)")
-    parser.add_argument("--min-move", type=int, default=8,
-                        help="Earliest move to sample from (default: 8)")
-    parser.add_argument("--max-move", type=int, default=60,
-                        help="Latest move to sample from (default: 60)")
-    parser.add_argument("--C", type=float, default=1.0, dest="reg_C",
-                        help="Inverse regularization strength (default: 1.0)")
-    parser.add_argument("--scale", type=float, default=100.0,
-                        help="Scale factor for output PST values (default: 100)")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed (default: 42)")
-    args = parser.parse_args()
-
-    print(f"Loading data from {args.db}...")
-    X, y = load_data(args.db, args.samples_per_game, args.min_move, args.max_move, args.seed)
-
-    if len(X) == 0:
-        print("No positions found. Check that the database has completed games.", file=sys.stderr)
-        sys.exit(1)
-
-    n_white = np.sum(y == 1)
-    n_black = np.sum(y == 0)
-    print(f"Loaded {len(X)} positions ({n_white} white wins, {n_black} black wins)")
-
-    # Fit logistic regression
+def fit_and_print(X, y, reg_C, scale, label=""):
+    """Fit logistic regression and print results."""
     try:
         from sklearn.linear_model import LogisticRegression
     except ImportError:
         print("scikit-learn is required: pip install scikit-learn", file=sys.stderr)
         sys.exit(1)
 
-    model = LogisticRegression(
-        penalty="l2",
-        C=args.reg_C,
-        max_iter=2000,
-        solver="lbfgs",
-    )
+    if len(X) == 0 or len(np.unique(y)) < 2:
+        print(f"  Skipping{' ' + label if label else ''}: not enough data "
+              f"({len(X)} positions, need both white and black wins)")
+        print()
+        return
+
+    n_white = np.sum(y == 1)
+    n_black = np.sum(y == 0)
+    print(f"  Positions: {len(X)} ({n_white} white wins, {n_black} black wins)")
+
+    model = LogisticRegression(penalty="l2", C=reg_C, max_iter=2000, solver="lbfgs")
     model.fit(X, y)
 
-    # Training accuracy
     acc = model.score(X, y)
-    print(f"Training accuracy: {acc:.3f}")
-    print(f"Bias (intercept): {model.intercept_[0]:.4f}")
+    print(f"  Training accuracy: {acc:.3f}")
+    print(f"  Bias (intercept): {model.intercept_[0]:.4f}")
     print()
 
-    # Extract and scale weights
-    weights = model.coef_[0]  # shape (87,)
-    black_w = weights[0:N_QUARTER] * args.scale
-    white_w = weights[N_QUARTER:2*N_QUARTER] * args.scale
-    king_w = weights[2*N_QUARTER:3*N_QUARTER] * args.scale
+    weights = model.coef_[0]
+    black_w = weights[0:N_QUARTER] * scale
+    white_w = weights[N_QUARTER:2*N_QUARTER] * scale
+    king_w = weights[2*N_QUARTER:3*N_QUARTER] * scale
 
-    # White-perspective PST: positive = good for white
-    # Logistic regression learned P(white_wins), so positive weights favor white.
-    # For black pieces, a positive weight means "black piece here helps white",
-    # so we negate for black's own PST (black wants to avoid those squares).
-    # For white pieces and king, positive weight = good for white, keep as-is.
+    suffix = f"_{label}" if label else ""
 
-    print("=" * 60)
-    print("LEARNED PST VALUES (white-perspective, scaled)")
-    print("Positive = good for white")
-    print("=" * 60)
-    print()
-
-    print("// Black pawn PST (negated: positive = good for black)")
-    print_quarter_table("black_pst_quarter", -black_w)
+    print(f"// Black pawn PST (negated: positive = good for black)")
+    print_quarter_table(f"black_pst_quarter{suffix}", -black_w)
     print_board_heatmap("Black pawn", -black_w)
 
-    print("// White pawn PST (positive = good for white)")
-    print_quarter_table("white_pst_quarter", white_w)
+    print(f"// White pawn PST (positive = good for white)")
+    print_quarter_table(f"white_pst_quarter{suffix}", white_w)
     print_board_heatmap("White pawn", white_w)
 
-    print("// King PST (positive = good for white)")
-    print_quarter_table("king_pst_quarter", king_w)
+    print(f"// King PST (positive = good for white)")
+    print_quarter_table(f"king_pst_quarter{suffix}", king_w)
     print_board_heatmap("King", king_w)
 
-    # Also dump raw log-odds weights for analysis
-    print("=" * 60)
-    print("RAW LOG-ODDS WEIGHTS (unscaled)")
-    print("=" * 60)
-    print()
+    print("RAW LOG-ODDS WEIGHTS:")
     for i, idx in enumerate(QUARTER_INDICES):
         print(f"  sq {idx:>3}:  black={weights[i]:>+.4f}  "
               f"white={weights[N_QUARTER+i]:>+.4f}  "
               f"king={weights[2*N_QUARTER+i]:>+.4f}")
+    print()
+
+
+# ---------------------------------------------------------------------------
+# Stats command
+# ---------------------------------------------------------------------------
+
+def cmd_stats(args):
+    """Print game length statistics."""
+    conn = sqlite3.connect(args.db)
+    cur = conn.cursor()
+
+    # Total games by status
+    cur.execute("""
+        SELECT game_status, COUNT(*) FROM game
+        WHERE game_status IS NOT NULL
+        GROUP BY game_status
+        ORDER BY COUNT(*) DESC
+    """)
+    status_counts = cur.fetchall()
+
+    print("=== Game outcomes ===")
+    print()
+    total = 0
+    for status, count in status_counts:
+        print(f"  {status:<35s} {count:>5}")
+        total += count
+    print(f"  {'TOTAL':<35s} {total:>5}")
+    print()
+
+    # Game lengths (moves per game) for decided games
+    games = get_decided_games(cur)
+    lengths = []
+    white_lengths = []
+    black_lengths = []
+
+    for game_id, status in games:
+        label = game_label(status)
+        if label is None:
+            continue
+        cur.execute(
+            "SELECT MAX(move_number) FROM move WHERE game_id = ?", (game_id,)
+        )
+        row = cur.fetchone()
+        if row is None or row[0] is None:
+            continue
+        length = row[0]
+        lengths.append(length)
+        if label == 1:
+            white_lengths.append(length)
+        else:
+            black_lengths.append(length)
+
+    conn.close()
+
+    if not lengths:
+        print("No completed games with moves found.")
+        return
+
+    lengths = np.array(lengths)
+    print(f"=== Game length (decided games only, n={len(lengths)}) ===")
+    print()
+    print(f"  Mean:   {np.mean(lengths):.1f} moves")
+    print(f"  Median: {np.median(lengths):.1f} moves")
+    print(f"  Std:    {np.std(lengths):.1f}")
+    print(f"  Min:    {np.min(lengths)}")
+    print(f"  Max:    {np.max(lengths)}")
+    print()
+
+    # Percentiles
+    print("  Percentiles:")
+    for p in [10, 25, 33, 50, 67, 75, 90]:
+        print(f"    {p:>3}th: {np.percentile(lengths, p):.0f} moves")
+    print()
+
+    # Histogram
+    print("  Distribution (histogram):")
+    bin_edges = np.arange(0, np.max(lengths) + 10, 10)
+    counts, _ = np.histogram(lengths, bins=bin_edges)
+    max_count = max(counts) if len(counts) > 0 else 1
+    for i, count in enumerate(counts):
+        lo, hi = int(bin_edges[i]), int(bin_edges[i+1])
+        bar = "#" * int(40 * count / max_count) if max_count > 0 else ""
+        print(f"    {lo:>3}-{hi:<3} | {bar} {count}")
+    print()
+
+    # Tercile boundaries (for --stages 3)
+    t1 = np.percentile(lengths, 33.3)
+    t2 = np.percentile(lengths, 66.7)
+    print(f"  Tercile boundaries: {t1:.0f} and {t2:.0f} moves")
+    print(f"    Short games:  <= {t1:.0f} moves")
+    print(f"    Medium games: {t1:.0f}-{t2:.0f} moves")
+    print(f"    Long games:   > {t2:.0f} moves")
+    print()
+
+    # White vs black win lengths
+    if white_lengths and black_lengths:
+        print(f"  White wins (n={len(white_lengths)}): "
+              f"mean={np.mean(white_lengths):.1f}, median={np.median(white_lengths):.1f}")
+        print(f"  Black wins (n={len(black_lengths)}): "
+              f"mean={np.mean(black_lengths):.1f}, median={np.median(black_lengths):.1f}")
+        print()
+
+
+# ---------------------------------------------------------------------------
+# Fit command
+# ---------------------------------------------------------------------------
+
+def cmd_fit(args):
+    """Fit PST values via logistic regression."""
+    if args.stages:
+        print(f"Loading data from {args.db} (splitting into {args.stages} stages)...")
+        stage_data = load_data(
+            args.db, args.samples_per_game, args.min_move, args.max_move,
+            args.seed, stages=args.stages,
+        )
+        stage_names = {
+            3: ["early", "mid", "late"],
+            2: ["early", "late"],
+        }
+        names = stage_names.get(args.stages,
+                                [f"stage{i}" for i in range(args.stages)])
+
+        for i in range(args.stages):
+            X, y = stage_data[i]
+            print("=" * 60)
+            print(f"STAGE {i+1}/{args.stages}: {names[i].upper()}")
+            print(f"(moves in the {names[i]} third of each game)")
+            print("=" * 60)
+            print()
+            fit_and_print(X, y, args.reg_C, args.scale, label=names[i])
+    else:
+        print(f"Loading data from {args.db}...")
+        X, y = load_data(
+            args.db, args.samples_per_game, args.min_move, args.max_move, args.seed,
+        )
+        if len(X) == 0:
+            print("No positions found. Check that the database has completed games.",
+                  file=sys.stderr)
+            sys.exit(1)
+
+        print("=" * 60)
+        print("LEARNED PST VALUES")
+        print("=" * 60)
+        print()
+        fit_and_print(X, y, args.reg_C, args.scale)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description="Piece-square table analysis")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # stats subcommand
+    stats_parser = subparsers.add_parser("stats", help="Print game length statistics")
+    stats_parser.add_argument("db", help="Path to SQLite database")
+
+    # fit subcommand
+    fit_parser = subparsers.add_parser("fit", help="Fit PST values via logistic regression")
+    fit_parser.add_argument("db", help="Path to SQLite database")
+    fit_parser.add_argument("--stages", type=int, default=None,
+                            help="Split each game into N stages and fit separately")
+    fit_parser.add_argument("--samples-per-game", type=int, default=3,
+                            help="Positions to sample per game (default: 3)")
+    fit_parser.add_argument("--min-move", type=int, default=8,
+                            help="Earliest move to sample from (default: 8)")
+    fit_parser.add_argument("--max-move", type=int, default=200,
+                            help="Latest move to sample from (default: 200)")
+    fit_parser.add_argument("--C", type=float, default=1.0, dest="reg_C",
+                            help="Inverse regularization strength (default: 1.0)")
+    fit_parser.add_argument("--scale", type=float, default=100.0,
+                            help="Scale factor for output PST values (default: 100)")
+    fit_parser.add_argument("--seed", type=int, default=42,
+                            help="Random seed (default: 42)")
+
+    args = parser.parse_args()
+
+    if args.command == "stats":
+        cmd_stats(args)
+    elif args.command == "fit":
+        cmd_fit(args)
 
 
 if __name__ == "__main__":
