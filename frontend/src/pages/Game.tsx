@@ -16,7 +16,7 @@ import ChatIcon from "../components/ui/icons/ChatIcon";
 import HomeIcon from "../components/ui/icons/HomeIcon";
 import UndoIcon from "../components/ui/icons/UndoIcon";
 import FlagIcon from "../components/ui/icons/FlagIcon";
-import HandshakeIcon from "../components/ui/icons/HandshakeIcon";
+import BalanceIcon from "../components/ui/icons/BalanceIcon";
 import SkipBackIcon from "../components/ui/icons/SkipBackIcon";
 import PrevIcon from "../components/ui/icons/PrevIcon";
 import NextIcon from "../components/ui/icons/NextIcon";
@@ -68,10 +68,10 @@ export default function Game() {
   const gameActive = () => !store.game.gameOver;
 
   const toolbarDefs: Record<string, ToolbarDef> = {
-    newGame: { icon: <HomeIcon />, label: "New Game", onClick: () => navigate("/"), disabled: () => false },
+    newGame: { icon: <HomeIcon />, label: "New", onClick: () => navigate("/"), disabled: () => false },
     undo: { icon: <UndoIcon />, label: "Undo", onClick: handleUndo, disabled: () => !gameActive() || store.game.moveHistory.length === 0 },
     resign: { icon: <FlagIcon />, label: "Resign", onClick: handleResign, disabled: () => !gameActive() },
-    draw: { icon: <HandshakeIcon />, label: "Draw", onClick: handleOfferDraw, disabled: () => !gameActive() },
+    draw: { icon: <BalanceIcon />, label: "Draw", onClick: handleOfferDraw, disabled: () => !gameActive() },
   };
 
   const activeButtons = () => modeButtons[mode()] || modeButtons.hotseat;
