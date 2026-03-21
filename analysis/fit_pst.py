@@ -415,6 +415,18 @@ def cmd_fit(args):
             args.db, args.samples_per_game, args.min_move, args.max_move,
             args.seed, stages=args.stages,
         )
+
+        # Combine all stages for an overall fit first
+        all_X = np.concatenate([stage_data[i][0] for i in range(args.stages)])
+        all_y = np.concatenate([stage_data[i][1] for i in range(args.stages)])
+
+        print("=" * 60)
+        print("OVERALL (all stages combined)")
+        print("=" * 60)
+        print()
+        fit_and_print(all_X, all_y, args.reg_C, args.scale, label="overall")
+
+        # Then fit each stage separately
         stage_names = {
             3: ["early", "mid", "late"],
             2: ["early", "late"],
