@@ -15,6 +15,7 @@
 #include "string.h"
 #include "theft.h"
 #include "theft_types.h"
+#include "validation.h"
 
 u64 rightward_moves_lower(u64 gen, u64 pro) {
   u64 orig = gen;
@@ -2488,6 +2489,118 @@ TEST king_hopover() {
   PASS();
 }
 
+bool validate_move_list(board b, move *ms, int total, bool is_black_turn) {
+  for (int i = 0; i < total; i++) {
+    move_error err = validate_move(b, ms[i], is_black_turn);
+    if (err != move_error_no_error) {
+      char orig_notation[] = "   ";
+      as_notation(ms[i].orig, orig_notation);
+      char dest_notation[] = "   ";
+      as_notation(ms[i].dest, dest_notation);
+      printf(
+          "Move %d (%s -> %s) failed validation with error %d\n",
+          i,
+          orig_notation,
+          dest_notation,
+          err);
+      return false;
+    }
+  }
+
+  for (int i = 0; i < total; i++) {
+    for (int j = i + 1; j < total; j++) {
+      if (MOVES_EQUAL(ms[i], ms[j])) {
+        char orig_notation[] = "   ";
+        as_notation(ms[i].orig, orig_notation);
+        char dest_notation[] = "   ";
+        as_notation(ms[i].dest, dest_notation);
+        printf(
+            "Duplicate move at indices %d and %d: %s -> %s\n",
+            i,
+            j,
+            orig_notation,
+            dest_notation);
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+struct validated_moves {
+  board b;
+  move ms[335];
+  int total;
+};
+
+static enum theft_alloc_res
+validate_black_moves_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
+  board b = theft_create_board(t);
+
+  layer throne_mask = EMPTY_LAYER;
+  OP_LAYER_BIT(throne_mask, 60, |=);
+
+  moves_to_t r = moves_to_black(
+      b,
+      pawn_destinations(b),
+      LAYER_NEG(LAYER_OR(throne_mask, board_occ_r(b))));
+
+  struct validated_moves *vm = malloc(sizeof(*vm));
+  vm->b = b;
+  vm->total = r.total;
+  for (int i = 0; i < r.total; i++) {
+    vm->ms[i] = r.ms[i];
+  }
+
+  *instance = vm;
+  return THEFT_ALLOC_OK;
+}
+
+static enum theft_trial_res
+prop_black_moves_valid(struct theft *t, void *arg1) {
+  (void)t;
+  struct validated_moves *vm = (struct validated_moves *)arg1;
+  bool valid = validate_move_list(vm->b, vm->ms, vm->total, true);
+  return valid ? THEFT_TRIAL_PASS : THEFT_TRIAL_FAIL;
+}
+
+void validated_moves_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
+  struct validated_moves *vm = (struct validated_moves *)instance;
+
+  char output[strlen(base) + 1];
+  strcpy(output, base);
+  fmt_board(vm->b, output);
+  fprintf(f, "%s", output);
+  fprintf(f, "Total moves: %d\n", vm->total);
+}
+
+TEST test_validate_black_moves(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = validate_black_moves_cb,
+      .free = theft_generic_free_cb,
+      .print = validated_moves_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_black_moves_valid,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
 SUITE(move_suite) {
 
   init_move_globals();
@@ -2513,6 +2626,7 @@ SUITE(move_suite) {
   RUN_TEST(test_generator_moves_black);
   RUN_TEST(test_generator_moves_white);
   RUN_TEST(king_hopover);
+  RUN_TEST(test_validate_black_moves);
 }
 
 // MAYBE TODO:

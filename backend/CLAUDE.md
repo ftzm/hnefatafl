@@ -29,6 +29,7 @@ This is a Haskell backend for a Hnefatafl (Viking board game) application using 
 - **Always verify compilation**: After any code changes, run `cabal build` to ensure code compiles
 - **Test verification**: When creating new tests, run `cabal test` to verify they pass
 - **Regenerate .cabal**: Run `hpack` if package.yaml is modified
+- **C library dependency**: After changes to C library files and running `make static` in libhnefatafl, you must clean and rebuild the Haskell project: `cabal clean && cabal build`
 
 ## Code Style
 - Uses GHC2021 language standard
@@ -38,6 +39,7 @@ This is a Haskell backend for a Hnefatafl (Viking board game) application using 
   - Example: `import Module (SomeRecord (..), ...)`
   - Without `(..)`, record fields are not accessible and `record.field` will fail to compile
 - Uses Relude as custom Prelude
+- **Text vs String**: Always prefer `Text` over `String`. Do not convert `Text` to `String` unnecessarily with `toString`
 - Strict GHC warnings enabled (unused imports, missing exports, etc.)
 - Uses optics for lens-like operations
 
@@ -70,3 +72,8 @@ This is a Haskell backend for a Hnefatafl (Viking board game) application using 
 - `cabal.project` - Cabal project settings
 - `flake.nix` - Nix development environment
 - `fourmolu.yaml` - Code formatter configuration
+
+## Implementation Guidelines
+- **NEVER change the user's designed approach without explicitly asking first**
+- When implementing technical solutions, follow the user's specified approach exactly
+- If there are issues, fix the implementation details rather than changing the approach

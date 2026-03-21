@@ -18,11 +18,13 @@ typedef struct {
   compact_board board;
   layer captures;
   bool was_black_turn;
+  u64 zobrist_hash;
 } move_result;
 
 typedef struct {
   move move;
   compact_board updated_board;
+  layer captures;
   u64 updated_zobrist_hash;
   game_status status;
 } search_trusted_result;
@@ -80,16 +82,22 @@ int next_game_state_with_moves_trusted(
     game_status *gs);
 
 /* Apply a sequence of moves and return detailed data about each move.
- * Does not perform move validation or game state logic - just applies moves
- * and captures. Returns dynamically allocated array of move_result structures.
+ * Assumes moves are valid - does not perform move validation.
+ * For each move, records the resulting board state, captures, and zobrist hash.
+ * After applying all moves, checks for victory conditions.
+ * Returns dynamically allocated array of move_result structures.
+ * Writes the final game status to final_status_out.
  * Caller must free the returned array.
  */
-move_result *apply_move_sequence(const move *moves, int move_count);
+move_result *apply_move_sequence(
+    const move *moves,
+    int move_count,
+    game_status *final_status_out);
 
 /* Perform search from a trusted board state with zobrist hash history.
- * Writes the best move, updated board state, updated zobrist hash, and game
- * status to the provided output parameters. The should_stop flag can be set by
- * external code to cancel the search.
+ * Writes the best move, updated board state, captures, updated zobrist hash,
+ * and game status to the provided output parameters. The should_stop flag can
+ * be set by external code to cancel the search.
  */
 void search_trusted(
     compact_board *trusted_board,
@@ -99,5 +107,6 @@ void search_trusted(
     _Atomic bool *should_stop,
     move *move_out,
     compact_board *board_out,
+    layer *captures_out,
     u64 *hash_out,
     game_status *status_out);

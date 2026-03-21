@@ -30,12 +30,12 @@ searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutM
     -- Initialize the atomic boolean to False
     poke shouldStopPtr (CBool 0)
 
-    -- Start search thread - this will be interruptible by setting the stop flag
+    -- Start search thread - this is interruptible by setting the stop flag
     searchAsync <- async $ do
       uninterruptibleMask_ $
         searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr
 
-    -- Start timeout thread to flip the boolean after timeout
+    -- Start timeout thread to set the stop boolean after timeout
     timeoutAsync <-
       async $
         threadDelay (timeoutMs * 1000) -- threadDelay takes microseconds

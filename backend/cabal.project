@@ -2,6 +2,7 @@ index-state: 2025-10-06T23:57:32Z
 packages: hnefatafl.cabal
 allow-newer: derive-storable-plugin:ghc, derive-storable-plugin:ghci, heptapod:base
 constraints: derive-storable +sumtypes
+multi-repl: True
 
 source-repository-package
   type: git

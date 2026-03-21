@@ -30,7 +30,11 @@ module Hnefatafl.Core.Data (
 ) where
 
 import Chronos (Time)
-import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.=))
+import Data.Aeson (
+  FromJSON (..),
+  ToJSON (..),
+  withText,
+ )
 
 newtype PlayerId = PlayerId Text
   deriving (Show, Eq)
@@ -90,22 +94,19 @@ data Layer = Layer
   { lower :: Word64
   , upper :: Word64
   }
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Ord)
 
 instance ToJSON Layer where
-  toJSON (Layer lower upper) =
-    object
-      [ "lower" .= show lower
-      , "upper" .= show upper
-      ]
+  toJSON (Layer lower upper) = toJSON (show @Text lower <> " " <> show @Text upper)
 
 instance FromJSON Layer where
-  parseJSON = withObject "Layer" $ \o -> do
-    lowerStr <- o .: "lower"
-    upperStr <- o .: "upper"
-    case (readMaybe lowerStr, readMaybe upperStr) of
-      (Just lower, Just upper) -> return $ Layer lower upper
-      _ -> fail "Invalid Word64 values in Layer"
+  parseJSON = withText "Layer" $ \t ->
+    case words t of
+      [lowerStr, upperStr] ->
+        case (readMaybe (toString lowerStr), readMaybe (toString upperStr)) of
+          (Just lower, Just upper) -> return $ Layer lower upper
+          _ -> fail "Invalid Word64 values in Layer"
+      _ -> fail "Layer must be two space-separated Word64 values"
 
 -- | External board representation with piece positions
 data ExternBoard = ExternBoard
@@ -113,7 +114,7 @@ data ExternBoard = ExternBoard
   , white :: Layer
   , king :: Word8
   }
-  deriving (Show, Read, Eq, Generic)
+  deriving (Show, Read, Eq, Ord, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 -- | A move from one position to another
@@ -121,7 +122,7 @@ data Move = Move
   { orig :: Word8
   , dest :: Word8
   }
-  deriving (Show, Read, Eq, Generic)
+  deriving (Show, Read, Eq, Ord, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 -- | Result of applying a move, including captures and board state
@@ -130,6 +131,7 @@ data MoveResult = MoveResult
   , board :: ExternBoard
   , captures :: Layer
   , wasBlackTurn :: Bool
+  , zobristHash :: Word64
   }
   deriving (Show, Read, Eq, Generic)
   deriving anyclass (ToJSON, FromJSON)

@@ -24,6 +24,7 @@ import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Servant (runWarpServerSettings)
 import Hnefatafl.Bindings (SearchTrustedResult)
+import Version qualified
 import Hnefatafl.Core.Data (ExternBoard)
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Interpreter.Search.Local (runSearchLocal)
@@ -58,7 +59,11 @@ data HealthResponse = HealthResponse
 data Routes mode = Routes
   { version :: mode :- "version" :> Get '[JSON] VersionResponse
   , health :: mode :- "health" :> Get '[JSON] HealthResponse
-  , searchTrusted :: mode :- "searchTrusted" :> ReqBody '[JSON] SearchTrustedInput :> Post '[JSON] SearchTrustedResult
+  , searchTrusted ::
+      mode
+        :- "searchTrusted"
+          :> ReqBody '[JSON] SearchTrustedInput
+          :> Post '[JSON] SearchTrustedResult
   }
   deriving stock (Generic)
 
@@ -76,8 +81,8 @@ versionHandler :: IOE E.:> es => Eff es VersionResponse
 versionHandler =
   pure $
     VersionResponse
-      { versionNumber = "0.0.0.2"
-      , buildDate = "2025-12-21"
+      { versionNumber = Version.version
+      , buildDate = Version.buildDate
       }
 
 healthHandler :: IOE E.:> es => Eff es HealthResponse
@@ -113,7 +118,7 @@ runServer port = do
       runErrorNoCallStack @ServerError $
         runConcurrent $
           do
-            qsem <- newQSem 4  -- Allow 4 concurrent searches
+            qsem <- newQSem 20 -- Allow 20 concurrent searches
             runSearchLocal qsem $
               runWarpServerSettings @HnefataflAPI settings (genericServerT server) id
   case result of

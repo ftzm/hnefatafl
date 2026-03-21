@@ -1127,8 +1127,8 @@ void subtract_move_layers(move_layers *target, const move_layers *subtract) {
 
 void moves_from_layers(
     const move_layers *layers,
-    layer movers,
-    layer movers_r,
+    const layer movers,
+    const layer movers_r,
     move *ms,
     layer *ls,
     layer *ls_r,

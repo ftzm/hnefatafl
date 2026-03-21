@@ -1,4 +1,39 @@
 #include "validation.h"
+#include "io.h"
+#include <stdio.h>
+
+bool validate_board_state(board b) {
+  // Check that no pieces overlap
+  layer black_white = LAYER_AND(b.black, b.white);
+  layer black_king = LAYER_AND(b.black, b.king);
+  layer white_king = LAYER_AND(b.white, b.king);
+
+  if (NOT_EMPTY(black_white)) {
+#ifndef NDEBUG
+    printf("Board validation failed: black and white pieces overlap\n");
+    print_board(b);
+#endif
+    return false;
+  }
+
+  if (NOT_EMPTY(black_king)) {
+#ifndef NDEBUG
+    printf("Board validation failed: black and king overlap\n");
+    print_board(b);
+#endif
+    return false;
+  }
+
+  if (NOT_EMPTY(white_king)) {
+#ifndef NDEBUG
+    printf("Board validation failed: white and king overlap\n");
+    print_board(b);
+#endif
+    return false;
+  }
+
+  return true;
+}
 
 piece_type get_piece_at(board b, u8 position) {
   if (CHECK_INDEX(b.black, position)) {
@@ -140,14 +175,21 @@ int board_has_consistent_rotations(const board *b) {
          && LAYERS_EQUAL(b->king_r, expected_king_r);
 }
 
-// No piece has bits set beyond the valid 121 board squares in the upper layer half
+// No piece has bits set beyond the valid 121 board squares in the upper layer
+// half
 int board_has_no_pieces_out_of_bounds(const board *b) {
-  return (b->black._[1] & ~VALID_UPPER_MASK) == 0
-         && (b->white._[1] & ~VALID_UPPER_MASK) == 0
-         && (b->king._[1] & ~VALID_UPPER_MASK) == 0
-         && (b->black_r._[1] & ~VALID_UPPER_MASK) == 0
-         && (b->white_r._[1] & ~VALID_UPPER_MASK) == 0
-         && (b->king_r._[1] & ~VALID_UPPER_MASK) == 0;
+  return (b->black._[1] & ~VALID_UPPER_MASK)
+         == 0
+         && (b->white._[1] & ~VALID_UPPER_MASK)
+         == 0
+         && (b->king._[1] & ~VALID_UPPER_MASK)
+         == 0
+         && (b->black_r._[1] & ~VALID_UPPER_MASK)
+         == 0
+         && (b->white_r._[1] & ~VALID_UPPER_MASK)
+         == 0
+         && (b->king_r._[1] & ~VALID_UPPER_MASK)
+         == 0;
 }
 
 // All-in-one validity check
@@ -162,6 +204,14 @@ int board_is_valid(const board *b) {
 
 move_error validate_move(board b, move m, bool is_black_turn) {
   piece_type moving_piece = get_piece_at(b, m.orig);
+
+  if (m.dest > 120) {
+    return move_error_position_out_of_bounds;
+  }
+
+  if (m.orig == m.dest) {
+    return move_error_dest_equals_origin;
+  }
 
   if (moving_piece == empty) {
     return move_error_no_piece_at_origin;
