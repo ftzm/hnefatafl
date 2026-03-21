@@ -349,10 +349,10 @@ export default function Board() {
   };
 
   const updateLineWidth = () => {
-    if (wrapperRef) {
-      const size = wrapperRef.offsetWidth;
+    if (boardRef) {
+      const size = boardRef.offsetWidth;
       const lineW = Math.max(1, Math.round(size / 11 / 70));
-      wrapperRef.style.setProperty("--line-w", lineW + "px");
+      boardRef.parentElement!.style.setProperty("--line-w", lineW + "px");
     }
   };
 
@@ -360,13 +360,13 @@ export default function Board() {
     boardRef!.addEventListener("pointermove", handlePointerMove);
     boardRef!.addEventListener("pointerup", handlePointerUp);
     updateLineWidth();
-    window.addEventListener("resize", updateLineWidth);
-  });
-
-  onCleanup(() => {
-    boardRef!.removeEventListener("pointermove", handlePointerMove);
-    boardRef!.removeEventListener("pointerup", handlePointerUp);
-    window.removeEventListener("resize", updateLineWidth);
+    const ro = new ResizeObserver(() => updateLineWidth());
+    ro.observe(boardRef!);
+    onCleanup(() => {
+      boardRef!.removeEventListener("pointermove", handlePointerMove);
+      boardRef!.removeEventListener("pointerup", handlePointerUp);
+      ro.disconnect();
+    });
   });
 
   return (

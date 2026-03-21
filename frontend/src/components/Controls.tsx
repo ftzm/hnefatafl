@@ -1,4 +1,4 @@
-import { Show, For } from "solid-js";
+import { For } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import {
   canViewPrev,
@@ -13,6 +13,7 @@ import {
   store,
   type GameMode,
 } from "../state";
+import GameStatus from "./GameStatus";
 import MoveHistory from "./MoveHistory";
 import Button from "./ui/Button";
 import ButtonGroup from "./ui/ButtonGroup";
@@ -50,30 +51,11 @@ export default function Controls(props: ControlsProps) {
     draw: { label: "Draw", onClick: handleOfferDraw, disabled: () => !gameActive() },
   };
 
-  const statusText = () => {
-    if (store.game.gameOver) {
-      if (store.game.gameOver.winner === "draw") return "Draw";
-      const winner = store.game.gameOver.winner === "white" ? "White" : "Black";
-      return `${winner} wins — ${store.game.gameOver.reason}`;
-    }
-    const player = store.game.currentPlayer === "black" ? "Black" : "White";
-    return `${player} to move`;
-  };
-
   const activeButtons = () => modeButtons[props.mode] || modeButtons.hotseat;
 
   return (
     <>
-      <div class="game-status">
-        {statusText()}
-        <Show when={gameActive()}>
-          <span class="thinking-dots">
-            <span>.</span>
-            <span>.</span>
-            <span>.</span>
-          </span>
-        </Show>
-      </div>
+      <GameStatus />
       <div class="move-section">
         <MoveHistory />
         <Toolbar aria-label="Move navigation">
