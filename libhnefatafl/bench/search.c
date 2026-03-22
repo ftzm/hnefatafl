@@ -13,6 +13,32 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Mid-game position: 12 black, 9 white + king
+const char *midgame_1_str = " .  .  X  .  X  .  .  O  .  .  . "
+                            " .  X  .  X  .  .  .  .  .  .  . "
+                            " X  .  .  O  O  X  .  .  X  .  . "
+                            " .  .  .  .  .  #  X  .  .  X  . "
+                            " .  X  .  .  .  .  O  .  .  .  X "
+                            " X  .  .  O  O  .  O  .  .  X  X "
+                            " X  .  .  .  O  O  O  .  .  .  X "
+                            " X  .  .  .  .  O  .  .  .  .  X "
+                            " .  .  .  .  .  .  .  .  O  .  . "
+                            " .  .  .  .  .  X  .  .  .  .  . "
+                            " .  .  X  .  X  X  X  X  .  .  . ";
+
+// Tactical position: 8 black, 5 white + king, tight center cluster
+const char *tactical_1_str = " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  .  .  .  .  X  .  .  .  . "
+                             " .  .  .  .  X  .  .  .  .  .  . "
+                             " .  O  .  X  O  .  O  X  .  .  . "
+                             " .  .  .  .  X  #  X  .  .  .  . "
+                             " .  .  .  X  O  O  O  X  .  O  . "
+                             " .  .  .  .  .  .  X  .  .  .  . "
+                             " .  .  .  .  X  .  .  .  .  .  . "
+                             " .  .  .  .  .  .  .  .  .  .  . "
+                             " .  .  .  .  .  .  .  .  .  .  . ";
+
 void print_search_stats(const stats *s) {
   int total_search_positions =
       s->search_positions_black + s->search_positions_white;
@@ -107,179 +133,97 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
   return (pv_line){is_black_turn, moves, pv_data->pv_length[0], result};
 }
 
-UBENCH_EX(search, black_depth_3) {
-  static bool black_depth_3_printed = false;
-  static pv_line saved_result;
-  static stats saved_statistics;
+// ---------------------------------------------------------------------------
+// Benchmark macros
 
-  UBENCH_DO_BENCHMARK() {
-    _Atomic bool should_stop = false;
-    search_result search_res =
-        search_black_runner(start_board, 3, &should_stop);
-    pv_line result = search_res.pv;
-    stats statistics = search_res.statistics;
-    if (!black_depth_3_printed) {
-      saved_result = result;
-      saved_statistics = statistics;
-    } else {
-      destroy_pv_line(&result);
-    }
-    UBENCH_DO_NOTHING(&result);
+#define SEARCH_BENCH(group, name, board_expr, runner, depth)                   \
+  UBENCH_EX(group, name) {                                                     \
+    static bool printed = false;                                               \
+    static pv_line saved_result;                                               \
+    static stats saved_statistics;                                             \
+    const board b = board_expr;                                                \
+                                                                               \
+    UBENCH_DO_BENCHMARK() {                                                    \
+      _Atomic bool should_stop = false;                                        \
+      search_result search_res = runner(b, depth, &should_stop);               \
+      pv_line result = search_res.pv;                                          \
+      stats statistics = search_res.statistics;                                \
+      if (!printed) {                                                          \
+        saved_result = result;                                                 \
+        saved_statistics = statistics;                                         \
+      } else {                                                                 \
+        destroy_pv_line(&result);                                              \
+      }                                                                        \
+      UBENCH_DO_NOTHING(&result);                                              \
+    }                                                                          \
+                                                                               \
+    if (!printed) {                                                            \
+      printf("\n=== " #group "." #name " Stats ===\n");                        \
+      print_search_stats(&saved_statistics);                                   \
+      destroy_pv_line(&saved_result);                                          \
+      printed = true;                                                          \
+    }                                                                          \
   }
 
-  if (!black_depth_3_printed) {
-    printf("\n=== Black Depth 3 Stats ===\n");
-    print_search_stats(&saved_statistics);
-    // print_pv_line(&saved_result);
-    destroy_pv_line(&saved_result);
-    black_depth_3_printed = true;
-  }
-}
+// Opening position, black to move
+SEARCH_BENCH(search, black_depth_3, start_board, search_black_runner, 3)
+SEARCH_BENCH(search, black_depth_4, start_board, search_black_runner, 4)
+SEARCH_BENCH(search, black_depth_5, start_board, search_black_runner, 5)
 
-UBENCH_EX(search, black_depth_4) {
-  static bool black_depth_4_printed = false;
-  static pv_line saved_result;
-  static stats saved_statistics;
+// Opening position, black to move, iterative deepening
+SEARCH_BENCH(search, black_iterative_depth_3, start_board, search_black_runner_iterative, 3)
+SEARCH_BENCH(search, black_iterative_depth_4, start_board, search_black_runner_iterative, 4)
+SEARCH_BENCH(search, black_iterative_depth_5, start_board, search_black_runner_iterative, 5)
 
-  UBENCH_DO_BENCHMARK() {
-    _Atomic bool should_stop = false;
-    search_result search_res =
-        search_black_runner(start_board, 4, &should_stop);
-    pv_line result = search_res.pv;
-    stats statistics = search_res.statistics;
-    if (!black_depth_4_printed) {
-      saved_result = result;
-      saved_statistics = statistics;
-    } else {
-      destroy_pv_line(&result);
-    }
-    UBENCH_DO_NOTHING(&result);
-  }
+// Opening position, white to move
+SEARCH_BENCH(search, white_depth_3, start_board, search_white_runner, 3)
+SEARCH_BENCH(search, white_depth_4, start_board, search_white_runner, 4)
+SEARCH_BENCH(search, white_depth_5, start_board, search_white_runner, 5)
 
-  if (!black_depth_4_printed) {
-    printf("\n=== Black Depth 4 Stats ===\n");
-    print_search_stats(&saved_statistics);
-    // print_pv_line(&saved_result);
-    destroy_pv_line(&saved_result);
-    black_depth_4_printed = true;
-  }
-}
+// Opening position, white to move, iterative deepening
+SEARCH_BENCH(search, white_iterative_depth_3, start_board, search_white_runner_iterative, 3)
+SEARCH_BENCH(search, white_iterative_depth_4, start_board, search_white_runner_iterative, 4)
+SEARCH_BENCH(search, white_iterative_depth_5, start_board, search_white_runner_iterative, 5)
 
-UBENCH_EX(search, black_depth_5) {
-  static bool black_depth_5_printed = false;
-  static pv_line saved_result;
-  static stats saved_statistics;
+// Mid-game position, black to move
+SEARCH_BENCH(search, midgame_black_depth_3, read_board(midgame_1_str), search_black_runner, 3)
+SEARCH_BENCH(search, midgame_black_depth_4, read_board(midgame_1_str), search_black_runner, 4)
+SEARCH_BENCH(search, midgame_black_depth_5, read_board(midgame_1_str), search_black_runner, 5)
 
-  UBENCH_DO_BENCHMARK() {
-    _Atomic bool should_stop = false;
-    search_result search_res =
-        search_black_runner(start_board, 5, &should_stop);
-    pv_line result = search_res.pv;
-    stats statistics = search_res.statistics;
-    if (!black_depth_5_printed) {
-      saved_result = result;
-      saved_statistics = statistics;
-    } else {
-      destroy_pv_line(&result);
-    }
-    UBENCH_DO_NOTHING(&result);
-  }
+// Mid-game position, black to move, iterative deepening
+SEARCH_BENCH(search, midgame_black_iterative_depth_3, read_board(midgame_1_str), search_black_runner_iterative, 3)
+SEARCH_BENCH(search, midgame_black_iterative_depth_4, read_board(midgame_1_str), search_black_runner_iterative, 4)
+SEARCH_BENCH(search, midgame_black_iterative_depth_5, read_board(midgame_1_str), search_black_runner_iterative, 5)
 
-  if (!black_depth_5_printed) {
-    printf("\n=== Black Depth 5 Stats ===\n");
-    print_search_stats(&saved_statistics);
-    // print_pv_line(&saved_result);
-    destroy_pv_line(&saved_result);
-    black_depth_5_printed = true;
-  }
-}
+// Mid-game position, white to move
+SEARCH_BENCH(search, midgame_white_depth_3, read_board(midgame_1_str), search_white_runner, 3)
+SEARCH_BENCH(search, midgame_white_depth_4, read_board(midgame_1_str), search_white_runner, 4)
+SEARCH_BENCH(search, midgame_white_depth_5, read_board(midgame_1_str), search_white_runner, 5)
 
-UBENCH_EX(search, black_iterative_depth_3) {
-  static bool black_iterative_depth_3_printed = false;
-  static pv_line saved_result;
-  static stats saved_statistics;
+// Mid-game position, white to move, iterative deepening
+SEARCH_BENCH(search, midgame_white_iterative_depth_3, read_board(midgame_1_str), search_white_runner_iterative, 3)
+SEARCH_BENCH(search, midgame_white_iterative_depth_4, read_board(midgame_1_str), search_white_runner_iterative, 4)
+SEARCH_BENCH(search, midgame_white_iterative_depth_5, read_board(midgame_1_str), search_white_runner_iterative, 5)
 
-  UBENCH_DO_BENCHMARK() {
-    _Atomic bool should_stop = false;
-    search_result search_res =
-        search_black_runner_iterative(start_board, 3, &should_stop);
-    pv_line result = search_res.pv;
-    stats statistics = search_res.statistics;
-    if (!black_iterative_depth_3_printed) {
-      saved_result = result;
-      saved_statistics = statistics;
-    } else {
-      destroy_pv_line(&result);
-    }
-    UBENCH_DO_NOTHING(&result);
-  }
+// Tactical position, black to move
+SEARCH_BENCH(search, tactical_black_depth_3, read_board(tactical_1_str), search_black_runner, 3)
+SEARCH_BENCH(search, tactical_black_depth_4, read_board(tactical_1_str), search_black_runner, 4)
+SEARCH_BENCH(search, tactical_black_depth_5, read_board(tactical_1_str), search_black_runner, 5)
 
-  if (!black_iterative_depth_3_printed) {
-    printf("\n=== Black Iterative Depth 3 Stats ===\n");
-    print_search_stats(&saved_statistics);
-    // print_pv_line(&saved_result);
-    destroy_pv_line(&saved_result);
-    black_iterative_depth_3_printed = true;
-  }
-}
+// Tactical position, black to move, iterative deepening
+SEARCH_BENCH(search, tactical_black_iterative_depth_3, read_board(tactical_1_str), search_black_runner_iterative, 3)
+SEARCH_BENCH(search, tactical_black_iterative_depth_4, read_board(tactical_1_str), search_black_runner_iterative, 4)
+SEARCH_BENCH(search, tactical_black_iterative_depth_5, read_board(tactical_1_str), search_black_runner_iterative, 5)
 
-UBENCH_EX(search, black_iterative_depth_4) {
-  static bool black_iterative_depth_4_printed = false;
-  static pv_line saved_result;
-  static stats saved_statistics;
+// Tactical position, white to move
+SEARCH_BENCH(search, tactical_white_depth_3, read_board(tactical_1_str), search_white_runner, 3)
+SEARCH_BENCH(search, tactical_white_depth_4, read_board(tactical_1_str), search_white_runner, 4)
+SEARCH_BENCH(search, tactical_white_depth_5, read_board(tactical_1_str), search_white_runner, 5)
 
-  UBENCH_DO_BENCHMARK() {
-    _Atomic bool should_stop = false;
-    search_result search_res =
-        search_black_runner_iterative(start_board, 4, &should_stop);
-    pv_line result = search_res.pv;
-    stats statistics = search_res.statistics;
-    if (!black_iterative_depth_4_printed) {
-      saved_result = result;
-      saved_statistics = statistics;
-    } else {
-      destroy_pv_line(&result);
-    }
-    UBENCH_DO_NOTHING(&result);
-  }
-
-  if (!black_iterative_depth_4_printed) {
-    printf("\n=== Black Iterative Depth 4 Stats ===\n");
-    print_search_stats(&saved_statistics);
-    // print_pv_line(&saved_result);
-    destroy_pv_line(&saved_result);
-    black_iterative_depth_4_printed = true;
-  }
-}
-
-UBENCH_EX(search, black_iterative_depth_5) {
-  static bool black_iterative_depth_5_printed = false;
-  static pv_line saved_result;
-  static stats saved_statistics;
-
-  UBENCH_DO_BENCHMARK() {
-    _Atomic bool should_stop = false;
-    search_result search_res =
-        search_black_runner_iterative(start_board, 5, &should_stop);
-    pv_line result = search_res.pv;
-    stats statistics = search_res.statistics;
-    if (!black_iterative_depth_5_printed) {
-      saved_result = result;
-      saved_statistics = statistics;
-    } else {
-      destroy_pv_line(&result);
-    }
-    UBENCH_DO_NOTHING(&result);
-  }
-
-  if (!black_iterative_depth_5_printed) {
-    printf("\n=== Black Iterative Depth 5 Stats ===\n");
-    print_search_stats(&saved_statistics);
-    // print_pv_line(&saved_result);
-    destroy_pv_line(&saved_result);
-    black_iterative_depth_5_printed = true;
-  }
-}
+// Tactical position, white to move, iterative deepening
+SEARCH_BENCH(search, tactical_white_iterative_depth_3, read_board(tactical_1_str), search_white_runner_iterative, 3)
+SEARCH_BENCH(search, tactical_white_iterative_depth_4, read_board(tactical_1_str), search_white_runner_iterative, 4)
+SEARCH_BENCH(search, tactical_white_iterative_depth_5, read_board(tactical_1_str), search_white_runner_iterative, 5)
 
 // needs to be at top level
 UBENCH_STATE();
