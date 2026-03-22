@@ -50,13 +50,20 @@
         devShells = {
           default = let
             inherit (self.checks.${system}.pre-commit-check) shellHook; # enabledPackages;
+            pythonEnv = pkgs.python3.withPackages (ps: with ps; [
+              numpy
+              scikit-learn
+              matplotlib
+            ]);
           in
             pkgs.mkShell {
               inputsFrom = [
                 libhnefatafl.devShell
                 backend.devShells.${system}.default
               ];
-              # buildInputs = enabledPackages;
+              buildInputs = [
+                pythonEnv
+              ];
               inherit shellHook;
             };
         };

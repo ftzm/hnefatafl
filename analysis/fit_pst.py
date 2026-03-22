@@ -11,9 +11,11 @@ The learned weights are directly usable as PST values in the engine.
 Usage:
     python fit_pst.py stats <db>
     python fit_pst.py fit <db> [--stages N] [--samples-per-game N] [--C val] [--scale val]
+    python fit_pst.py fit <db> --plot [--output-dir DIR]
 """
 
 import argparse
+import os
 import sqlite3
 import sys
 import random
@@ -65,6 +67,15 @@ SQ_TO_QUARTER = build_square_to_quarter()
 # Number of features: 29 quarter positions x 3 piece types
 N_QUARTER = 29
 N_FEATURES = N_QUARTER * 3  # 87
+
+# Corner-adjacent squares: king can escape in one move, so these are effectively won
+# Corners are 0, 10, 110, 120; adjacent squares are:
+CORNER_ADJACENT = frozenset({
+    1, 11,      # adjacent to corner 0
+    9, 21,      # adjacent to corner 10
+    99, 111,    # adjacent to corner 110
+    109, 119,   # adjacent to corner 120
+})
 
 
 # ---------------------------------------------------------------------------
@@ -190,6 +201,11 @@ def load_data(db_path, samples_per_game, min_move, max_move, seed, stages=None):
             if mrow is None:
                 continue
             bl, bu, wl, wu, king = mrow
+
+            # Skip positions where king is corner-adjacent (effectively already won)
+            if king in CORNER_ADJACENT:
+                continue
+
             features = position_to_features(bl, bu, wl, wu, king)
 
             if stages:
@@ -249,8 +265,145 @@ def print_board_heatmap(name, values):
     print()
 
 
-def fit_and_print(X, y, reg_C, scale, label=""):
-    """Fit logistic regression and print results."""
+def expand_quarter_to_board(values):
+    """Expand 29-element quarter values to full 11x11 board."""
+    full = np.zeros(121, dtype=np.float64)
+    for qi, base_sq in enumerate(QUARTER_INDICES):
+        sq = base_sq
+        for _ in range(4):
+            full[sq] = values[qi]
+            sq = ROTATE_RIGHT[sq]
+    return full.reshape(11, 11)
+
+
+def plot_heatmaps(piece_data, title, output_path, stage_label=None):
+    """Generate a graphical heatmap figure for PST values.
+
+    Args:
+        piece_data: dict mapping piece name -> 29-element quarter values
+        title: Overall title for the figure
+        output_path: Path to save the figure
+        stage_label: Optional stage label for the filename
+    """
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.colors as mcolors
+    except ImportError:
+        print("matplotlib is required for plotting: pip install matplotlib",
+              file=sys.stderr)
+        return
+
+    n_pieces = len(piece_data)
+    fig, axes = plt.subplots(1, n_pieces, figsize=(5 * n_pieces, 5))
+    if n_pieces == 1:
+        axes = [axes]
+
+    for ax, (piece_name, values) in zip(axes, piece_data.items()):
+        board = expand_quarter_to_board(values)
+        # Flip so row 10 is at top (matching print_board_heatmap)
+        board = np.flipud(board)
+
+        # Use diverging colormap centered at 0
+        vmax = max(abs(board.min()), abs(board.max()))
+        vmin = -vmax if vmax > 0 else -1
+
+        im = ax.imshow(board, cmap='RdYlGn', vmin=vmin, vmax=vmax,
+                       aspect='equal')
+
+        # Add value annotations
+        for i in range(11):
+            for j in range(11):
+                val = board[i, j]
+                # Choose text color based on background brightness
+                text_color = 'white' if abs(val) > vmax * 0.6 else 'black'
+                ax.text(j, i, f'{int(val)}', ha='center', va='center',
+                        fontsize=7, color=text_color)
+
+        ax.set_title(piece_name, fontsize=12, fontweight='bold')
+        ax.set_xticks(range(11))
+        ax.set_yticks(range(11))
+        ax.set_xticklabels([str(10-i) for i in range(11)], fontsize=8)
+        ax.set_yticklabels([str(10-i) for i in range(11)], fontsize=8)
+
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.ax.tick_params(labelsize=8)
+
+    fig.suptitle(title, fontsize=14, fontweight='bold')
+    plt.tight_layout()
+
+    # Save figure
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved heatmap: {output_path}")
+    plt.close(fig)
+
+
+def plot_combined_heatmaps(all_stages_data, output_dir):
+    """Generate a combined figure showing all stages side by side.
+
+    Args:
+        all_stages_data: list of (stage_name, piece_data) tuples
+        output_dir: Directory to save the figure
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib is required for plotting: pip install matplotlib",
+              file=sys.stderr)
+        return
+
+    n_stages = len(all_stages_data)
+    n_pieces = 3  # black, white, king
+
+    fig, axes = plt.subplots(n_pieces, n_stages, figsize=(5 * n_stages, 4 * n_pieces))
+    if n_stages == 1:
+        axes = axes.reshape(-1, 1)
+
+    piece_names = ["Black pawn", "White pawn", "King"]
+
+    for col, (stage_name, piece_data) in enumerate(all_stages_data):
+        for row, piece_name in enumerate(piece_names):
+            ax = axes[row, col]
+            values = piece_data[piece_name]
+            board = expand_quarter_to_board(values)
+            board = np.flipud(board)
+
+            vmax = max(abs(board.min()), abs(board.max()))
+            vmin = -vmax if vmax > 0 else -1
+
+            im = ax.imshow(board, cmap='RdYlGn', vmin=vmin, vmax=vmax,
+                           aspect='equal')
+
+            for i in range(11):
+                for j in range(11):
+                    val = board[i, j]
+                    text_color = 'white' if abs(val) > vmax * 0.6 else 'black'
+                    ax.text(j, i, f'{int(val)}', ha='center', va='center',
+                            fontsize=6, color=text_color)
+
+            if row == 0:
+                ax.set_title(stage_name.upper(), fontsize=11, fontweight='bold')
+            if col == 0:
+                ax.set_ylabel(piece_name, fontsize=10, fontweight='bold')
+
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+    fig.suptitle("PST Values by Game Stage", fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+
+    output_path = os.path.join(output_dir, "pst_all_stages.png")
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"  Saved combined heatmap: {output_path}")
+    plt.close(fig)
+
+
+def fit_and_print(X, y, reg_C, scale, label="", plot=False, output_dir=None):
+    """Fit logistic regression and print results.
+
+    Returns:
+        dict mapping piece name -> scaled weights, or None if fitting failed.
+    """
     try:
         from sklearn.linear_model import LogisticRegression
     except ImportError:
@@ -261,7 +414,7 @@ def fit_and_print(X, y, reg_C, scale, label=""):
         print(f"  Skipping{' ' + label if label else ''}: not enough data "
               f"({len(X)} positions, need both white and black wins)")
         print()
-        return
+        return None
 
     n_white = np.sum(y == 1)
     n_black = np.sum(y == 0)
@@ -300,6 +453,21 @@ def fit_and_print(X, y, reg_C, scale, label=""):
               f"white={weights[N_QUARTER+i]:>+.4f}  "
               f"king={weights[2*N_QUARTER+i]:>+.4f}")
     print()
+
+    # Prepare piece data for plotting
+    piece_data = {
+        "Black pawn": -black_w,
+        "White pawn": white_w,
+        "King": king_w,
+    }
+
+    if plot and output_dir:
+        filename = f"pst_{label}.png" if label else "pst.png"
+        output_path = os.path.join(output_dir, filename)
+        title = f"PST Values - {label.upper()}" if label else "PST Values"
+        plot_heatmaps(piece_data, title, output_path)
+
+    return piece_data
 
 
 # ---------------------------------------------------------------------------
@@ -409,6 +577,14 @@ def cmd_stats(args):
 
 def cmd_fit(args):
     """Fit PST values via logistic regression."""
+    # Set up output directory for plots if needed
+    output_dir = None
+    if args.plot:
+        output_dir = args.output_dir or os.path.dirname(os.path.abspath(args.db))
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"Plots will be saved to: {output_dir}")
+        print()
+
     if args.stages:
         print(f"Loading data from {args.db} (splitting into {args.stages} stages)...")
         stage_data = load_data(
@@ -424,7 +600,10 @@ def cmd_fit(args):
         print("OVERALL (all stages combined)")
         print("=" * 60)
         print()
-        fit_and_print(all_X, all_y, args.reg_C, args.scale, label="overall")
+        overall_piece_data = fit_and_print(
+            all_X, all_y, args.reg_C, args.scale, label="overall",
+            plot=args.plot, output_dir=output_dir
+        )
 
         # Then fit each stage separately
         stage_names = {
@@ -434,6 +613,10 @@ def cmd_fit(args):
         names = stage_names.get(args.stages,
                                 [f"stage{i}" for i in range(args.stages)])
 
+        all_stages_data = []
+        if overall_piece_data:
+            all_stages_data.append(("overall", overall_piece_data))
+
         for i in range(args.stages):
             X, y = stage_data[i]
             print("=" * 60)
@@ -441,7 +624,17 @@ def cmd_fit(args):
             print(f"(moves in the {names[i]} third of each game)")
             print("=" * 60)
             print()
-            fit_and_print(X, y, args.reg_C, args.scale, label=names[i])
+            piece_data = fit_and_print(
+                X, y, args.reg_C, args.scale, label=names[i],
+                plot=args.plot, output_dir=output_dir
+            )
+            if piece_data:
+                all_stages_data.append((names[i], piece_data))
+
+        # Generate combined comparison plot
+        if args.plot and len(all_stages_data) > 1:
+            plot_combined_heatmaps(all_stages_data, output_dir)
+
     else:
         print(f"Loading data from {args.db}...")
         X, y = load_data(
@@ -456,7 +649,10 @@ def cmd_fit(args):
         print("LEARNED PST VALUES")
         print("=" * 60)
         print()
-        fit_and_print(X, y, args.reg_C, args.scale)
+        fit_and_print(
+            X, y, args.reg_C, args.scale,
+            plot=args.plot, output_dir=output_dir
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -488,6 +684,10 @@ def main():
                             help="Scale factor for output PST values (default: 100)")
     fit_parser.add_argument("--seed", type=int, default=42,
                             help="Random seed (default: 42)")
+    fit_parser.add_argument("--plot", action="store_true",
+                            help="Generate graphical heatmap plots")
+    fit_parser.add_argument("--output-dir", type=str, default=None,
+                            help="Directory for plot output (default: same as db)")
 
     args = parser.parse_args()
 

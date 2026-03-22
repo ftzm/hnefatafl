@@ -183,107 +183,117 @@ piece_square_table quarter_to_pst(u32 quarter[29]) {
   return pst;
 }
 
-u32 black_niave_pst_quarter[29] = {
-    0, // 1
-    0, // 2
-    0, // 3
-    0, // 4
-    0, // 5
-    0, // 11
-    0, // 12
-    0, // 13
-    0, // 14
-    0, // 15
-    0, // 16
-    0, // 22
-    0, // 23
-    0, // 24
-    0, // 25
-    0, // 26
-    0, // 27
-    0, // 33
-    0, // 34
-    0, // 35
-    0, // 36
-    0, // 37
-    0, // 38
-    0, // 44
-    0, // 45
-    0, // 46
-    0, // 47
-    0, // 48
-    0  // 49
+// Learned via logistic regression on self-play data.
+// Values represent how good it is for black to have a pawn on this square.
+// Black pawns are most valuable in the inner ring (containment cordon).
+u32 black_pst_quarter[29] = {
+    58,  // 1
+    86,  // 2
+    62,  // 3
+    35,  // 4
+    49,  // 5
+    57,  // 11
+    108, // 12
+    115, // 13
+    86,  // 14
+    63,  // 15
+    78,  // 16
+    79,  // 22
+    113, // 23
+    113, // 24
+    104, // 25
+    74,  // 26
+    39,  // 27
+    59,  // 33
+    87,  // 34
+    103, // 35
+    61,  // 36
+    69,  // 37
+    50,  // 38
+    42,  // 44
+    62,  // 45
+    74,  // 46
+    49,  // 47
+    64,  // 48
+    60   // 49
 };
 
-u32 white_niave_pst_quarter[29] = {
-    0, // 1
-    0, // 2
-    0, // 3
-    0, // 4
-    0, // 5
-    0, // 11
-    0, // 12
-    0, // 13
-    0, // 14
-    0, // 15
-    0, // 16
-    0, // 22
-    0, // 23
-    0, // 24
-    0, // 25
-    0, // 26
-    0, // 27
-    0, // 33
-    0, // 34
-    0, // 35
-    0, // 36
-    0, // 37
-    0, // 38
-    0, // 44
-    0, // 45
-    0, // 46
-    0, // 47
-    0, // 48
-    0  // 49
+// Learned via logistic regression on self-play data.
+// Values represent how good it is for white to have a pawn on this square.
+// White pawns are most valuable near corners (escort positions).
+u32 white_pst_quarter[29] = {
+    72,  // 1
+    93,  // 2
+    82,  // 3
+    64,  // 4
+    45,  // 5
+    84,  // 11
+    103, // 12
+    74,  // 13
+    39,  // 14
+    65,  // 15
+    50,  // 16
+    100, // 22
+    60,  // 23
+    49,  // 24
+    56,  // 25
+    51,  // 26
+    37,  // 27
+    76,  // 33
+    45,  // 34
+    53,  // 35
+    37,  // 36
+    40,  // 37
+    49,  // 38
+    69,  // 44
+    59,  // 45
+    45,  // 46
+    32,  // 47
+    56,  // 48
+    37   // 49
 };
 
-u32 king_niave_pst_quarter[29] = {
-    0,   // 1
-    500, // 2
-    0,   // 3
-    0,   // 4
-    0,   // 5
-    0,   // 11
-    500, // 12
-    500, // 13
-    0,   // 14
-    0,   // 15
-    0,   // 16
-    500, // 22
-    500, // 23
-    500, // 24
-    0,   // 25
-    0,   // 26
-    0,   // 27
-    0,   // 33
-    0,   // 34
-    0,   // 35
-    0,   // 36
-    0,   // 37
-    -5,  // 38
-    0,   // 44
-    0,   // 45
-    0,   // 46
-    0,   // 47
-    -10, // 48
-    -15  // 49
+// Learned via logistic regression on self-play data.
+// Values represent how good it is for white to have the king on this square.
+// King is most valuable approaching corners (sq 12 = diagonal from corner).
+// Corner-adjacent squares (1, 11) are excluded from training (already won).
+u32 king_pst_quarter[29] = {
+    0,   // 1  (corner-adjacent, effectively won)
+    75,  // 2
+    46,  // 3
+    19,  // 4
+    80,  // 5
+    0,   // 11 (corner-adjacent, effectively won)
+    252, // 12 (diagonal from corner - best non-winning position)
+    115, // 13
+    58,  // 14
+    34,  // 15
+    47,  // 16
+    73,  // 22
+    115, // 23
+    75,  // 24
+    59,  // 25
+    32,  // 26
+    26,  // 27
+    56,  // 33
+    49,  // 34
+    46,  // 35
+    37,  // 36
+    22,  // 37
+    17,  // 38
+    63,  // 44
+    38,  // 45
+    35,  // 46
+    24,  // 47
+    21,  // 48
+    6    // 49 (center - worst position)
 };
 
 psts init_default_psts() {
   return (psts){
-      quarter_to_pst(black_niave_pst_quarter),
-      quarter_to_pst(white_niave_pst_quarter),
-      quarter_to_pst(king_niave_pst_quarter),
+      quarter_to_pst(black_pst_quarter),
+      quarter_to_pst(white_pst_quarter),
+      quarter_to_pst(king_pst_quarter),
   };
 }
 
