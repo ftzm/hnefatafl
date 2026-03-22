@@ -358,27 +358,35 @@ layers, only in the move.
 
 #define BOOKKEEP(_i)                                                           \
   ms[(*total)] = (move){orig, dest};                                           \
-  ls[(*total)]._[_i] = orig_bit | dest_bit;                                    \
-  _WRITE_LAYER_PAIR(ls_r[(*total)], orig_r, dest_r)                            \
+  if (ls) {                                                                    \
+    ls[(*total)]._[_i] = orig_bit | dest_bit;                                  \
+    _WRITE_LAYER_PAIR(ls_r[(*total)], orig_r, dest_r)                          \
+  }                                                                            \
   (*total)++;
 
 #define BOOKKEEP_R(_i)                                                         \
   ms[(*total)] = (move){orig_r, dest_r};                                       \
-  ls_r[(*total)]._[_i] = orig_bit | dest_bit;                                  \
-  _WRITE_LAYER_PAIR(ls[(*total)], orig_r, dest_r)                              \
+  if (ls) {                                                                    \
+    ls_r[(*total)]._[_i] = orig_bit | dest_bit;                                \
+    _WRITE_LAYER_PAIR(ls[(*total)], orig_r, dest_r)                            \
+  }                                                                            \
   (*total)++;
 #define BOOKKEEP_r BOOKKEEP_R
 #define BOOKKEEP_CENTER_R()                                                    \
   ms[(*total)] = (move){orig_r, dest_r};                                       \
-  _WRITE_LAYER_PAIR(ls_r[(*total)], orig, dest)                                \
-  _WRITE_LAYER_PAIR(ls[(*total)], orig_r, dest_r)                              \
+  if (ls) {                                                                    \
+    _WRITE_LAYER_PAIR(ls_r[(*total)], orig, dest)                              \
+    _WRITE_LAYER_PAIR(ls[(*total)], orig_r, dest_r)                            \
+  }                                                                            \
   (*total)++;
 #define BOOKKEEP_CENTER_r() BOOKKEEP_CENTER_R()
 
 #define BOOKKEEP_CENTER()                                                      \
   ms[(*total)] = (move){orig, dest};                                           \
-  _WRITE_LAYER_PAIR(ls[(*total)], orig, dest)                                  \
-  _WRITE_LAYER_PAIR(ls_r[(*total)], orig_r, dest_r)                            \
+  if (ls) {                                                                    \
+    _WRITE_LAYER_PAIR(ls[(*total)], orig, dest)                                \
+    _WRITE_LAYER_PAIR(ls_r[(*total)], orig_r, dest_r)                          \
+  }                                                                            \
   (*total)++;
 
 #define BIT_AT(_i) ((u64)1 << _i)
