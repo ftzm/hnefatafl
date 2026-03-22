@@ -617,17 +617,15 @@ i32 quiesce_black(
       move_layers escape1_layers = layers;
       mask_move_layers(corner_paths, corner_paths_r, &escape1_layers);
 
-      move ms[100] = {0};
-      layer ls[100] = {0};
-      layer ls_r[100] = {0};
+      move ms[100];
       int total = 0;
       moves_from_layers(
           &escape1_layers,
           b.black,
           b.black_r,
           ms,
-          ls,
-          ls_r,
+        NULL,
+        NULL,
           &total);
 
       // Subtract these moves from the main layers
@@ -646,8 +644,6 @@ i32 quiesce_black(
       for (int i = 0; i < total; i++) {
         u8 orig = ms[i].orig;
         u8 dest = ms[i].dest;
-        layer move = ls[i];
-        layer move_r = ls_r[i];
 
 #ifndef NDEBUG
         // Validate move before applying
@@ -665,7 +661,7 @@ i32 quiesce_black(
         }
 #endif
 
-        board new_b = apply_black_move(b, move, move_r);
+        board new_b = apply_black_move_m(b, orig, dest);
 #ifndef NDEBUG
         if (!validate_board_state(new_b)) {
           printf(
@@ -763,17 +759,15 @@ i32 quiesce_black(
     move_layers escape2_layers = layers;
     mask_move_layers(corner_paths, corner_paths_r, &escape2_layers);
 
-    move ms[100] = {0};
-    layer ls[100] = {0};
-    layer ls_r[100] = {0};
+    move ms[100];
     int total = 0;
     moves_from_layers(
         &escape2_layers,
         b.black,
         b.black_r,
         ms,
-        ls,
-        ls_r,
+        NULL,
+        NULL,
         &total);
 
     // Subtract these moves from the main layers
@@ -789,8 +783,6 @@ i32 quiesce_black(
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -808,7 +800,7 @@ i32 quiesce_black(
       }
 #endif
 
-      board new_b = apply_black_move(b, move, move_r);
+      board new_b = apply_black_move_m(b, orig, dest);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
       score_state new_score_state = update_score_state_black_move_and_capture(
@@ -857,18 +849,14 @@ i32 quiesce_black(
         layers = generate_black_move_layers(&b);
         layers_generated = true;
       }
-      move ms[400] = {0};
-      layer ls[400] = {0};
-      layer ls_r[400] = {0};
+      move ms[400];
       int total = 0;
-      moves_from_layers(&layers, b.black, b.black_r, ms, ls, ls_r, &total);
+      moves_from_layers(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
 
       // iterate
       for (int i = 0; i < total; i++) {
         u8 orig = ms[i].orig;
         u8 dest = ms[i].dest;
-        layer move = ls[i];
-        layer move_r = ls_r[i];
 
 #ifndef NDEBUG
         // Validate move before applying
@@ -886,7 +874,7 @@ i32 quiesce_black(
         }
 #endif
 
-        board new_b = apply_black_move(b, move, move_r);
+        board new_b = apply_black_move_m(b, orig, dest);
         u64 new_position_hash = next_hash_black(position_hash, orig, dest);
         layer captures =
             apply_captures_z_black(&new_b, &new_position_hash, dest);
@@ -971,17 +959,15 @@ i32 quiesce_black(
     move_layers capture_layers = layers;
     mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
-    move ms[100] = {0};
-    layer ls[100] = {0};
-    layer ls_r[100] = {0};
+    move ms[100];
     int total = 0;
     moves_from_layers(
         &capture_layers,
         b.black,
         b.black_r,
         ms,
-        ls,
-        ls_r,
+        NULL,
+        NULL,
         &total);
 
     // Subtract these moves from the main layers
@@ -994,8 +980,6 @@ i32 quiesce_black(
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -1013,7 +997,7 @@ i32 quiesce_black(
       }
 #endif
 
-      board new_b = apply_black_move(b, move, move_r);
+      board new_b = apply_black_move_m(b, orig, dest);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
       score_state new_score_state = update_score_state_black_move_and_capture(
@@ -1232,18 +1216,14 @@ i32 quiesce_white(
   // to the fallback all-move generation done to prevent 2-move escapes in black
   // quiescence.
   if (corner_move_count && best_value < (MAX_SCORE - 100)) {
-    move ms[400] = {0};
-    layer ls[400] = {0};
-    layer ls_r[400] = {0};
+    move ms[400];
     int total = 0;
-    moves_from_layers(&layers, b.white, b.white_r, ms, ls, ls_r, &total);
+    moves_from_layers(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
 
     // iterate
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -1261,7 +1241,7 @@ i32 quiesce_white(
       }
 #endif
 
-      board new_b = apply_white_move(b, move, move_r);
+      board new_b = apply_white_move_m(b, orig, dest);
 #ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
@@ -1332,9 +1312,7 @@ i32 quiesce_white(
   {
 
     // generate capture moves for king
-    move ms[100] = {0};
-    layer ls[100] = {0};
-    layer ls_r[100] = {0};
+    move ms[100];
     int total = 0;
     moves_to_king_impl(
         LAYER_AND(capture_dests, LAYER_NOT(corners)),
@@ -1344,8 +1322,8 @@ i32 quiesce_white(
         king_board_occ(b),
         king_board_occ_r(b),
         ms,
-        ls,
-        ls_r,
+        NULL,
+        NULL,
         &total);
 
     // hacky bounds check
@@ -1355,8 +1333,6 @@ i32 quiesce_white(
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -1374,7 +1350,7 @@ i32 quiesce_white(
       }
 #endif
 
-      board new_b = apply_king_move(b, move, move_r);
+      board new_b = apply_king_move_m(b, orig, dest);
 #ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
@@ -1432,9 +1408,7 @@ i32 quiesce_white(
   // ---------------------------------------------------------------------------
   // pawn capture moves
   {
-    move ms[100] = {0};
-    layer ls[100] = {0};
-    layer ls_r[100] = {0};
+    move ms[100];
     int total = 0;
 
     move_layers capture_layers = layers;
@@ -1446,8 +1420,8 @@ i32 quiesce_white(
         b.white,
         b.white_r,
         ms,
-        ls,
-        ls_r,
+        NULL,
+        NULL,
         &total);
 
     // hacky bounds check
@@ -1457,8 +1431,6 @@ i32 quiesce_white(
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -1476,7 +1448,7 @@ i32 quiesce_white(
       }
 #endif
 
-      board new_b = apply_white_move(b, move, move_r);
+      board new_b = apply_white_move_m(b, orig, dest);
 #ifndef NDEBUG
       if (!validate_board_state(new_b)) {
         printf(
@@ -2086,14 +2058,10 @@ i32 search_black(
       exit(1);
     }
 #endif
-
-    move m_r = ROTATE_MOVE(m);
     u8 orig = m.orig;
     u8 dest = m.dest;
-    layer move_layer = move_as_layer(m);
-    layer move_layer_r = move_as_layer(m_r);
 
-    board new_b = apply_black_move(b, move_layer, move_layer_r);
+    board new_b = apply_black_move_m(b, orig, dest);
     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
     layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
     score_state new_score_state =
@@ -2161,17 +2129,15 @@ i32 search_black(
   mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
   {
-    move ms[400] = {0};
-    layer ls[400] = {0};
-    layer ls_r[400] = {0};
+    move ms[400];
     int total = 0;
     moves_from_layers(
         &capture_layers,
         b.black,
         b.black_r,
         ms,
-        ls,
-        ls_r,
+        NULL,
+        NULL,
         &total);
 
     // hacky bounds check
@@ -2181,8 +2147,6 @@ i32 search_black(
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -2201,7 +2165,7 @@ i32 search_black(
       }
 #endif
 
-      board new_b = apply_black_move(b, move, move_r);
+      board new_b = apply_black_move_m(b, orig, dest);
       u64 new_position_hash = next_hash_black(position_hash, orig, dest);
       layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
       score_state new_score_state = update_score_state_black_move_and_capture(
@@ -2247,11 +2211,9 @@ i32 search_black(
   // ---------------------------------------------------------------------------
   // Remaining
 
-  move ms[400] = {0};
-  layer ls[400] = {0};
-  layer ls_r[400] = {0};
+  move ms[400];
   int total = 0;
-  moves_from_layers(&layers, b.black, b.black_r, ms, ls, ls_r, &total);
+  moves_from_layers(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
 
   // hacky bounds check
   assert(total < 400);
@@ -2260,8 +2222,6 @@ i32 search_black(
   for (int i = 0; i < total; i++) {
     u8 orig = ms[i].orig;
     u8 dest = ms[i].dest;
-    layer move = ls[i];
-    layer move_r = ls_r[i];
 
 #ifndef NDEBUG
     // Validate move before applying
@@ -2279,7 +2239,7 @@ i32 search_black(
     }
 #endif
 
-    board new_b = apply_black_move(b, move, move_r);
+    board new_b = apply_black_move_m(b, orig, dest);
     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
     layer captures = apply_captures_z_black(&new_b, &new_position_hash, dest);
     score_state new_score_state =
@@ -2399,12 +2359,8 @@ i32 search_white(
       exit(1);
     }
 #endif
-
-    move m_r = ROTATE_MOVE(m);
     u8 orig = m.orig;
     u8 dest = m.dest;
-    layer move_layer = move_as_layer(m);
-    layer move_layer_r = move_as_layer(m_r);
 
     board new_b;
     u64 new_position_hash;
@@ -2412,13 +2368,13 @@ i32 search_white(
     score_state new_score_state;
 
     if (orig == king_pos) {
-      new_b = apply_king_move(b, move_layer, move_layer_r);
+      new_b = apply_king_move_m(b, orig, dest);
       new_position_hash = next_hash_king(position_hash, orig, dest);
       captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
       new_score_state =
           update_score_state_king_move_and_capture(w, &s, orig, dest, captures);
     } else {
-      new_b = apply_white_move(b, move_layer, move_layer_r);
+      new_b = apply_white_move_m(b, orig, dest);
       new_position_hash = next_hash_white(position_hash, orig, dest);
       captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
       new_score_state = update_score_state_white_move_and_capture(
@@ -2480,9 +2436,7 @@ i32 search_white(
   layer all_king_destinations_r = king_destinations_r(b);
 
   {
-    move ms[20] = {0};
-    layer ls[20] = {0};
-    layer ls_r[20] = {0};
+    move ms[20];
     int total = 0;
     moves_to_king_impl(
         all_king_destinations,
@@ -2492,8 +2446,8 @@ i32 search_white(
         king_board_occ(b),
         king_board_occ_r(b),
         ms,
-        ls,
-        ls_r,
+        NULL,
+        NULL,
         &total);
 
     // hacky bounds check
@@ -2503,8 +2457,6 @@ i32 search_white(
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -2522,7 +2474,7 @@ i32 search_white(
       }
 #endif
 
-      board new_b = apply_king_move(b, move, move_r);
+      board new_b = apply_king_move_m(b, orig, dest);
       u64 new_position_hash = next_hash_king(position_hash, orig, dest);
       layer captures = apply_captures_z_king(&new_b, &new_position_hash, dest);
       score_state new_score_state =
@@ -2576,17 +2528,15 @@ i32 search_white(
     move_layers capture_layers = layers;
     mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
-    move ms[400] = {0};
-    layer ls[400] = {0};
-    layer ls_r[400] = {0};
+    move ms[400];
     int total = 0;
     moves_from_layers(
         &capture_layers,
         b.white,
         b.white_r,
         ms,
-        ls,
-        ls_r,
+        NULL,
+        NULL,
         &total);
 
     // hacky bounds check
@@ -2596,8 +2546,6 @@ i32 search_white(
     for (int i = 0; i < total; i++) {
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
-      layer move = ls[i];
-      layer move_r = ls_r[i];
 
 #ifndef NDEBUG
       // Validate move before applying
@@ -2615,7 +2563,7 @@ i32 search_white(
       }
 #endif
 
-      board new_b = apply_white_move(b, move, move_r);
+      board new_b = apply_white_move_m(b, orig, dest);
       u64 new_position_hash = next_hash_white(position_hash, orig, dest);
       layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
       score_state new_score_state = update_score_state_white_move_and_capture(
@@ -2660,11 +2608,9 @@ i32 search_white(
   // ---------------------------------------------------------------------------
   // Remaining pawn moves
 
-  move ms[400] = {0};
-  layer ls[400] = {0};
-  layer ls_r[400] = {0};
+  move ms[400];
   int total = 0;
-  moves_from_layers(&layers, b.white, b.white_r, ms, ls, ls_r, &total);
+  moves_from_layers(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
 
   // hacky bounds check
   assert(total < 400);
@@ -2673,8 +2619,6 @@ i32 search_white(
   for (int i = 0; i < total; i++) {
     u8 orig = ms[i].orig;
     u8 dest = ms[i].dest;
-    layer move = ls[i];
-    layer move_r = ls_r[i];
 
 #ifndef NDEBUG
     // Validate move before applying
@@ -2692,7 +2636,7 @@ i32 search_white(
     }
 #endif
 
-    board new_b = apply_white_move(b, move, move_r);
+    board new_b = apply_white_move_m(b, orig, dest);
     u64 new_position_hash = next_hash_white(position_hash, orig, dest);
     layer captures = apply_captures_z_white(&new_b, &new_position_hash, dest);
     score_state new_score_state =
