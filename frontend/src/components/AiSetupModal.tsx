@@ -5,8 +5,9 @@ import Button from "./ui/Button";
 import SegmentedControl from "./ui/SegmentedControl";
 import ChipGrid from "./ui/ChipGrid";
 import FormField from "./ui/FormField";
-import { handleNewGame } from "../state";
+import { useAiGame } from "../api/ai-game-context";
 import { sideOptions, timeOptions } from "../gameOptions";
+import type { PlayerColor } from "../board-logic";
 
 interface AiSetupModalProps {
   open: boolean;
@@ -15,20 +16,17 @@ interface AiSetupModalProps {
 
 export default function AiSetupModal(props: AiSetupModalProps) {
   const navigate = useNavigate();
+  const ai = useAiGame();
   const [side, setSide] = createSignal("random");
   const [timeControl, setTimeControl] = createSignal("none");
 
-  const startGame = () => {
-    const id = crypto.randomUUID();
-    const chosenSide = side() === "random"
+  const startGame = async () => {
+    const chosenSide: PlayerColor = side() === "random"
       ? (Math.random() < 0.5 ? "black" : "white")
-      : side();
-    const players = chosenSide === "black"
-      ? { black: "You", white: "AI" }
-      : { black: "AI", white: "You" };
-    handleNewGame({ id, mode: "ai", players });
+      : side() as PlayerColor;
+    const { token } = await ai.createGame({ playerColor: chosenSide });
     props.onOpenChange(false);
-    navigate(`/game/${id}`);
+    navigate(`/game/ai/${token}`);
   };
 
   return (

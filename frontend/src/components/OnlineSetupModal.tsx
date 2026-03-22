@@ -5,8 +5,9 @@ import Button from "./ui/Button";
 import SegmentedControl from "./ui/SegmentedControl";
 import ChipGrid from "./ui/ChipGrid";
 import FormField from "./ui/FormField";
-import { handleNewGame } from "../state";
+import { useOnlineGame } from "../api/online-game-context";
 import { sideOptions, timeOptions } from "../gameOptions";
+import type { PlayerColor } from "../board-logic";
 
 interface OnlineSetupModalProps {
   open: boolean;
@@ -15,20 +16,17 @@ interface OnlineSetupModalProps {
 
 export default function OnlineSetupModal(props: OnlineSetupModalProps) {
   const navigate = useNavigate();
+  const online = useOnlineGame();
   const [side, setSide] = createSignal("random");
   const [timeControl, setTimeControl] = createSignal("none");
 
-  const startGame = () => {
-    const id = crypto.randomUUID();
-    const chosenSide = side() === "random"
+  const startGame = async () => {
+    const chosenSide: PlayerColor = side() === "random"
       ? (Math.random() < 0.5 ? "black" : "white")
-      : side();
-    const players = chosenSide === "black"
-      ? { black: "You", white: "Opponent" }
-      : { black: "Opponent", white: "You" };
-    handleNewGame({ id, mode: "online", players });
+      : side() as PlayerColor;
+    const { playerToken } = await online.createGame({ creatorColor: chosenSide });
     props.onOpenChange(false);
-    navigate(`/game/${id}`);
+    navigate(`/game/online/${playerToken}`);
   };
 
   return (

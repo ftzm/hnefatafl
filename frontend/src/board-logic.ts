@@ -14,6 +14,11 @@ export interface Move {
 
 export type MovesMap = Record<number, number[][]>;
 
+export interface GameOverState {
+  winner: PlayerColor | "draw";
+  reason: string;
+}
+
 export const startBoard: BoardRep = {
 	black: new Set([
 		3, 4, 5, 6, 7, 16, 33, 44, 55, 66, 77, 43, 54, 65, 76, 87, 56, 64, 104, 113,
@@ -119,57 +124,6 @@ export function reverseMovesToTransformation(moves: Move[], startColor: PlayerCo
 		(from, to) => from !== to
 	);
 	return result;
-}
-
-export function generateMockMovesForColor(boardRep: BoardRep, color: PlayerColor): MovesMap {
-	const oppositeColor: PlayerColor = color === "black" ? "white" : "black";
-	const moves: MovesMap = {};
-
-	const emptySquares: number[] = [];
-	const occupiedSquares = new Set([...boardRep.black, ...boardRep.white, boardRep.king]);
-	for (let i = 0; i < 121; i++) {
-		if (!occupiedSquares.has(i)) {
-			emptySquares.push(i);
-		}
-	}
-
-	const oppositeColorSquares = oppositeColor === "black"
-		? [...boardRep.black]
-		: [...boardRep.white, boardRep.king];
-
-	const colorSquares = color === "black" ? [...boardRep.black] : [...boardRep.white, boardRep.king];
-
-	colorSquares.forEach(pieceIndex => {
-		const pieceMoves: number[][] = [];
-		const numMoves = Math.min(10, emptySquares.length);
-		const usedSquares = new Set<number>();
-
-		for (let j = 0; j < numMoves; j++) {
-			let destination: number;
-			do {
-				destination = emptySquares[Math.floor(Math.random() * emptySquares.length)];
-			} while (
-				usedSquares.has(destination) &&
-				usedSquares.size < emptySquares.length
-			);
-
-			if (usedSquares.has(destination)) break;
-			usedSquares.add(destination);
-
-			if (oppositeColorSquares.length > 0) {
-				const captureSquare = oppositeColorSquares[
-					Math.floor(Math.random() * oppositeColorSquares.length)
-				];
-				pieceMoves.push([destination, captureSquare]);
-			}
-		}
-
-		if (pieceMoves.length > 0) {
-			moves[pieceIndex] = pieceMoves;
-		}
-	});
-
-	return moves;
 }
 
 export function cloneBoardRep(boardRep: BoardRep): BoardRep {

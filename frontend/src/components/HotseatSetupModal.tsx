@@ -4,7 +4,6 @@ import Modal from "./ui/Modal";
 import Button from "./ui/Button";
 import ChipGrid from "./ui/ChipGrid";
 import FormField from "./ui/FormField";
-import { handleNewGame } from "../state";
 import { timeOptions } from "../gameOptions";
 
 interface HotseatSetupModalProps {
@@ -18,9 +17,8 @@ export default function HotseatSetupModal(props: HotseatSetupModalProps) {
 
   const startGame = () => {
     const id = crypto.randomUUID();
-    handleNewGame({ id, mode: "hotseat" });
     props.onOpenChange(false);
-    navigate(`/game/${id}`);
+    navigate(`/game/hotseat/${id}`);
   };
 
   return (

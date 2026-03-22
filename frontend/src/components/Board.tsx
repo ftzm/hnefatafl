@@ -1,12 +1,5 @@
 import { createSignal, createMemo, createEffect, For, onMount, onCleanup } from "solid-js";
-import {
-  store,
-  movesDisabled,
-  handleMoveMade,
-  lastMove,
-  pendingAnimation,
-  setPendingAnimation,
-} from "../state";
+import { useGame } from "../game-context";
 import { startBoard, type Move } from "../board-logic";
 
 const corners = new Set([0, 10, 110, 120]);
@@ -35,7 +28,13 @@ interface DragState {
   pointerId: number;
 }
 
-export default function Board() {
+interface BoardProps {
+  onMove: (move: Move) => void;
+}
+
+export default function Board(props: BoardProps) {
+  const game = useGame();
+  const { store, pendingAnimation, setPendingAnimation, movesDisabled, lastMove } = game;
   const [showingMovesFrom, setShowingMovesFrom] = createSignal<number | null>(null);
 
   let drag: DragState | null = null;
@@ -179,7 +178,7 @@ export default function Board() {
       }
     }
 
-    handleMoveMade(move);
+    props.onMove(move);
 
     if (animate) {
       const toRect = squareRefs[move.to]?.getBoundingClientRect();

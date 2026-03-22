@@ -1,5 +1,5 @@
 import { For, createEffect } from "solid-js";
-import { store, currentViewMoveIndex, handleJumpToMove } from "../state";
+import { useGame } from "../game-context";
 import { indexToAlgebraic, type Move } from "../board-logic";
 
 interface MovePair {
@@ -9,14 +9,15 @@ interface MovePair {
 }
 
 export default function MoveHistory() {
+  const game = useGame();
   let scrollRef: HTMLDivElement | undefined;
 
   const movePairs = (): MovePair[] => {
     const pairs: MovePair[] = [];
-    for (let i = 0; i < store.game.moveHistory.length; i += 2) {
+    for (let i = 0; i < game.store.game.moveHistory.length; i += 2) {
       pairs.push({
-        black: store.game.moveHistory[i],
-        white: store.game.moveHistory[i + 1] || null,
+        black: game.store.game.moveHistory[i],
+        white: game.store.game.moveHistory[i + 1] || null,
         startIndex: i,
       });
     }
@@ -24,7 +25,7 @@ export default function MoveHistory() {
   };
 
   createEffect(() => {
-    currentViewMoveIndex();
+    game.currentViewMoveIndex();
     if (scrollRef) {
       const currentEl = scrollRef.querySelector(".current");
       if (currentEl) {
@@ -51,9 +52,9 @@ export default function MoveHistory() {
                 {pair.black && (
                   <span
                     class={
-                      blackIdx === currentViewMoveIndex() ? "current" : ""
+                      blackIdx === game.currentViewMoveIndex() ? "current" : ""
                     }
-                    onClick={() => handleJumpToMove(blackIdx)}
+                    onClick={() => game.jumpToMove(blackIdx)}
                   >
                     {formatMove(pair.black)}
                   </span>
@@ -63,9 +64,9 @@ export default function MoveHistory() {
                 {pair.white && (
                   <span
                     class={
-                      whiteIdx === currentViewMoveIndex() ? "current" : ""
+                      whiteIdx === game.currentViewMoveIndex() ? "current" : ""
                     }
-                    onClick={() => handleJumpToMove(whiteIdx)}
+                    onClick={() => game.jumpToMove(whiteIdx)}
                   >
                     {formatMove(pair.white)}
                   </span>

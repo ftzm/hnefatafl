@@ -1,18 +1,6 @@
 import { For } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import {
-  canViewPrev,
-  canViewNext,
-  handleViewStart,
-  handleViewPreviousMove,
-  handleViewNextMove,
-  handleViewEnd,
-  handleUndo,
-  handleResign,
-  handleOfferDraw,
-  store,
-  type GameMode,
-} from "../state";
+import { useGame, type GameMode } from "../game-context";
 import GameStatus from "./GameStatus";
 import MoveHistory from "./MoveHistory";
 import Button from "./ui/Button";
@@ -31,6 +19,9 @@ interface ButtonDef {
 
 interface ControlsProps {
   mode: GameMode;
+  onResign?: () => void;
+  onUndo?: () => void;
+  onDraw?: () => void;
 }
 
 const modeButtons: Record<GameMode, string[]> = {
@@ -41,14 +32,27 @@ const modeButtons: Record<GameMode, string[]> = {
 
 export default function Controls(props: ControlsProps) {
   const navigate = useNavigate();
+  const game = useGame();
 
-  const gameActive = () => !store.game.gameOver;
+  const gameActive = () => !game.store.game.gameOver;
 
   const buttonDefs: Record<string, ButtonDef> = {
     newGame: { label: "New Game", onClick: () => navigate("/"), disabled: () => false },
-    undo: { label: "Undo", onClick: handleUndo, disabled: () => !gameActive() || store.game.moveHistory.length === 0 },
-    resign: { label: "Resign", onClick: handleResign, disabled: () => !gameActive() },
-    draw: { label: "Draw", onClick: handleOfferDraw, disabled: () => !gameActive() },
+    undo: {
+      label: "Undo",
+      onClick: () => props.onUndo?.(),
+      disabled: () => !gameActive() || game.store.game.moveHistory.length === 0,
+    },
+    resign: {
+      label: "Resign",
+      onClick: () => props.onResign?.(),
+      disabled: () => !gameActive(),
+    },
+    draw: {
+      label: "Draw",
+      onClick: () => props.onDraw?.(),
+      disabled: () => !gameActive(),
+    },
   };
 
   const activeButtons = () => modeButtons[props.mode] || modeButtons.hotseat;
@@ -59,16 +63,16 @@ export default function Controls(props: ControlsProps) {
       <div class="move-section">
         <MoveHistory />
         <Toolbar aria-label="Move navigation">
-          <Button disabled={!canViewPrev()} onClick={handleViewStart}>
+          <Button disabled={!game.canViewPrev()} onClick={game.viewStart}>
             <SkipBackIcon />
           </Button>
-          <Button disabled={!canViewPrev()} onClick={handleViewPreviousMove}>
+          <Button disabled={!game.canViewPrev()} onClick={game.viewPrev}>
             <PrevIcon />
           </Button>
-          <Button disabled={!canViewNext()} onClick={handleViewNextMove}>
+          <Button disabled={!game.canViewNext()} onClick={game.viewNext}>
             <NextIcon />
           </Button>
-          <Button disabled={!canViewNext()} onClick={handleViewEnd}>
+          <Button disabled={!game.canViewNext()} onClick={game.viewEnd}>
             <SkipForwardIcon />
           </Button>
         </Toolbar>
