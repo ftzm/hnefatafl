@@ -2218,8 +2218,30 @@ i32 search_black(
   // hacky bounds check
   assert(total < 400);
 
+  // Score quiet moves by PST delta for move ordering
+  i32 move_scores[400];
+  for (int i = 0; i < total; i++) {
+    move_scores[i] =
+        w->psts.black_pst._[ms[i].dest] - w->psts.black_pst._[ms[i].orig];
+  }
+
   // iterate
   for (int i = 0; i < total; i++) {
+    // Selection sort: find best-scoring remaining move
+    int best = i;
+    for (int j = i + 1; j < total; j++) {
+      if (move_scores[j] > move_scores[best])
+        best = j;
+    }
+    if (best != i) {
+      move tmp_m = ms[i];
+      ms[i] = ms[best];
+      ms[best] = tmp_m;
+      i32 tmp_s = move_scores[i];
+      move_scores[i] = move_scores[best];
+      move_scores[best] = tmp_s;
+    }
+
     u8 orig = ms[i].orig;
     u8 dest = ms[i].dest;
 
