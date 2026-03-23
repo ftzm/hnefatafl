@@ -9,10 +9,12 @@ export default function GameStatus() {
   const statusText = () => {
     if (game.store.game.gameOver) {
       if (game.store.game.gameOver.winner === "draw") return "Draw";
-      const winner = game.store.game.gameOver.winner === "white" ? "White" : "Black";
+      const winner =
+        game.store.game.gameOver.winner === "white" ? "White" : "Black";
       return `${winner} wins — ${game.store.game.gameOver.reason}`;
     }
-    const player = game.store.game.currentPlayer === "black" ? "Black" : "White";
+    const player =
+      game.store.game.currentPlayer === "black" ? "Black" : "White";
     return `${player} to move`;
   };
 

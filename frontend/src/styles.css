@@ -2,6 +2,7 @@
 html {
   --top-bar-h: 2.5rem;
   height: 100vh;
+  /* biome-ignore lint/suspicious/noDuplicateProperties: 100dvh with 100vh fallback */
   height: 100dvh;
   background: var(--bg-page);
 }
@@ -87,7 +88,6 @@ body {
 }
 
 .page-content:has(.main-layout) {
-  align-items: stretch;
   padding: var(--space-16);
   container-type: size;
 }
@@ -95,7 +95,7 @@ body {
 .main-layout {
   display: flex;
   gap: var(--space-20);
-  align-items: center;
+  align-items: stretch;
   max-width: 100%;
   min-height: 0;
 }
@@ -204,12 +204,22 @@ body {
   opacity: 0;
   will-change: opacity;
 }
-.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 @keyframes blink {
-  0%, 80%, 100% { opacity: 0; }
-  40% { opacity: 1; }
+  0%,
+  80%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
 }
 
 /* === Move Section === */
@@ -257,6 +267,11 @@ body {
 .move-row .move-white {
   flex: 1;
   padding: var(--space-3) 0.5625rem;
+  cursor: pointer;
+}
+
+.move-row button {
+  all: unset;
   cursor: pointer;
 }
 
@@ -313,6 +328,10 @@ body {
   display: flex;
   background: var(--bg-control);
   border-radius: var(--radius-md);
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
 }
 
 .btn-group > .btn {
@@ -506,34 +525,50 @@ body {
   border-radius: var(--radius-full);
   position: absolute;
   z-index: 1;
-  box-shadow: calc(var(--line-w)*2) calc(var(--line-w)*2) calc(var(--line-w)*3) rgba(0,0,0,0.25);
+  box-shadow: calc(var(--line-w) * 2) calc(var(--line-w) * 2)
+    calc(var(--line-w) * 3) rgba(0, 0, 0, 0.25);
   cursor: grab;
   will-change: transform;
 }
 
 .piece.black {
-  background: radial-gradient(circle at 40% 38%, var(--piece-black-start), var(--piece-black-end));
-  border: calc(var(--line-w)*2) solid var(--piece-border);
+  background: radial-gradient(
+    circle at 40% 38%,
+    var(--piece-black-start),
+    var(--piece-black-end)
+  );
+  border: calc(var(--line-w) * 2) solid var(--piece-border);
 }
 
 .piece.white {
-  background: radial-gradient(circle at 40% 38%, var(--piece-white-start), var(--piece-white-end));
-  border: calc(var(--line-w)*2) solid var(--piece-border);
+  background: radial-gradient(
+    circle at 40% 38%,
+    var(--piece-white-start),
+    var(--piece-white-end)
+  );
+  border: calc(var(--line-w) * 2) solid var(--piece-border);
 }
 
 .piece.king {
   width: 85%;
   background: transparent;
-  border: calc(var(--line-w)*2) solid var(--piece-border);
+  border: calc(var(--line-w) * 2) solid var(--piece-border);
   overflow: hidden;
   will-change: transform;
 }
 
 .piece.king::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: -4px;
-  background: conic-gradient(from 315deg at 50% 50%, var(--color-warm-100) 0deg, var(--color-warm-300) 90deg, var(--color-warm-500) 180deg, var(--color-warm-300) 270deg, var(--color-warm-100) 360deg);
+  background: conic-gradient(
+    from 315deg at 50% 50%,
+    var(--color-warm-100) 0deg,
+    var(--color-warm-300) 90deg,
+    var(--color-warm-500) 180deg,
+    var(--color-warm-300) 270deg,
+    var(--color-warm-100) 360deg
+  );
   filter: blur(2px);
   z-index: -1;
 }
@@ -545,12 +580,13 @@ body {
 
 /* === Interactive States === */
 .piece.selected {
-  box-shadow: 0 calc(var(--line-w)*4) calc(var(--line-w)*8) rgba(0, 0, 0, 0.5);
+  box-shadow: 0 calc(var(--line-w) * 4) calc(var(--line-w) * 8)
+    rgba(0, 0, 0, 0.5);
   transform: scale(1.05);
 }
 
 .square.valid-move::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 22%;
   height: 22%;
@@ -562,30 +598,34 @@ body {
 /* === Move Arrow === */
 .move-arrow {
   position: absolute;
-  top: calc(var(--line-w)*-1);
-  left: calc(var(--line-w)*-1);
-  width: calc(100% + var(--line-w)*2);
-  height: calc(100% + var(--line-w)*2);
+  top: calc(var(--line-w) * -1);
+  left: calc(var(--line-w) * -1);
+  width: calc(100% + var(--line-w) * 2);
+  height: calc(100% + var(--line-w) * 2);
   pointer-events: none;
 }
 
 /* === Capture Animation === */
 .piece.capture {
-  box-shadow: inset 0 0 0 12.5rem var(--color-capture) !important;
-  border-color: var(--color-capture) !important;
+  box-shadow: inset 0 0 0 12.5rem var(--color-capture);
+  border-color: var(--color-capture);
   opacity: 0;
   transform: scale(0.85);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease, opacity 0.3s ease 0.1s, transform 0.4s ease;
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    opacity 0.3s ease 0.1s,
+    transform 0.4s ease;
 }
 
 /* === Drag State === */
 body.dragging-piece {
-  cursor: grabbing !important;
+  cursor: grabbing;
   user-select: none;
 }
 
 body.dragging-piece * {
-  cursor: grabbing !important;
+  cursor: grabbing;
 }
 
 /* === Home Page === */
@@ -633,7 +673,9 @@ body.dragging-piece * {
   text-decoration: none;
   color: inherit;
   border: 0.0625rem solid var(--border-subtle);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .action-card.primary:hover {
@@ -793,7 +835,10 @@ body.dragging-piece * {
   font-size: var(--text-sm);
   padding: var(--space-6) var(--space-10);
   cursor: pointer;
-  transition: background 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease,
+    box-shadow 0.1s ease;
 }
 
 .segmented-option + .segmented-option {
@@ -856,7 +901,10 @@ body.dragging-piece * {
   padding: var(--space-6) var(--space-12);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .chip:focus-visible {
@@ -1011,7 +1059,9 @@ body.dragging-piece * {
 }
 
 @keyframes slide-up {
-  to { transform: translateY(0); }
+  to {
+    transform: translateY(0);
+  }
 }
 
 .bottom-sheet-header {

@@ -1,15 +1,15 @@
-import { For } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useGame, type GameMode } from "../game-context";
+import { For } from "solid-js";
+import { type GameMode, useGame } from "../game-context";
 import GameStatus from "./GameStatus";
 import MoveHistory from "./MoveHistory";
 import Button from "./ui/Button";
 import ButtonGroup from "./ui/ButtonGroup";
-import Toolbar from "./ui/Toolbar";
-import SkipBackIcon from "./ui/icons/SkipBackIcon";
-import PrevIcon from "./ui/icons/PrevIcon";
 import NextIcon from "./ui/icons/NextIcon";
+import PrevIcon from "./ui/icons/PrevIcon";
+import SkipBackIcon from "./ui/icons/SkipBackIcon";
 import SkipForwardIcon from "./ui/icons/SkipForwardIcon";
+import Toolbar from "./ui/Toolbar";
 
 interface ButtonDef {
   label: string;
@@ -37,7 +37,11 @@ export default function Controls(props: ControlsProps) {
   const gameActive = () => !game.store.game.gameOver;
 
   const buttonDefs: Record<string, ButtonDef> = {
-    newGame: { label: "New Game", onClick: () => navigate("/"), disabled: () => false },
+    newGame: {
+      label: "New Game",
+      onClick: () => navigate("/"),
+      disabled: () => false,
+    },
     undo: {
       label: "Undo",
       onClick: () => props.onUndo?.(),

@@ -1,4 +1,4 @@
-import { splitProps, type ParentProps, type JSX } from "solid-js";
+import { type JSX, type ParentProps, splitProps } from "solid-js";
 
 type CardProps = ParentProps<JSX.HTMLAttributes<HTMLDivElement>>;
 

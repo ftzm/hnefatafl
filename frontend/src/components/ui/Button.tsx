@@ -1,5 +1,5 @@
 import { Button as KobalteButton } from "@kobalte/core/button";
-import { splitProps, mergeProps, type ParentProps, type JSX } from "solid-js";
+import { type JSX, mergeProps, type ParentProps, splitProps } from "solid-js";
 
 interface ButtonProps extends ParentProps {
   variant?: "solid" | "ghost";
@@ -12,11 +12,7 @@ interface ButtonProps extends ParentProps {
 
 export default function Button(props: ButtonProps) {
   const merged = mergeProps({ variant: "solid" as const }, props);
-  const [local, rest] = splitProps(merged, [
-    "variant",
-    "class",
-    "children",
-  ]);
+  const [local, rest] = splitProps(merged, ["variant", "class", "children"]);
 
   return (
     <KobalteButton

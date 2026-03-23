@@ -1,7 +1,7 @@
 import type { HotseatApi } from "./hotseat-api";
 import {
-  generateLegalMoves,
   checkGameOver,
+  generateLegalMoves,
   replayMoves,
 } from "./mock-game-logic";
 

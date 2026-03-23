@@ -1,5 +1,5 @@
-import type { ParentProps } from "solid-js";
 import { Dialog } from "@kobalte/core/dialog";
+import type { ParentProps } from "solid-js";
 import CloseIcon from "./icons/CloseIcon";
 
 interface ModalProps extends ParentProps {
@@ -16,7 +16,10 @@ export default function Modal(props: ModalProps) {
         <Dialog.Content class="modal-content">
           <Dialog.Title class="modal-title">{props.title}</Dialog.Title>
           {props.children}
-          <Dialog.CloseButton class="btn btn-ghost modal-close" aria-label="Close">
+          <Dialog.CloseButton
+            class="btn btn-ghost modal-close"
+            aria-label="Close"
+          >
             <CloseIcon />
           </Dialog.CloseButton>
         </Dialog.Content>

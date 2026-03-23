@@ -1,28 +1,28 @@
-import { Switch, Match, For, createSignal, type JSX } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { createSignal, For, type JSX, Match, Switch } from "solid-js";
+import type { Move } from "../board-logic";
+import { type GameMode, useGame } from "../game-context";
+import AiInfoPanel from "./AiInfoPanel";
 import Board from "./Board";
 import Chat from "./Chat";
 import Controls from "./Controls";
-import AiInfoPanel from "./AiInfoPanel";
-import PlayerBar from "./PlayerBar";
 import GameStatus from "./GameStatus";
 import MoveHistory from "./MoveHistory";
-import Panel from "./ui/Panel";
-import Button from "./ui/Button";
-import Toolbar from "./ui/Toolbar";
+import PlayerBar from "./PlayerBar";
 import BottomSheet from "./ui/BottomSheet";
-import ListIcon from "./ui/icons/ListIcon";
-import ChatIcon from "./ui/icons/ChatIcon";
-import HomeIcon from "./ui/icons/HomeIcon";
-import UndoIcon from "./ui/icons/UndoIcon";
-import FlagIcon from "./ui/icons/FlagIcon";
+import Button from "./ui/Button";
 import BalanceIcon from "./ui/icons/BalanceIcon";
-import SkipBackIcon from "./ui/icons/SkipBackIcon";
-import PrevIcon from "./ui/icons/PrevIcon";
+import ChatIcon from "./ui/icons/ChatIcon";
+import FlagIcon from "./ui/icons/FlagIcon";
+import HomeIcon from "./ui/icons/HomeIcon";
+import ListIcon from "./ui/icons/ListIcon";
 import NextIcon from "./ui/icons/NextIcon";
+import PrevIcon from "./ui/icons/PrevIcon";
+import SkipBackIcon from "./ui/icons/SkipBackIcon";
 import SkipForwardIcon from "./ui/icons/SkipForwardIcon";
-import { useGame, type GameMode } from "../game-context";
-import type { Move } from "../board-logic";
+import UndoIcon from "./ui/icons/UndoIcon";
+import Panel from "./ui/Panel";
+import Toolbar from "./ui/Toolbar";
 
 interface ToolbarDef {
   icon: JSX.Element;
@@ -140,6 +140,7 @@ export default function GameLayout(props: GameLayoutProps) {
             const def = toolbarDefs[key];
             return (
               <button
+                type="button"
                 class="mobile-toolbar-item"
                 disabled={def.disabled()}
                 onClick={def.onClick}
@@ -151,6 +152,7 @@ export default function GameLayout(props: GameLayoutProps) {
           }}
         </For>
         <button
+          type="button"
           class="mobile-toolbar-item"
           onClick={() => setMovesSheetOpen(true)}
         >
@@ -159,6 +161,7 @@ export default function GameLayout(props: GameLayoutProps) {
         </button>
         {hasSecondPanel() && (
           <button
+            type="button"
             class="mobile-toolbar-item"
             onClick={() => setChatSheetOpen(true)}
           >

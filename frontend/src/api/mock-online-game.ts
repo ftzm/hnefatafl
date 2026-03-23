@@ -1,19 +1,19 @@
 import { createSignal } from "solid-js";
 import {
+  applyMoveToBoardRep,
   type BoardRep,
+  cloneBoardRep,
   type Move,
   type PlayerColor,
-  cloneBoardRep,
-  applyMoveToBoardRep,
   startBoard,
 } from "../board-logic";
-import type { OnlineGameService } from "./online-game-service";
-import type { OnlineGameEvent } from "./types";
 import {
-  generateLegalMoves,
   checkGameOver,
+  generateLegalMoves,
   pickRandomMove,
 } from "./mock-game-logic";
+import type { OnlineGameService } from "./online-game-service";
+import type { OnlineGameEvent } from "./types";
 
 const CHAT_RESPONSES = [
   "Good move!",

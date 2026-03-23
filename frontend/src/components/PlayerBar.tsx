@@ -27,7 +27,10 @@ export default function PlayerBar(props: PlayerBarProps) {
           {() => <span class={`cap-piece ${capClass()}`} />}
         </For>
       </span>
-      <Show when={props.timeControl} fallback={<span class="clock">--:--</span>}>
+      <Show
+        when={props.timeControl}
+        fallback={<span class="clock">--:--</span>}
+      >
         <Clock
           initialSeconds={props.timeControl!.initial}
           active={props.active}

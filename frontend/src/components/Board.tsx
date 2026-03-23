@@ -1,6 +1,13 @@
-import { createSignal, createMemo, createEffect, For, onMount, onCleanup } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+} from "solid-js";
+import { type Move, startBoard } from "../board-logic";
 import { useGame } from "../game-context";
-import { startBoard, type Move } from "../board-logic";
 
 const corners = new Set([0, 10, 110, 120]);
 const center = 60;
@@ -34,8 +41,16 @@ interface BoardProps {
 
 export default function Board(props: BoardProps) {
   const game = useGame();
-  const { store, pendingAnimation, setPendingAnimation, movesDisabled, lastMove } = game;
-  const [showingMovesFrom, setShowingMovesFrom] = createSignal<number | null>(null);
+  const {
+    store,
+    pendingAnimation,
+    setPendingAnimation,
+    movesDisabled,
+    lastMove,
+  } = game;
+  const [showingMovesFrom, setShowingMovesFrom] = createSignal<number | null>(
+    null,
+  );
 
   let drag: DragState | null = null;
   let dragClone: HTMLElement | null = null;
@@ -59,10 +74,10 @@ export default function Board(props: BoardProps) {
           const rect = pieceEl.getBoundingClientRect();
           const clone = pieceEl.cloneNode(true) as HTMLElement;
           clone.style.position = "fixed";
-          clone.style.left = rect.left + "px";
-          clone.style.top = rect.top + "px";
-          clone.style.width = rect.width + "px";
-          clone.style.height = rect.height + "px";
+          clone.style.left = `${rect.left}px`;
+          clone.style.top = `${rect.top}px`;
+          clone.style.width = `${rect.width}px`;
+          clone.style.height = `${rect.height}px`;
           clone.style.zIndex = "999";
           clone.style.pointerEvents = "none";
           document.body.appendChild(clone);
@@ -77,7 +92,9 @@ export default function Board(props: BoardProps) {
 
     const toRect = squareRefs[anim.to]?.getBoundingClientRect();
     if (fromRect && toRect) {
-      const pieceEl = squareRefs[anim.to]?.querySelector(".piece") as HTMLElement | null;
+      const pieceEl = squareRefs[anim.to]?.querySelector(
+        ".piece",
+      ) as HTMLElement | null;
       if (pieceEl) {
         const dx = fromRect.left - toRect.left;
         const dy = fromRect.top - toRect.top;
@@ -86,7 +103,7 @@ export default function Board(props: BoardProps) {
             { transform: `translate(${dx}px, ${dy}px)` },
             { transform: "translate(0, 0)" },
           ],
-          { duration: 200, easing: "ease" }
+          { duration: 200, easing: "ease" },
         );
       }
     }
@@ -101,7 +118,9 @@ export default function Board(props: BoardProps) {
 
     if (anim.restores && anim.restores.length > 0) {
       for (const idx of anim.restores) {
-        const pieceEl = squareRefs[idx]?.querySelector(".piece") as HTMLElement | null;
+        const pieceEl = squareRefs[idx]?.querySelector(
+          ".piece",
+        ) as HTMLElement | null;
         if (pieceEl) {
           pieceEl.animate(
             [
@@ -156,7 +175,9 @@ export default function Board(props: BoardProps) {
 
   const executeMove = (move: Move, { animate = true } = {}) => {
     const captureClones: HTMLElement[] = [];
-    const fromRect = animate ? squareRefs[move.from]?.getBoundingClientRect() : null;
+    const fromRect = animate
+      ? squareRefs[move.from]?.getBoundingClientRect()
+      : null;
 
     if (move.captures && move.captures.length > 0) {
       for (const capIdx of move.captures) {
@@ -166,10 +187,10 @@ export default function Board(props: BoardProps) {
           const rect = pieceEl.getBoundingClientRect();
           const clone = pieceEl.cloneNode(true) as HTMLElement;
           clone.style.position = "fixed";
-          clone.style.left = rect.left + "px";
-          clone.style.top = rect.top + "px";
-          clone.style.width = rect.width + "px";
-          clone.style.height = rect.height + "px";
+          clone.style.left = `${rect.left}px`;
+          clone.style.top = `${rect.top}px`;
+          clone.style.width = `${rect.width}px`;
+          clone.style.height = `${rect.height}px`;
           clone.style.zIndex = "999";
           clone.style.pointerEvents = "none";
           document.body.appendChild(clone);
@@ -183,7 +204,9 @@ export default function Board(props: BoardProps) {
     if (animate) {
       const toRect = squareRefs[move.to]?.getBoundingClientRect();
       if (fromRect && toRect) {
-        const pieceEl = squareRefs[move.to]?.querySelector(".piece") as HTMLElement | null;
+        const pieceEl = squareRefs[move.to]?.querySelector(
+          ".piece",
+        ) as HTMLElement | null;
         if (pieceEl) {
           const dx = fromRect.left - toRect.left;
           const dy = fromRect.top - toRect.top;
@@ -192,7 +215,7 @@ export default function Board(props: BoardProps) {
               { transform: `translate(${dx}px, ${dy}px)` },
               { transform: "translate(0, 0)" },
             ],
-            { duration: 300, easing: "ease" }
+            { duration: 300, easing: "ease" },
           );
         }
       }
@@ -268,7 +291,7 @@ export default function Board(props: BoardProps) {
 
     if (!drag.hasMoved) {
       drag.hasMoved = true;
-      boardRef!.setPointerCapture(drag.pointerId);
+      boardRef?.setPointerCapture(drag.pointerId);
       drag.originalPiece.style.visibility = "hidden";
 
       dragClone = drag.originalPiece.cloneNode(true) as HTMLElement;
@@ -277,8 +300,8 @@ export default function Board(props: BoardProps) {
       dragClone.style.top = "0";
       dragClone.style.zIndex = "1000";
       dragClone.style.pointerEvents = "none";
-      dragClone.style.width = drag.width + "px";
-      dragClone.style.height = drag.height + "px";
+      dragClone.style.width = `${drag.width}px`;
+      dragClone.style.height = `${drag.height}px`;
       dragClone.style.visibility = "visible";
       dragClone.style.willChange = "transform";
       dragClone.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.5)";
@@ -298,11 +321,11 @@ export default function Board(props: BoardProps) {
       dragClone.remove();
       dragClone = null;
     }
-    if (drag && drag.originalPiece) {
+    if (drag?.originalPiece) {
       drag.originalPiece.style.visibility = "";
     }
-    if (drag && drag.hasMoved) {
-      boardRef!.releasePointerCapture(drag.pointerId);
+    if (drag?.hasMoved) {
+      boardRef?.releasePointerCapture(drag.pointerId);
     }
     document.body.classList.remove("dragging-piece");
   };
@@ -317,8 +340,12 @@ export default function Board(props: BoardProps) {
     if (wasDragging) {
       const targetSquare = getSquareUnderMouse(e);
       if (targetSquare !== null && highlightedSquares().has(targetSquare)) {
-        const captures = getCaptures(drag!.pieceIndex, targetSquare);
-        const move: Move = { from: drag!.pieceIndex, to: targetSquare, captures };
+        const captures = getCaptures(drag?.pieceIndex, targetSquare);
+        const move: Move = {
+          from: drag?.pieceIndex,
+          to: targetSquare,
+          captures,
+        };
         setShowingMovesFrom(null);
         drag = null;
         executeMove(move, { animate: false });
@@ -351,19 +378,19 @@ export default function Board(props: BoardProps) {
     if (boardRef) {
       const size = boardRef.offsetWidth;
       const lineW = Math.max(1, Math.round(size / 11 / 70));
-      boardRef.parentElement!.style.setProperty("--line-w", lineW + "px");
+      boardRef.parentElement?.style.setProperty("--line-w", `${lineW}px`);
     }
   };
 
   onMount(() => {
-    boardRef!.addEventListener("pointermove", handlePointerMove);
-    boardRef!.addEventListener("pointerup", handlePointerUp);
+    boardRef?.addEventListener("pointermove", handlePointerMove);
+    boardRef?.addEventListener("pointerup", handlePointerUp);
     updateLineWidth();
     const ro = new ResizeObserver(() => updateLineWidth());
     ro.observe(boardRef!);
     onCleanup(() => {
-      boardRef!.removeEventListener("pointermove", handlePointerMove);
-      boardRef!.removeEventListener("pointerup", handlePointerUp);
+      boardRef?.removeEventListener("pointermove", handlePointerMove);
+      boardRef?.removeEventListener("pointerup", handlePointerUp);
       ro.disconnect();
     });
   });
@@ -379,8 +406,7 @@ export default function Board(props: BoardProps) {
               const lm = lastMove();
               return lm && lm.from === index;
             };
-            const isSelected = () =>
-              showingMovesFrom() === index && piece();
+            const isSelected = () => showingMovesFrom() === index && piece();
 
             const squareClass = () => {
               let cls = "square";
@@ -409,32 +435,101 @@ export default function Board(props: BoardProps) {
                 on:pointerdown={(e) => handlePointerDown(index, e)}
               >
                 <div class="inner">
-                  {(markedSquares.has(index) && index !== center) && (
+                  {markedSquares.has(index) && index !== center && (
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <line x1="0" y1="0" x2="100" y2="100" stroke="var(--board-square-inner)" stroke-width="2" />
-                      <line x1="100" y1="0" x2="0" y2="100" stroke="var(--board-square-inner)" stroke-width="2" />
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2="100"
+                        y2="100"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
+                      <line
+                        x1="100"
+                        y1="0"
+                        x2="0"
+                        y2="100"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
                     </svg>
                   )}
                   {corners.has(index) && (
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <line x1="0" y1="0" x2="100" y2="100" stroke="var(--board-corner-border)" stroke-width="2" />
-                      <line x1="100" y1="0" x2="0" y2="100" stroke="var(--board-corner-border)" stroke-width="2" />
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2="100"
+                        y2="100"
+                        stroke="var(--board-corner-border)"
+                        stroke-width="2"
+                      />
+                      <line
+                        x1="100"
+                        y1="0"
+                        x2="0"
+                        y2="100"
+                        stroke="var(--board-corner-border)"
+                        stroke-width="2"
+                      />
                     </svg>
                   )}
                   {index === center && (
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <line x1="0" y1="0" x2="100" y2="100" stroke="var(--board-square-inner)" stroke-width="2" />
-                      <line x1="100" y1="0" x2="0" y2="100" stroke="var(--board-square-inner)" stroke-width="2" />
-                      <polyline points="20,0 50,30 80,0" fill="none" stroke="var(--board-square-inner)" stroke-width="2" />
-                      <polyline points="100,20 70,50 100,80" fill="none" stroke="var(--board-square-inner)" stroke-width="2" />
-                      <polyline points="80,100 50,70 20,100" fill="none" stroke="var(--board-square-inner)" stroke-width="2" />
-                      <polyline points="0,80 30,50 0,20" fill="none" stroke="var(--board-square-inner)" stroke-width="2" />
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2="100"
+                        y2="100"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
+                      <line
+                        x1="100"
+                        y1="0"
+                        x2="0"
+                        y2="100"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
+                      <polyline
+                        points="20,0 50,30 80,0"
+                        fill="none"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
+                      <polyline
+                        points="100,20 70,50 100,80"
+                        fill="none"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
+                      <polyline
+                        points="80,100 50,70 20,100"
+                        fill="none"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
+                      <polyline
+                        points="0,80 30,50 0,20"
+                        fill="none"
+                        stroke="var(--board-square-inner)"
+                        stroke-width="2"
+                      />
                     </svg>
                   )}
                   {isLastMoveFrom() && (
-                    <svg class="move-arrow" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <svg
+                      class="move-arrow"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                    >
                       <polygon
-                        points={getArrowPoints(lastMove()!.from, lastMove()!.to)}
+                        points={getArrowPoints(
+                          lastMove()!.from,
+                          lastMove()!.to,
+                        )}
                         fill="rgba(0,0,0,0.15)"
                       />
                     </svg>

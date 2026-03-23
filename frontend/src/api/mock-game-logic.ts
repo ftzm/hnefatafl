@@ -1,11 +1,11 @@
 import {
+  applyMoveToBoardRep,
   type BoardRep,
+  cloneBoardRep,
   type GameOverState,
   type Move,
   type MovesMap,
   type PlayerColor,
-  cloneBoardRep,
-  applyMoveToBoardRep,
   startBoard,
 } from "../board-logic";
 
@@ -21,28 +21,44 @@ function canStep(from: number, dir: number): boolean {
   return false;
 }
 
-function isEnemyAt(board: BoardRep, pos: number, movingColor: PlayerColor): boolean {
+function isEnemyAt(
+  board: BoardRep,
+  pos: number,
+  movingColor: PlayerColor,
+): boolean {
   if (movingColor === "black") {
     return board.white.has(pos) || pos === board.king;
   }
   return board.black.has(pos);
 }
 
-function isFriendlyAt(board: BoardRep, pos: number, movingColor: PlayerColor): boolean {
+function isFriendlyAt(
+  board: BoardRep,
+  pos: number,
+  movingColor: PlayerColor,
+): boolean {
   if (movingColor === "black") {
     return board.black.has(pos);
   }
   return board.white.has(pos) || pos === board.king;
 }
 
-function isHostile(board: BoardRep, pos: number, movingColor: PlayerColor): boolean {
+function isHostile(
+  board: BoardRep,
+  pos: number,
+  movingColor: PlayerColor,
+): boolean {
   if (CORNERS.has(pos)) return true;
   if (pos === THRONE && board.king !== THRONE) return true;
   return isFriendlyAt(board, pos, movingColor);
 }
 
 function isHostileToKing(board: BoardRep, pos: number): boolean {
-  return board.black.has(pos) || CORNERS.has(pos) || (pos === THRONE && board.king !== THRONE);
+  return (
+    board.black.has(pos) ||
+    CORNERS.has(pos) ||
+    (pos === THRONE && board.king !== THRONE)
+  );
 }
 
 function movePiece(board: BoardRep, from: number, to: number): BoardRep {

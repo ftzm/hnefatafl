@@ -1,4 +1,10 @@
-import type { BoardRep, Move, MovesMap, PlayerColor, GameOverState } from "../board-logic";
+import type {
+  BoardRep,
+  GameOverState,
+  Move,
+  MovesMap,
+  PlayerColor,
+} from "../board-logic";
 
 export interface HotseatResponse {
   boardRep: BoardRep;
