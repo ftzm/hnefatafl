@@ -1,5 +1,5 @@
-import type { ParentProps, Setter } from "solid-js";
 import { Dialog } from "@kobalte/core/dialog";
+import type { ParentProps, Setter } from "solid-js";
 import CloseIcon from "./icons/CloseIcon";
 
 interface BottomSheetProps extends ParentProps {
@@ -15,14 +15,14 @@ export default function BottomSheet(props: BottomSheetProps) {
         <Dialog.Overlay class="bottom-sheet-overlay" />
         <Dialog.Content class="bottom-sheet-content">
           <div class="bottom-sheet-header">
-            <Dialog.Title class="bottom-sheet-title">{props.title}</Dialog.Title>
+            <Dialog.Title class="bottom-sheet-title">
+              {props.title}
+            </Dialog.Title>
             <Dialog.CloseButton class="btn btn-ghost" aria-label="Close">
               <CloseIcon />
             </Dialog.CloseButton>
           </div>
-          <div class="bottom-sheet-body">
-            {props.children}
-          </div>
+          <div class="bottom-sheet-body">{props.children}</div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog>

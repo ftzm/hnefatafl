@@ -1,9 +1,9 @@
-import { createEffect, on, onMount, onCleanup } from "solid-js";
 import { useParams } from "@solidjs/router";
-import { GameProvider, useGame } from "../game-context";
+import { createEffect, on, onCleanup, onMount } from "solid-js";
 import { useAiGame } from "../api/ai-game-context";
-import GameLayout from "../components/GameLayout";
 import type { Move } from "../board-logic";
+import GameLayout from "../components/GameLayout";
+import { GameProvider, useGame } from "../game-context";
 
 function AiController() {
   const game = useGame();
@@ -18,34 +18,36 @@ function AiController() {
     ai.disconnect();
   });
 
-  createEffect(on(ai.events, (event) => {
-    if (!event) return;
+  createEffect(
+    on(ai.events, (event) => {
+      if (!event) return;
 
-    switch (event.type) {
-      case "initialState":
-        game.initGame({
-          boardRep: event.boardRep,
-          currentPlayer: event.currentPlayer,
-          moves: event.moves,
-          moveHistory: event.moveHistory,
-          playerColor: event.playerColor,
-          gameOver: event.gameOver,
-          players:
-            event.playerColor === "black"
-              ? { black: "You", white: "AI" }
-              : { black: "AI", white: "You" },
-        });
-        break;
-      case "moveMade":
-        if (event.currentPlayer === game.store.game.playerColor) {
-          game.applyExternalMove(event);
-        }
-        break;
-      case "gameOver":
-        game.setGameOver({ winner: event.winner, reason: event.reason });
-        break;
-    }
-  }));
+      switch (event.type) {
+        case "initialState":
+          game.initGame({
+            boardRep: event.boardRep,
+            currentPlayer: event.currentPlayer,
+            moves: event.moves,
+            moveHistory: event.moveHistory,
+            playerColor: event.playerColor,
+            gameOver: event.gameOver,
+            players:
+              event.playerColor === "black"
+                ? { black: "You", white: "AI" }
+                : { black: "AI", white: "You" },
+          });
+          break;
+        case "moveMade":
+          if (event.currentPlayer === game.store.game.playerColor) {
+            game.applyExternalMove(event);
+          }
+          break;
+        case "gameOver":
+          game.setGameOver({ winner: event.winner, reason: event.reason });
+          break;
+      }
+    }),
+  );
 
   function onMove(move: Move) {
     game.applyMove(move);
@@ -62,12 +64,7 @@ function AiController() {
   }
 
   return (
-    <GameLayout
-      mode="ai"
-      onMove={onMove}
-      onResign={onResign}
-      onUndo={onUndo}
-    />
+    <GameLayout mode="ai" onMove={onMove} onResign={onResign} onUndo={onUndo} />
   );
 }
 

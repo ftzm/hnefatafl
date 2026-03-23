@@ -1,19 +1,19 @@
 import { createSignal } from "solid-js";
 import {
+  applyMoveToBoardRep,
   type BoardRep,
+  cloneBoardRep,
   type Move,
   type PlayerColor,
-  cloneBoardRep,
-  applyMoveToBoardRep,
   startBoard,
 } from "../board-logic";
 import type { AiGameService } from "./ai-game-service";
-import type { AiGameEvent } from "./types";
 import {
-  generateLegalMoves,
   checkGameOver,
+  generateLegalMoves,
   pickRandomMove,
 } from "./mock-game-logic";
+import type { AiGameEvent } from "./types";
 
 export function createMockAiGameService(): AiGameService {
   let gameConfig: { playerColor: PlayerColor } | null = null;
@@ -140,8 +140,7 @@ export function createMockAiGameService(): AiGameService {
 
     resign() {
       if (!active || !gameConfig) return;
-      const winner =
-        gameConfig.playerColor === "black" ? "white" : "black";
+      const winner = gameConfig.playerColor === "black" ? "white" : "black";
       setEvents({ type: "gameOver", winner, reason: "Resignation" });
     },
 

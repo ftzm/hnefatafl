@@ -1,9 +1,9 @@
-import { For, createSignal } from "solid-js";
+import { createSignal, For } from "solid-js";
+import AiSetupModal from "../components/AiSetupModal";
 import GameCard from "../components/GameCard";
 import HotseatSetupModal from "../components/HotseatSetupModal";
-import AiSetupModal from "../components/AiSetupModal";
 import OnlineSetupModal from "../components/OnlineSetupModal";
-import { mockInProgressGames, mockCompletedGames } from "../mock-data";
+import { mockCompletedGames, mockInProgressGames } from "../mock-data";
 
 export default function Home() {
   const [hotseatOpen, setHotseatOpen] = createSignal(false);
@@ -22,18 +22,30 @@ export default function Home() {
       <OnlineSetupModal open={onlineOpen()} onOpenChange={setOnlineOpen} />
 
       <div class="home-actions">
-        <div class="action-card primary" onClick={() => setHotseatOpen(true)}>
+        <button
+          type="button"
+          class="action-card primary"
+          onClick={() => setHotseatOpen(true)}
+        >
           <span class="action-label">Play Hotseat</span>
           <span class="action-desc">Two players, one screen</span>
-        </div>
-        <div class="action-card primary" onClick={() => setAiOpen(true)}>
+        </button>
+        <button
+          type="button"
+          class="action-card primary"
+          onClick={() => setAiOpen(true)}
+        >
           <span class="action-label">Play vs AI</span>
           <span class="action-desc">Challenge the computer</span>
-        </div>
-        <div class="action-card primary" onClick={() => setOnlineOpen(true)}>
+        </button>
+        <button
+          type="button"
+          class="action-card primary"
+          onClick={() => setOnlineOpen(true)}
+        >
           <span class="action-label">Play Online</span>
           <span class="action-desc">Find an opponent</span>
-        </div>
+        </button>
       </div>
 
       <section class="home-section">

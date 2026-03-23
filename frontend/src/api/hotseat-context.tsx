@@ -1,4 +1,4 @@
-import { createContext, useContext, type ParentComponent } from "solid-js";
+import { createContext, type ParentComponent, useContext } from "solid-js";
 import type { HotseatApi } from "./hotseat-api";
 import { createMockHotseatApi } from "./mock-hotseat";
 

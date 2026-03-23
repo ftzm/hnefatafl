@@ -1,15 +1,16 @@
 /* @refresh reload */
+
+import { Route, Router } from "@solidjs/router";
 import { render } from "solid-js/web";
-import { Router, Route } from "@solidjs/router";
+import { AiGameProvider } from "./api/ai-game-context";
+import { HotseatApiProvider } from "./api/hotseat-context";
+import { OnlineGameProvider } from "./api/online-game-context";
+import AiGame from "./controllers/AiController";
+import HotseatGame from "./controllers/HotseatController";
+import OnlineGame from "./controllers/OnlineController";
 import Layout from "./Layout";
 import Home from "./pages/Home";
 import Settings from "./pages/Settings";
-import HotseatGame from "./controllers/HotseatController";
-import AiGame from "./controllers/AiController";
-import OnlineGame from "./controllers/OnlineController";
-import { HotseatApiProvider } from "./api/hotseat-context";
-import { AiGameProvider } from "./api/ai-game-context";
-import { OnlineGameProvider } from "./api/online-game-context";
 import "./tokens.css";
 import "./styles.css";
 

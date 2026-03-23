@@ -8,7 +8,7 @@ interface FormFieldProps extends ParentProps {
 export default function FormField(props: FormFieldProps) {
   return (
     <div class={`form-field${props.class ? ` ${props.class}` : ""}`}>
-      <label class="form-field-label">{props.label}</label>
+      <span class="form-field-label">{props.label}</span>
       {props.children}
     </div>
   );

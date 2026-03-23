@@ -1,6 +1,6 @@
-import { createContext, useContext, type ParentComponent } from "solid-js";
-import type { OnlineGameService } from "./online-game-service";
+import { createContext, type ParentComponent, useContext } from "solid-js";
 import { createMockOnlineGameService } from "./mock-online-game";
+import type { OnlineGameService } from "./online-game-service";
 
 const OnlineGameContext = createContext<OnlineGameService>();
 

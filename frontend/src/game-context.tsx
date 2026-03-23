@@ -1,24 +1,24 @@
 import {
+  type Accessor,
   createContext,
   createMemo,
   createSignal,
-  useContext,
-  type Accessor,
   type ParentComponent,
+  useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
+import { AsyncLock } from "./async-lock";
 import {
-  startBoard,
-  cloneBoardRep,
   applyMoveToBoardRep,
-  computeBoardAtMove,
   type BoardRep,
+  cloneBoardRep,
+  computeBoardAtMove,
   type GameOverState,
   type Move,
   type MovesMap,
   type PlayerColor,
+  startBoard,
 } from "./board-logic";
-import { AsyncLock } from "./async-lock";
 
 export type GameMode = "hotseat" | "ai" | "online";
 
@@ -60,7 +60,10 @@ interface GameContextValue {
   }) => void;
   setMoves: (moves: MovesMap) => void;
   setGameOver: (state: GameOverState | null) => void;
-  reconcile: (response: { moves: MovesMap; gameOver: GameOverState | null }) => void;
+  reconcile: (response: {
+    moves: MovesMap;
+    gameOver: GameOverState | null;
+  }) => void;
   undoLastMove: () => void;
   initGame: (config: Partial<GameState>) => void;
   viewPrev: () => Promise<void>;
@@ -148,7 +151,10 @@ export const GameProvider: ParentComponent = (props) => {
     if (move.captures) {
       for (const cap of move.captures) {
         if (store.game.boardRep.black.has(cap)) newCaptured.black++;
-        else if (store.game.boardRep.white.has(cap) || store.game.boardRep.king === cap)
+        else if (
+          store.game.boardRep.white.has(cap) ||
+          store.game.boardRep.king === cap
+        )
           newCaptured.white++;
       }
     }
@@ -176,7 +182,10 @@ export const GameProvider: ParentComponent = (props) => {
     if (move.captures) {
       for (const cap of move.captures) {
         if (store.game.boardRep.black.has(cap)) newCaptured.black++;
-        else if (store.game.boardRep.white.has(cap) || store.game.boardRep.king === cap)
+        else if (
+          store.game.boardRep.white.has(cap) ||
+          store.game.boardRep.king === cap
+        )
           newCaptured.white++;
       }
     }

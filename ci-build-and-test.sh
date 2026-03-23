@@ -30,3 +30,12 @@ build_target "Haskell library" "backend.\"hnefatafl:lib:hnefatafl\""
 
 print_header "Running Haskell tests"
 nix run .#backend.\"hnefatafl:test:hnefatafl-test\"
+
+print_header "Frontend: install dependencies"
+(cd frontend && npm ci)
+
+print_header "Frontend: lint and format check"
+(cd frontend && npx biome check src)
+
+print_header "Frontend: typecheck"
+(cd frontend && npm run typecheck)

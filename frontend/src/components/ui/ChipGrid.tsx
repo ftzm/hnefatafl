@@ -13,6 +13,7 @@ export default function ChipGrid(props: ChipGridProps) {
       <For each={props.options}>
         {(option) => (
           <button
+            type="button"
             role="radio"
             aria-checked={props.value === option.value}
             class={`chip${props.value === option.value ? " selected" : ""}`}

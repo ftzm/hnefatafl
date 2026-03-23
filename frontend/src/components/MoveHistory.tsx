@@ -1,6 +1,6 @@
-import { For, createEffect } from "solid-js";
-import { useGame } from "../game-context";
+import { createEffect, For } from "solid-js";
 import { indexToAlgebraic, type Move } from "../board-logic";
+import { useGame } from "../game-context";
 
 interface MovePair {
   black: Move;
@@ -35,7 +35,7 @@ export default function MoveHistory() {
   });
 
   const formatMove = (move: Move): string =>
-    indexToAlgebraic(move.from) + "-" + indexToAlgebraic(move.to);
+    `${indexToAlgebraic(move.from)}-${indexToAlgebraic(move.to)}`;
 
   return (
     <div class="move-history" ref={scrollRef}>
@@ -50,26 +50,28 @@ export default function MoveHistory() {
               <span class="move-num">{moveNumber}.</span>
               <span class="move-black">
                 {pair.black && (
-                  <span
+                  <button
+                    type="button"
                     class={
                       blackIdx === game.currentViewMoveIndex() ? "current" : ""
                     }
                     onClick={() => game.jumpToMove(blackIdx)}
                   >
                     {formatMove(pair.black)}
-                  </span>
+                  </button>
                 )}
               </span>
               <span class="move-white">
                 {pair.white && (
-                  <span
+                  <button
+                    type="button"
                     class={
                       whiteIdx === game.currentViewMoveIndex() ? "current" : ""
                     }
                     onClick={() => game.jumpToMove(whiteIdx)}
                   >
                     {formatMove(pair.white)}
-                  </span>
+                  </button>
                 )}
               </span>
             </div>

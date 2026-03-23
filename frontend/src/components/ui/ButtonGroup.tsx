@@ -1,17 +1,18 @@
-import { splitProps, type ParentProps, type JSX } from "solid-js";
+import { type JSX, type ParentProps, splitProps } from "solid-js";
 
-type ButtonGroupProps = ParentProps<JSX.HTMLAttributes<HTMLDivElement>>;
+type ButtonGroupProps = ParentProps<
+  JSX.FieldsetHTMLAttributes<HTMLFieldSetElement>
+>;
 
 export default function ButtonGroup(props: ButtonGroupProps) {
   const [local, rest] = splitProps(props, ["class", "children"]);
 
   return (
-    <div
-      role="group"
+    <fieldset
       class={`btn-group${local.class ? ` ${local.class}` : ""}`}
       {...rest}
     >
       {local.children}
-    </div>
+    </fieldset>
   );
 }

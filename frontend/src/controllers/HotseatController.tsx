@@ -1,7 +1,7 @@
-import { GameProvider, useGame } from "../game-context";
 import { useHotseatApi } from "../api/hotseat-context";
-import GameLayout from "../components/GameLayout";
 import type { Move } from "../board-logic";
+import GameLayout from "../components/GameLayout";
+import { GameProvider, useGame } from "../game-context";
 
 function HotseatController() {
   const game = useGame();
@@ -11,16 +11,21 @@ function HotseatController() {
 
   function onMove(move: Move) {
     game.applyMove(move);
-    hotseat.getGameState(game.store.game.moveHistory).then((r) => game.reconcile(r));
+    hotseat
+      .getGameState(game.store.game.moveHistory)
+      .then((r) => game.reconcile(r));
   }
 
   function onUndo() {
     game.undoLastMove();
-    hotseat.getGameState(game.store.game.moveHistory).then((r) => game.reconcile(r));
+    hotseat
+      .getGameState(game.store.game.moveHistory)
+      .then((r) => game.reconcile(r));
   }
 
   function onResign() {
-    const winner = game.store.game.currentPlayer === "black" ? "white" : "black";
+    const winner =
+      game.store.game.currentPlayer === "black" ? "white" : "black";
     game.setGameOver({ winner, reason: "Resignation" });
   }
 

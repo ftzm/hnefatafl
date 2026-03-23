@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 
 interface ClockProps {
   initialSeconds: number;

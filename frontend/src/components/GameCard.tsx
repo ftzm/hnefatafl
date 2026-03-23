@@ -1,5 +1,5 @@
 import { A } from "@solidjs/router";
-import type { InProgressGame, CompletedGame } from "../mock-data";
+import type { CompletedGame, InProgressGame } from "../mock-data";
 
 interface GameCardProps {
   game: InProgressGame | CompletedGame;
@@ -15,12 +15,17 @@ export default function GameCard(props: GameCardProps) {
         <div class="game-card-info">
           <span class="game-card-opponent">vs {game().opponent}</span>
           <span class="game-card-meta">
-            {game().moveCount} moves · {"completedAt" in game() ? (game() as CompletedGame).completedAt : (game() as InProgressGame).lastPlayed}
+            {game().moveCount} moves ·{" "}
+            {"completedAt" in game()
+              ? (game() as CompletedGame).completedAt
+              : (game() as InProgressGame).lastPlayed}
           </span>
         </div>
       </div>
       <span class="game-card-status">
-        {"result" in game() ? (game() as CompletedGame).result : (game() as InProgressGame).status}
+        {"result" in game()
+          ? (game() as CompletedGame).result
+          : (game() as InProgressGame).status}
       </span>
     </A>
   );
