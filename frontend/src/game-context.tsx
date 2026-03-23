@@ -283,16 +283,15 @@ export const GameProvider: ParentComponent = (props) => {
         store.game.moveHistory,
         newCursor,
       );
+      setStore("game", {
+        historyCursor: newCursor,
+        boardRep: newBoard,
+        capturedPieces: newCaptured,
+      });
       setPendingAnimation({
         from: move.from,
         to: move.to,
         captures: move.captures || [],
-        applyState: () =>
-          setStore("game", {
-            historyCursor: newCursor,
-            boardRep: newBoard,
-            capturedPieces: newCaptured,
-          }),
       });
     });
   }
