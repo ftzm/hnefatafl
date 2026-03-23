@@ -541,10 +541,10 @@ i32 quiesce_black(
   if (collision) {
     // We return MAX_SCORE for draws rather than 0 because our static eval isn't
     // well-calibrated around zero, making the engine too eager to pursue draws.
-    // MAX_SCORE here means the side to move "accepts" the draw, but the opponent
-    // (who made the move leading here) sees -MAX_SCORE via negation, so they
-    // avoid it. This symmetrically discourages both sides from creating draw
-    // opportunities, so draws only occur when forced.
+    // MAX_SCORE here means the side to move "accepts" the draw, but the
+    // opponent (who made the move leading here) sees -MAX_SCORE via negation,
+    // so they avoid it. This symmetrically discourages both sides from creating
+    // draw opportunities, so draws only occur when forced.
     statistics->repeat_moves_encountered++;
     return MAX_SCORE;
   }
@@ -624,8 +624,8 @@ i32 quiesce_black(
           b.black,
           b.black_r,
           ms,
-        NULL,
-        NULL,
+          NULL,
+          NULL,
           &total);
 
       // Subtract these moves from the main layers
@@ -2637,8 +2637,30 @@ i32 search_white(
   // hacky bounds check
   assert(total < 400);
 
+  // // Score quiet moves by PST delta for move ordering
+  // i32 move_scores[400];
+  // for (int i = 0; i < total; i++) {
+  //   move_scores[i] =
+  //       w->psts.white_pst._[ms[i].dest] - w->psts.white_pst._[ms[i].orig];
+  // }
+
   // iterate
   for (int i = 0; i < total; i++) {
+    // // Selection sort: find best-scoring remaining move
+    // int best = i;
+    // for (int j = i + 1; j < total; j++) {
+    //   if (move_scores[j] > move_scores[best])
+    //     best = j;
+    // }
+    // if (best != i) {
+    //   move tmp_m = ms[i];
+    //   ms[i] = ms[best];
+    //   ms[best] = tmp_m;
+    //   i32 tmp_s = move_scores[i];
+    //   move_scores[i] = move_scores[best];
+    //   move_scores[best] = tmp_s;
+    // }
+
     u8 orig = ms[i].orig;
     u8 dest = ms[i].dest;
 

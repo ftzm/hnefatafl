@@ -221,37 +221,40 @@ u32 black_pst_quarter[29] = {
 // Learned via logistic regression on self-play data.
 // Values represent how good it is for white to have a pawn on this square.
 // White pawns are most valuable near corners (escort positions).
-u32 white_pst_quarter[29] = {
-    72,  // 1
-    93,  // 2
-    82,  // 3
-    64,  // 4
-    45,  // 5
-    84,  // 11
-    103, // 12
-    74,  // 13
-    39,  // 14
-    65,  // 15
-    50,  // 16
-    100, // 22
-    60,  // 23
-    49,  // 24
-    56,  // 25
-    51,  // 26
-    37,  // 27
-    76,  // 33
-    45,  // 34
-    53,  // 35
-    37,  // 36
-    40,  // 37
-    49,  // 38
-    69,  // 44
-    59,  // 45
-    45,  // 46
-    32,  // 47
-    56,  // 48
-    37   // 49
-};
+// u32 white_pst_quarter[29] = {
+//     72,  // 1
+//     93,  // 2
+//     82,  // 3
+//     64,  // 4
+//     45,  // 5
+//     84,  // 11
+//     103, // 12
+//     74,  // 13
+//     39,  // 14
+//     65,  // 15
+//     50,  // 16
+//     100, // 22
+//     60,  // 23
+//     49,  // 24
+//     56,  // 25
+//     51,  // 26
+//     37,  // 27
+//     76,  // 33
+//     45,  // 34
+//     53,  // 35
+//     37,  // 36
+//     40,  // 37
+//     49,  // 38
+//     69,  // 44
+//     59,  // 45
+//     45,  // 46
+//     32,  // 47
+//     56,  // 48
+//     37   // 49
+// };
+// TEMP: all zeros for testing
+u32 white_pst_quarter[29] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // Learned via logistic regression on self-play data.
 // Values represent how good it is for white to have the king on this square.
