@@ -1,6 +1,6 @@
 import { useParams } from "@solidjs/router";
 import { createEffect, on, onCleanup, onMount } from "solid-js";
-import { useAiGame } from "../api/ai-game-context";
+import { useAiGame } from "../api/contexts";
 import type { Move } from "../board-logic";
 import GameLayout from "../components/GameLayout";
 import { GameProvider, useGame } from "../game-context";

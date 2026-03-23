@@ -1,3 +1,7 @@
+/**
+ * Simple FIFO mutual-exclusion lock for async operations.
+ * Queued callers are resolved in order of arrival.
+ */
 export class AsyncLock {
   private _lockQueue: Array<() => void> = [];
   private _isLocked = false;

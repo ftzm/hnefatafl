@@ -7,7 +7,7 @@ import {
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AsyncLock } from "./async-lock";
+import { AsyncLock } from "./utils/async-lock";
 import {
   applyMoveToBoardRep,
   type BoardRep,

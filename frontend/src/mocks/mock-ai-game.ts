@@ -7,13 +7,13 @@ import {
   type PlayerColor,
   startBoard,
 } from "../board-logic";
-import type { AiGameService } from "./ai-game-service";
+import type { AiGameService } from "../api/ai-game-service";
 import {
   checkGameOver,
   generateLegalMoves,
   pickRandomMove,
 } from "./mock-game-logic";
-import type { AiGameEvent } from "./types";
+import type { AiGameEvent } from "../api/types";
 
 export function createMockAiGameService(): AiGameService {
   let gameConfig: { playerColor: PlayerColor } | null = null;

@@ -1,4 +1,5 @@
-import { useHotseatApi } from "../api/hotseat-context";
+
+import { useHotseatApi } from "../api/contexts";
 import type { Move } from "../board-logic";
 import GameLayout from "../components/GameLayout";
 import { GameProvider, useGame } from "../game-context";

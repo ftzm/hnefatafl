@@ -3,7 +3,7 @@ import AiSetupModal from "../components/AiSetupModal";
 import GameCard from "../components/GameCard";
 import HotseatSetupModal from "../components/HotseatSetupModal";
 import OnlineSetupModal from "../components/OnlineSetupModal";
-import { mockCompletedGames, mockInProgressGames } from "../mock-data";
+import { mockCompletedGames, mockInProgressGames } from "../mocks/mock-data";
 
 export default function Home() {
   const [hotseatOpen, setHotseatOpen] = createSignal(false);

@@ -12,8 +12,8 @@ import {
   generateLegalMoves,
   pickRandomMove,
 } from "./mock-game-logic";
-import type { OnlineGameService } from "./online-game-service";
-import type { OnlineGameEvent } from "./types";
+import type { OnlineGameService } from "../api/online-game-service";
+import type { OnlineGameEvent } from "../api/types";
 
 const CHAT_RESPONSES = [
   "Good move!",

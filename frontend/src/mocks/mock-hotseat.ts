@@ -1,4 +1,4 @@
-import type { HotseatApi } from "./hotseat-api";
+import type { HotseatApi } from "../api/hotseat-api";
 import {
   checkGameOver,
   generateLegalMoves,

@@ -1,5 +1,5 @@
 import { A } from "@solidjs/router";
-import type { CompletedGame, InProgressGame } from "../mock-data";
+import type { CompletedGame, InProgressGame } from "../mocks/mock-data";
 
 interface GameCardProps {
   game: InProgressGame | CompletedGame;

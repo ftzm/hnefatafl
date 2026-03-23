@@ -1,6 +1,7 @@
+
 import { useNavigate } from "@solidjs/router";
 import { createSignal, type Setter } from "solid-js";
-import { useAiGame } from "../api/ai-game-context";
+import { useAiGame } from "../api/contexts";
 import type { PlayerColor } from "../board-logic";
 import { sideOptions, timeOptions } from "../gameOptions";
 import Button from "./ui/Button";

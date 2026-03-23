@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import type { SelectOption } from "../../gameOptions";
+import type { SelectOption } from "./types";
 
 interface ChipGridProps {
   options: SelectOption[];

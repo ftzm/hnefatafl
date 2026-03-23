@@ -1,7 +1,4 @@
-export interface SelectOption {
-  value: string;
-  label: string;
-}
+import type { SelectOption } from "./components/ui/types";
 
 export const sideOptions: SelectOption[] = [
   { value: "black", label: "Black" },
