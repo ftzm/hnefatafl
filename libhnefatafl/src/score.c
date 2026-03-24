@@ -437,11 +437,11 @@ score_state update_score_state_king_move_and_capture(
 }
 
 i32 black_score(score_weights *w, score_state *s, board *b) {
-  i32 black_moves = black_moves_count(b) * w->black_moves;
+  // i32 black_moves = black_moves_count(b) * w->black_moves;
   i32 white_moves = white_moves_count(b) * w->white_moves;
   i32 king_moves = king_moves_count(b) * w->king_moves;
   i32 king_surrounders = king_surrounder_score(b, w->king_surrounders);
-  return s->score + black_moves - white_moves - king_moves + king_surrounders;
+  return s->score - white_moves - king_moves + king_surrounders;
 }
 
 i32 white_score(score_weights *w, score_state *s, board *b) {
