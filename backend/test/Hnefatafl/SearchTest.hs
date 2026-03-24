@@ -25,7 +25,7 @@ spec_successful_completion =
       let isBlackTurn = True
       let zobristHashes = [] :: [Word64]
       let timeout = SearchTimeout 100
-      result <- searchWithTimeout board isBlackTurn zobristHashes timeout
+      result <- searchWithTimeout board isBlackTurn zobristHashes timeout False
 
       -- Verify we got meaningful results
       let resultMove = searchMove result
@@ -51,7 +51,7 @@ spec_timeout_behavior =
         let timeout = SearchTimeout timeoutMs
         let marginMs = 10 -- Allow larger margin
         start <- getTime Monotonic
-        _ <- searchWithTimeout board isBlackTurn zobristHashes timeout
+        _ <- searchWithTimeout board isBlackTurn zobristHashes timeout False
         end <- getTime Monotonic
 
         let elapsedMs = fromIntegral (toNanoSecs (diffTimeSpec end start)) / 1000000 :: Double
@@ -77,7 +77,7 @@ spec_exception_handling =
       -- Start the search in a separate thread so we can interrupt it
       searchThreadId <-
         forkIO $
-          ( void (searchWithTimeout board isBlackTurn zobristHashes timeout)
+          ( void (searchWithTimeout board isBlackTurn zobristHashes timeout False)
               `catch` \case
                 UserInterrupt -> return () -- Catch the expected UserInterrupt
                 _ -> return () -- Handle other async exceptions

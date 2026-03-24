@@ -67,7 +67,7 @@ runSearchTest config =
       case mkTestSearchState moves of
         Left err -> \_ -> throwError $ "Failed to create test search state: " <> err
         Right testState -> interpret $ \_ -> \case
-          SearchTrusted _board _blackToMove hashes _timeout -> do
+          SearchTrusted _ _ hashes _ _ -> do
             case hashes of
               -- Empty hash list means we're at the start - return the first move
               [] -> pure $ uncurry moveResultToSearchResult testState.firstMove

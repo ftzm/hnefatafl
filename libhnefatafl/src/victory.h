@@ -14,3 +14,7 @@ bool white_victory(const board *b);
 // Victory check functions that return detailed game status
 game_status white_victory_check(const board *b);
 game_status black_victory_check(const board *b);
+
+// Administrative ending checks
+bool all_corners_guarded(const board *b);
+game_status administrative_ending_check(const board *b, bool is_black_turn);

@@ -7,7 +7,6 @@ module Hnefatafl.SelfPlay.UI (
   mkInitialScoreState,
   updateScoreState,
   formatScore,
-  formatMoveAvg,
   runSelfPlayUI,
 ) where
 
@@ -55,49 +54,39 @@ import Optics.State.Operators ((%=))
 import Text.Printf (printf)
 import Prelude hiding (atomically, toList)
 
--- | Format the score display: "4W-0L-2T (+8, 2 pending)"
+-- | Format the score display: "+12.5% (25W-10D-25L)"
 formatScore :: ScoreState -> Text
 formatScore scoreState = baseScore <> pendingSuffix
  where
-  totalPairs = scoreState.newPairWins + scoreState.oldPairWins + scoreState.tiedPairCount
-  pendingCount = length scoreState.pending
+  totalGames = scoreState.wins + scoreState.draws + scoreState.losses
+  pendingGames = sum $ map (length . snd) $ toList scoreState.pending
 
   baseScore
-    | totalPairs == 0 = "--"
+    | totalGames == 0 = "--"
     | otherwise =
-        show scoreState.newPairWins
+        formatPct pctAbove50
+          <> " ("
+          <> show scoreState.wins
           <> "W-"
-          <> show scoreState.oldPairWins
-          <> "L-"
-          <> show scoreState.tiedPairCount
-          <> "T ("
-          <> showSign netPoints
-          <> ")"
+          <> show scoreState.draws
+          <> "D-"
+          <> show scoreState.losses
+          <> "L)"
 
-  netPoints = (scoreState.newPairWins - scoreState.oldPairWins) * 2
+  newPoints :: Double
+  newPoints = fromIntegral scoreState.wins + 0.5 * fromIntegral scoreState.draws
+
+  pctAbove50 :: Double
+  pctAbove50 = ((newPoints / fromIntegral totalGames) - 0.5) * 100
+
+  formatPct p
+    | p > 0 = "+" <> toText (printf "%.1f" p :: String) <> "%"
+    | p == 0 = "0%"
+    | otherwise = toText (printf "%.1f" p :: String) <> "%"
 
   pendingSuffix
-    | pendingCount == 0 = ""
-    | otherwise = " (" <> show pendingCount <> " pending)"
-
-  showSign n
-    | n > 0 = "+" <> show n
-    | n == 0 = "0"
-    | otherwise = show n
-
--- | Format move average: "+3.5 moves" or "--"
-formatMoveAvg :: ScoreState -> Text
-formatMoveAvg scoreState
-  | scoreState.tiedPairCount == 0 = "--"
-  | otherwise = showSign avgDiff <> " moves"
- where
-  avgDiff =
-    fromIntegral scoreState.moveDifferenceSum
-      / fromIntegral scoreState.tiedPairCount ::
-      Double
-  showSign n
-    | n > 0 = "+" <> toText (printf "%.1f" n :: String)
-    | otherwise = toText (printf "%.1f" n :: String)
+    | pendingGames == 0 = ""
+    | otherwise = " (" <> show pendingGames <> " pending)"
 
 -- | Handle events and update UI state
 handleEvent :: BrickEvent () UIEvent -> EventM () UIState ()
@@ -149,10 +138,8 @@ drawUI appState = [ui]
         <> show appState.completedGames
         <> "/"
         <> show appState.totalGames
-        <> " | Pairwise score: "
+        <> " | Score: "
         <> toString (formatScore appState.scoreState)
-        <> " | Movecount Advantage: "
-        <> toString (formatMoveAvg appState.scoreState)
         <> " | "
         <> if appState.processingComplete
           then "Processing complete! Press any key to exit"

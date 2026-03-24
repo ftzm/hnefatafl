@@ -7,7 +7,6 @@ module Hnefatafl.SelfPlay.UI.State (
   updateScoreState,
 ) where
 
-import Data.List (partition)
 import Data.Map.Strict (delete, insert, lookup)
 import Hnefatafl.Core.Data (MoveResult (..))
 import Hnefatafl.SelfPlay (
@@ -15,6 +14,7 @@ import Hnefatafl.SelfPlay (
   GameKey,
   GameResult (..),
   GameSetup (..),
+  Outcome (..),
   Player (..),
   ProcessingStateSnapshot (..),
   StateUpdate (..),
@@ -23,18 +23,25 @@ import Hnefatafl.SelfPlay (
 import Optics ((%~))
 import Prelude
 
+-- | We buffer game results by position ID and only count them once all 6 games
+-- for a position are complete. This prevents ordering artifacts: if faster-finishing
+-- games (e.g., wins from the favored side) complete before slower ones (losses or
+-- draws from the unfavored side), we'd see temporary score swings that don't
+-- reflect actual engine improvement.
 data ScoreState = ScoreState
-  { moveDifferenceSum :: Int
-  -- ^ running sum of (old_moves - new_moves) for tied pairs
-  , tiedPairCount :: Int
-  -- ^ count of pairs where each engine won once
-  , pending :: Map Int [(Bool, GameResult)]
-  -- ^ keyed by game id, collecting (newAsBlack, result) pairs until all 6 plays complete
-  , newPairWins :: Int
-  -- ^ count of pairs where new engine won both games
-  , oldPairWins :: Int
-  -- ^ count of pairs where old engine won both games
+  { wins :: Int
+  -- ^ games won by new engine
+  , draws :: Int
+  -- ^ drawn games
+  , losses :: Int
+  -- ^ games lost by new engine
+  , pending :: Map Int [GameOutcome]
+  -- ^ positionId -> outcomes for completed games, counted when all 6 arrive
   }
+  deriving (Show, Eq, Generic)
+
+-- | Outcome of a single game from the new engine's perspective
+data GameOutcome = NewWin | NewDraw | NewLoss
   deriving (Show, Eq, Generic)
 
 -- | Internal state for the Brick application
@@ -67,54 +74,38 @@ mkInitialUIState snapshot =
     }
 
 
--- | Aggregate results for one side (e.g., all plays where newAsBlack=True).
--- Returns (newEngineWon, avgWinningMoves).
--- Crashes if given an even or zero number of games.
-aggregateSide :: Bool -> [GameResult] -> (Bool, Int)
-aggregateSide newAsBlack results =
-  let len = length results
-   in if len == 0 || even len
-        then error $ "aggregateSide: expected odd number of games, got " <> show len
-        else
-          let blackWins = filter ((== Black) . (.winner)) results
-              whiteWins = filter ((== White) . (.winner)) results
-              blackWonMajority = length blackWins > length whiteWins
-              winningGames = if blackWonMajority then blackWins else whiteWins
-              avgMoves = sum (map (.moves) winningGames) `div` length winningGames
-              newWon = newAsBlack == blackWonMajority
-           in (newWon, avgMoves)
+-- | Determine outcome from new engine's perspective
+toGameOutcome :: Bool -> Outcome -> GameOutcome
+toGameOutcome newAsBlack = \case
+  WonBy Black -> if newAsBlack then NewWin else NewLoss
+  WonBy White -> if newAsBlack then NewLoss else NewWin
+  Draw -> NewDraw
 
--- | Process all plays for a game ID (6 total: 3 per side) and update the score state.
-processAllPlays :: [(Bool, GameResult)] -> ScoreState -> ScoreState
-processAllPlays plays scoreState =
-  let (side1Plays, side2Plays) = partition fst plays
-      (newWonSide1, side1Moves) = aggregateSide True (map snd side1Plays)
-      (newWonSide2, side2Moves) = aggregateSide False (map snd side2Plays)
-   in case (newWonSide1, newWonSide2) of
-        (True, True) -> scoreState & #newPairWins %~ (+ 1)
-        (False, False) -> scoreState & #oldPairWins %~ (+ 1)
-        _ ->
-          -- tie: one side won by each engine
-          let (newMoves, oldMoves) =
-                if newWonSide1 then (side1Moves, side2Moves) else (side2Moves, side1Moves)
-           in scoreState
-                & #moveDifferenceSum %~ (+ (oldMoves - newMoves))
-                & #tiedPairCount %~ (+ 1)
+-- | Count outcomes and add to score
+countOutcomes :: [GameOutcome] -> ScoreState -> ScoreState
+countOutcomes outcomes s =
+  s
+    { wins = s.wins + length (filter (== NewWin) outcomes)
+    , draws = s.draws + length (filter (== NewDraw) outcomes)
+    , losses = s.losses + length (filter (== NewLoss) outcomes)
+    }
 
 updateScoreState :: StateUpdate -> ScoreState -> ScoreState
 updateScoreState stateUpdate scoreState =
   case stateUpdate of
-    StateUpdate _key (GameCompleted setup _moves gameResult) ->
-      let gameId = setup.id
-          entry = (setup.newAsBlack, gameResult)
-       in case lookup gameId scoreState.pending of
+    StateUpdate _ (GameCompleted setup _ gameResult) ->
+      let positionId = setup.id
+          outcome = toGameOutcome setup.newAsBlack gameResult.outcome
+       in case lookup positionId scoreState.pending of
             Nothing ->
-              scoreState & #pending %~ insert gameId [entry]
+              scoreState & #pending %~ insert positionId [outcome]
             Just existing ->
-              let updated = entry : existing
+              let updated = outcome : existing
                in if length updated == 6
-                    then processAllPlays updated (scoreState & #pending %~ delete gameId)
-                    else scoreState & #pending %~ insert gameId updated
+                    then
+                      countOutcomes updated $
+                        scoreState & #pending %~ delete positionId
+                    else scoreState & #pending %~ insert positionId updated
     _ -> scoreState
 
 -- | Build initial ScoreState from completed games
@@ -124,21 +115,22 @@ mkInitialScoreState completedGames =
  where
   initialScoreState =
     ScoreState
-      { moveDifferenceSum = 0
-      , tiedPairCount = 0
+      { wins = 0
+      , draws = 0
+      , losses = 0
       , pending = mempty
-      , newPairWins = 0
-      , oldPairWins = 0
       }
 
-  processCompletedGame scoreState (CompletedGame setup _moves gameResult) =
-    let gameId = setup.id
-        entry = (setup.newAsBlack, gameResult)
-     in case lookup gameId scoreState.pending of
+  processCompletedGame scoreState (CompletedGame setup _ gameResult) =
+    let positionId = setup.id
+        outcome = toGameOutcome setup.newAsBlack gameResult.outcome
+     in case lookup positionId scoreState.pending of
           Nothing ->
-            scoreState & #pending %~ insert gameId [entry]
+            scoreState & #pending %~ insert positionId [outcome]
           Just existing ->
-            let updated = entry : existing
+            let updated = outcome : existing
              in if length updated == 6
-                  then processAllPlays updated (scoreState & #pending %~ delete gameId)
-                  else scoreState & #pending %~ insert gameId updated
+                  then
+                    countOutcomes updated $
+                      scoreState & #pending %~ delete positionId
+                  else scoreState & #pending %~ insert positionId updated

@@ -42,6 +42,9 @@ typedef enum game_status {
   status_king_escaped,
   status_exit_fort,
   status_no_black_moves,
+  status_draw_offered,
+  status_white_resigned,
+  status_black_resigned,
 } game_status;
 
 typedef enum move_error {

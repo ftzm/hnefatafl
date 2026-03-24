@@ -215,3 +215,33 @@ game_status black_victory_check(const board *b) {
   }
   return status_ongoing;
 }
+
+// Check if all four corners are guarded by black pieces
+bool all_corners_guarded(const board *b) {
+  layer black_guards = LAYER_AND(b->black, all_corner_guards);
+  return LAYERS_EQUAL(black_guards, all_corner_guards);
+}
+
+// Administrative ending check - returns status based on board conditions
+game_status administrative_ending_check(const board *b, bool is_black_turn) {
+  if (!all_corners_guarded(b)) {
+    return status_ongoing;
+  }
+
+  int white_pawns = white_pawn_count(b);
+  int black_pawns = black_pawn_count(b);
+
+  // White resignation: only white can resign, when corners guarded + white < 4
+  // + black >= 16
+  if (!is_black_turn && white_pawns < 4 && black_pawns >= 16) {
+    return status_white_resigned;
+  }
+
+  // Draw offer: either side can offer when corners guarded + white < 4 + black
+  // < 16
+  if (white_pawns < 4 && black_pawns < 16) {
+    return status_draw_offered;
+  }
+
+  return status_ongoing;
+}

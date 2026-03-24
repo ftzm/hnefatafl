@@ -21,8 +21,8 @@ runSearchRemote ::
   Eff (Search : es) a ->
   Eff es a
 runSearchRemote clientEnv client = interpret $ \_ -> \case
-  SearchTrusted board blackToMove hashes timeout -> do
-    let searchInput = SearchTrustedInput board blackToMove hashes timeout
+  SearchTrusted board blackToMove hashes timeout enableAdminEndings -> do
+    let searchInput = SearchTrustedInput board blackToMove hashes timeout enableAdminEndings
     result <- liftIO $ runClientM (client.searchTrusted searchInput) clientEnv
     case result of
       Right searchResult -> pure searchResult

@@ -19,6 +19,7 @@ data Search :: Effect where
     Bool ->
     [Word64] ->
     SearchTimeout ->
+    Bool ->
     Search m SearchTrustedResult
 
 makeEffect ''Search

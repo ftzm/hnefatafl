@@ -31,7 +31,7 @@ spec_remote_search_interpreter = beforeAll setupTestServer $ afterAll teardownTe
         runEff $
           runErrorNoCallStack @ClientError $
             runSearchRemote clientEnv client $
-              searchTrustedViaEffect startBoard True [] (SearchTimeout 1000)
+              searchTrustedViaEffect startBoard True [] (SearchTimeout 1000) False
 
       result `shouldSatisfy` \case
         Right searchResult ->
@@ -54,9 +54,10 @@ searchTrustedViaEffect ::
   Bool ->
   [Word64] ->
   SearchTimeout ->
+  Bool ->
   Eff eff SearchTrustedResult
-searchTrustedViaEffect board blackToMove hashes timeout =
-  send $ SearchTrusted board blackToMove hashes timeout
+searchTrustedViaEffect board blackToMove hashes timeout enableAdminEndings =
+  send $ SearchTrusted board blackToMove hashes timeout enableAdminEndings
 
 setupTestServer :: IO ((ClientEnv, HnefataflClient), Async ())
 setupTestServer = do

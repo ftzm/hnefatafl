@@ -20,7 +20,7 @@ import Hnefatafl.SelfPlay (
   loadOrCreateStateSnapshot,
   runSelfPlayParallel,
  )
-import Hnefatafl.SelfPlay.UI (formatMoveAvg, formatScore, mkInitialScoreState, runSelfPlayUI)
+import Hnefatafl.SelfPlay.UI (formatScore, mkInitialScoreState, runSelfPlayUI)
 import System.FilePath ((</>))
 
 -- | Run self-play with UI - combines game execution and UI display
@@ -93,5 +93,4 @@ runSelfPlayHeadless numActors version1 version2 stateDir startPositionsFile = do
   let stateFilePath = stateDir </> getStateFileName version1 version2
   finalSnapshot <- loadOrCreateStateSnapshot stateFilePath startPositionsFile
   let scoreState = mkInitialScoreState finalSnapshot.completedGames
-  liftIO $ putStrLn $ "Pairwise score: " <> toString (formatScore scoreState)
-  liftIO $ putStrLn $ "Movecount Advantage: " <> toString (formatMoveAvg scoreState)
+  liftIO $ putStrLn $ "Score: " <> toString (formatScore scoreState)

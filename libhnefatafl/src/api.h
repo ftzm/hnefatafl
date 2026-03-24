@@ -98,6 +98,8 @@ move_result *apply_move_sequence(
  * Writes the best move, updated board state, captures, updated zobrist hash,
  * and game status to the provided output parameters. The should_stop flag can
  * be set by external code to cancel the search.
+ * If enable_administrative_endings is true, checks for draw/resign conditions
+ * before searching and may resign or offer a draw.
  */
 void search_trusted(
     compact_board *trusted_board,
@@ -109,4 +111,5 @@ void search_trusted(
     compact_board *board_out,
     layer *captures_out,
     u64 *hash_out,
-    game_status *status_out);
+    game_status *status_out,
+    bool enable_administrative_endings);

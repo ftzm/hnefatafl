@@ -951,6 +951,20 @@ int main() {
       "corner_guard_se");
 
   print_layer_info(
+      ".  .  X  .  .  .  .  .  X  .  ."
+      ".  X  .  .  .  .  .  .  .  X  ."
+      "X  .  .  .  .  .  .  .  .  .  X"
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      ".  .  .  .  .  .  .  .  .  .  ."
+      "X  .  .  .  .  .  .  .  .  .  X"
+      ".  X  .  .  .  .  .  .  .  X  ."
+      ".  .  X  .  .  .  .  .  X  .  .",
+      "all_corner_guards");
+
+  print_layer_info(
       ".  .  .  .  .  .  .  .  .  .  ."
       ".  X  X  X  X  X  X  X  X  X  ."
       ".  X  X  X  X  X  X  X  X  X  ."

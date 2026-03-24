@@ -336,10 +336,24 @@ void search_trusted(
     compact_board *board_out,
     layer *captures_out,
     u64 *hash_out,
-    game_status *status_out) {
+    game_status *status_out,
+    bool enable_administrative_endings) {
 
   // Convert compact board to full board
   board board_state = from_compact(trusted_board);
+
+  if (enable_administrative_endings) {
+    game_status admin_status =
+        administrative_ending_check(&board_state, is_black_turn);
+    if (admin_status != status_ongoing) {
+      *move_out = (move){0, 0};
+      *board_out = *trusted_board;
+      *captures_out = EMPTY_LAYER;
+      *hash_out = 0;
+      *status_out = admin_status;
+      return;
+    }
+  }
 
   // Calculate current position hash
   u64 position_hash = hash_for_board(board_state, is_black_turn);

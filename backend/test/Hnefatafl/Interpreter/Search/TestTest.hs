@@ -50,7 +50,7 @@ spec_test_search_interpreter = do
       result <- runEff $
         runErrorNoCallStack @Text $
           runSearchTest config $
-            send $ SearchTrusted startBoard True [] (SearchTimeout 1000)
+            send $ SearchTrusted startBoard True [] (SearchTimeout 1000) False
 
       case result of
         Left err -> error $ "Test failed: " <> err
@@ -70,7 +70,7 @@ spec_test_search_interpreter = do
       result <- runEff $
         runErrorNoCallStack @Text $
           runSearchTest config $
-            send $ SearchTrusted fifthMoveResult.board (not fifthMoveResult.wasBlackTurn) [currentHash] (SearchTimeout 1000)
+            send $ SearchTrusted fifthMoveResult.board (not fifthMoveResult.wasBlackTurn) [currentHash] (SearchTimeout 1000) False
 
       case result of
         Left err -> error $ "Test failed: " <> err
@@ -90,7 +90,7 @@ playCompleteGame board isBlackTurn hashes = go board isBlackTurn hashes [] 0
   go currentBoard currentIsBlackTurn currentHashes moves moveCount
     | moveCount >= gameLength = pure (reverse moves, EngineOngoing) -- Safety limit reached
     | otherwise = do
-        searchResult <- send $ SearchTrusted currentBoard currentIsBlackTurn currentHashes (SearchTimeout 1000)
+        searchResult <- send $ SearchTrusted currentBoard currentIsBlackTurn currentHashes (SearchTimeout 1000) False
         let newMove = searchMove searchResult
             newBoard = updatedBoard searchResult
             newHash = updatedZobristHash searchResult

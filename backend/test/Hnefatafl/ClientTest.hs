@@ -45,6 +45,7 @@ spec_client_integration = beforeAll setupTestServer $ afterAll teardownTestServe
             , blackToMove = True
             , hashes = []
             , timeout = SearchTimeout 1000  -- 1 second timeout
+            , enableAdminEndings = False
             }
       result <- runClientM (client.searchTrusted searchInput) clientEnv
       result `shouldSatisfy` \case

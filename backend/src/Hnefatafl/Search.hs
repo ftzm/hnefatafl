@@ -24,8 +24,8 @@ newtype SearchTimeout = SearchTimeout Int
 
 -- | Search with a timeout using async for better resource management.
 searchWithTimeout ::
-  ExternBoard -> Bool -> [Word64] -> SearchTimeout -> IO SearchTrustedResult
-searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutMs) = do
+  ExternBoard -> Bool -> [Word64] -> SearchTimeout -> Bool -> IO SearchTrustedResult
+searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutMs) enableAdminEndings = do
   alloca $ \shouldStopPtr -> do
     -- Initialize the atomic boolean to False
     poke shouldStopPtr (CBool 0)
@@ -33,7 +33,7 @@ searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutM
     -- Start search thread - this is interruptible by setting the stop flag
     searchAsync <- async $ do
       uninterruptibleMask_ $
-        searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr
+        searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr enableAdminEndings
 
     -- Start timeout thread to set the stop boolean after timeout
     timeoutAsync <-

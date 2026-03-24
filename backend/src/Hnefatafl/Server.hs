@@ -99,6 +99,7 @@ data SearchTrustedInput = SearchTrustedInput
   , blackToMove :: Bool
   , hashes :: [Word64]
   , timeout :: SearchTimeout
+  , enableAdminEndings :: Bool
   }
   deriving (Show, Generic, Eq)
   deriving anyclass (ToJSON, FromJSON)
@@ -107,7 +108,7 @@ searchTrustedHandler ::
   (Search E.:> es, IOE E.:> es) =>
   SearchTrustedInput -> Eff es SearchTrustedResult
 searchTrustedHandler input =
-  send $ SearchTrusted input.board input.blackToMove input.hashes input.timeout
+  send $ SearchTrusted input.board input.blackToMove input.hashes input.timeout input.enableAdminEndings
 
 runServer :: Int -> IO ()
 runServer port = do

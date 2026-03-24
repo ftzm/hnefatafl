@@ -54,6 +54,9 @@ data EngineGameStatus
   | EngineKingEscaped -- white victory
   | EngineExitFort -- white victory
   | EngineNoBlackMoves -- white victory
+  | EngineDrawOffered
+  | EngineWhiteResigned -- black victory
+  | EngineBlackResigned -- white victory
   deriving (Show, Read, Eq, Ord, Enum, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -66,6 +69,9 @@ toGameStatus = \case
   EngineKingEscaped -> WhiteWonKingEscaped
   EngineExitFort -> WhiteWonExitFort
   EngineNoBlackMoves -> WhiteWonNoBlackMoves
+  EngineDrawOffered -> Draw
+  EngineWhiteResigned -> BlackWonResignation
+  EngineBlackResigned -> WhiteWonResignation
 
 -- Internal storable types for FFI
 data StorableLayer = StorableLayer {lower :: Word64, upper :: Word64}
@@ -96,6 +102,9 @@ data StorableGameStatus
   | KingEscaped -- white victory
   | ExitFort -- white victory
   | NoBlackMoves -- white victory
+  | DrawOffered
+  | WhiteResigned -- black victory
+  | BlackResigned -- white victory
   deriving (Show, Read, Eq, Enum)
 
 data MoveError
@@ -170,6 +179,9 @@ instance DomainMapping StorableGameStatus EngineGameStatus where
   toDomain KingEscaped = EngineKingEscaped
   toDomain ExitFort = EngineExitFort
   toDomain NoBlackMoves = EngineNoBlackMoves
+  toDomain DrawOffered = EngineDrawOffered
+  toDomain WhiteResigned = EngineWhiteResigned
+  toDomain BlackResigned = EngineBlackResigned
 
   fromDomain EngineOngoing = Hnefatafl.Bindings.Ongoing
   fromDomain EngineKingCaptured = KingCaptured
@@ -178,6 +190,9 @@ instance DomainMapping StorableGameStatus EngineGameStatus where
   fromDomain EngineKingEscaped = KingEscaped
   fromDomain EngineExitFort = ExitFort
   fromDomain EngineNoBlackMoves = NoBlackMoves
+  fromDomain EngineDrawOffered = DrawOffered
+  fromDomain EngineWhiteResigned = WhiteResigned
+  fromDomain EngineBlackResigned = BlackResigned
 
 foreign import ccall unsafe "start_board_extern"
   start_board_extern :: Ptr StorableExternBoard -> IO ()
@@ -403,11 +418,12 @@ foreign import ccall safe "search_trusted"
     Ptr StorableLayer ->
     Ptr Word64 ->
     Ptr StorableGameStatus ->
+    CBool ->
     IO ()
 
 searchTrusted ::
-  ExternBoard -> Bool -> [Word64] -> Ptr CBool -> IO SearchTrustedResult
-searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr = evalContT $ do
+  ExternBoard -> Bool -> [Word64] -> Ptr CBool -> Bool -> IO SearchTrustedResult
+searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr enableAdminEndings = evalContT $ do
   let
     storableBoard = fromDomain @StorableExternBoard trustedBoard
     hashCount = fromIntegral $ length zobristHashes
@@ -431,6 +447,7 @@ searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr = evalContT $
       capturesPtr
       hashPtr
       statusPtr
+      (if enableAdminEndings then 1 else 0)
 
   storableMove <- liftIO $ peek movePtr
   storableOutBoard <- liftIO $ peek outBoardPtr

@@ -5,6 +5,7 @@
 
 module Hnefatafl.SelfPlay (
   Player (..),
+  Outcome (..),
   GameResult (..),
   GameKey,
   GameSetup (..),
@@ -91,8 +92,11 @@ playsPerSide = 3
 data Player = Black | White
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
 
+data Outcome = WonBy Player | Draw
+  deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
+
 data GameResult = GameResult
-  { winner :: Player
+  { outcome :: Outcome
   , moves :: Int
   }
   deriving (Show, Read, Eq, Ord, Generic, ToJSON, FromJSON)
@@ -374,15 +378,18 @@ completeGame key gameResult processingState eventChan = atomically $ do
       eventChan
       (StateUpdate key (GameCompleted completed.setup completed.moves gameResult))
 
-getWinner :: EngineGameStatus -> Maybe Player
-getWinner = \case
+getOutcome :: EngineGameStatus -> Maybe Outcome
+getOutcome = \case
   EngineOngoing -> Nothing
-  EngineKingCaptured -> Just Black
-  EngineWhiteSurrounded -> Just Black
-  EngineNoWhiteMoves -> Just Black
-  EngineKingEscaped -> Just White
-  EngineExitFort -> Just White
-  EngineNoBlackMoves -> Just White
+  EngineKingCaptured -> Just (WonBy Black)
+  EngineWhiteSurrounded -> Just (WonBy Black)
+  EngineNoWhiteMoves -> Just (WonBy Black)
+  EngineKingEscaped -> Just (WonBy White)
+  EngineExitFort -> Just (WonBy White)
+  EngineNoBlackMoves -> Just (WonBy White)
+  EngineDrawOffered -> Just Draw
+  EngineWhiteResigned -> Just (WonBy Black)
+  EngineBlackResigned -> Just (WonBy White)
 
 -- run game loop
 playGame ::
@@ -413,8 +420,8 @@ playGame gameKey processingState eventChan moveCount board blackToMove hashes = 
       (Labeled @current) $
         -- Drop first hash because it represents the current position
         -- searchTrusted expects only past positions (game history)
-        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout searchTimeoutMs)
-  case getWinner result.gameStatus of
+        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout searchTimeoutMs) True
+  case getOutcome result.gameStatus of
     Nothing -> do
       updateGameProgress gameKey result blackToMove processingState eventChan
       playGame @next @current
@@ -425,7 +432,7 @@ playGame gameKey processingState eventChan moveCount board blackToMove hashes = 
         result.updatedBoard
         (not blackToMove)
         (result.updatedZobristHash : hashes)
-    Just winner -> pure $ GameResult winner moveCount
+    Just gameOutcome -> pure $ GameResult gameOutcome moveCount
 
 -- run game loop
 beginGame ::

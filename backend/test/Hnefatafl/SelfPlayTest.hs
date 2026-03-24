@@ -35,6 +35,7 @@ import Hnefatafl.SelfPlay (
   GameProgress (..),
   GameResult (..),
   GameSetup (..),
+  Outcome (..),
   Player (..),
   ProcessingState (..),
   ProcessingStateSnapshot (..),
@@ -128,7 +129,7 @@ spec_round_trip_state_snapshot =
             CompletedGame
               { setup = testGameDef2.setup
               , moves = []
-              , result = GameResult{winner = Black, moves = 42}
+              , result = GameResult{outcome = WonBy Black, moves = 42}
               }
 
       let originalSnapshot =
@@ -239,7 +240,7 @@ spec_complete_game =
                     , selfPlayMoves = []
                     }
               }
-      let testResult = GameResult{winner = Black, moves = 42}
+      let testResult = GameResult{outcome = WonBy Black, moves = 42}
       finalSnapshot <- runEff $
         runFileSystem $
           runConcurrent $ do
@@ -285,7 +286,7 @@ spec_complete_game =
                     , selfPlayMoves = [Move 0 1, Move 1 2] -- Game has accumulated moves
                     }
               }
-      let testResult = GameResult{winner = White, moves = 2}
+      let testResult = GameResult{outcome = WonBy White, moves = 2}
       finalSnapshot <- runEff $
         runFileSystem $
           runConcurrent $ do
@@ -503,37 +504,40 @@ createComplexLiveState gameNotation = do
       runningGame2Def = makeGameDef 7 15 False
       runningGame3Def = makeGameDef 8 20 False
 
-      -- Convert EngineGameStatus to Player
-      engineStatusToPlayer :: EngineGameStatus -> Player
-      engineStatusToPlayer = \case
-        EngineKingCaptured -> Black
-        EngineWhiteSurrounded -> Black
-        EngineNoWhiteMoves -> Black
-        EngineKingEscaped -> White
-        EngineExitFort -> White
-        EngineNoBlackMoves -> White
+      -- Convert EngineGameStatus to Outcome
+      engineStatusToOutcome :: EngineGameStatus -> Outcome
+      engineStatusToOutcome = \case
+        EngineKingCaptured -> WonBy Black
+        EngineWhiteSurrounded -> WonBy Black
+        EngineNoWhiteMoves -> WonBy Black
+        EngineKingEscaped -> WonBy White
+        EngineExitFort -> WonBy White
+        EngineNoBlackMoves -> WonBy White
+        EngineDrawOffered -> Draw
+        EngineWhiteResigned -> WonBy Black
+        EngineBlackResigned -> WonBy White
         EngineOngoing -> error "Game should not be ongoing for completed games"
 
       -- Create 3 completed games - representing final game state
       finalMoveCount = length allResults
-      winner = engineStatusToPlayer finalStatus
+      outcome = engineStatusToOutcome finalStatus
       completedGame1 =
         CompletedGame
           { setup = (makeGameDef 9 finalMoveCount True).setup
           , moves = []
-          , result = GameResult winner finalMoveCount
+          , result = GameResult{outcome = outcome, moves = finalMoveCount}
           }
       completedGame2 =
         CompletedGame
           { setup = (makeGameDef 10 finalMoveCount False).setup
           , moves = []
-          , result = GameResult winner finalMoveCount
+          , result = GameResult{outcome = outcome, moves = finalMoveCount}
           }
       completedGame3 =
         CompletedGame
           { setup = (makeGameDef 11 finalMoveCount True).setup
           , moves = []
-          , result = GameResult winner finalMoveCount
+          , result = GameResult{outcome = outcome, moves = finalMoveCount}
           }
 
       -- Use REAL moves and captures from the actual game
