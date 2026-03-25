@@ -127,7 +127,8 @@ TEST test_search_trusted_black_move() {
       &result_board,
       &result_captures,
       &result_hash,
-      &result_status);
+      &result_status,
+      false);
 
   pthread_join(timer, NULL);
 
@@ -206,7 +207,8 @@ TEST test_search_trusted_white_move() {
       &result_board,
       &result_captures,
       &result_hash,
-      &result_status);
+      &result_status,
+      false);
 
   pthread_join(timer, NULL);
 

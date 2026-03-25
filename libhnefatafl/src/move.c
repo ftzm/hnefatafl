@@ -1019,6 +1019,14 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *   row 2:       .  .  .  .  .  1  1  .  .  .  .
  *   row 1:       .  .  .  .  .  .  .  .  .  .  .
  *   row 0:       .  .  .  .  .  .  .  .  .  .  .
+ *
+ * ====== ALTERNATIVES (benchmarked, no improvement)
+ *
+ * - Kogge-Stone + SIMD: 128-bit parallel prefix for east+west on both halves.
+ *   ~6x instruction overhead negates parallelism benefit.
+ *
+ * - ILP pipelining: Grouping independent pext/pdep ops across normal/rotated
+ *   boards. No measurable gain; compiler/CPU already reorders effectively.
  */
 static inline layer rightward_moves_layer(layer movers, layer occ) {
   layer output = EMPTY_LAYER;

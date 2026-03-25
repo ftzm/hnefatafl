@@ -1149,7 +1149,7 @@ SUITE(search_black_shallow) {
       "  1  | .  .  X  .  .  .  .  .  X  .  . |"
       "     +---------------------------------+"
       "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .pv = PV(b5b8));
+      .pv = PV(b11b8));
 
   ASSERT_SEARCH_BLACK(
       "takes corner guard position",
