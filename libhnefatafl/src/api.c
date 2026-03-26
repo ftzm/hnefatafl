@@ -1,5 +1,6 @@
 #include "api.h"
 #include "board.h"
+#include "capture.h"
 #include "game_state.h"
 #include "io.h"
 #include "layer.h"

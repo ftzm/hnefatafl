@@ -1,4 +1,5 @@
 #include "api.h"
+#include "capture.h"
 #include "greatest.h"
 #include "move.h"
 #include "stdatomic.h"

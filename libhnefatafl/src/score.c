@@ -320,6 +320,28 @@ i32 pst_capture_handler(const piece_square_table *pst, layer captures) {
 }
 
 // -----------------------------------------------------------------------------
+// white strategic position access
+int white_strategic_position_access(const board *b) {
+  layer white_positions = b->white;
+  layer occ = board_occ(*b);
+  layer leftward = leftward_moves_layer_no_center(white_positions, occ);
+  layer rightward = rightward_moves_layer_no_center(white_positions, occ);
+  layer territory = LAYER_OR(LAYER_OR(leftward, rightward), white_positions);
+  layer access = LAYER_AND(territory, WHITE_A_TIER_DESTS);
+  int unrotated_score = LAYER_POPCOUNT(access);
+
+  layer white_positions_r = b->white_r;
+  layer occ_r = board_occ_r(*b);
+  layer leftward_r = leftward_moves_layer_no_center(white_positions_r, occ_r);
+  layer rightward_r = rightward_moves_layer_no_center(white_positions_r, occ_r);
+  layer territory_r =
+      LAYER_OR(LAYER_OR(leftward_r, rightward_r), white_positions_r);
+  layer access_r = LAYER_AND(territory_r, WHITE_A_TIER_DESTS);
+  int rotated_score = LAYER_POPCOUNT(access_r);
+  return unrotated_score + rotated_score;
+}
+
+// -----------------------------------------------------------------------------
 // Full setup
 
 score_state init_score_state(score_weights *weights, const board *b) {
@@ -441,7 +463,9 @@ i32 black_score(score_weights *w, score_state *s, board *b) {
   // i32 white_moves = white_moves_count(b) * w->white_moves;
   i32 king_moves = king_moves_count(b) * w->king_moves;
   i32 king_surrounders = king_surrounder_score(b, w->king_surrounders);
-  return s->score - king_moves + king_surrounders;
+  i32 strategic_access =
+      white_strategic_position_access(b) * w->white_strategic_access;
+  return s->score - king_moves + king_surrounders - strategic_access;
 }
 
 i32 white_score(score_weights *w, score_state *s, board *b) {
@@ -457,6 +481,7 @@ score_weights init_default_weights() {
       .white_moves = 5,
       .king_moves = 100,
       .king_surrounders = 25,
+      .white_strategic_access = 50,
       .psts = init_default_psts()};
   return weights;
 }

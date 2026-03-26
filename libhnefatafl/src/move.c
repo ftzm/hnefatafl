@@ -1441,6 +1441,19 @@ int white_moves_count(const board *b) {
   return total;
 }
 
+// generate a layer of all the positions to which white can move.
+layer white_move_coverage(const board *b) {
+  const layer occ = board_occ(*b);
+  const layer occ_r = board_occ_r(*b);
+  return LAYER_AND(
+      LAYER_AND(
+          LAYER_AND(
+              leftward_moves_layer(b->white, occ),
+              leftward_moves_layer(b->white_r, occ_r)),
+          rightward_moves_layer(b->white, occ)),
+      rightward_moves_layer(b->white_r, occ_r));
+}
+
 static inline int rightward_moves_count_king(layer movers, layer occ) {
   int output = 0;
 

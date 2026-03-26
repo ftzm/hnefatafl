@@ -1,9 +1,9 @@
 #pragma once
 
 #include "board.h"
-#include "capture.h"
 #include "position_set.h"
 #include "stdio.h"
+#include "x86intrin.h"
 #include "zobrist.h"
 #include <stdlib.h>
 
@@ -117,9 +117,62 @@ moves_to_king(board b, layer targets, layer targets_r) {
   return results;
 }
 
+layer white_move_coverage(const board *b);
+
 int black_moves_count(const board *b);
 int white_moves_count(const board *b);
 int king_moves_count(const board *b);
+
+static inline layer leftward_moves_layer_no_center(layer movers, layer occ) {
+  layer output = EMPTY_LAYER;
+
+  // lower
+  {
+    u64 blockers = occ._[0] | file_mask_0._[0];
+    u64 shifted_movers = movers._[0] << 1;
+    u64 subtraction = blockers - shifted_movers;
+    u64 dests = subtraction & ~(blockers | throne._[0]);
+    output._[0] = dests;
+  }
+
+  // upper
+  {
+    u64 blockers = occ._[1] | file_mask_0._[1];
+    u64 shifted_movers = (movers._[1] << 1);
+    u64 subtraction = blockers - shifted_movers;
+    u64 dests = subtraction & ~blockers;
+    output._[1] = dests;
+  }
+
+  return output;
+}
+
+static inline layer rightward_moves_layer_no_center(layer movers, layer occ) {
+  layer output = EMPTY_LAYER;
+
+  // upper
+  {
+    u64 blockers = occ._[1] | file_mask_10._[1];
+    u64 extracted_movers = _pext_u64(movers._[1], blockers);
+    u64 deposit_mask = 1 | (blockers << 1);
+    u64 deposited_movers = _pdep_u64(extracted_movers, deposit_mask);
+    u64 dests = movers._[1] - deposited_movers;
+    output._[1] = dests;
+  }
+
+  // lower
+  {
+    u64 blockers = occ._[0] | file_mask_10._[0];
+    // here I depend on the lower right corner being occupied to ensure that I
+    // generate a ray towards it
+    u64 extracted_movers = _pext_u64(movers._[0], blockers) >> 1;
+    u64 deposited_movers = _pdep_u64(extracted_movers, blockers << 1);
+    u64 dests = (movers._[0] - deposited_movers) & ~throne._[0];
+    output._[0] = dests;
+  }
+
+  return output;
+}
 
 inline move read_move(char *s) {
   int input_orig_rank;
