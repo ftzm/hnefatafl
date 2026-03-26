@@ -12,6 +12,11 @@ module Hnefatafl.Bindings (
   nextGameStateWithMovesTrusted,
   applyMoveSequence,
   searchTrusted,
+  TranspositionTable,
+  ttCreate,
+  ttDestroy,
+  ttClear,
+  ttNewGeneration,
   toGameStatus,
   EngineGameStatus (..),
   MoveError (..),
@@ -33,7 +38,7 @@ import Foreign (
   withArray,
  )
 import Foreign.C.String (CString, peekCString, withCString)
-import Foreign.C.Types (CBool (..), CInt (..))
+import Foreign.C.Types (CBool (..), CInt (..), CSize (..))
 import Foreign.Storable.Generic (GStorable)
 import Hnefatafl.Core.Data (
   DomainMapping (..),
@@ -391,6 +396,33 @@ applyMoveSequence moves = unsafePerformIO $ do
       free moveResultsPtr
       return (fromList $ map toDomain storableMoveResults, toDomain finalStatus)
 
+-- Opaque pointer to transposition table
+data TranspositionTable
+
+foreign import ccall safe "tt_create"
+  c_tt_create :: CSize -> IO (Ptr TranspositionTable)
+
+foreign import ccall safe "tt_destroy"
+  c_tt_destroy :: Ptr TranspositionTable -> IO ()
+
+foreign import ccall safe "tt_clear"
+  c_tt_clear :: Ptr TranspositionTable -> IO ()
+
+foreign import ccall safe "tt_new_generation"
+  c_tt_new_generation :: Ptr TranspositionTable -> IO ()
+
+ttCreate :: Int -> IO (Ptr TranspositionTable)
+ttCreate sizeMb = c_tt_create (fromIntegral sizeMb)
+
+ttDestroy :: Ptr TranspositionTable -> IO ()
+ttDestroy = c_tt_destroy
+
+ttClear :: Ptr TranspositionTable -> IO ()
+ttClear = c_tt_clear
+
+ttNewGeneration :: Ptr TranspositionTable -> IO ()
+ttNewGeneration = c_tt_new_generation
+
 foreign import ccall safe "search_trusted"
   c_search_trusted ::
     Ptr StorableExternBoard ->
@@ -398,6 +430,7 @@ foreign import ccall safe "search_trusted"
     Ptr Word64 ->
     CInt ->
     Ptr CBool ->
+    Ptr TranspositionTable ->
     Ptr StorableMove ->
     Ptr StorableExternBoard ->
     Ptr StorableLayer ->
@@ -406,8 +439,8 @@ foreign import ccall safe "search_trusted"
     IO ()
 
 searchTrusted ::
-  ExternBoard -> Bool -> [Word64] -> Ptr CBool -> IO SearchTrustedResult
-searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr = evalContT $ do
+  ExternBoard -> Bool -> [Word64] -> Ptr CBool -> Ptr TranspositionTable -> IO SearchTrustedResult
+searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr ttPtr = evalContT $ do
   let
     storableBoard = fromDomain @StorableExternBoard trustedBoard
     hashCount = fromIntegral $ length zobristHashes
@@ -426,6 +459,7 @@ searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr = evalContT $
       hashArrayPtr
       hashCount
       shouldStopPtr
+      ttPtr
       movePtr
       outBoardPtr
       capturesPtr

@@ -10,6 +10,7 @@
 #include "position_set.h"
 #include "score.h"
 #include "stdbool.h"
+#include "transposition_table.h"
 #include "zobrist.h" // IWYU pragma: export
 
 // Inline helper function for printing search statistics
@@ -106,13 +107,7 @@ static const pv_assertion EMPTY_PV = {
 // Helper macro to convert string to move
 #define READ_MOVE(move_str) read_move(STR(move_str))
 
-// Macro to create a pv struct from a list of moves
-#define PREV_PV(...)                                                           \
-  (&(pv){.pv_length = {0},                                                     \
-         .pv_table = {0},                                                      \
-         .prev_pv_length = sizeof((move[]){FOR_EACH(READ_MOVE, __VA_ARGS__)})  \
-                           / sizeof(move),                                     \
-         .prev_pv = {FOR_EACH(READ_MOVE, __VA_ARGS__)}})
+// (PREV_PV macro removed — PV-based move ordering replaced by TT)
 
 bool pvs_equal(pv_line *a, pv_line *b) {
   if (a->length != b->length) {
@@ -261,11 +256,11 @@ typedef struct {
   pv_assertion pv;
   stats_assertions stats_assertions;
   int depth;
-  bool is_pv;
   position_set *positions;
   i32 alpha;
   i32 beta;
   pv *pv_data;
+  transposition_table *tt;
   score_weights score_weights;
   score_state score_state;
 } search_args;
@@ -494,14 +489,12 @@ TEST assert_pv(
         .stats_assertions =                                                    \
             (stats_assertions){.assertions = NULL, .length = 0},               \
         .depth = 1,                                                            \
-        .is_pv = false,                                                        \
         .positions = EMPTY_POSITION_SET,                                       \
         .alpha = -INFINITY,                                                    \
         .beta = INFINITY,                                                      \
         .pv_data = &(pv){.pv_length = {0},                                     \
-                         .pv_table = {{0}},                                    \
-                         .prev_pv = {0},                                       \
-                         .prev_pv_length = 0},                                 \
+                         .pv_table = {{0}}},                                   \
+        .tt = tt_create(1),                                                    \
         .score_weights = init_default_weights(),                               \
         __VA_ARGS__};                                                          \
     _Pragma("GCC diagnostic pop") greatest_set_test_suffix(test_name);         \
@@ -509,6 +502,7 @@ TEST assert_pv(
     args.score_state = init_score_state(&args.score_weights, &b);              \
     RUN_TESTp(assert_pv, runner, is_black_turn, b, args);                      \
     destroy_position_set(args.positions);                                      \
+    tt_destroy(args.tt);                                                       \
   } while (0)
 
 pv_line
@@ -517,6 +511,7 @@ search_black_runner_with_stats(board b, search_args args, stats *statistics) {
   i32 result = search_black(
       args.pv_data,
       args.positions,
+      args.tt,
       &args.score_weights,
       args.score_state,
       b,
@@ -526,7 +521,6 @@ search_black_runner_with_stats(board b, search_args args, stats *statistics) {
       args.alpha,
       args.beta,
       statistics,
-      args.is_pv,
       &should_stop);
   return create_pv_line(args.pv_data, true, result);
 }
@@ -537,6 +531,7 @@ search_white_runner_with_stats(board b, search_args args, stats *statistics) {
   i32 result = search_white(
       args.pv_data,
       args.positions,
+      args.tt,
       &args.score_weights,
       args.score_state,
       b,
@@ -546,7 +541,6 @@ search_white_runner_with_stats(board b, search_args args, stats *statistics) {
       args.alpha,
       args.beta,
       statistics,
-      args.is_pv,
       &should_stop);
   return create_pv_line(args.pv_data, false, result);
 }
@@ -1101,35 +1095,7 @@ SUITE(search_black_shallow) {
           SEARCH_POSITIONS_BLACK(EQ, 1),
           QUIESCENCE_POSITIONS_BLACK(GT, 0), ));
 
-  // Example of using PREV_PV macro for testing with previous PV
-  // NOTE: I think this test maybe doesn't make any sense but need to analayze
-  // it properly to make sure. Think some wires got crossed.
-  ASSERT_SEARCH_BLACK(
-      "gets a beta cutoff from a PV move when possible",
-      "     +---------------------------------+"
-      " 11  | .  .  X  .  O  .  .  .  .  .  . |"
-      " 10  | .  X  .  .  O  .  O  .  .  .  X |"
-      "  9  | X  .  .  .  O  .  O  .  .  .  X |"
-      "  8  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  7  | .  .  .  .  .  #  .  .  .  .  . |"
-      "  6  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  5  | .  .  .  .  .  .  .  .  .  .  . |"
-      "  4  | .  .  .  .  .  .  .  .  O  O  . |"
-      "  3  | X  .  .  .  O  .  .  .  .  .  X |"
-      "  2  | .  X  .  .  O  .  .  .  .  X  . |"
-      "  1  | .  .  X  .  O  .  X  .  X  .  . |"
-      "     +---------------------------------+"
-      "       a  b  c  d  e  f  g  h  i  j  k  ",
-      .beta = MIN_SCORE,
-      .is_pv = true,
-      .pv_data = PREV_PV(f7f1),
-      // With depth 1 and a PV move return after 1 position examined through
-      // to white quiescence
-      .stats_assertions = STATS(
-          SEARCH_POSITIONS_BLACK(EQ, 1),
-          SEARCH_POSITIONS_WHITE(EQ, 1),
-          QUIESCENCE_POSITIONS_WHITE(EQ, 1),
-          SEARCH_BETA_CUTOFF_BLACK(EQ, 1)));
+  // (PV-move beta cutoff test removed — PV-based move ordering replaced by TT)
 
   // makes obvious capture
 
@@ -1380,7 +1346,9 @@ TEST time_limit_works(void) {
   clock_gettime(CLOCK_MONOTONIC, &start);
 
   // Run search with depth 10 and 50ms time limit
-  search_result result = search_black_with_timeout(start_board, 10, 50);
+  transposition_table *tt = tt_create(1);
+  search_result result = search_black_with_timeout(start_board, 10, 50, tt);
+  tt_destroy(tt);
 
   // Record end time
   clock_gettime(CLOCK_MONOTONIC, &end);
@@ -1418,8 +1386,10 @@ TEST test_search_completes(void) {
                         "       a  b  c  d  e  f  g  h  i  j  k  ";
   board b = read_board(board_string);
 
-  // Run search with depth 10 and 50ms time limit
-  search_result result = search_black_with_timeout(b, 6, 1000);
+  // Run search with depth 6 and 1000ms time limit
+  transposition_table *tt = tt_create(1);
+  search_result result = search_black_with_timeout(b, 6, 1000, tt);
+  tt_destroy(tt);
 
   // Extract the best move from result
   if (result.pv.length == 0 || result.pv.moves == NULL) {

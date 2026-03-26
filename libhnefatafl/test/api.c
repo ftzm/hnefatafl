@@ -3,6 +3,7 @@
 #include "move.h"
 #include "stdatomic.h"
 #include "stdio.h"
+#include "transposition_table.h"
 #include "types.h"
 #include "zobrist.h"
 #include <pthread.h>
@@ -117,17 +118,20 @@ TEST test_search_trusted_black_move() {
   u64 result_hash;
   game_status result_status;
 
+  transposition_table *tt = tt_create(1);
   search_trusted(
       &start,
       true,
       empty_hashes,
       0,
       &should_stop,
+      tt,
       &result_move,
       &result_board,
       &result_captures,
       &result_hash,
       &result_status);
+  tt_destroy(tt);
 
   pthread_join(timer, NULL);
 
@@ -196,17 +200,20 @@ TEST test_search_trusted_white_move() {
   u64 result_hash;
   game_status result_status;
 
+  transposition_table *tt = tt_create(1);
   search_trusted(
       &white_turn_board,
       false,
       position_history,
       1,
       &should_stop,
+      tt,
       &result_move,
       &result_board,
       &result_captures,
       &result_hash,
       &result_status);
+  tt_destroy(tt);
 
   pthread_join(timer, NULL);
 

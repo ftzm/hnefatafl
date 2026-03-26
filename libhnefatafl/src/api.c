@@ -6,6 +6,7 @@
 #include "move.h"
 #include "position_set.h"
 #include "search.h"
+#include "transposition_table.h"
 #include "victory.h"
 #include "zobrist.h"
 
@@ -332,6 +333,7 @@ void search_trusted(
     u64 *zobrist_hashes,
     int hash_count,
     _Atomic bool *should_stop,
+    transposition_table *tt,
     move *move_out,
     compact_board *board_out,
     layer *captures_out,
@@ -351,7 +353,8 @@ void search_trusted(
       should_stop,
       is_black_turn,
       zobrist_hashes,
-      hash_count);
+      hash_count,
+      tt);
 
 #ifndef NDEBUG
   // Check statistics for early abortion

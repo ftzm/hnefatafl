@@ -6,6 +6,7 @@
 #include "move.h"
 #include "position_set.h"
 #include "score.h"
+#include "transposition_table.h"
 #include "ubench.h"
 #include "zobrist.h"
 #include <stdatomic.h>
@@ -145,7 +146,8 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
                                                                                \
     UBENCH_DO_BENCHMARK() {                                                    \
       _Atomic bool should_stop = false;                                        \
-      search_result search_res = runner(b, depth, &should_stop);               \
+      transposition_table *tt = tt_create(32);                                 \
+      search_result search_res = runner(b, depth, &should_stop, tt);           \
       pv_line result = search_res.pv;                                          \
       stats statistics = search_res.statistics;                                \
       if (!printed) {                                                          \
@@ -154,6 +156,7 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
       } else {                                                                 \
         destroy_pv_line(&result);                                              \
       }                                                                        \
+      tt_destroy(tt);                                                           \
       UBENCH_DO_NOTHING(&result);                                              \
     }                                                                          \
                                                                                \

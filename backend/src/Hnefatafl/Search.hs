@@ -14,7 +14,8 @@ import Control.Exception (
 import Data.Aeson (FromJSON, ToJSON)
 import Foreign (alloca, poke)
 import Foreign.C.Types (CBool (..))
-import Hnefatafl.Bindings (SearchTrustedResult (..), searchTrusted)
+import Control.Exception (bracket)
+import Hnefatafl.Bindings (SearchTrustedResult (..), searchTrusted, ttCreate, ttDestroy)
 import Hnefatafl.Core.Data (ExternBoard)
 
 -- | Timeout duration in milliseconds
@@ -33,7 +34,8 @@ searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutM
     -- Start search thread - this is interruptible by setting the stop flag
     searchAsync <- async $ do
       uninterruptibleMask_ $
-        searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr
+        bracket (ttCreate 32) ttDestroy $ \ttPtr ->
+          searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr ttPtr
 
     -- Start timeout thread to set the stop boolean after timeout
     timeoutAsync <-
