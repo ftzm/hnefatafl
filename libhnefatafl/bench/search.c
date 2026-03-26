@@ -69,6 +69,8 @@ void print_search_stats(const stats *s) {
   printf("Quiescence - Total beta cutoffs: %d\n", total_quiescence_cutoffs);
   printf("Quiescence - Limit reached: %d\n", s->quiescence_limit_reached);
   printf("Repeat moves encountered: %d\n", s->repeat_moves_encountered);
+  printf("TT - Hits: %d\n", s->tt_hits);
+  printf("TT - Cutoffs: %d\n", s->tt_cutoffs);
   printf("===================\n");
 }
 
@@ -156,7 +158,7 @@ pv_line create_pv_line(pv *pv_data, bool is_black_turn, i32 result) {
       } else {                                                                 \
         destroy_pv_line(&result);                                              \
       }                                                                        \
-      tt_destroy(tt);                                                           \
+      tt_destroy(tt);                                                          \
       UBENCH_DO_NOTHING(&result);                                              \
     }                                                                          \
                                                                                \
@@ -174,9 +176,24 @@ SEARCH_BENCH(search, black_depth_4, start_board, search_black_runner, 4)
 SEARCH_BENCH(search, black_depth_5, start_board, search_black_runner, 5)
 
 // Opening position, black to move, iterative deepening
-SEARCH_BENCH(search, black_iterative_depth_3, start_board, search_black_runner_iterative, 3)
-SEARCH_BENCH(search, black_iterative_depth_4, start_board, search_black_runner_iterative, 4)
-SEARCH_BENCH(search, black_iterative_depth_5, start_board, search_black_runner_iterative, 5)
+SEARCH_BENCH(
+    search,
+    black_iterative_depth_3,
+    start_board,
+    search_black_runner_iterative,
+    3)
+SEARCH_BENCH(
+    search,
+    black_iterative_depth_4,
+    start_board,
+    search_black_runner_iterative,
+    4)
+SEARCH_BENCH(
+    search,
+    black_iterative_depth_5,
+    start_board,
+    search_black_runner_iterative,
+    5)
 
 // Opening position, white to move
 SEARCH_BENCH(search, white_depth_3, start_board, search_white_runner, 3)
@@ -184,49 +201,184 @@ SEARCH_BENCH(search, white_depth_4, start_board, search_white_runner, 4)
 SEARCH_BENCH(search, white_depth_5, start_board, search_white_runner, 5)
 
 // Opening position, white to move, iterative deepening
-SEARCH_BENCH(search, white_iterative_depth_3, start_board, search_white_runner_iterative, 3)
-SEARCH_BENCH(search, white_iterative_depth_4, start_board, search_white_runner_iterative, 4)
-SEARCH_BENCH(search, white_iterative_depth_5, start_board, search_white_runner_iterative, 5)
+SEARCH_BENCH(
+    search,
+    white_iterative_depth_3,
+    start_board,
+    search_white_runner_iterative,
+    3)
+SEARCH_BENCH(
+    search,
+    white_iterative_depth_4,
+    start_board,
+    search_white_runner_iterative,
+    4)
+SEARCH_BENCH(
+    search,
+    white_iterative_depth_5,
+    start_board,
+    search_white_runner_iterative,
+    5)
 
 // Mid-game position, black to move
-SEARCH_BENCH(search, midgame_black_depth_3, read_board(midgame_1_str), search_black_runner, 3)
-SEARCH_BENCH(search, midgame_black_depth_4, read_board(midgame_1_str), search_black_runner, 4)
-SEARCH_BENCH(search, midgame_black_depth_5, read_board(midgame_1_str), search_black_runner, 5)
+SEARCH_BENCH(
+    search,
+    midgame_black_depth_3,
+    read_board(midgame_1_str),
+    search_black_runner,
+    3)
+SEARCH_BENCH(
+    search,
+    midgame_black_depth_4,
+    read_board(midgame_1_str),
+    search_black_runner,
+    4)
+SEARCH_BENCH(
+    search,
+    midgame_black_depth_5,
+    read_board(midgame_1_str),
+    search_black_runner,
+    5)
 
 // Mid-game position, black to move, iterative deepening
-SEARCH_BENCH(search, midgame_black_iterative_depth_3, read_board(midgame_1_str), search_black_runner_iterative, 3)
-SEARCH_BENCH(search, midgame_black_iterative_depth_4, read_board(midgame_1_str), search_black_runner_iterative, 4)
-SEARCH_BENCH(search, midgame_black_iterative_depth_5, read_board(midgame_1_str), search_black_runner_iterative, 5)
+SEARCH_BENCH(
+    search,
+    midgame_black_iterative_depth_3,
+    read_board(midgame_1_str),
+    search_black_runner_iterative,
+    3)
+SEARCH_BENCH(
+    search,
+    midgame_black_iterative_depth_4,
+    read_board(midgame_1_str),
+    search_black_runner_iterative,
+    4)
+SEARCH_BENCH(
+    search,
+    midgame_black_iterative_depth_5,
+    read_board(midgame_1_str),
+    search_black_runner_iterative,
+    5)
 
 // Mid-game position, white to move
-SEARCH_BENCH(search, midgame_white_depth_3, read_board(midgame_1_str), search_white_runner, 3)
-SEARCH_BENCH(search, midgame_white_depth_4, read_board(midgame_1_str), search_white_runner, 4)
-SEARCH_BENCH(search, midgame_white_depth_5, read_board(midgame_1_str), search_white_runner, 5)
+SEARCH_BENCH(
+    search,
+    midgame_white_depth_3,
+    read_board(midgame_1_str),
+    search_white_runner,
+    3)
+SEARCH_BENCH(
+    search,
+    midgame_white_depth_4,
+    read_board(midgame_1_str),
+    search_white_runner,
+    4)
+SEARCH_BENCH(
+    search,
+    midgame_white_depth_5,
+    read_board(midgame_1_str),
+    search_white_runner,
+    5)
 
 // Mid-game position, white to move, iterative deepening
-SEARCH_BENCH(search, midgame_white_iterative_depth_3, read_board(midgame_1_str), search_white_runner_iterative, 3)
-SEARCH_BENCH(search, midgame_white_iterative_depth_4, read_board(midgame_1_str), search_white_runner_iterative, 4)
-SEARCH_BENCH(search, midgame_white_iterative_depth_5, read_board(midgame_1_str), search_white_runner_iterative, 5)
+SEARCH_BENCH(
+    search,
+    midgame_white_iterative_depth_3,
+    read_board(midgame_1_str),
+    search_white_runner_iterative,
+    3)
+SEARCH_BENCH(
+    search,
+    midgame_white_iterative_depth_4,
+    read_board(midgame_1_str),
+    search_white_runner_iterative,
+    4)
+SEARCH_BENCH(
+    search,
+    midgame_white_iterative_depth_5,
+    read_board(midgame_1_str),
+    search_white_runner_iterative,
+    5)
 
 // Tactical position, black to move
-SEARCH_BENCH(search, tactical_black_depth_3, read_board(tactical_1_str), search_black_runner, 3)
-SEARCH_BENCH(search, tactical_black_depth_4, read_board(tactical_1_str), search_black_runner, 4)
-SEARCH_BENCH(search, tactical_black_depth_5, read_board(tactical_1_str), search_black_runner, 5)
+SEARCH_BENCH(
+    search,
+    tactical_black_depth_3,
+    read_board(tactical_1_str),
+    search_black_runner,
+    3)
+SEARCH_BENCH(
+    search,
+    tactical_black_depth_4,
+    read_board(tactical_1_str),
+    search_black_runner,
+    4)
+SEARCH_BENCH(
+    search,
+    tactical_black_depth_5,
+    read_board(tactical_1_str),
+    search_black_runner,
+    5)
 
 // Tactical position, black to move, iterative deepening
-SEARCH_BENCH(search, tactical_black_iterative_depth_3, read_board(tactical_1_str), search_black_runner_iterative, 3)
-SEARCH_BENCH(search, tactical_black_iterative_depth_4, read_board(tactical_1_str), search_black_runner_iterative, 4)
-SEARCH_BENCH(search, tactical_black_iterative_depth_5, read_board(tactical_1_str), search_black_runner_iterative, 5)
+SEARCH_BENCH(
+    search,
+    tactical_black_iterative_depth_3,
+    read_board(tactical_1_str),
+    search_black_runner_iterative,
+    3)
+SEARCH_BENCH(
+    search,
+    tactical_black_iterative_depth_4,
+    read_board(tactical_1_str),
+    search_black_runner_iterative,
+    4)
+SEARCH_BENCH(
+    search,
+    tactical_black_iterative_depth_5,
+    read_board(tactical_1_str),
+    search_black_runner_iterative,
+    5)
 
 // Tactical position, white to move
-SEARCH_BENCH(search, tactical_white_depth_3, read_board(tactical_1_str), search_white_runner, 3)
-SEARCH_BENCH(search, tactical_white_depth_4, read_board(tactical_1_str), search_white_runner, 4)
-SEARCH_BENCH(search, tactical_white_depth_5, read_board(tactical_1_str), search_white_runner, 5)
+SEARCH_BENCH(
+    search,
+    tactical_white_depth_3,
+    read_board(tactical_1_str),
+    search_white_runner,
+    3)
+SEARCH_BENCH(
+    search,
+    tactical_white_depth_4,
+    read_board(tactical_1_str),
+    search_white_runner,
+    4)
+SEARCH_BENCH(
+    search,
+    tactical_white_depth_5,
+    read_board(tactical_1_str),
+    search_white_runner,
+    5)
 
 // Tactical position, white to move, iterative deepening
-SEARCH_BENCH(search, tactical_white_iterative_depth_3, read_board(tactical_1_str), search_white_runner_iterative, 3)
-SEARCH_BENCH(search, tactical_white_iterative_depth_4, read_board(tactical_1_str), search_white_runner_iterative, 4)
-SEARCH_BENCH(search, tactical_white_iterative_depth_5, read_board(tactical_1_str), search_white_runner_iterative, 5)
+SEARCH_BENCH(
+    search,
+    tactical_white_iterative_depth_3,
+    read_board(tactical_1_str),
+    search_white_runner_iterative,
+    3)
+SEARCH_BENCH(
+    search,
+    tactical_white_iterative_depth_4,
+    read_board(tactical_1_str),
+    search_white_runner_iterative,
+    4)
+SEARCH_BENCH(
+    search,
+    tactical_white_iterative_depth_5,
+    read_board(tactical_1_str),
+    search_white_runner_iterative,
+    5)
 
 // needs to be at top level
 UBENCH_STATE();

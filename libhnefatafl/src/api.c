@@ -325,6 +325,8 @@ void print_search_stats(const stats *s) {
   printf("Quiescence - Total beta cutoffs: %d\n", total_quiescence_cutoffs);
   printf("Quiescence - Limit reached: %d\n", s->quiescence_limit_reached);
   printf("Repeat moves encountered: %d\n", s->repeat_moves_encountered);
+  printf("TT - Hits: %d\n", s->tt_hits);
+  printf("TT - Cutoffs: %d\n", s->tt_cutoffs);
   printf("===================\n");
 }
 
