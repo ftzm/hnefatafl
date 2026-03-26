@@ -4,6 +4,7 @@
 #include "types.h"
 
 typedef struct position_set position_set;
+typedef struct transposition_table transposition_table;
 
 // INT_MIN == -2147483648, and -INT_MIN == INT_MIN due to integer overflow, so
 // it's important that we define this value that can safely be negated without
@@ -46,8 +47,6 @@ typedef struct pv_line {
 typedef struct pv {
   int pv_length[MAX_PLY];
   move pv_table[MAX_PLY][MAX_PLY];
-  move prev_pv[MAX_PLY];
-  int prev_pv_length;
 } pv;
 
 typedef struct stats {
@@ -61,6 +60,8 @@ typedef struct stats {
   int quiencence_beta_cutoff_white;
   int quiescence_limit_reached;
   int repeat_moves_encountered;
+  int tt_hits;
+  int tt_cutoffs;
 } stats;
 
 typedef struct search_result {
@@ -98,21 +99,29 @@ pv_line quiesce_white_runner(board b);
 
 pv_line quiesce_black_runner(board b);
 
-search_result
-search_white_runner(board b, int depth, _Atomic bool *should_stop);
+search_result search_white_runner(
+    board b,
+    int depth,
+    _Atomic bool *should_stop,
+    transposition_table *tt);
 
-search_result
-search_black_runner(board b, int depth, _Atomic bool *should_stop);
+search_result search_black_runner(
+    board b,
+    int depth,
+    _Atomic bool *should_stop,
+    transposition_table *tt);
 
 search_result search_white_runner_iterative(
     board b,
     int max_depth,
-    _Atomic bool *should_stop);
+    _Atomic bool *should_stop,
+    transposition_table *tt);
 
 search_result search_black_runner_iterative(
     board b,
     int max_depth,
-    _Atomic bool *should_stop);
+    _Atomic bool *should_stop,
+    transposition_table *tt);
 
 search_result search_runner_iterative_trusted(
     board b,
@@ -120,22 +129,14 @@ search_result search_runner_iterative_trusted(
     _Atomic bool *should_stop,
     bool is_black_turn,
     u64 *zobrist_hashes,
-    int hash_count);
-
-search_result search_white_with_timeout(board b, int depth, int time_limit);
-
-search_result search_black_with_timeout(board b, int depth, int time_limit);
-
-search_result
-search_white_with_timeout_iterative(board b, int max_depth, int time_limit);
-
-search_result
-search_black_with_timeout_iterative(board b, int max_depth, int time_limit);
+    int hash_count,
+    transposition_table *tt);
 
 // Search function pointer type
 typedef i32 (*search_func)(
     pv *pv_data,
     position_set *positions,
+    transposition_table *tt,
     score_weights *w,
     score_state s,
     board b,
@@ -145,7 +146,6 @@ typedef i32 (*search_func)(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv,
     _Atomic bool *should_stop);
 
 // Generic runner functions
@@ -154,7 +154,8 @@ search_result search_runner_generic(
     int depth,
     _Atomic bool *should_stop,
     search_func search_fn,
-    bool is_black);
+    bool is_black,
+    transposition_table *tt);
 
 // Generic iterative deepening search runner
 //
@@ -175,28 +176,46 @@ search_result search_runner_iterative_generic(
     search_func search_fn,
     bool is_black,
     u64 *zobrist_hashes,
-    int hash_count);
+    int hash_count,
+    transposition_table *tt);
 
 // Generic wrapper function for search with timeout
-typedef search_result (*search_runner_func)(board, int, _Atomic bool *);
+typedef search_result (*search_runner_func)(
+    board, int, _Atomic bool *, transposition_table *);
 search_result search_with_timeout(
     search_runner_func runner,
     board b,
     int depth,
-    int time_limit);
+    int time_limit,
+    transposition_table *tt);
+
+search_result
+search_white_with_timeout(board b, int depth, int time_limit,
+                          transposition_table *tt);
+
+search_result
+search_black_with_timeout(board b, int depth, int time_limit,
+                          transposition_table *tt);
+
+search_result
+search_white_with_timeout_iterative(board b, int max_depth, int time_limit,
+                                    transposition_table *tt);
+
+search_result
+search_black_with_timeout_iterative(board b, int max_depth, int time_limit,
+                                    transposition_table *tt);
 
 void destroy_pv_line(pv_line *line);
 
 // Helper macro to create an empty pv struct
 #define CREATE_EMPTY_PV()                                                      \
   (&(pv){.pv_length = {0},                                                     \
-         .pv_table = {{0}},                                                    \
-         .prev_pv = {0},                                                       \
-         .prev_pv_length = 0})
+         .pv_table = {{0}}})
 
 i32 search_black(
     pv *pv_data,
     position_set *positions,
+    transposition_table *tt,
     score_weights *w,
     score_state s,
     board b,
@@ -206,12 +225,12 @@ i32 search_black(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv,
     _Atomic bool *should_stop);
 
 i32 search_white(
     pv *pv_data,
     position_set *positions,
+    transposition_table *tt,
     score_weights *w,
     score_state s,
     board b,
@@ -221,5 +240,4 @@ i32 search_white(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv,
     _Atomic bool *should_stop);

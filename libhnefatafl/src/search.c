@@ -12,6 +12,7 @@
 #include "score.h"
 #include "stdlib.h"
 #include "string.h"
+#include "transposition_table.h"
 #include "validation.h"
 #include "victory.h"
 #include "x86intrin.h" // IWYU pragma: export
@@ -1570,7 +1571,8 @@ search_result search_runner_generic(
     int depth,
     _Atomic bool *should_stop,
     search_func search_fn,
-    bool is_black) {
+    bool is_black,
+    transposition_table *tt) {
   pv pv_data = {0};
   u64 position_hash = hash_for_board(b, is_black);
   position_set *positions = create_position_set(100);
@@ -1585,6 +1587,7 @@ search_result search_runner_generic(
   i32 result = search_fn(
       &pv_data,
       positions,
+      tt,
       &weights,
       s,
       b,
@@ -1594,7 +1597,6 @@ search_result search_runner_generic(
       alpha,
       beta,
       &statistics,
-      true,
       should_stop);
 
   destroy_position_set(positions);
@@ -1602,21 +1604,28 @@ search_result search_runner_generic(
                          statistics};
 }
 
-search_result
-search_black_runner(board b, int depth, _Atomic bool *should_stop) {
-  return search_runner_generic(b, depth, should_stop, search_black, true);
+search_result search_black_runner(
+    board b,
+    int depth,
+    _Atomic bool *should_stop,
+    transposition_table *tt) {
+  return search_runner_generic(b, depth, should_stop, search_black, true, tt);
 }
 
-search_result
-search_white_runner(board b, int depth, _Atomic bool *should_stop) {
-  return search_runner_generic(b, depth, should_stop, search_white, false);
+search_result search_white_runner(
+    board b,
+    int depth,
+    _Atomic bool *should_stop,
+    transposition_table *tt) {
+  return search_runner_generic(b, depth, should_stop, search_white, false, tt);
 }
 
 search_result search_with_timeout(
     search_runner_func runner,
     board b,
     int depth,
-    int time_limit) {
+    int time_limit,
+    transposition_table *tt) {
   _Atomic bool should_stop = false;
   _Atomic bool search_finished = false;
 
@@ -1640,7 +1649,7 @@ search_result search_with_timeout(
   }
 
   // Run the search
-  search_result result = runner(b, depth, &should_stop);
+  search_result result = runner(b, depth, &should_stop, tt);
 
   // Signal that search is finished
   atomic_store(&search_finished, true);
@@ -1653,12 +1662,14 @@ search_result search_with_timeout(
   return result;
 }
 
-search_result search_white_with_timeout(board b, int depth, int time_limit) {
-  return search_with_timeout(search_white_runner, b, depth, time_limit);
+search_result search_white_with_timeout(
+    board b, int depth, int time_limit, transposition_table *tt) {
+  return search_with_timeout(search_white_runner, b, depth, time_limit, tt);
 }
 
-search_result search_black_with_timeout(board b, int depth, int time_limit) {
-  return search_with_timeout(search_black_runner, b, depth, time_limit);
+search_result search_black_with_timeout(
+    board b, int depth, int time_limit, transposition_table *tt) {
+  return search_with_timeout(search_black_runner, b, depth, time_limit, tt);
 }
 
 static position_set *
@@ -1736,7 +1747,8 @@ search_result search_runner_iterative_generic(
     search_func search_fn,
     bool is_black,
     u64 *zobrist_hashes,
-    int hash_count) {
+    int hash_count,
+    transposition_table *tt) {
   pv pv_data = {0};
 
   u64 position_hash = hash_for_board(b, is_black);
@@ -1757,6 +1769,7 @@ search_result search_runner_iterative_generic(
   i32 search_result_score = search_fn(
       &pv_data,
       positions,
+      tt,
       &weights,
       s,
       b,
@@ -1766,7 +1779,6 @@ search_result search_runner_iterative_generic(
       alpha,
       beta,
       &statistics,
-      false,        // the first run does not have a pv
       &dummy_stop); // Use dummy so depth-1 always completes
 
   result.pv = create_pv_line(&pv_data, is_black, search_result_score);
@@ -1802,13 +1814,6 @@ search_result search_runner_iterative_generic(
     return result;
   }
 
-  // Set up PV hint for subsequent iterations
-  memcpy(
-      pv_data.prev_pv,
-      pv_data.pv_table[0],
-      sizeof(move) * pv_data.pv_length[0]);
-  pv_data.prev_pv_length = pv_data.pv_length[0];
-
 #ifndef NDEBUG
   validate_pv_sequence(
       b,
@@ -1816,7 +1821,6 @@ search_result search_runner_iterative_generic(
       pv_data.pv_length[0],
       is_black,
       1);
-  validate_pv_sequence(b, pv_data.prev_pv, pv_data.prev_pv_length, is_black, 1);
 #endif
 
   // Continue with iterative deepening from depth 2 to max_depth
@@ -1826,16 +1830,9 @@ search_result search_runner_iterative_generic(
       break;
     }
 
-    // Reset position set for each iteration
+    // Reset position set for each iteration (TT persists across iterations)
     destroy_position_set(positions);
     positions = create_position_set_with_hashes(zobrist_hashes, hash_count);
-
-    // Copy previous PV as hint for next iteration
-    memcpy(
-        pv_data.prev_pv,
-        pv_data.pv_table[0],
-        sizeof(move) * pv_data.pv_length[0]);
-    pv_data.prev_pv_length = pv_data.pv_length[0];
 
 #ifndef NDEBUG
     validate_pv_sequence(
@@ -1844,17 +1841,12 @@ search_result search_runner_iterative_generic(
         pv_data.pv_length[0],
         is_black,
         depth);
-    validate_pv_sequence(
-        b,
-        pv_data.prev_pv,
-        pv_data.prev_pv_length,
-        is_black,
-        depth);
 #endif
 
     search_result_score = search_fn(
         &pv_data,
         positions,
+        tt,
         &weights,
         s,
         b,
@@ -1864,20 +1856,13 @@ search_result search_runner_iterative_generic(
         alpha,
         beta,
         &statistics,
-        true,
         should_stop);
 
     // Only update result if iteration completed (not stopped)
     if (!atomic_load(should_stop)) {
-      // printf("updating pv during iteration %d\n", depth);
       destroy_pv_line(&result.pv);
       result.pv = create_pv_line(&pv_data, is_black, search_result_score);
       result.statistics = statistics;
-      // printf("pv length %d\n", result.pv.length);
-      // move best_move = result.pv.moves[0];
-      // print_move(best_move.orig, best_move.dest);
-      // printf("Board after iteration %d:\n", depth);
-      // print_board(b);
     } else {
       // If stopped, break without updating result
       break;
@@ -1891,7 +1876,8 @@ search_result search_runner_iterative_generic(
 search_result search_black_runner_iterative(
     board b,
     int max_depth,
-    _Atomic bool *should_stop) {
+    _Atomic bool *should_stop,
+    transposition_table *tt) {
   return search_runner_iterative_generic(
       b,
       max_depth,
@@ -1899,13 +1885,15 @@ search_result search_black_runner_iterative(
       search_black,
       true,
       NULL,
-      0);
+      0,
+      tt);
 }
 
 search_result search_white_runner_iterative(
     board b,
     int max_depth,
-    _Atomic bool *should_stop) {
+    _Atomic bool *should_stop,
+    transposition_table *tt) {
   return search_runner_iterative_generic(
       b,
       max_depth,
@@ -1913,7 +1901,8 @@ search_result search_white_runner_iterative(
       search_white,
       false,
       NULL,
-      0);
+      0,
+      tt);
 }
 
 search_result search_runner_iterative_trusted(
@@ -1922,7 +1911,8 @@ search_result search_runner_iterative_trusted(
     _Atomic bool *should_stop,
     bool is_black_turn,
     u64 *zobrist_hashes,
-    int hash_count) {
+    int hash_count,
+    transposition_table *tt) {
   search_func search_fn = is_black_turn ? search_black : search_white;
   return search_runner_iterative_generic(
       b,
@@ -1931,45 +1921,39 @@ search_result search_runner_iterative_trusted(
       search_fn,
       is_black_turn,
       zobrist_hashes,
-      hash_count);
+      hash_count,
+      tt);
 }
 
-search_result
-search_white_with_timeout_iterative(board b, int max_depth, int time_limit) {
+search_result search_white_with_timeout_iterative(
+    board b, int max_depth, int time_limit, transposition_table *tt) {
   return search_with_timeout(
       search_white_runner_iterative,
       b,
       max_depth,
-      time_limit);
+      time_limit,
+      tt);
 }
 
-search_result
-search_black_with_timeout_iterative(board b, int max_depth, int time_limit) {
+search_result search_black_with_timeout_iterative(
+    board b, int max_depth, int time_limit, transposition_table *tt) {
   return search_with_timeout(
       search_black_runner_iterative,
       b,
       max_depth,
-      time_limit);
+      time_limit,
+      tt);
 }
 
 /* We try moves in this order:
-- PV move
-- king escape blockers (1 or 2 moves?)
+- TT move (hash move from transposition table)
 - capture moves.
-- killer move (if legal)
-- remaining
-
-we use the is_pv flag to tell us if we're currently in the previously
-established principle variation. This is chiefly used to let us know if we can
-search the PV move for the current ply before generating other moves. When using
-a transposition table this flag isn't necessary; instead we can always try to
-pull a hash move, which should include the PV. Some engines will insert the PV
-into the TT between iterative deepening stages on the off chance it's been
-overwritten.
+- remaining quiet moves
 */
 i32 search_black(
     pv *pv_data,
     position_set *positions,
+    transposition_table *tt,
     score_weights *w,
     score_state s,
     board b,
@@ -1979,7 +1963,6 @@ i32 search_black(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv,
     _Atomic bool *should_stop) {
 
   if (atomic_load(should_stop)) {
@@ -2020,6 +2003,21 @@ i32 search_black(
     return MAX_SCORE;
   }
 
+  // TT probe
+  move tt_move = {0, 0};
+  i32 tt_score;
+  bool tt_hit = tt_probe(tt, position_hash, depth, alpha, beta,
+                         &tt_score, &tt_move, ply);
+  if (tt_hit) {
+    statistics->tt_hits++;
+    statistics->tt_cutoffs++;
+    delete_position(positions, position_index);
+    return tt_score;
+  }
+  if (tt_move.orig != 0 || tt_move.dest != 0) {
+    statistics->tt_hits++;
+  }
+
   if (depth <= 0) {
     delete_position(positions, position_index);
     return quiesce_black(
@@ -2037,29 +2035,25 @@ i32 search_black(
   }
 
   i32 best_value = MIN_SCORE;
+  i32 original_alpha = alpha;
+  move best_move = {0, 0};
 
-  // TODO: null move pruning
-
-  // PV move
-  if (is_pv) {
-    move m = pv_data->prev_pv[ply];
-
+  // TT move (best move from previous search/iteration)
+  if (tt_move.orig != 0 || tt_move.dest != 0) {
 #ifndef NDEBUG
-    move_error error = validate_move(b, m, true);
+    move_error error = validate_move(b, tt_move, true);
     if (error != move_error_no_error) {
-      print_move(m.orig, m.dest);
+      print_move(tt_move.orig, tt_move.dest);
       printf(
-          "invalid move pulled at ply %d, line %d, from pv with code: %d. pv "
-          "length %d",
+          "invalid TT move pulled at ply %d, line %d, with code: %d",
           ply,
           __LINE__,
-          error,
-          pv_data->prev_pv_length);
+          error);
       exit(1);
     }
 #endif
-    u8 orig = m.orig;
-    u8 dest = m.dest;
+    u8 orig = tt_move.orig;
+    u8 dest = tt_move.dest;
 
     board new_b = apply_black_move_m(b, orig, dest);
     u64 new_position_hash = next_hash_black(position_hash, orig, dest);
@@ -2070,6 +2064,7 @@ i32 search_black(
     i32 score = -search_white(
         pv_data,
         positions,
+        tt,
         w,
         new_score_state,
         new_b,
@@ -2079,43 +2074,26 @@ i32 search_black(
         -beta,
         -alpha,
         statistics,
-        (true && (ply + 1) < pv_data->prev_pv_length),
         should_stop);
 
     if (score > best_value) {
       best_value = score;
+      best_move = tt_move;
     }
     if (score > alpha) {
       alpha = score;
-#ifndef NDEBUG
-      move_error error = validate_move(b, m, true);
-      if (error != move_error_no_error) {
-        print_move(m.orig, m.dest);
-        printf(
-            "invalid move into pv at line %d with code: %d",
-            __LINE__,
-            error);
-        exit(1);
-      }
-#endif
-      update_pv(pv_data, ply, m);
+      update_pv(pv_data, ply, tt_move);
     }
-    if (alpha > beta) {
-      // this is unlikely unless this is converted to a hash move.
+    if (score >= beta) {
       statistics->search_beta_cutoff_black++;
+      tt_store(tt, position_hash, score, TT_LOWER_BOUND, depth, tt_move, ply);
       delete_position(positions, position_index);
-      return best_value;
+      return score;
     }
   }
 
   // ---------------------------------------------------------------------------
   // Destinations
-
-  // ---------------------------------------------------------------------------
-  // TODO (maybe) king escape in 1 blockers
-  // ---------------------------------------------------------------------------
-  // TODO (maybe) king escape in 2 blockers. Maybe combine with above. Bench.
-  // ---------------------------------------------------------------------------
 
   move_layers layers = generate_black_move_layers(&b);
 
@@ -2145,6 +2123,10 @@ i32 search_black(
 
     // iterate
     for (int i = 0; i < total; i++) {
+      // Skip TT move (already searched)
+      if (ms[i].orig == tt_move.orig && ms[i].dest == tt_move.dest)
+        continue;
+
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
 
@@ -2177,6 +2159,7 @@ i32 search_black(
       i32 score = -search_white(
           pv_data,
           positions,
+          tt,
           w,
           new_score_state,
           new_b,
@@ -2186,16 +2169,17 @@ i32 search_black(
           -beta,
           -alpha,
           statistics,
-          false,
           should_stop);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_black++;
+        tt_store(tt, position_hash, score, TT_LOWER_BOUND, depth, ms[i], ply);
         delete_position(positions, position_index);
         return score;
       }
       if (score > best_value) {
         best_value = score;
+        best_move = ms[i];
       }
       if (score > alpha) {
         alpha = score;
@@ -2227,6 +2211,10 @@ i32 search_black(
 
   // iterate
   for (int i = 0; i < total; i++) {
+    // Skip TT move (already searched)
+    if (ms[i].orig == tt_move.orig && ms[i].dest == tt_move.dest)
+      continue;
+
     // Selection sort: find best-scoring remaining move
     int best = i;
     for (int j = i + 1; j < total; j++) {
@@ -2269,6 +2257,7 @@ i32 search_black(
     i32 score = -search_white(
         pv_data,
         positions,
+        tt,
         w,
         new_score_state,
         new_b,
@@ -2278,22 +2267,27 @@ i32 search_black(
         -beta,
         -alpha,
         statistics,
-        false,
         should_stop);
 
     if (score >= beta) {
       statistics->search_beta_cutoff_black++;
+      tt_store(tt, position_hash, score, TT_LOWER_BOUND, depth, ms[i], ply);
       delete_position(positions, position_index);
       return score;
     }
     if (score > best_value) {
       best_value = score;
+      best_move = ms[i];
     }
     if (score > alpha) {
       alpha = score;
       update_pv(pv_data, ply, ms[i]);
     }
   }
+
+  // Store result in TT
+  tt_node_type node_type = best_value > original_alpha ? TT_EXACT : TT_UPPER_BOUND;
+  tt_store(tt, position_hash, best_value, node_type, depth, best_move, ply);
 
   delete_position(positions, position_index);
   return best_value;
@@ -2302,6 +2296,7 @@ i32 search_black(
 i32 search_white(
     pv *pv_data,
     position_set *positions,
+    transposition_table *tt,
     score_weights *w,
     score_state s,
     board b,
@@ -2311,7 +2306,6 @@ i32 search_white(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    bool is_pv,
     _Atomic bool *should_stop) {
 
   if (atomic_load(should_stop)) {
@@ -2339,6 +2333,21 @@ i32 search_white(
     return MAX_SCORE;
   }
 
+  // TT probe
+  move tt_move = {0, 0};
+  i32 tt_score;
+  bool tt_hit = tt_probe(tt, position_hash, depth, alpha, beta,
+                         &tt_score, &tt_move, ply);
+  if (tt_hit) {
+    statistics->tt_hits++;
+    statistics->tt_cutoffs++;
+    delete_position(positions, position_index);
+    return tt_score;
+  }
+  if (tt_move.orig != 0 || tt_move.dest != 0) {
+    statistics->tt_hits++;
+  }
+
   if (depth <= 0) {
     delete_position(positions, position_index);
     return quiesce_white(
@@ -2356,33 +2365,27 @@ i32 search_white(
   }
 
   i32 best_value = MIN_SCORE;
-
-  // TODO: null move pruning
+  i32 original_alpha = alpha;
+  move best_move = {0, 0};
 
   int king_pos = LOWEST_INDEX(b.king);
-  // int king_rank = RANK(king_pos);
-  // int king_file = FILE(king_pos);
 
-  // PV move
-  if (is_pv) {
-    move m = pv_data->prev_pv[ply];
-
+  // TT move (best move from previous search/iteration)
+  if (tt_move.orig != 0 || tt_move.dest != 0) {
 #ifndef NDEBUG
-    move_error error = validate_move(b, m, false);
+    move_error error = validate_move(b, tt_move, false);
     if (error != move_error_no_error) {
-      print_move(m.orig, m.dest);
+      print_move(tt_move.orig, tt_move.dest);
       printf(
-          "invalid move pulled at ply %d, line %d, from pv with code: %d. pv "
-          "length %d",
+          "invalid TT move pulled at ply %d, line %d, with code: %d",
           ply,
           __LINE__,
-          error,
-          pv_data->prev_pv_length);
+          error);
       exit(1);
     }
 #endif
-    u8 orig = m.orig;
-    u8 dest = m.dest;
+    u8 orig = tt_move.orig;
+    u8 dest = tt_move.dest;
 
     board new_b;
     u64 new_position_hash;
@@ -2410,6 +2413,7 @@ i32 search_white(
     i32 score = -search_black(
         pv_data,
         positions,
+        tt,
         w,
         new_score_state,
         new_b,
@@ -2419,40 +2423,26 @@ i32 search_white(
         -beta,
         -alpha,
         statistics,
-        (true && (ply + 1) < pv_data->prev_pv_length),
         should_stop);
 
     if (score > best_value) {
       best_value = score;
+      best_move = tt_move;
     }
     if (score > alpha) {
       alpha = score;
-#ifndef NDEBUG
-      move_error error = validate_move(b, m, false);
-      if (error != move_error_no_error) {
-        print_move(m.orig, m.dest);
-        printf(
-            "invalid move into pv at line %d with code: %d",
-            __LINE__,
-            error);
-        exit(1);
-      }
-#endif
-      update_pv(pv_data, ply, m);
+      update_pv(pv_data, ply, tt_move);
     }
-    if (alpha > beta) {
-      // this is unlikely unless this is converted to a hash move.
+    if (score >= beta) {
       statistics->search_beta_cutoff_white++;
+      tt_store(tt, position_hash, score, TT_LOWER_BOUND, depth, tt_move, ply);
       delete_position(positions, position_index);
-      return best_value;
+      return score;
     }
   }
 
   // ---------------------------------------------------------------------------
   // King destinations
-  // We start by making all king moves first. We may want to limit this to king
-  // captures later, or even try all captures and then do king moves, but first
-  // let's try it like this.
 
   layer all_king_destinations = king_destinations(b);
   layer all_king_destinations_r = king_destinations_r(b);
@@ -2477,6 +2467,10 @@ i32 search_white(
 
     // iterate
     for (int i = 0; i < total; i++) {
+      // Skip TT move (already searched)
+      if (ms[i].orig == tt_move.orig && ms[i].dest == tt_move.dest)
+        continue;
+
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
 
@@ -2504,6 +2498,7 @@ i32 search_white(
       i32 score = -search_black(
           pv_data,
           positions,
+          tt,
           w,
           new_score_state,
           new_b,
@@ -2513,19 +2508,17 @@ i32 search_white(
           -beta,
           -alpha,
           statistics,
-          false,
           should_stop);
-
-      // printf("score: %d", score);
-      // print_board(new_b);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_white++;
+        tt_store(tt, position_hash, score, TT_LOWER_BOUND, depth, ms[i], ply);
         delete_position(positions, position_index);
         return score;
       }
       if (score > best_value) {
         best_value = score;
+        best_move = ms[i];
       }
       if (score > alpha) {
         alpha = score;
@@ -2566,6 +2559,10 @@ i32 search_white(
 
     // iterate
     for (int i = 0; i < total; i++) {
+      // Skip TT move (already searched)
+      if (ms[i].orig == tt_move.orig && ms[i].dest == tt_move.dest)
+        continue;
+
       u8 orig = ms[i].orig;
       u8 dest = ms[i].dest;
 
@@ -2597,6 +2594,7 @@ i32 search_white(
       i32 score = -search_black(
           pv_data,
           positions,
+          tt,
           w,
           new_score_state,
           new_b,
@@ -2606,16 +2604,17 @@ i32 search_white(
           -beta,
           -alpha,
           statistics,
-          false,
           should_stop);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_white++;
+        tt_store(tt, position_hash, score, TT_LOWER_BOUND, depth, ms[i], ply);
         delete_position(positions, position_index);
         return score;
       }
       if (score > best_value) {
         best_value = score;
+        best_move = ms[i];
       }
       if (score > alpha) {
         alpha = score;
@@ -2646,6 +2645,10 @@ i32 search_white(
 
   // iterate
   for (int i = 0; i < total; i++) {
+    // Skip TT move (already searched)
+    if (ms[i].orig == tt_move.orig && ms[i].dest == tt_move.dest)
+      continue;
+
     // // Selection sort: find best-scoring remaining move
     // int best = i;
     // for (int j = i + 1; j < total; j++) {
@@ -2688,6 +2691,7 @@ i32 search_white(
     i32 score = -search_black(
         pv_data,
         positions,
+        tt,
         w,
         new_score_state,
         new_b,
@@ -2697,22 +2701,27 @@ i32 search_white(
         -beta,
         -alpha,
         statistics,
-        (false && ply < pv_data->prev_pv_length),
         should_stop);
 
     if (score >= beta) {
       statistics->search_beta_cutoff_white++;
+      tt_store(tt, position_hash, score, TT_LOWER_BOUND, depth, ms[i], ply);
       delete_position(positions, position_index);
       return score;
     }
     if (score > best_value) {
       best_value = score;
+      best_move = ms[i];
     }
     if (score > alpha) {
       alpha = score;
       update_pv(pv_data, ply, ms[i]);
     }
   }
+
+  // Store result in TT
+  tt_node_type node_type = best_value > original_alpha ? TT_EXACT : TT_UPPER_BOUND;
+  tt_store(tt, position_hash, best_value, node_type, depth, best_move, ply);
 
   delete_position(positions, position_index);
   return best_value;

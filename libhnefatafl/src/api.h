@@ -7,6 +7,8 @@
 #include "util.h"
 #include "x86intrin.h" // IWYU pragma: export
 
+typedef struct transposition_table transposition_table;
+
 typedef struct {
   layer black;
   layer white;
@@ -107,6 +109,7 @@ void search_trusted(
     u64 *zobrist_hashes,
     int hash_count,
     _Atomic bool *should_stop,
+    transposition_table *tt,
     move *move_out,
     compact_board *board_out,
     layer *captures_out,
