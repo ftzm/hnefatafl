@@ -1663,12 +1663,18 @@ search_result search_with_timeout(
 }
 
 search_result search_white_with_timeout(
-    board b, int depth, int time_limit, transposition_table *tt) {
+    board b,
+    int depth,
+    int time_limit,
+    transposition_table *tt) {
   return search_with_timeout(search_white_runner, b, depth, time_limit, tt);
 }
 
 search_result search_black_with_timeout(
-    board b, int depth, int time_limit, transposition_table *tt) {
+    board b,
+    int depth,
+    int time_limit,
+    transposition_table *tt) {
   return search_with_timeout(search_black_runner, b, depth, time_limit, tt);
 }
 
@@ -1830,6 +1836,10 @@ search_result search_runner_iterative_generic(
       break;
     }
 
+    // Increment TT generation so entries from previous iterations are
+    // considered older and can be preferentially replaced
+    tt_new_generation(tt);
+
     // Reset position set for each iteration (TT persists across iterations)
     destroy_position_set(positions);
     positions = create_position_set_with_hashes(zobrist_hashes, hash_count);
@@ -1926,7 +1936,10 @@ search_result search_runner_iterative_trusted(
 }
 
 search_result search_white_with_timeout_iterative(
-    board b, int max_depth, int time_limit, transposition_table *tt) {
+    board b,
+    int max_depth,
+    int time_limit,
+    transposition_table *tt) {
   return search_with_timeout(
       search_white_runner_iterative,
       b,
@@ -1936,7 +1949,10 @@ search_result search_white_with_timeout_iterative(
 }
 
 search_result search_black_with_timeout_iterative(
-    board b, int max_depth, int time_limit, transposition_table *tt) {
+    board b,
+    int max_depth,
+    int time_limit,
+    transposition_table *tt) {
   return search_with_timeout(
       search_black_runner_iterative,
       b,
@@ -2004,10 +2020,10 @@ i32 search_black(
   }
 
   // TT probe
-  move tt_move = {0, 0};
+  move tt_move;
   i32 tt_score;
-  bool tt_hit = tt_probe(tt, position_hash, depth, alpha, beta,
-                         &tt_score, &tt_move, ply);
+  bool tt_hit =
+      tt_probe(tt, position_hash, depth, alpha, beta, &tt_score, &tt_move, ply);
   if (tt_hit) {
     statistics->tt_hits++;
     statistics->tt_cutoffs++;
@@ -2286,7 +2302,8 @@ i32 search_black(
   }
 
   // Store result in TT
-  tt_node_type node_type = best_value > original_alpha ? TT_EXACT : TT_UPPER_BOUND;
+  tt_node_type node_type =
+      best_value > original_alpha ? TT_EXACT : TT_UPPER_BOUND;
   tt_store(tt, position_hash, best_value, node_type, depth, best_move, ply);
 
   delete_position(positions, position_index);
@@ -2334,10 +2351,10 @@ i32 search_white(
   }
 
   // TT probe
-  move tt_move = {0, 0};
+  move tt_move;
   i32 tt_score;
-  bool tt_hit = tt_probe(tt, position_hash, depth, alpha, beta,
-                         &tt_score, &tt_move, ply);
+  bool tt_hit =
+      tt_probe(tt, position_hash, depth, alpha, beta, &tt_score, &tt_move, ply);
   if (tt_hit) {
     statistics->tt_hits++;
     statistics->tt_cutoffs++;
@@ -2720,7 +2737,8 @@ i32 search_white(
   }
 
   // Store result in TT
-  tt_node_type node_type = best_value > original_alpha ? TT_EXACT : TT_UPPER_BOUND;
+  tt_node_type node_type =
+      best_value > original_alpha ? TT_EXACT : TT_UPPER_BOUND;
   tt_store(tt, position_hash, best_value, node_type, depth, best_move, ply);
 
   delete_position(positions, position_index);

@@ -34,7 +34,7 @@ searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutM
     -- Start search thread - this is interruptible by setting the stop flag
     searchAsync <- async $ do
       uninterruptibleMask_ $
-        bracket (ttCreate 32) ttDestroy $ \ttPtr ->
+        bracket (ttCreate 256) ttDestroy $ \ttPtr ->
           searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr ttPtr enableAdminEndings
 
     -- Start timeout thread to set the stop boolean after timeout
