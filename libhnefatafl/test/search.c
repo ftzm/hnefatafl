@@ -522,7 +522,8 @@ search_black_runner_with_stats(board b, search_args args, stats *statistics) {
       args.alpha,
       args.beta,
       statistics,
-      &should_stop);
+      &should_stop,
+      true);
   return create_pv_line(args.pv_data, true, result);
 }
 
@@ -542,7 +543,8 @@ search_white_runner_with_stats(board b, search_args args, stats *statistics) {
       args.alpha,
       args.beta,
       statistics,
-      &should_stop);
+      &should_stop,
+      true);
   return create_pv_line(args.pv_data, false, result);
 }
 

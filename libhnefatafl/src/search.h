@@ -62,6 +62,8 @@ typedef struct stats {
   int repeat_moves_encountered;
   int tt_hits;
   int tt_cutoffs;
+  int null_move_attempts;
+  int null_move_cutoffs;
 } stats;
 
 typedef struct search_result {
@@ -146,7 +148,8 @@ typedef i32 (*search_func)(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    _Atomic bool *should_stop);
+    _Atomic bool *should_stop,
+    bool allow_null_move);
 
 // Generic runner functions
 search_result search_runner_generic(
@@ -225,7 +228,8 @@ i32 search_black(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    _Atomic bool *should_stop);
+    _Atomic bool *should_stop,
+    bool allow_null_move);
 
 i32 search_white(
     pv *pv_data,
@@ -240,4 +244,5 @@ i32 search_white(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    _Atomic bool *should_stop);
+    _Atomic bool *should_stop,
+    bool allow_null_move);

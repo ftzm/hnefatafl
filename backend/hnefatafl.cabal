@@ -5,7 +5,7 @@ cabal-version: 2.4
 -- see: https://github.com/sol/hpack
 
 name:           hnefatafl
-version:        0.0.14
+version:        0.0.15
 build-type:     Simple
 data-files:
     db/schema.sql

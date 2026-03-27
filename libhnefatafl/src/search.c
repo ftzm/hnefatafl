@@ -17,6 +17,7 @@
 #include "victory.h"
 #include "x86intrin.h" // IWYU pragma: export
 #include "zobrist.h"
+#include "zobrist_constants.h"
 #include <pthread.h>
 #include <time.h>
 #include <unistd.h>
@@ -1597,7 +1598,8 @@ search_result search_runner_generic(
       alpha,
       beta,
       &statistics,
-      should_stop);
+      should_stop,
+      true);
 
   destroy_position_set(positions);
   return (search_result){create_pv_line(&pv_data, is_black, result),
@@ -1785,7 +1787,8 @@ search_result search_runner_iterative_generic(
       alpha,
       beta,
       &statistics,
-      &dummy_stop); // Use dummy so depth-1 always completes
+      &dummy_stop, // Use dummy so depth-1 always completes
+      true);
 
   result.pv = create_pv_line(&pv_data, is_black, search_result_score);
   result.statistics = statistics;
@@ -1866,7 +1869,8 @@ search_result search_runner_iterative_generic(
         alpha,
         beta,
         &statistics,
-        should_stop);
+        should_stop,
+        true);
 
     // Only update result if iteration completed (not stopped)
     if (!atomic_load(should_stop)) {
@@ -1979,7 +1983,8 @@ i32 search_black(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    _Atomic bool *should_stop) {
+    _Atomic bool *should_stop,
+    bool allow_null_move) {
 
   if (atomic_load(should_stop)) {
     return alpha;
@@ -2050,6 +2055,41 @@ i32 search_black(
         statistics);
   }
 
+  // Null move pruning
+  // If we give the opponent a free move and they still can't beat beta,
+  // the position is so good we can prune.
+  if (allow_null_move && depth >= 3 && ply > 0) {
+    statistics->null_move_attempts++;
+    int R = 2 + depth / 6;
+    if (R > depth - 1)
+      R = depth - 1;
+
+    // Toggle side-to-move in hash (skip black's turn)
+    u64 null_hash = position_hash ^ is_black_hash;
+
+    i32 null_score = -search_white(
+        pv_data,
+        positions,
+        tt,
+        w,
+        s,
+        b,
+        null_hash,
+        ply + 1,
+        depth - 1 - R,
+        -beta,
+        -beta + 1,
+        statistics,
+        should_stop,
+        false);
+
+    if (null_score >= beta) {
+      statistics->null_move_cutoffs++;
+      delete_position(positions, position_index);
+      return beta;
+    }
+  }
+
   i32 best_value = MIN_SCORE;
   i32 original_alpha = alpha;
   move best_move = {0, 0};
@@ -2090,7 +2130,8 @@ i32 search_black(
         -beta,
         -alpha,
         statistics,
-        should_stop);
+        should_stop,
+        true);
 
     if (score > best_value) {
       best_value = score;
@@ -2185,7 +2226,8 @@ i32 search_black(
           -beta,
           -alpha,
           statistics,
-          should_stop);
+          should_stop,
+          true);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_black++;
@@ -2283,7 +2325,8 @@ i32 search_black(
         -beta,
         -alpha,
         statistics,
-        should_stop);
+        should_stop,
+        true);
 
     if (score >= beta) {
       statistics->search_beta_cutoff_black++;
@@ -2323,7 +2366,8 @@ i32 search_white(
     i32 alpha,
     i32 beta,
     stats *statistics,
-    _Atomic bool *should_stop) {
+    _Atomic bool *should_stop,
+    bool allow_null_move) {
 
   if (atomic_load(should_stop)) {
     return alpha;
@@ -2379,6 +2423,38 @@ i32 search_white(
         alpha,
         beta,
         statistics);
+  }
+
+  // Null move pruning
+  if (allow_null_move && depth >= 3 && ply > 0) {
+    statistics->null_move_attempts++;
+    int R = 2 + depth / 6;
+    if (R > depth - 1)
+      R = depth - 1;
+
+    u64 null_hash = position_hash ^ is_black_hash;
+
+    i32 null_score = -search_black(
+        pv_data,
+        positions,
+        tt,
+        w,
+        s,
+        b,
+        null_hash,
+        ply + 1,
+        depth - 1 - R,
+        -beta,
+        -beta + 1,
+        statistics,
+        should_stop,
+        false);
+
+    if (null_score >= beta) {
+      statistics->null_move_cutoffs++;
+      delete_position(positions, position_index);
+      return beta;
+    }
   }
 
   i32 best_value = MIN_SCORE;
@@ -2440,7 +2516,8 @@ i32 search_white(
         -beta,
         -alpha,
         statistics,
-        should_stop);
+        should_stop,
+        true);
 
     if (score > best_value) {
       best_value = score;
@@ -2525,7 +2602,8 @@ i32 search_white(
           -beta,
           -alpha,
           statistics,
-          should_stop);
+          should_stop,
+          true);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_white++;
@@ -2621,7 +2699,8 @@ i32 search_white(
           -beta,
           -alpha,
           statistics,
-          should_stop);
+          should_stop,
+          true);
 
       if (score >= beta) {
         statistics->search_beta_cutoff_white++;
@@ -2718,7 +2797,8 @@ i32 search_white(
         -beta,
         -alpha,
         statistics,
-        should_stop);
+        should_stop,
+        true);
 
     if (score >= beta) {
       statistics->search_beta_cutoff_white++;
