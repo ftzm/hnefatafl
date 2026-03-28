@@ -1,6 +1,12 @@
 import type { BoardRep, Move } from "./types";
 
-export { type PlayerColor, type BoardRep, type Move, type MovesMap, type GameOverState } from "./types";
+export type {
+  BoardRep,
+  GameOverState,
+  Move,
+  MovesMap,
+  PlayerColor,
+} from "./types";
 
 export const startBoard: BoardRep = {
   black: new Set([

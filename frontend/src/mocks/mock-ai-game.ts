@@ -1,4 +1,6 @@
 import { createSignal } from "solid-js";
+import type { AiGameService } from "../api/ai-game-service";
+import type { AiGameEvent } from "../api/types";
 import {
   applyMoveToBoardRep,
   type BoardRep,
@@ -7,13 +9,11 @@ import {
   type PlayerColor,
   startBoard,
 } from "../board-logic";
-import type { AiGameService } from "../api/ai-game-service";
 import {
   checkGameOver,
   generateLegalMoves,
   pickRandomMove,
 } from "./mock-game-logic";
-import type { AiGameEvent } from "../api/types";
 
 export function createMockAiGameService(): AiGameService {
   let gameConfig: { playerColor: PlayerColor } | null = null;

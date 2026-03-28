@@ -1,4 +1,3 @@
-
 import { useHotseatApi } from "../api/contexts";
 import type { Move } from "../board-logic";
 import GameLayout from "../components/GameLayout";

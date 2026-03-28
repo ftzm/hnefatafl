@@ -1,11 +1,12 @@
-import { createContext, useContext, type ParentComponent } from "solid-js";
+import { createContext, type ParentComponent, useContext } from "solid-js";
 
 export function createServiceContext<T>(name: string) {
   const ctx = createContext<T>();
 
   function use(): T {
     const value = useContext(ctx);
-    if (!value) throw new Error(`use${name} must be used within a ${name} provider`);
+    if (!value)
+      throw new Error(`use${name} must be used within a ${name} provider`);
     return value;
   }
 

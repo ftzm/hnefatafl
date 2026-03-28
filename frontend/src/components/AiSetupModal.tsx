@@ -1,4 +1,3 @@
-
 import { useNavigate } from "@solidjs/router";
 import { createSignal, type Setter } from "solid-js";
 import { useAiGame } from "../api/contexts";

@@ -97,18 +97,10 @@ function checkKingCapture(board: BoardRep): boolean {
     });
   }
 
-  // Standard sandwich on either axis
-  if (canStep(kp, -11) && canStep(kp, 11)) {
-    if (isHostileToKing(board, kp - 11) && isHostileToKing(board, kp + 11)) {
-      return true;
-    }
-  }
-  if (canStep(kp, -1) && canStep(kp, 1)) {
-    if (isHostileToKing(board, kp - 1) && isHostileToKing(board, kp + 1)) {
-      return true;
-    }
-  }
-  return false;
+  return DIRECTIONS.every((dir) => {
+    if (!canStep(kp, dir)) return false;
+    return isHostileToKing(board, kp + dir);
+  });
 }
 
 export function computeCaptures(

@@ -7,7 +7,6 @@ import {
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { AsyncLock } from "./utils/async-lock";
 import {
   applyMoveToBoardRep,
   type BoardRep,
@@ -19,6 +18,7 @@ import {
   type PlayerColor,
   startBoard,
 } from "./board-logic";
+import { AsyncLock } from "./utils/async-lock";
 
 export type GameMode = "hotseat" | "ai" | "online";
 

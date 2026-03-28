@@ -6,7 +6,11 @@ import AiGame from "./controllers/AiController";
 import HotseatGame from "./controllers/HotseatController";
 import OnlineGame from "./controllers/OnlineController";
 import Layout from "./Layout";
-import { MockHotseatApiProvider, MockAiGameProvider, MockOnlineGameProvider } from "./mocks/providers";
+import {
+  MockAiGameProvider,
+  MockHotseatApiProvider,
+  MockOnlineGameProvider,
+} from "./mocks/providers";
 import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import "./tokens.css";
