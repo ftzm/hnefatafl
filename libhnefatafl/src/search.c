@@ -1128,7 +1128,7 @@ i32 quiesce_white(
     return INEVITABLE_VICTORY_SCORE(ply);
   } else if (corner_move_count > 0) {
     delete_position(positions, position_index);
-    return best_value + 1000000;
+    return best_value + (1000000 * corner_move_count);
   }
 
   // iterate
