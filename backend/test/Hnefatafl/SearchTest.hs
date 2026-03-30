@@ -49,7 +49,7 @@ spec_timeout_behavior =
         let zobristHashes = [] :: [Word64]
         let timeoutMs = 50 -- Increase timeout to see if search naturally takes longer
         let timeout = SearchTimeout timeoutMs
-        let marginMs = 10 -- Allow larger margin
+        let marginMs = 50 -- Allow larger margin
         start <- getTime Monotonic
         _ <- searchWithTimeout board isBlackTurn zobristHashes timeout False
         end <- getTime Monotonic

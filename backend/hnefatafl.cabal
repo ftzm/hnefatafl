@@ -21,6 +21,10 @@ library
       Hnefatafl.Effect.IdGen
       Hnefatafl.Effect.Search
       Hnefatafl.Effect.Storage
+      Hnefatafl.Game.AI
+      Hnefatafl.Game.Common
+      Hnefatafl.Game.Hotseat
+      Hnefatafl.Game.Online
       Hnefatafl.Import
       Hnefatafl.Interpreter.Clock.IO
       Hnefatafl.Interpreter.IdGen.UUIDv7
@@ -260,6 +264,10 @@ test-suite hnefatafl-test
   other-modules:
       Hnefatafl.BindingsTest
       Hnefatafl.ClientTest
+      Hnefatafl.Game.AITest
+      Hnefatafl.Game.HotseatTest
+      Hnefatafl.Game.OnlineTest
+      Hnefatafl.Game.TestUtil
       Hnefatafl.ImportTest
       Hnefatafl.Interpreter.Search.RemoteTest
       Hnefatafl.Interpreter.Search.TestTest
@@ -293,6 +301,7 @@ test-suite hnefatafl-test
       tasty-discover:tasty-discover
   build-depends:
       
+    , QuickCheck
     , aeson
     , aeson-pretty
     , array
@@ -336,6 +345,7 @@ test-suite hnefatafl-test
     , tasty-discover
     , tasty-hspec
     , tasty-hunit
+    , tasty-quickcheck
     , template-haskell
     , temporary
     , text

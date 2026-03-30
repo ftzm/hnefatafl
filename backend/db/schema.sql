@@ -73,6 +73,14 @@ CREATE INDEX idx_players_type ON player(player_type);
 CREATE INDEX idx_game_participant_tokens_game ON game_participant_token(game_id);
 CREATE INDEX idx_game_participant_tokens_token ON game_participant_token(token);
 CREATE UNIQUE INDEX idx_unique_active_game_role ON game_participant_token(game_id, role) WHERE is_active = true;
+CREATE TABLE pending_game_action (
+    game_id TEXT PRIMARY KEY,
+    action_type TEXT NOT NULL CHECK (action_type IN ('draw_offer', 'undo_request')),
+    offered_by TEXT NOT NULL CHECK (offered_by IN ('white', 'black')),
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
-  ('20251115123657');
+  ('20251115123657'),
+  ('20260330183402');

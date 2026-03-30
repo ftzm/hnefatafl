@@ -137,6 +137,8 @@ tests:
       - http-client
       - servant-client
       - async
+      - QuickCheck
+      - tasty-quickcheck
 
 # benchmarks:
 #   board:
