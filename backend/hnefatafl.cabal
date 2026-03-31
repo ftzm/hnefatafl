@@ -34,6 +34,7 @@ library
       Hnefatafl.Interpreter.Storage.SQLite
       Hnefatafl.Interpreter.Storage.SQLite.Game
       Hnefatafl.Interpreter.Storage.SQLite.Move
+      Hnefatafl.Interpreter.Storage.SQLite.PendingAction
       Hnefatafl.Interpreter.Storage.SQLite.Player
       Hnefatafl.Interpreter.Storage.SQLite.Token
       Hnefatafl.Interpreter.Storage.SQLite.Type

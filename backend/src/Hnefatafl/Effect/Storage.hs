@@ -11,6 +11,7 @@ import Chronos (Time)
 import Effectful
 import Effectful.TH
 import Hnefatafl.Core.Data
+import Hnefatafl.Game.Common (PendingAction)
 
 data Storage :: Effect where
   InsertHumanPlayer :: HumanPlayer -> Storage m ()
@@ -34,6 +35,11 @@ data Storage :: Effect where
   DeleteMove :: GameId -> Int -> Storage m ()
   CreateGameParticipantToken :: GameParticipantToken -> Storage m ()
   GetTokenByText :: Text -> Storage m (Maybe GameParticipantToken)
-  GetActiveTokenByGameAndRole :: GameId -> PlayerColor -> Storage m (Maybe GameParticipantToken)
+  GetActiveTokenByGameAndRole ::
+    GameId -> PlayerColor -> Storage m (Maybe GameParticipantToken)
+  InsertPendingAction :: GameId -> PendingAction -> Time -> Storage m ()
+  GetPendingAction :: GameId -> Storage m (Maybe PendingAction)
+  DeletePendingAction :: GameId -> Storage m ()
+  DeleteLastNMoves :: GameId -> Int -> Storage m ()
 
 makeEffect ''Storage

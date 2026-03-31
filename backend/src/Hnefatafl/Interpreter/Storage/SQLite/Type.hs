@@ -14,6 +14,8 @@ module Hnefatafl.Interpreter.Storage.SQLite.Type (
   MoveDb (..),
   GameParticipantTokenIdDb (..),
   GameParticipantTokenDb (..),
+  PendingActionTypeDb (..),
+  PendingActionDb (..),
   DomainMapping (..),
 ) where
 
@@ -24,6 +26,7 @@ import Database.SQLite.Simple.Internal
 import Database.SQLite.Simple.Ok (Ok (..))
 import Database.SQLite.Simple.ToField
 import Hnefatafl.Core.Data
+import Hnefatafl.Game.Common (PendingAction (..), PendingActionType (..))
 
 -- ToField/FromField instances for Chronos Time
 instance ToField Time where
@@ -282,3 +285,35 @@ data GameParticipantTokenDb = GameParticipantTokenDb
   , isActive :: Bool
   }
   deriving (Show, Generic, ToRow, FromRow)
+
+data PendingActionTypeDb = DrawOfferDb | UndoRequestDb
+  deriving (Show, Eq)
+
+instance ToField PendingActionTypeDb where
+  toField DrawOfferDb = toField ("draw_offer" :: Text)
+  toField UndoRequestDb = toField ("undo_request" :: Text)
+
+instance FromField PendingActionTypeDb where
+  fromField f =
+    fromField @Text f >>= \case
+      "draw_offer" -> pure DrawOfferDb
+      "undo_request" -> pure UndoRequestDb
+      _ -> returnError ConversionFailed f "Invalid pending action type"
+
+instance DomainMapping PendingActionTypeDb PendingActionType where
+  toDomain DrawOfferDb = DrawOffer
+  toDomain UndoRequestDb = UndoRequest
+  fromDomain DrawOffer = DrawOfferDb
+  fromDomain UndoRequest = UndoRequestDb
+
+data PendingActionDb = PendingActionDb
+  { actionType :: PendingActionTypeDb
+  , offeredBy :: PlayerColorDb
+  }
+  deriving (Show, Generic, ToRow, FromRow)
+
+instance DomainMapping PendingActionDb PendingAction where
+  toDomain PendingActionDb{actionType, offeredBy} =
+    PendingAction (toDomain actionType) (toDomain offeredBy)
+  fromDomain PendingAction{actionType, offeredBy} =
+    PendingActionDb (fromDomain actionType) (fromDomain offeredBy)

@@ -15,6 +15,7 @@ import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Game
 import Hnefatafl.Interpreter.Storage.SQLite.Move qualified as MoveDb
+import Hnefatafl.Interpreter.Storage.SQLite.PendingAction qualified as PendingDb
 import Hnefatafl.Interpreter.Storage.SQLite.Player
 import Hnefatafl.Interpreter.Storage.SQLite.Token
 import Hnefatafl.Interpreter.Storage.SQLite.Type ()
@@ -75,6 +76,14 @@ runStorageSQLite connectionVar = interpret $ \_ cmd -> run $ case cmd of
   GetActiveTokenByGameAndRole gameId role ->
     gameParticipantTokenFromDb
       <<<$>>> getActiveTokenByGameAndRoleDb (fromDomain gameId) (fromDomain role)
+  InsertPendingAction gameId pa createdAt ->
+    PendingDb.insertPendingActionDb (fromDomain gameId) (fromDomain pa) createdAt
+  GetPendingAction gameId ->
+    toDomain <<<$>>> PendingDb.getPendingActionDb (fromDomain gameId)
+  DeletePendingAction gameId ->
+    PendingDb.deletePendingActionDb (fromDomain gameId)
+  DeleteLastNMoves gameId n ->
+    MoveDb.deleteLastNMoves (fromDomain gameId) n
  where
   run :: (Error String :> es, IOE :> es) => (Connection -> IO a) -> Eff es a
   run m =

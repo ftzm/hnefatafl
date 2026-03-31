@@ -27,16 +27,22 @@ module Hnefatafl.Game.Common (
   clearPending,
   respondToOffer,
   outcomeFromEngine,
+  outcomeToGameStatus,
+  toGameMove,
   undoMoves,
 ) where
 
+import Chronos (Time)
 import Hnefatafl.Bindings (EngineGameStatus (..), startBoard)
 import Hnefatafl.Core.Data (
   ExternBoard (..),
+  GameMove (..),
+  GameStatus,
   Layer (..),
   Move (..),
   PlayerColor (..),
  )
+import Hnefatafl.Core.Data qualified as Core
 
 -- | Conditions under which Black wins
 data BlackWinCondition = KingCaptured | WhiteSurrounded | NoWhiteMoves
@@ -70,6 +76,7 @@ data AppliedMove = AppliedMove
   , captures :: Layer
   , boardAfter :: ExternBoard
   , zobristHash :: Word64
+  , timestamp :: Time
   }
   deriving (Show, Eq)
 
@@ -162,3 +169,28 @@ outcomeFromEngine = \case
   EngineDrawOffered -> Just Draw
   EngineWhiteResigned -> Just $ ResignedBy White
   EngineBlackResigned -> Just $ ResignedBy Black
+
+outcomeToGameStatus :: Outcome -> GameStatus
+outcomeToGameStatus = \case
+  BlackWins KingCaptured -> Core.BlackWonKingCaptured
+  BlackWins WhiteSurrounded -> Core.BlackWonWhiteSurrounded
+  BlackWins NoWhiteMoves -> Core.BlackWonNoWhiteMoves
+  WhiteWins KingEscaped -> Core.WhiteWonKingEscaped
+  WhiteWins ExitFort -> Core.WhiteWonExitFort
+  WhiteWins NoBlackMoves -> Core.WhiteWonNoBlackMoves
+  ResignedBy Black -> Core.BlackWonResignation
+  ResignedBy White -> Core.WhiteWonResignation
+  TimedOut Black -> Core.BlackWonTimeout
+  TimedOut White -> Core.WhiteWonTimeout
+  Draw -> Core.Draw
+  Abandoned -> Core.Abandoned
+
+toGameMove :: AppliedMove -> GameMove
+toGameMove am =
+  GameMove
+    { playerColor = am.side
+    , move = am.move
+    , boardStateAfter = am.boardAfter
+    , captures = am.captures
+    , timestamp = am.timestamp
+    }

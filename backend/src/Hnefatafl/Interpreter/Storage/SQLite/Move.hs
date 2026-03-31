@@ -6,6 +6,7 @@ module Hnefatafl.Interpreter.Storage.SQLite.Move (
   getLatestMoveForGameDb,
   getMoveCountForGameDb,
   deleteMove,
+  deleteLastNMoves,
 ) where
 
 import Database.SQLite.Simple
@@ -96,3 +97,13 @@ deleteMove gameIdDb moveNumber =
   execute'
     "DELETE FROM move WHERE game_id = ? AND move_number = ?"
     (gameIdDb, moveNumber)
+
+deleteLastNMoves :: GameIdDb -> Int -> Connection -> IO ()
+deleteLastNMoves gameIdDb n =
+  execute'
+    """
+    DELETE FROM move
+    WHERE game_id = ?
+    AND move_number > (SELECT COALESCE(MAX(move_number), -1) - ? FROM move WHERE game_id = ?)
+    """
+    (gameIdDb, n, gameIdDb)

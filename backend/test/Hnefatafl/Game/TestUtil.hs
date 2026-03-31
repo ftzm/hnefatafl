@@ -1,5 +1,6 @@
 module Hnefatafl.Game.TestUtil where
 
+import Chronos (Time (..))
 import Hnefatafl.Bindings (startBoard)
 import Hnefatafl.Core.Data (Layer (..), Move (..), PlayerColor (..))
 import Hnefatafl.Game.Common (
@@ -21,6 +22,7 @@ dummyMove color =
     , captures = Layer 0 0
     , boardAfter = startBoard
     , zobristHash = 0
+    , timestamp = Time 0
     }
 
 -- | Build a move history of N alternating moves starting with Black
