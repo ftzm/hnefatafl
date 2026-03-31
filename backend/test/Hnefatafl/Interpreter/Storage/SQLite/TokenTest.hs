@@ -26,7 +26,7 @@ spec_Token =
                 .~ "abcd1234"
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               createGameParticipantToken testToken
           )
@@ -51,7 +51,7 @@ spec_Token =
                 .~ Black
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               createGameParticipantToken whiteToken
               createGameParticipantToken blackToken
@@ -68,7 +68,7 @@ spec_Token =
                 .~ "retrieve-me-123"
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               createGameParticipantToken testToken
               getTokenByText "retrieve-me-123"
@@ -78,7 +78,7 @@ spec_Token =
 
       it "returns Nothing for non-existent token" $ \conn ->
         resultEquals
-          (getTokenByText "does-not-exist")
+          (runTransaction $ getTokenByText "does-not-exist")
           (Nothing :: Maybe GameParticipantToken)
           conn
 
@@ -101,7 +101,7 @@ spec_Token =
                 .~ Black
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               createGameParticipantToken token1
               createGameParticipantToken token2
@@ -130,7 +130,7 @@ spec_Token =
                 .~ Black
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               createGameParticipantToken whiteToken
               createGameParticipantToken blackToken
@@ -144,7 +144,7 @@ spec_Token =
         let testGame = baseGame currentTime
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               getActiveTokenByGameAndRole testGame.gameId White
           )
@@ -168,7 +168,7 @@ spec_Token =
                 & #token
                 .~ "second-white-token-text"
 
-        result <- runStorageTest conn $ do
+        result <- runStorageTest conn $ runTransaction $ do
           insertGame testGame
           createGameParticipantToken firstToken
           createGameParticipantToken duplicateToken -- This should fail
@@ -195,7 +195,7 @@ spec_Token =
                 .~ Black
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               createGameParticipantToken whiteToken
               createGameParticipantToken blackToken
@@ -234,7 +234,7 @@ spec_Token =
                 .~ "game2-white"
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame game1
               insertGame game2
               createGameParticipantToken token1

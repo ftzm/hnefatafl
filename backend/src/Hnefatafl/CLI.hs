@@ -332,8 +332,7 @@ printGameMoves ::
   (Storage :> es, Console :> es) =>
   GameId -> Eff es ()
 printGameMoves gameId = do
-  game <- getGame gameId
-  moves <- getMovesForGame gameId
+  (game, moves) <- runTransaction $ (,) <$> getGame gameId <*> getMovesForGame gameId
   Console.putStrLn $
     encodeUtf8
       ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)
@@ -396,14 +395,15 @@ data GameImport = GameImport
 getOrCreateHumanPlayer ::
   (Storage :> es, IdGen :> es) =>
   Text -> Eff es HumanPlayer
-getOrCreateHumanPlayer name =
-  humanPlayerFromName name >>= \case
-    Just player -> pure player
-    Nothing -> do
-      playerId <- generateId
-      let newPlayer = HumanPlayer playerId name Nothing
-      insertHumanPlayer newPlayer
-      pure newPlayer
+getOrCreateHumanPlayer playerName = do
+  freshId <- generateId
+  runTransaction $
+    humanPlayerFromName playerName >>= \case
+      Just player -> pure player
+      Nothing -> do
+        let newPlayer = HumanPlayer freshId playerName Nothing
+        insertHumanPlayer newPlayer
+        pure newPlayer
 
 --------------------------------------------------------------------------------
 

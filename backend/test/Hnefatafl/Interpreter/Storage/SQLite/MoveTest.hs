@@ -38,7 +38,7 @@ spec_Move =
             testMove = baseMove currentTime
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               insertMove testGame.gameId testMove
           )
@@ -50,7 +50,7 @@ spec_Move =
             moves = generateMoves currentTime [Move 0 1, Move 9 10]
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               mapM_ (insertMove testGame.gameId) moves
           )
@@ -63,7 +63,7 @@ spec_Move =
             moves = generateMoves currentTime [Move 0 1, Move 9 10, Move 18 19]
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               insertMoves testGame.gameId moves
           )
@@ -88,7 +88,7 @@ spec_Move =
             moves2 = moves1
 
         shouldBeTrue
-          ( do
+          ( runTransaction $ do
               -- Insert moves individually for game1
               insertGame testGame1
               mapM_ (insertMove testGame1.gameId) moves1
@@ -121,7 +121,7 @@ spec_Move =
             realGameMoves = makeRealGameMoves (length $ toList realMoveResults) currentTime
 
         shouldBeTrue
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               insertMoves testGame.gameId realGameMoves
 
@@ -157,7 +157,7 @@ spec_Move =
               .~ ExternBoard{black = Layer 0 0, white = Layer 0 0, king = 27}
 
       resultEquals
-        ( do
+        ( runTransaction $ do
             insertGame testGame
             insertMove testGame.gameId testMove
             getMove testGame.gameId 0  -- First move has move number 0
@@ -179,7 +179,7 @@ spec_Move =
             expectedMoves = makeRealGameMoves 5 currentTime
 
         shouldBeTrue
-          ( do
+          ( runTransaction $ do
               -- Test empty game behavior across multiple functions
               insertGame emptyGame
               emptyMoves <- getMovesForGame emptyGame.gameId
@@ -210,7 +210,7 @@ spec_Move =
             expectedLatest = fromMaybe (error "empty moves") (viaNonEmpty last moves)
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               mapM_ (insertMove testGame.gameId) moves
               getLatestMoveForGame testGame.gameId
@@ -225,7 +225,7 @@ spec_Move =
             testMove = baseMove currentTime
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               insertMove testGame.gameId testMove
               deleteMove testGame.gameId 0  -- Delete first move (move number 0)
@@ -233,12 +233,12 @@ spec_Move =
           conn
 
         -- Verify move no longer exists
-        shouldFail (getMove testGame.gameId 0) conn  -- Verify first move is gone
+        shouldFail (runTransaction $ getMove testGame.gameId 0) conn  -- Verify first move is gone
 
       it "deleting a non-existent move should succeed (no-op)" $ \conn -> do
         let nonExistentGameId = GameId "does-not-exist"
 
-        shouldSucceed (deleteMove nonExistentGameId 999) conn
+        shouldSucceed (runTransaction $ deleteMove nonExistentGameId 999) conn
 
       it "can delete moves and track game state correctly" $ \conn -> do
         currentTime <- now
@@ -247,7 +247,7 @@ spec_Move =
             [_move1, _move2] = moves
 
         shouldBeTrue
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               mapM_ (insertMove testGame.gameId) moves
 
@@ -263,4 +263,3 @@ spec_Move =
               pure (moveCount1 == 2 && moveCount2 == 1)
           )
           conn
-

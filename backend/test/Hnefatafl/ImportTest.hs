@@ -101,7 +101,7 @@ spec_ImportGame =
           importResult <- importGame gameImport
           case importResult of
             Left importErr -> error $ "Import failed: " <> importErr
-            Right _ -> do
+            Right _ -> runTransaction $ do
               -- Verify players were created
               alice <- humanPlayerFromName "Alice"
               bob <- humanPlayerFromName "Bob"
@@ -154,7 +154,7 @@ spec_ImportGame =
           importResult <- importGame gameImport
           case importResult of
             Left importErr -> error $ "Import failed: " <> importErr
-            Right _ -> do
+            Right _ -> runTransaction $ do
               -- Verify players were created
               player1 <- humanPlayerFromName "Player 1"
               player2 <- humanPlayerFromName "Player 2"

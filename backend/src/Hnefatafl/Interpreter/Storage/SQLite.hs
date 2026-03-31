@@ -6,7 +6,9 @@ module Hnefatafl.Interpreter.Storage.SQLite (
 
 import Chronos (now)
 import Control.Concurrent.MVar
-import Database.SQLite.Simple (Connection, SQLError)
+import Control.Exception qualified as CE
+import Data.Unique (hashUnique, newUnique)
+import Database.SQLite.Simple (Connection, Query (..), SQLError, execute_)
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Error.Static
@@ -24,19 +26,41 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 --------------------------------------------------------------------------------
 -- SQLite effect implementation
 
+withSavepoint :: Connection -> StorageTx a -> IO a
+withSavepoint conn txAction =
+  do
+    sp <- show . hashUnique <$> newUnique
+    let
+      savepoint = execute_ conn $ Query $ "SAVEPOINT " <> sp
+      rollback = execute_ conn $ Query $ "ROLLBACK TO  " <> sp
+      release = execute_ conn $ Query $ "RELEASE " <> sp
+    savepoint
+    result <- interpretTx conn txAction `CE.onException` rollback
+    release
+    pure result
+
 runStorageSQLite ::
   (IOE :> es, Error String :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
-runStorageSQLite connectionVar = interpret $ \_ cmd -> run $ case cmd of
+runStorageSQLite connectionVar = interpret $ \_ -> \case
+  RunTransaction txAction ->
+    liftIO
+      (withMVar connectionVar $ \conn -> withSavepoint conn txAction)
+      `catches` [ Handler $ \(e :: SQLError) -> throwError $ show @String e
+                , Handler $ \(e :: IOException) -> throwError $ show @String e
+                ]
+
+dispatch :: StorageCmd a -> Connection -> IO a
+dispatch = \case
   InsertHumanPlayer player -> \conn -> do
-    currentTime <- liftIO now
+    currentTime <- now
     createHumanPlayer (fromDomain player) currentTime conn
   GetHumanPlayer playerId ->
     toDomain <<$>> getHumanPlayerById (fromDomain playerId)
   HumanPlayerFromName name ->
     toDomain <<<$>>> getHumanPlayerByName name
   InsertEnginePlayer player -> \conn -> do
-    currentTime <- liftIO now
+    currentTime <- now
     createEnginePlayer (fromDomain player) currentTime conn
   GetEnginePlayer playerId ->
     toDomain <<$>> getEnginePlayerById (fromDomain playerId)
@@ -69,7 +93,7 @@ runStorageSQLite connectionVar = interpret $ \_ cmd -> run $ case cmd of
   DeleteMove gameId moveNumber ->
     MoveDb.deleteMove (fromDomain gameId) moveNumber
   CreateGameParticipantToken token -> \conn -> do
-    currentTime <- liftIO now
+    currentTime <- now
     createGameParticipantTokenDb (gameParticipantTokenToDb token currentTime) conn
   GetTokenByText tokenText ->
     gameParticipantTokenFromDb <<<$>>> getGameParticipantTokenByText tokenText
@@ -84,10 +108,9 @@ runStorageSQLite connectionVar = interpret $ \_ cmd -> run $ case cmd of
     PendingDb.deletePendingActionDb (fromDomain gameId)
   DeleteLastNMoves gameId n ->
     MoveDb.deleteLastNMoves (fromDomain gameId) n
- where
-  run :: (Error String :> es, IOE :> es) => (Connection -> IO a) -> Eff es a
-  run m =
-    liftIO (withMVar connectionVar m)
-      `catches` [ Handler $ \(e :: SQLError) -> throwError $ show @String e
-                , Handler $ \(e :: IOException) -> throwError $ show @String e
-                ]
+
+interpretTx :: Connection -> StorageTx a -> IO a
+interpretTx _ (PureTx a) = pure a
+interpretTx conn (BindTx cmd k) = do
+  result <- dispatch cmd conn
+  interpretTx conn (k result)

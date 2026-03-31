@@ -19,9 +19,9 @@ spec_Game =
         currentTime <- now
         let testGame = baseGame currentTime
 
-        shouldSucceed (insertGame testGame) conn
+        shouldSucceed (runTransaction $ insertGame testGame) conn
 
-        shouldSucceed (insertGame testGame) conn
+        shouldSucceed (runTransaction $ insertGame testGame) conn
       it "can insert a game with players" $ \conn -> do
         currentTime <- now
         let whitePlayer =
@@ -38,7 +38,7 @@ spec_Game =
                 ?~ PlayerId "black-player"
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer whitePlayer
               insertHumanPlayer blackPlayer
               insertGame testGame
@@ -50,7 +50,7 @@ spec_Game =
         currentTime <- now
         let testGame = baseGame currentTime
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               getGame testGame.gameId
           )
@@ -66,7 +66,7 @@ spec_Game =
                 & #gameStatus
                 .~ WhiteWonKingEscaped
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
               getGame testGame.gameId
           )
@@ -80,7 +80,7 @@ spec_Game =
             expectedGame = originalGame & #gameStatus .~ BlackWonKingCaptured & #endTime ?~ currentTime
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame originalGame
               updateGameStatus originalGame.gameId BlackWonKingCaptured (Just currentTime)
               getGame originalGame.gameId
@@ -94,7 +94,7 @@ spec_Game =
             expectedGame = originalGame & #gameStatus .~ Draw
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame originalGame
               updateGameStatus originalGame.gameId Draw Nothing
               getGame originalGame.gameId
@@ -108,7 +108,7 @@ spec_Game =
         let testGame = baseGame currentTime
 
         -- Insert, delete, and verify deletion all in one transaction
-        result <- runStorageTest conn $ do
+        result <- runStorageTest conn $ runTransaction $ do
           insertGame testGame
           deleteGame testGame.gameId
           getGame testGame.gameId -- This should fail
@@ -119,7 +119,7 @@ spec_Game =
       it "deleting a non-existent game should succeed (no-op)" $ \conn -> do
         let nonExistentId = GameId "does-not-exist"
 
-        shouldSucceed (deleteGame nonExistentId) conn
+        shouldSucceed (runTransaction $ deleteGame nonExistentId) conn
 
     describe "game names" $ do
       it "can insert games with null names" $ \conn -> do
@@ -127,7 +127,7 @@ spec_Game =
         let game1 = baseGame currentTime & #gameId .~ GameId "null-name-1" & #name .~ Nothing
             game2 = baseGame currentTime & #gameId .~ GameId "null-name-2" & #name .~ Nothing
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame game1
               insertGame game2
               retrievedGame1 <- getGame (GameId "null-name-1")
@@ -152,7 +152,7 @@ spec_Game =
                 ?~ "Duplicate Name"
 
         -- Both operations in the same transaction to test the constraint
-        result <- runStorageTest conn $ do
+        result <- runStorageTest conn $ runTransaction $ do
           insertGame game1 -- This should succeed
           insertGame game2 -- This should fail due to unique constraint
         result `shouldSatisfy` \case
@@ -162,7 +162,7 @@ spec_Game =
     describe "listGames" $ do
       it "returns empty list when no games exist" $ \conn -> do
         resultEquals
-          listGames
+          (runTransaction listGames)
           []
           conn
 
@@ -173,7 +173,7 @@ spec_Game =
             game3 = baseGame currentTime & #gameId .~ GameId "game-3" & #name ?~ "Third Game"
 
         -- Insert games and get the list all in one transaction
-        result <- runStorageTest conn $ do
+        result <- runStorageTest conn $ runTransaction $ do
           insertGame game1
           insertGame game2
           insertGame game3
@@ -203,7 +203,7 @@ spec_Game =
                 ?~ currentTime
 
         -- Insert games and get the list all in one transaction
-        result <- runStorageTest conn $ do
+        result <- runStorageTest conn $ runTransaction $ do
           insertGame ongoingGame
           insertGame completedGame
           listGames
@@ -245,8 +245,9 @@ spec_Game =
                     ?~ ("Test Game " <> gameIdSuffix)
                     & #gameStatus
                     .~ status
-            insertGame testGame
-            retrievedGame <- getGame gameId
+            retrievedGame <- runTransaction $ do
+              insertGame testGame
+              getGame gameId
             -- Verify status was stored and retrieved correctly
             liftIO $ retrievedGame.gameStatus `shouldBe` status
         conn

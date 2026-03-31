@@ -13,14 +13,14 @@ spec_Player =
   around withSharedDB $ do
     describe "insertHumanPlayer" $ do
       it "can insert a human player without error" $ \conn ->
-        shouldSucceed (insertHumanPlayer baseHumanPlayer) conn
+        shouldSucceed (runTransaction $ insertHumanPlayer baseHumanPlayer) conn
 
       it "can insert multiple human players in sequence" $ \conn -> do
         let testPlayer1 = baseHumanPlayer & #playerId .~ PlayerId "player-1" & #name .~ "Test Human 1"
             testPlayer2 = baseHumanPlayer & #playerId .~ PlayerId "player-2" & #name .~ "Test Human 2" & #email .~ Nothing
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer testPlayer1
               insertHumanPlayer testPlayer2
           )
@@ -30,12 +30,12 @@ spec_Player =
         "verifies data isolation between tests (this test should not see previous test data)"
         $ \conn -> do
           -- This test should not see any players from previous tests due to rollback
-          shouldSucceed (insertHumanPlayer baseHumanPlayer) conn
+          shouldSucceed (runTransaction $ insertHumanPlayer baseHumanPlayer) conn
 
     describe "getHumanPlayer" $ do
       it "can retrieve a human player that was inserted" $ \conn ->
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer baseHumanPlayer
               getHumanPlayer baseHumanPlayer.playerId
           )
@@ -47,7 +47,7 @@ spec_Player =
             player2 = baseHumanPlayer & #playerId .~ PlayerId "multi-2" & #name .~ "Multi Test 2" & #email .~ Nothing
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer player1
               insertHumanPlayer player2
               -- Retrieve player2 to verify we get the right one
@@ -58,7 +58,7 @@ spec_Player =
 
       it "can insert and retrieve an engine player" $ \conn ->
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertEnginePlayer baseEnginePlayer
               getEnginePlayer baseEnginePlayer.playerId
           )
@@ -68,7 +68,7 @@ spec_Player =
     describe "getPlayer" $ do
       it "can retrieve a human player as Player type" $ \conn ->
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer baseHumanPlayer
               getPlayer baseHumanPlayer.playerId
           )
@@ -77,7 +77,7 @@ spec_Player =
 
       it "can retrieve an engine player as Player type" $ \conn ->
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertEnginePlayer baseEnginePlayer
               getPlayer baseEnginePlayer.playerId
           )
@@ -94,14 +94,14 @@ spec_Player =
                 }
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer testHumanPlayer
               deletePlayer testHumanPlayer.playerId
           )
           conn
 
         -- Verify player no longer exists by attempting to retrieve it
-        shouldFail (getHumanPlayer testHumanPlayer.playerId) conn
+        shouldFail (runTransaction $ getHumanPlayer testHumanPlayer.playerId) conn
 
       it "can delete an engine player and cascade to engine_player table" $ \conn -> do
         let testEnginePlayer =
@@ -111,14 +111,14 @@ spec_Player =
                 }
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertEnginePlayer testEnginePlayer
               deletePlayer testEnginePlayer.playerId
           )
           conn
 
         -- Verify player no longer exists by attempting to retrieve it
-        shouldFail (getEnginePlayer testEnginePlayer.playerId) conn
+        shouldFail (runTransaction $ getEnginePlayer testEnginePlayer.playerId) conn
 
       it "can delete a player using getPlayer and verify deletion" $ \conn -> do
         let testHumanPlayer =
@@ -129,24 +129,24 @@ spec_Player =
                 }
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer testHumanPlayer
               deletePlayer testHumanPlayer.playerId
           )
           conn
 
         -- Verify deletion using getPlayer
-        shouldFail (getPlayer testHumanPlayer.playerId) conn
+        shouldFail (runTransaction $ getPlayer testHumanPlayer.playerId) conn
 
       it "deleting a non-existent player should succeed (no-op)" $ \conn -> do
         let nonExistentId = PlayerId "does-not-exist"
 
-        shouldSucceed (deletePlayer nonExistentId) conn
+        shouldSucceed (runTransaction $ deletePlayer nonExistentId) conn
 
     describe "humanPlayerFromName" $ do
       it "returns Nothing when no player with the given name exists" $ \conn ->
         resultEquals
-          (humanPlayerFromName "NonexistentPlayer")
+          (runTransaction $ humanPlayerFromName "NonexistentPlayer")
           Nothing
           conn
 
@@ -155,7 +155,7 @@ spec_Player =
               baseHumanPlayer & #playerId .~ PlayerId "name-lookup-1" & #name .~ "UniqueTestName"
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer testPlayer
               humanPlayerFromName "UniqueTestName"
           )
@@ -168,7 +168,7 @@ spec_Player =
             player3 = baseHumanPlayer & #playerId .~ PlayerId "name-lookup-4" & #name .~ "Charlie"
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertHumanPlayer player1
               insertHumanPlayer player2
               insertHumanPlayer player3

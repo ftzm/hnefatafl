@@ -26,10 +26,10 @@ spec_PendingAction =
             pa = PendingAction DrawOffer Black
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              insertPendingAction testGame . gameId pa currentTime
-              getPendingAction testGame . gameId
+              insertPendingAction testGame.gameId pa currentTime
+              getPendingAction testGame.gameId
           )
           (Just pa)
           conn
@@ -40,10 +40,10 @@ spec_PendingAction =
             pa = PendingAction UndoRequest White
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              insertPendingAction testGame . gameId pa currentTime
-              getPendingAction testGame . gameId
+              insertPendingAction testGame.gameId pa currentTime
+              getPendingAction testGame.gameId
           )
           (Just pa)
           conn
@@ -54,9 +54,9 @@ spec_PendingAction =
         let testGame = baseGame currentTime
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              getPendingAction testGame . gameId
+              getPendingAction testGame.gameId
           )
           (Nothing :: Maybe PendingAction)
           conn
@@ -68,11 +68,11 @@ spec_PendingAction =
             pa = PendingAction DrawOffer Black
 
         resultEquals
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              insertPendingAction testGame . gameId pa currentTime
-              deletePendingAction testGame . gameId
-              getPendingAction testGame . gameId
+              insertPendingAction testGame.gameId pa currentTime
+              deletePendingAction testGame.gameId
+              getPendingAction testGame.gameId
           )
           (Nothing :: Maybe PendingAction)
           conn
@@ -82,9 +82,9 @@ spec_PendingAction =
         let testGame = baseGame currentTime
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              deletePendingAction testGame . gameId
+              deletePendingAction testGame.gameId
           )
           conn
 
@@ -95,11 +95,11 @@ spec_PendingAction =
             moves = generateMoves currentTime [Move 0 1, Move 9 10, Move 18 19]
 
         shouldBeTrue
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              insertMoves testGame . gameId moves
-              deleteLastNMoves testGame . gameId 1
-              count <- getMoveCountForGame testGame . gameId
+              insertMoves testGame.gameId moves
+              deleteLastNMoves testGame.gameId 1
+              count <- getMoveCountForGame testGame.gameId
               pure (count == 2)
           )
           conn
@@ -110,12 +110,12 @@ spec_PendingAction =
             moves = generateMoves currentTime [Move 0 1, Move 9 10, Move 18 19, Move 27 28]
 
         shouldBeTrue
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              insertMoves testGame . gameId moves
-              deleteLastNMoves testGame . gameId 2
-              count <- getMoveCountForGame testGame . gameId
-              remaining <- getMovesForGame testGame . gameId
+              insertMoves testGame.gameId moves
+              deleteLastNMoves testGame.gameId 2
+              count <- getMoveCountForGame testGame.gameId
+              remaining <- getMovesForGame testGame.gameId
               pure (count == 2 && remaining == take 2 moves)
           )
           conn
@@ -126,11 +126,11 @@ spec_PendingAction =
             moves = generateMoves currentTime [Move 0 1, Move 9 10]
 
         shouldBeTrue
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              insertMoves testGame . gameId moves
-              deleteLastNMoves testGame . gameId 2
-              count <- getMoveCountForGame testGame . gameId
+              insertMoves testGame.gameId moves
+              deleteLastNMoves testGame.gameId 2
+              count <- getMoveCountForGame testGame.gameId
               pure (count == 0)
           )
           conn
@@ -140,8 +140,8 @@ spec_PendingAction =
         let testGame = baseGame currentTime
 
         shouldSucceed
-          ( do
+          ( runTransaction $ do
               insertGame testGame
-              deleteLastNMoves testGame . gameId 1
+              deleteLastNMoves testGame.gameId 1
           )
           conn

@@ -52,10 +52,12 @@ import Hnefatafl.Effect.Clock
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
 import Hnefatafl.Effect.Storage (
   Storage,
+  StorageTx,
   humanPlayerFromName,
   insertGame,
   insertHumanPlayer,
   insertMoves,
+  runTransaction,
  )
 import Hnefatafl.Serialization (movesToNotation, parseMoveList)
 import Prelude hiding (putStrLn, readFile)
@@ -137,17 +139,23 @@ parseGameStatus = \case
   "abandoned" -> Just Abandoned
   _ -> Nothing
 
+-- | Look up a human player by name, creating one if it doesn't exist (within a transaction)
+getOrCreateHumanPlayerTx ::
+  PlayerId -> Text -> StorageTx HumanPlayer
+getOrCreateHumanPlayerTx freshId playerName =
+  humanPlayerFromName playerName >>= \case
+    Just player -> pure player
+    Nothing -> do
+      let newPlayer = HumanPlayer freshId playerName Nothing
+      insertHumanPlayer newPlayer
+      pure newPlayer
+
 -- | Look up a human player by name, creating one if it doesn't exist
 getOrCreateHumanPlayer ::
   (Storage :> es, IdGen :> es) => Text -> Eff es HumanPlayer
-getOrCreateHumanPlayer name =
-  humanPlayerFromName name >>= \case
-    Just player -> pure player
-    Nothing -> do
-      playerId <- generateId
-      let newPlayer = HumanPlayer playerId name Nothing
-      insertHumanPlayer newPlayer
-      pure newPlayer
+getOrCreateHumanPlayer playerName = do
+  freshId <- generateId
+  runTransaction $ getOrCreateHumanPlayerTx freshId playerName
 
 importGame ::
   (Clock :> es, Storage :> es, IdGen :> es, Error String :> es) =>
@@ -159,9 +167,9 @@ importGame input = do
       Right engineStatus -> do
         gameId <- generateId @GameId
         currentTime <- now
+        blackFreshId <- generateId
+        whiteFreshId <- generateId
         let startTime = fromMaybe currentTime input.startTime
-        blackPlayerId <- playerId <$> getOrCreateHumanPlayer input.blackPlayerName
-        whitePlayerId <- playerId <$> getOrCreateHumanPlayer input.whitePlayerName
         -- The engine status can be relied on when the game ends in normal
         -- victory condition, but in the event of a timeout or resignation
         -- when the game is technically ongoing we'll need to defer to the
@@ -169,23 +177,26 @@ importGame input = do
         let status = case toGameStatus engineStatus of
               Ongoing -> fromMaybe Ongoing (input.gameStatus >>= parseGameStatus)
               other -> other
-        let game =
-              Game
-                { gameId = gameId
-                , name = input.gameName
-                , blackPlayerId = Just blackPlayerId
-                , whitePlayerId = Just whitePlayerId
-                , startTime = startTime
-                , endTime = input.endTime
-                , gameStatus = status
-                , createdAt = currentTime
-                }
 
         let (moveResults, _finalStatus) = applyMoveSequence input.moves
             gameMoves = map (moveResultToGameMove startTime) (toList moveResults)
 
-        insertGame game
-        insertMoves gameId gameMoves
+        runTransaction $ do
+          blackPlayer <- getOrCreateHumanPlayerTx blackFreshId input.blackPlayerName
+          whitePlayer <- getOrCreateHumanPlayerTx whiteFreshId input.whitePlayerName
+          let game =
+                Game
+                  { gameId = gameId
+                  , name = input.gameName
+                  , blackPlayerId = Just blackPlayer.playerId
+                  , whitePlayerId = Just whitePlayer.playerId
+                  , startTime = startTime
+                  , endTime = input.endTime
+                  , gameStatus = status
+                  , createdAt = currentTime
+                  }
+          insertGame game
+          insertMoves gameId gameMoves
         pure $ Right ()
   case result of
     Left (_, err) -> pure $ Left $ "Import failed: " <> toText err
