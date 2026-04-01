@@ -40,13 +40,14 @@ spec_client_integration = beforeAll setupTestServer $ afterAll teardownTestServe
         Left _ -> False
 
     it "should perform a trusted search" $ \((clientEnv, client), _) -> do
-      let searchInput = SearchTrustedInput
-            { board = startBoard
-            , blackToMove = True
-            , hashes = []
-            , timeout = SearchTimeout 1000  -- 1 second timeout
-            , enableAdminEndings = False
-            }
+      let searchInput =
+            SearchTrustedInput
+              { board = startBoard
+              , blackToMove = True
+              , hashes = []
+              , timeout = SearchTimeout 1000 -- 1 second timeout
+              , enableAdminEndings = False
+              }
       result <- runClientM (client.searchTrusted searchInput) clientEnv
       result `shouldSatisfy` \case
         Right searchResult ->
@@ -54,11 +55,14 @@ spec_client_integration = beforeAll setupTestServer $ afterAll teardownTestServe
           let move = searchMove searchResult
               newBoard = updatedBoard searchResult
               hash = updatedZobristHash searchResult
-          in move.orig >= 0 && move.orig <= 120 &&  -- Valid board position
-             move.dest >= 0 && move.dest <= 120 &&  -- Valid board position
-             move.orig /= move.dest &&               -- Different positions
-             newBoard /= startBoard &&               -- Board changed
-             hash /= 0                               -- Non-zero hash
+           in move.orig >= 0
+                && move.orig <= 120
+                && move.dest >= 0 -- Valid board position
+                && move.dest <= 120
+                && move.orig /= move.dest -- Valid board position
+                && newBoard /= startBoard -- Different positions
+                && hash /= 0 -- Board changed
+                -- Non-zero hash
         Left _ -> False
 
 spec_client_errors :: Spec

@@ -11,6 +11,8 @@ module Hnefatafl.Core.Data (
   -- * Game Types
   GameId (..),
   GameStatus (..),
+  Participant (..),
+  GameMode (..),
   Game (..),
 
   -- * Board and Move Types
@@ -77,11 +79,21 @@ data GameStatus
   | Abandoned
   deriving (Show, Eq)
 
+data Participant
+  = RegisteredPlayer PlayerId
+  | AnonymousPlayer Text
+  deriving (Show, Eq)
+
+data GameMode
+  = Hotseat (Maybe PlayerId)
+  | VsAI (Maybe PlayerId) PlayerColor PlayerId
+  | Online (Maybe Participant) (Maybe Participant)
+  deriving (Show, Eq)
+
 data Game = Game
   { gameId :: GameId
   , name :: Maybe Text
-  , whitePlayerId :: Maybe PlayerId -- Nothing for anonymous players
-  , blackPlayerId :: Maybe PlayerId -- Nothing for anonymous players
+  , mode :: GameMode
   , startTime :: Time
   , endTime :: Maybe Time
   , gameStatus :: GameStatus

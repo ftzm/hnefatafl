@@ -183,8 +183,8 @@ search_result search_runner_iterative_generic(
     transposition_table *tt);
 
 // Generic wrapper function for search with timeout
-typedef search_result (*search_runner_func)(
-    board, int, _Atomic bool *, transposition_table *);
+typedef search_result (
+    *search_runner_func)(board, int, _Atomic bool *, transposition_table *);
 search_result search_with_timeout(
     search_runner_func runner,
     board b,
@@ -192,28 +192,34 @@ search_result search_with_timeout(
     int time_limit,
     transposition_table *tt);
 
-search_result
-search_white_with_timeout(board b, int depth, int time_limit,
-                          transposition_table *tt);
+search_result search_white_with_timeout(
+    board b,
+    int depth,
+    int time_limit,
+    transposition_table *tt);
 
-search_result
-search_black_with_timeout(board b, int depth, int time_limit,
-                          transposition_table *tt);
+search_result search_black_with_timeout(
+    board b,
+    int depth,
+    int time_limit,
+    transposition_table *tt);
 
-search_result
-search_white_with_timeout_iterative(board b, int max_depth, int time_limit,
-                                    transposition_table *tt);
+search_result search_white_with_timeout_iterative(
+    board b,
+    int max_depth,
+    int time_limit,
+    transposition_table *tt);
 
-search_result
-search_black_with_timeout_iterative(board b, int max_depth, int time_limit,
-                                    transposition_table *tt);
+search_result search_black_with_timeout_iterative(
+    board b,
+    int max_depth,
+    int time_limit,
+    transposition_table *tt);
 
 void destroy_pv_line(pv_line *line);
 
 // Helper macro to create an empty pv struct
-#define CREATE_EMPTY_PV()                                                      \
-  (&(pv){.pv_length = {0},                                                     \
-         .pv_table = {{0}}})
+#define CREATE_EMPTY_PV() (&(pv){.pv_length = {0}, .pv_table = {{0}}})
 
 i32 search_black(
     pv *pv_data,

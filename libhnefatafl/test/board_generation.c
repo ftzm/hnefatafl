@@ -62,8 +62,7 @@ prop_consistent_rotations(struct theft *t, void *arg1) {
                                            : THEFT_TRIAL_FAIL;
 }
 
-static enum theft_trial_res
-prop_board_is_valid(struct theft *t, void *arg1) {
+static enum theft_trial_res prop_board_is_valid(struct theft *t, void *arg1) {
   (void)t;
   const board *b = (const board *)arg1;
   return board_is_valid(b) ? THEFT_TRIAL_PASS : THEFT_TRIAL_FAIL;
@@ -79,7 +78,7 @@ static struct theft_type_info board_info = {
 #define BOARD_PROP_TEST(test_name, prop_fn)                                    \
   TEST test_name(void) {                                                       \
     theft_seed seed = theft_seed_of_time();                                    \
-    struct theft_run_config config = {                                          \
+    struct theft_run_config config = {                                         \
         .name = __func__,                                                      \
         .prop1 = prop_fn,                                                      \
         .type_info = {&board_info},                                            \
@@ -87,20 +86,25 @@ static struct theft_type_info board_info = {
         .seed = seed,                                                          \
     };                                                                         \
     enum theft_run_res res = theft_run(&config);                               \
-    ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);          \
+    ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);           \
     PASS();                                                                    \
   }
 
-BOARD_PROP_TEST(prop_generated_boards_have_valid_piece_counts,
-                prop_valid_piece_counts)
-BOARD_PROP_TEST(prop_generated_boards_have_no_overlapping_pieces,
-                prop_no_overlapping_pieces)
-BOARD_PROP_TEST(prop_generated_boards_have_no_pieces_on_corners,
-                prop_no_pieces_on_corners)
-BOARD_PROP_TEST(prop_generated_boards_have_no_pawns_on_throne,
-                prop_no_pawns_on_throne)
-BOARD_PROP_TEST(prop_generated_boards_have_consistent_rotations,
-                prop_consistent_rotations)
+BOARD_PROP_TEST(
+    prop_generated_boards_have_valid_piece_counts,
+    prop_valid_piece_counts)
+BOARD_PROP_TEST(
+    prop_generated_boards_have_no_overlapping_pieces,
+    prop_no_overlapping_pieces)
+BOARD_PROP_TEST(
+    prop_generated_boards_have_no_pieces_on_corners,
+    prop_no_pieces_on_corners)
+BOARD_PROP_TEST(
+    prop_generated_boards_have_no_pawns_on_throne,
+    prop_no_pawns_on_throne)
+BOARD_PROP_TEST(
+    prop_generated_boards_have_consistent_rotations,
+    prop_consistent_rotations)
 BOARD_PROP_TEST(prop_generated_boards_are_valid, prop_board_is_valid)
 
 SUITE(board_generation_suite) {

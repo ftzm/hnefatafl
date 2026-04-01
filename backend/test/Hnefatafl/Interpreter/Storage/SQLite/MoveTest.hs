@@ -3,30 +3,40 @@
 
 module Hnefatafl.Interpreter.Storage.SQLite.MoveTest where
 
-import Chronos (now, Time)
+import Chronos (Time, now)
 import Hnefatafl.Core.Data (MoveResult (..))
 import Hnefatafl.Core.Data as CoreData hiding (MoveResult (..))
 import Hnefatafl.Effect.Storage
-import Hnefatafl.Interpreter.Storage.SQLite.Util (shouldBeTrue, shouldFail, resultEquals, shouldSucceed, withSharedDB, generateMoves, baseGame, baseMove)
+import Hnefatafl.Interpreter.Storage.SQLite.Util (
+  baseGame,
+  baseMove,
+  generateMoves,
+  resultEquals,
+  shouldBeTrue,
+  shouldFail,
+  shouldSucceed,
+  withSharedDB,
+ )
 import Optics
 import Test.Hspec (Spec, around, describe, it)
 import TestUtil (realMoveResults)
-
 
 -- | Create GameMoves from real move results with actual board states
 -- Takes count and timestamp
 makeRealGameMoves :: Int -> Time -> [GameMove]
 makeRealGameMoves count timestamp =
-  take count $ map
-    (\(MoveResult move board captures wasBlackTurn _) ->
-      GameMove
-        { playerColor = if wasBlackTurn then Black else White
-        , move = move
-        , boardStateAfter = board
-        , captures = captures
-        , timestamp = timestamp
-        })
-    (toList realMoveResults)
+  take count $
+    map
+      ( \(MoveResult move board captures wasBlackTurn _) ->
+          GameMove
+            { playerColor = if wasBlackTurn then Black else White
+            , move = move
+            , boardStateAfter = board
+            , captures = captures
+            , timestamp = timestamp
+            }
+      )
+      (toList realMoveResults)
 
 spec_Move :: Spec
 spec_Move =
@@ -134,10 +144,12 @@ spec_Move =
                   countMatches = moveCount == expectedCount && length retrievedMoves == expectedCount
 
               -- Check that all board layer data round-trips correctly
-              let layersMatch = all
-                    (\(original, retrieved) ->
-                      original.boardStateAfter == retrieved.boardStateAfter)
-                    (zip realGameMoves retrievedMoves)
+              let layersMatch =
+                    all
+                      ( \(original, retrieved) ->
+                          original.boardStateAfter == retrieved.boardStateAfter
+                      )
+                      (zip realGameMoves retrievedMoves)
 
               -- Check that moves are returned in correct order
               let orderingCorrect = retrievedMoves == realGameMoves
@@ -160,7 +172,7 @@ spec_Move =
         ( runTransaction $ do
             insertGame testGame
             insertMove testGame.gameId testMove
-            getMove testGame.gameId 0  -- First move has move number 0
+            getMove testGame.gameId 0 -- First move has move number 0
         )
         testMove
         conn
@@ -170,12 +182,16 @@ spec_Move =
         currentTime <- now
         let emptyGame =
               baseGame currentTime
-                & #gameId .~ GameId "empty-test"
-                & #name ?~ "Empty Test Game"
+                & #gameId
+                .~ GameId "empty-test"
+                & #name
+                ?~ "Empty Test Game"
             populatedGame =
               baseGame currentTime
-                & #gameId .~ GameId "populated-test"
-                & #name ?~ "Populated Test Game"
+                & #gameId
+                .~ GameId "populated-test"
+                & #name
+                ?~ "Populated Test Game"
             expectedMoves = makeRealGameMoves 5 currentTime
 
         shouldBeTrue
@@ -193,12 +209,13 @@ spec_Move =
               populatedMoves <- getMovesForGame populatedGame.gameId
               populatedCount <- getMoveCountForGame populatedGame.gameId
 
-              pure ( emptyMoves == []
-                  && emptyLatestMove == Nothing
-                  && emptyCount == 0
-                  && populatedMoves == expectedMoves
-                  && populatedCount == 5
-                   )
+              pure
+                ( emptyMoves == []
+                    && emptyLatestMove == Nothing
+                    && emptyCount == 0
+                    && populatedMoves == expectedMoves
+                    && populatedCount == 5
+                )
           )
           conn
 
@@ -228,13 +245,12 @@ spec_Move =
           ( runTransaction $ do
               insertGame testGame
               insertMove testGame.gameId testMove
-              deleteMove testGame.gameId 0  -- Delete first move (move number 0)
+              deleteMove testGame.gameId 0 -- Delete first move (move number 0)
           )
           conn
 
         -- Verify move no longer exists
-        shouldFail (runTransaction $ getMove testGame.gameId 0) conn  -- Verify first move is gone
-
+        shouldFail (runTransaction $ getMove testGame.gameId 0) conn -- Verify first move is gone
       it "deleting a non-existent move should succeed (no-op)" $ \conn -> do
         let nonExistentGameId = GameId "does-not-exist"
 
@@ -255,7 +271,7 @@ spec_Move =
               moveCount1 <- getMoveCountForGame testGame.gameId
 
               -- Delete the last move
-              deleteMove testGame.gameId 1  -- Delete second move (move number 1)
+              deleteMove testGame.gameId 1 -- Delete second move (move number 1)
 
               -- Check that we now have 1 move
               moveCount2 <- getMoveCountForGame testGame.gameId

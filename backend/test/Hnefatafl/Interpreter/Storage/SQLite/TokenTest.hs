@@ -2,12 +2,12 @@
 
 module Hnefatafl.Interpreter.Storage.SQLite.TokenTest where
 
-import Data.List (isInfixOf)
 import Chronos (now)
+import Data.List (isInfixOf)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
-import Optics
 import Hnefatafl.Interpreter.Storage.SQLite.Util
+import Optics
 import Test.Hspec (Spec, around, describe, it)
 import Test.Hspec.Expectations.Pretty
 

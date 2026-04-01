@@ -353,7 +353,12 @@ spec_update_game_progress =
                   [] -- no unprocessed games
                   (Map.singleton (gameSetupKey testGameDef.setup) testGameDef) -- game already claimed
                   [] -- no completed games
-            updateGameProgress (gameSetupKey testGameDef.setup) searchResult True procState eventChan
+            updateGameProgress
+              (gameSetupKey testGameDef.setup)
+              searchResult
+              True
+              procState
+              eventChan
             atomically $ takeSnapshot procState
 
       let expectedGameDef =
@@ -420,7 +425,12 @@ spec_update_game_progress =
                       currentGameDef -- game already in progress
                   )
                   [] -- no completed games
-            updateGameProgress (gameSetupKey currentGameDef.setup) newResult False procState eventChan
+            updateGameProgress
+              (gameSetupKey currentGameDef.setup)
+              newResult
+              False
+              procState
+              eventChan
             atomically $ takeSnapshot procState
 
       let expectedGameDef =
@@ -761,7 +771,6 @@ runGenerateTestPositionsFile filePath =
     . runFileSystem
     $ generateTestPositionsFile filePath
 
-
 testGameNotation :: Text
 testGameNotation =
   "d11-d9 h6-h3 k7-i7 f8-c8 a4-c4 f4-i4 g1-g2 e5-c5 d1-d3 g5-j5 k4-j4xj5 f5-j5 h11-h4xi4 c5-h5xh4 i7-i5xj5 g7-g9 g2-g5xh5 f7-k7 i5-i9 f6-f8 j6-h6xg6 f8-j8 i9-j9 j8-i8 k6-i6 i8-i11 j9-j11 i11-i10 j11-j10 g9-k9xk8 g11-i11 k9-k10xj10 j4-j10 k10-k9 h6-h10 k9-k10xj10 d9-k9xk10 i10-k10 h10-j10 k10-k11"
@@ -900,14 +909,15 @@ spec_end_to_end_parallel_self_play =
                   eventChan <- atomically newTChan
 
                   -- Start self-play in the background
-                  selfPlayAsync <- async $
-                    runSelfPlayParallel
-                      4 -- 4 actors
-                      (VersionId "test-new")
-                      (VersionId "test-old")
-                      tempDir
-                      testPositionsFile
-                      eventChan
+                  selfPlayAsync <-
+                    async $
+                      runSelfPlayParallel
+                        4 -- 4 actors
+                        (VersionId "test-new")
+                        (VersionId "test-old")
+                        tempDir
+                        testPositionsFile
+                        eventChan
 
                   -- Add initial logging
                   liftIO $ putStrLn "Starting self-play, will wait for completion..."

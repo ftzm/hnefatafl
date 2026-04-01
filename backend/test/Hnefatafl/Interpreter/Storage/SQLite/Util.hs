@@ -144,8 +144,7 @@ baseGame currentTime =
   Game
     { gameId = GameId "test-game"
     , name = Just "Test Game"
-    , whitePlayerId = Nothing
-    , blackPlayerId = Nothing
+    , mode = Hotseat Nothing
     , startTime = currentTime
     , endTime = Nothing
     , gameStatus = Ongoing
@@ -159,7 +158,7 @@ baseMove currentTime =
     { playerColor = White
     , move = Move 0 1
     , boardStateAfter = emptyBoard
-    , captures = Layer 0 0  -- Empty captures layer
+    , captures = Layer 0 0 -- Empty captures layer
     , timestamp = currentTime
     }
 
@@ -194,6 +193,6 @@ generateMoves timestamp = zipWith makeGameMove (cycle [Black, White])
       { playerColor = color
       , move = move
       , boardStateAfter = emptyBoard
-      , captures = Layer 0 0  -- Empty captures layer
+      , captures = Layer 0 0 -- Empty captures layer
       , timestamp = timestamp
       }

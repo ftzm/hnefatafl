@@ -28,7 +28,8 @@ static board theft_create_board(struct theft *t) {
   while (black_count) {
     u64 start = theft_random_choice(t, 120);
     int index = find_free_index(occ, start);
-    if (index < 0) break;
+    if (index < 0)
+      break;
     OP_LAYER_BIT(black, index, |=);
     OP_LAYER_BIT(occ, index, |=);
     black_count--;
@@ -40,7 +41,8 @@ static board theft_create_board(struct theft *t) {
   while (white_count) {
     u64 start = theft_random_choice(t, 120);
     int index = find_free_index(occ, start);
-    if (index < 0) break;
+    if (index < 0)
+      break;
     OP_LAYER_BIT(white, index, |=);
     OP_LAYER_BIT(occ, index, |=);
     white_count--;

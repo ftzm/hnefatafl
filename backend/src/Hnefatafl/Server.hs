@@ -24,7 +24,6 @@ import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Servant (runWarpServerSettings)
 import Hnefatafl.Bindings (SearchTrustedResult)
-import Version qualified
 import Hnefatafl.Core.Data (ExternBoard)
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Interpreter.Search.Local (runSearchLocal)
@@ -41,6 +40,7 @@ import Servant (
  )
 import Servant.API ((:>))
 import Servant.Server.Generic (AsServerT, genericServerT)
+import Version qualified
 
 data VersionResponse = VersionResponse
   { versionNumber :: Text
@@ -108,7 +108,13 @@ searchTrustedHandler ::
   (Search E.:> es, IOE E.:> es) =>
   SearchTrustedInput -> Eff es SearchTrustedResult
 searchTrustedHandler input =
-  send $ SearchTrusted input.board input.blackToMove input.hashes input.timeout input.enableAdminEndings
+  send $
+    SearchTrusted
+      input.board
+      input.blackToMove
+      input.hashes
+      input.timeout
+      input.enableAdminEndings
 
 runServer :: Int -> IO ()
 runServer port = do

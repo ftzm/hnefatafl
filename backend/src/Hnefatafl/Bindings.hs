@@ -455,7 +455,13 @@ foreign import ccall safe "search_trusted"
     IO ()
 
 searchTrusted ::
-  ExternBoard -> Bool -> [Word64] -> Ptr CBool -> Ptr TranspositionTable -> Bool -> IO SearchTrustedResult
+  ExternBoard ->
+  Bool ->
+  [Word64] ->
+  Ptr CBool ->
+  Ptr TranspositionTable ->
+  Bool ->
+  IO SearchTrustedResult
 searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr ttPtr enableAdminEndings = evalContT $ do
   let
     storableBoard = fromDomain @StorableExternBoard trustedBoard

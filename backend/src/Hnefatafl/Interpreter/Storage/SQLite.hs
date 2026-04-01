@@ -15,7 +15,14 @@ import Effectful.Error.Static
 import Effectful.Exception
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
-import Hnefatafl.Interpreter.Storage.SQLite.Game
+import Hnefatafl.Interpreter.Storage.SQLite.Game (
+  createGame,
+  deleteGameById,
+  gameToDb,
+  getGameById,
+  listGamesDb,
+  updateGameStatusById,
+ )
 import Hnefatafl.Interpreter.Storage.SQLite.Move qualified as MoveDb
 import Hnefatafl.Interpreter.Storage.SQLite.PendingAction qualified as PendingDb
 import Hnefatafl.Interpreter.Storage.SQLite.Player
@@ -29,7 +36,7 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 withSavepoint :: Connection -> StorageTx a -> IO a
 withSavepoint conn txAction =
   do
-    sp <- show . hashUnique <$> newUnique
+    sp <- ("tx_" <>) . show . hashUnique <$> newUnique
     let
       savepoint = execute_ conn $ Query $ "SAVEPOINT " <> sp
       rollback = execute_ conn $ Query $ "ROLLBACK TO  " <> sp
@@ -68,12 +75,12 @@ dispatch = \case
     getPlayerById conn (fromDomain playerId)
   DeletePlayer playerId ->
     deletePlayerById (fromDomain playerId)
-  InsertGame game ->
-    createGame (fromDomain game)
+  InsertGame game -> \conn ->
+    createGame (gameToDb game) game.mode conn
   GetGame gameId ->
-    toDomain <<$>> getGameById (fromDomain gameId)
+    getGameById (fromDomain gameId)
   ListGames ->
-    toDomain <<<$>>> listGamesDb
+    listGamesDb
   UpdateGameStatus gameId gameStatus endTime ->
     updateGameStatusById (fromDomain gameId) (fromDomain gameStatus) endTime
   DeleteGame gameId ->

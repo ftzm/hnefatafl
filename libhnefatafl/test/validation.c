@@ -135,7 +135,8 @@ TEST test_validate_move_integration() {
       move_error_wrong_piece_for_turn);
 
   // Test invalid diagonal move
-  // Position 3 = (row 0, col 3) has black piece, position 15 = (row 1, col 4) is empty
+  // Position 3 = (row 0, col 3) has black piece, position 15 = (row 1, col 4)
+  // is empty
   move diagonal = {3, 15};
   ASSERT_FALSE(is_orthogonal_move(diagonal));
   ASSERT_EQ(validate_move(b, diagonal, true), move_error_not_orthogonal);
@@ -170,7 +171,8 @@ TEST test_no_pieces_out_of_bounds() {
   board b = start_board;
   ASSERT(board_has_no_pieces_out_of_bounds(&b));
 
-  // Set an invalid bit in the upper half of black layer (bit 57, beyond 121 squares)
+  // Set an invalid bit in the upper half of black layer (bit 57, beyond 121
+  // squares)
   board b_oob = start_board;
   b_oob.black._[1] |= (1ULL << 57);
   ASSERT_FALSE(board_has_no_pieces_out_of_bounds(&b_oob));

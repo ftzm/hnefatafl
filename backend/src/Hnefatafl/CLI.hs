@@ -231,7 +231,13 @@ printError MoveValidationResult{err, moveIndex} (m :| ms) = do
 withStandardEffects ::
   Maybe Text ->
   ( forall es.
-    (Storage :> es, Clock :> es, IdGen :> es, Console :> es, FileSystem :> es, Error String :> es) =>
+    ( Storage :> es
+    , Clock :> es
+    , IdGen :> es
+    , Console :> es
+    , FileSystem :> es
+    , Error String :> es
+    ) =>
     Eff es a
   ) ->
   IO (Either String a)
@@ -268,13 +274,15 @@ runOptions options = case options.cmd of
             printError err moves
             pure $ ExitFailure 1
   Import ImportOptions{filePath} -> do
-    result <- withStandardEffects options.globalOpts.db (importGameFromFile filePath)
+    result <-
+      withStandardEffects options.globalOpts.db (importGameFromFile filePath)
     case result of
       Left err -> putTextLn ("Import failed: " <> toText err) >> pure (ExitFailure 1)
       Right (Left importErr) -> putTextLn ("Import failed: " <> importErr) >> pure (ExitFailure 1)
       Right (Right _) -> putTextLn "Import successful" >> pure ExitSuccess
   PrintGame PrintGameOptions{gameId} -> do
-    result <- withStandardEffects options.globalOpts.db (printGameMoves (GameId gameId))
+    result <-
+      withStandardEffects options.globalOpts.db (printGameMoves (GameId gameId))
     case result of
       Left err -> putTextLn ("Error: " <> toText err) >> pure (ExitFailure 1)
       Right _ -> pure ExitSuccess
@@ -282,7 +290,14 @@ runOptions options = case options.cmd of
     runServer port
     pure ExitSuccess
   SelfPlay
-    SelfPlayOptions{numActors, stateDir, startPositionsFile, oldServerUrl, oldVersion, headless} -> do
+    SelfPlayOptions
+      { numActors
+      , stateDir
+      , startPositionsFile
+      , oldServerUrl
+      , oldVersion
+      , headless
+      } -> do
       runSelfPlayWithInterpreters
         numActors
         (toString stateDir)
@@ -308,7 +323,11 @@ runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlSt
         putTextLn $ "Failed to query old server version: " <> show err
         exitFailure
       Right resp -> when (expected /= resp.versionNumber) $ do
-        putTextLn $ "Version mismatch: expected " <> expected <> " but server reports " <> resp.versionNumber
+        putTextLn $
+          "Version mismatch: expected "
+            <> expected
+            <> " but server reports "
+            <> resp.versionNumber
         exitFailure
 
   let runner = if headless then runSelfPlayHeadless else runSelfPlayWithUI
@@ -321,18 +340,26 @@ runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlSt
           runFileSystem $
             runLabeled @"new" (runSearchLocal qsem) $
               runLabeled @"old" (runSearchRemote clientEnv client) $
-                runner numActors (VersionId Version.version) (VersionId oldVersionLabel) stateDir startPositionsFile
+                runner
+                  numActors
+                  (VersionId Version.version)
+                  (VersionId oldVersionLabel)
+                  stateDir
+                  startPositionsFile
 
   case result of
     Left err -> putTextLn ("Self-play failed: " <> err) >> pure (ExitFailure 1)
-    Right (Left clientErr) -> putTextLn ("Self-play failed (client error): " <> show clientErr) >> pure (ExitFailure 1)
+    Right (Left clientErr) ->
+      putTextLn ("Self-play failed (client error): " <> show clientErr)
+        >> pure (ExitFailure 1)
     Right (Right ()) -> putTextLn "Self-play completed successfully" >> pure ExitSuccess
 
 printGameMoves ::
   (Storage :> es, Console :> es) =>
   GameId -> Eff es ()
 printGameMoves gameId = do
-  (game, moves) <- runTransaction $ (,) <$> getGame gameId <*> getMovesForGame gameId
+  (game, moves) <-
+    runTransaction $ (,) <$> getGame gameId <*> getMovesForGame gameId
   Console.putStrLn $
     encodeUtf8
       ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)

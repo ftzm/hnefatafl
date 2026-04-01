@@ -40,11 +40,13 @@ import Hnefatafl.Bindings (
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
+  GameMode (..),
   GameMove (..),
   GameStatus (..),
   HumanPlayer (..),
   Move,
   MoveResult (..),
+  Participant (..),
   PlayerColor (..),
   PlayerId (..),
  )
@@ -188,8 +190,10 @@ importGame input = do
                 Game
                   { gameId = gameId
                   , name = input.gameName
-                  , blackPlayerId = Just blackPlayer.playerId
-                  , whitePlayerId = Just whitePlayer.playerId
+                  , mode =
+                      Online
+                        (Just (RegisteredPlayer whitePlayer.playerId))
+                        (Just (RegisteredPlayer blackPlayer.playerId))
                   , startTime = startTime
                   , endTime = input.endTime
                   , gameStatus = status

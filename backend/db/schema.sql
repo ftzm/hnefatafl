@@ -17,18 +17,6 @@ CREATE TABLE engine_player (
     player_type TEXT NOT NULL DEFAULT 'engine' CHECK (player_type = 'engine'),
     FOREIGN KEY (player_id, player_type) REFERENCES player(id, player_type) ON DELETE CASCADE
 );
-CREATE TABLE game (
-    id TEXT PRIMARY KEY,
-    name TEXT UNIQUE,
-    white_player_id TEXT, -- NULL for anonymous players
-    black_player_id TEXT, -- NULL for anonymous players
-    start_time DATETIME NOT NULL,
-    end_time DATETIME,
-    game_status TEXT,
-    created_at DATETIME NOT NULL,
-    FOREIGN KEY (white_player_id) REFERENCES player(id),
-    FOREIGN KEY (black_player_id) REFERENCES player(id)
-);
 CREATE TABLE move (
     game_id TEXT NOT NULL,
     move_number INTEGER NOT NULL CHECK (move_number >= 0),
@@ -68,7 +56,6 @@ CREATE TABLE game_participant_token (
     is_active BOOLEAN NOT NULL,
     FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE
 );
-CREATE INDEX idx_games_players ON game(white_player_id, black_player_id);
 CREATE INDEX idx_players_type ON player(player_type);
 CREATE INDEX idx_game_participant_tokens_game ON game_participant_token(game_id);
 CREATE INDEX idx_game_participant_tokens_token ON game_participant_token(token);
@@ -80,7 +67,46 @@ CREATE TABLE pending_game_action (
     created_at DATETIME NOT NULL,
     FOREIGN KEY (game_id) REFERENCES game(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS "game" (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE,
+    game_type TEXT NOT NULL CHECK (game_type IN ('hotseat', 'ai', 'online')),
+    start_time DATETIME NOT NULL,
+    end_time DATETIME,
+    game_status TEXT,
+    created_at DATETIME NOT NULL
+);
+CREATE UNIQUE INDEX idx_game_id_type ON game(id, game_type);
+CREATE TABLE hotseat_game (
+    game_id TEXT PRIMARY KEY,
+    owner_id TEXT,
+    game_type TEXT NOT NULL DEFAULT 'hotseat' CHECK (game_type = 'hotseat'),
+    FOREIGN KEY (game_id, game_type) REFERENCES game(id, game_type) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES player(id)
+);
+CREATE TABLE ai_game (
+    game_id TEXT PRIMARY KEY,
+    player_id TEXT,
+    player_color TEXT NOT NULL CHECK (player_color IN ('white', 'black')),
+    engine_id TEXT NOT NULL,
+    game_type TEXT NOT NULL DEFAULT 'ai' CHECK (game_type = 'ai'),
+    FOREIGN KEY (game_id, game_type) REFERENCES game(id, game_type) ON DELETE CASCADE,
+    FOREIGN KEY (player_id) REFERENCES player(id),
+    FOREIGN KEY (engine_id) REFERENCES player(id)
+);
+CREATE TABLE online_game (
+    game_id TEXT PRIMARY KEY,
+    white_player_id TEXT,
+    white_name TEXT,
+    black_player_id TEXT,
+    black_name TEXT,
+    game_type TEXT NOT NULL DEFAULT 'online' CHECK (game_type = 'online'),
+    FOREIGN KEY (game_id, game_type) REFERENCES game(id, game_type) ON DELETE CASCADE,
+    FOREIGN KEY (white_player_id) REFERENCES player(id),
+    FOREIGN KEY (black_player_id) REFERENCES player(id)
+);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
   ('20251115123657'),
-  ('20260330183402');
+  ('20260330183402'),
+  ('20260401080529');

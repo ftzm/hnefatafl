@@ -10,6 +10,7 @@ import Effectful
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Hnefatafl.Core.Data (
   Game (..),
+  GameMode (..),
   GameStatus (..),
   HumanPlayer (..),
   Move (..),
@@ -128,8 +129,9 @@ spec_ImportGame =
             -- Verify game properties
             game.name `shouldBe` Just "Test Import Game"
             game.gameStatus `shouldBe` Ongoing
-            isJust game.blackPlayerId `shouldBe` True
-            isJust game.whitePlayerId `shouldBe` True
+            case game.mode of
+              Online (Just _) (Just _) -> pure ()
+              other -> expectationFailure $ "Expected Online with two players, got: " <> show other
 
             -- Verify moves
             moveCount `shouldBe` 2

@@ -4,8 +4,8 @@ module Hnefatafl.Interpreter.Storage.SQLite.PlayerTest where
 
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
-import Optics
 import Hnefatafl.Interpreter.Storage.SQLite.Util
+import Optics
 import Test.Hspec (Spec, around, describe, it)
 
 spec_Player :: Spec
@@ -17,7 +17,14 @@ spec_Player =
 
       it "can insert multiple human players in sequence" $ \conn -> do
         let testPlayer1 = baseHumanPlayer & #playerId .~ PlayerId "player-1" & #name .~ "Test Human 1"
-            testPlayer2 = baseHumanPlayer & #playerId .~ PlayerId "player-2" & #name .~ "Test Human 2" & #email .~ Nothing
+            testPlayer2 =
+              baseHumanPlayer
+                & #playerId
+                .~ PlayerId "player-2"
+                & #name
+                .~ "Test Human 2"
+                & #email
+                .~ Nothing
 
         shouldSucceed
           ( runTransaction $ do
@@ -44,7 +51,14 @@ spec_Player =
 
       it "can retrieve multiple different players" $ \conn -> do
         let player1 = baseHumanPlayer & #playerId .~ PlayerId "multi-1" & #name .~ "Multi Test 1"
-            player2 = baseHumanPlayer & #playerId .~ PlayerId "multi-2" & #name .~ "Multi Test 2" & #email .~ Nothing
+            player2 =
+              baseHumanPlayer
+                & #playerId
+                .~ PlayerId "multi-2"
+                & #name
+                .~ "Multi Test 2"
+                & #email
+                .~ Nothing
 
         resultEquals
           ( runTransaction $ do
@@ -152,7 +166,11 @@ spec_Player =
 
       it "returns the human player when a player with the given name exists" $ \conn -> do
         let testPlayer =
-              baseHumanPlayer & #playerId .~ PlayerId "name-lookup-1" & #name .~ "UniqueTestName"
+              baseHumanPlayer
+                & #playerId
+                .~ PlayerId "name-lookup-1"
+                & #name
+                .~ "UniqueTestName"
 
         resultEquals
           ( runTransaction $ do

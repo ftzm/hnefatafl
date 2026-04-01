@@ -19,6 +19,8 @@ runSearchLocal ::
   (IOE :> es, Concurrent :> es) => QSem -> Eff (Search : es) a -> Eff es a
 runSearchLocal qsem = interpret $ \_ -> \case
   SearchTrusted board blackToMove hashes timeout enableAdminEndings ->
-    withSem $ liftIO $ searchWithTimeout board blackToMove hashes timeout enableAdminEndings
+    withSem $
+      liftIO $
+        searchWithTimeout board blackToMove hashes timeout enableAdminEndings
  where
   withSem = bracket_ (waitQSem qsem) (signalQSem qsem)

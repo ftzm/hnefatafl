@@ -95,7 +95,10 @@ TEST test_position_value_zero() {
 
   // but lookup cannot find it — this documents the known sentinel limitation
   int found = check_position(ps, 0);
-  ASSERT_EQ_FMT(found, 0, "check_position(0) cannot find sentinel value, got %d");
+  ASSERT_EQ_FMT(
+      found,
+      0,
+      "check_position(0) cannot find sentinel value, got %d");
 
   destroy_position_set(ps);
 

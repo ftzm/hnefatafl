@@ -72,7 +72,9 @@ paddedGrid itemWidth itemHeight items renderItem = Widget Fixed Fixed $ do
       renderRow rowItems =
         hBox $ hSpacer : intersperse hSpacer (map renderItem rowItems) ++ [hSpacer]
 
-  render $ vBox $ vSpacer : intersperse vSpacer (map renderRow groupedItems) ++ [vSpacer]
+  render $
+    vBox $
+      vSpacer : intersperse vSpacer (map renderRow groupedItems) ++ [vSpacer]
 
 renderBoard :: (GameKey, MoveResult) -> Widget ()
 renderBoard (key, moveResult) =

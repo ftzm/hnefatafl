@@ -4,43 +4,140 @@ module Hnefatafl.Interpreter.Storage.SQLite.Game (
   listGamesDb,
   updateGameStatusById,
   deleteGameById,
+  gameToDb,
 ) where
 
 import Chronos (Time)
 import Database.SQLite.Simple
+import Hnefatafl.Core.Data
 import Hnefatafl.Interpreter.Storage.SQLite.Type
 import Hnefatafl.Interpreter.Storage.SQLite.Util
 
 --------------------------------------------------------------------------------
+-- Helpers
+
+gameToDb :: Game -> GameDb
+gameToDb Game{gameId, name, mode, startTime, endTime, gameStatus, createdAt} =
+  GameDb
+    { gameId = fromDomain gameId
+    , name = name
+    , gameType = case mode of
+        Hotseat{} -> HotseatType
+        VsAI{} -> AIType
+        Online{} -> OnlineType
+    , startTime = startTime
+    , endTime = endTime
+    , gameStatus = fromDomain gameStatus
+    , createdAt = createdAt
+    }
+
+toParticipant :: Maybe PlayerIdDb -> Maybe Text -> Maybe Participant
+toParticipant (Just pid) _ = Just (RegisteredPlayer (toDomain pid))
+toParticipant Nothing (Just n) = Just (AnonymousPlayer n)
+toParticipant Nothing Nothing = Nothing
+
+participantPlayerId :: Maybe Participant -> Maybe PlayerIdDb
+participantPlayerId (Just (RegisteredPlayer pid)) = Just (fromDomain pid)
+participantPlayerId _ = Nothing
+
+participantName :: Maybe Participant -> Maybe Text
+participantName (Just (AnonymousPlayer n)) = Just n
+participantName _ = Nothing
+
+gameJoinRowToDomain :: GameJoinRow -> Game
+gameJoinRowToDomain row =
+  Game
+    { gameId = toDomain row.gameId
+    , name = row.name
+    , mode = case row.gameType of
+        HotseatType ->
+          Hotseat (toDomain <$> row.hotseatOwnerId)
+        AIType ->
+          VsAI
+            (toDomain <$> row.aiPlayerId)
+            (toDomain (fromMaybe (error "ai_game missing player_color") row.aiPlayerColor))
+            (toDomain (fromMaybe (error "ai_game missing engine_id") row.aiEngineId))
+        OnlineType ->
+          Online
+            (toParticipant row.onlineWhitePlayerId row.onlineWhiteName)
+            (toParticipant row.onlineBlackPlayerId row.onlineBlackName)
+    , startTime = row.startTime
+    , endTime = row.endTime
+    , gameStatus = toDomain row.gameStatus
+    , createdAt = row.createdAt
+    }
+
+--------------------------------------------------------------------------------
 -- Game operations
 
-createGame :: GameDb -> Connection -> IO ()
-createGame =
+createGame :: GameDb -> GameMode -> Connection -> IO ()
+createGame gameDb mode conn = do
   execute'
-    """
-    INSERT INTO game (id, name, white_player_id, black_player_id, start_time, end_time, game_status, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """
+    "INSERT INTO game (id, name, game_type, start_time, end_time, game_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    gameDb
+    conn
+  let gid = gameDb.gameId
+  case mode of
+    Hotseat mOwner ->
+      execute'
+        "INSERT INTO hotseat_game (game_id, owner_id) VALUES (?, ?)"
+        (gid, fromDomain @PlayerIdDb <$> mOwner)
+        conn
+    VsAI mPlayer color engineId ->
+      execute'
+        "INSERT INTO ai_game (game_id, player_id, player_color, engine_id) VALUES (?, ?, ?, ?)"
+        ( gid
+        , fromDomain @PlayerIdDb <$> mPlayer
+        , fromDomain @PlayerColorDb color
+        , fromDomain @PlayerIdDb engineId
+        )
+        conn
+    Online w b ->
+      execute'
+        "INSERT INTO online_game (game_id, white_player_id, white_name, black_player_id, black_name) VALUES (?, ?, ?, ?, ?)"
+        ( gid
+        , participantPlayerId w
+        , participantName w
+        , participantPlayerId b
+        , participantName b
+        )
+        conn
 
-getGameById :: GameIdDb -> Connection -> IO GameDb
-getGameById =
-  selectSingle
-    """
-    SELECT id, name, white_player_id, black_player_id, start_time, end_time, game_status, created_at
-    FROM game
-    WHERE id = ?
-    """
-    . Only
+getGameById :: GameIdDb -> Connection -> IO Game
+getGameById gameId conn =
+  gameJoinRowToDomain
+    <$> selectSingle
+      """
+      SELECT g.id, g.name, g.game_type, g.start_time, g.end_time, g.game_status, g.created_at,
+             h.owner_id,
+             a.player_id, a.player_color, a.engine_id,
+             o.white_player_id, o.white_name, o.black_player_id, o.black_name
+      FROM game g
+      LEFT JOIN hotseat_game h ON g.id = h.game_id
+      LEFT JOIN ai_game a ON g.id = a.game_id
+      LEFT JOIN online_game o ON g.id = o.game_id
+      WHERE g.id = ?
+      """
+      (Only gameId)
+      conn
 
-listGamesDb :: Connection -> IO [GameDb]
-listGamesDb =
-  query'
-    """
-    SELECT id, name, white_player_id, black_player_id, start_time, end_time, game_status, created_at
-    FROM game
-    ORDER BY created_at DESC
-    """
-    ()
+listGamesDb :: Connection -> IO [Game]
+listGamesDb conn =
+  map gameJoinRowToDomain
+    <$> query'
+      """
+      SELECT g.id, g.name, g.game_type, g.start_time, g.end_time, g.game_status, g.created_at,
+             h.owner_id,
+             a.player_id, a.player_color, a.engine_id,
+             o.white_player_id, o.white_name, o.black_player_id, o.black_name
+      FROM game g
+      LEFT JOIN hotseat_game h ON g.id = h.game_id
+      LEFT JOIN ai_game a ON g.id = a.game_id
+      LEFT JOIN online_game o ON g.id = o.game_id
+      ORDER BY g.created_at DESC
+      """
+      ()
+      conn
 
 updateGameStatusById ::
   GameIdDb -> GameStatusDb -> Maybe Time -> Connection -> IO ()

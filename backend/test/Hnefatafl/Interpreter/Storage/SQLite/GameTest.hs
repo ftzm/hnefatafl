@@ -32,10 +32,10 @@ spec_Game =
               baseGame currentTime
                 & #gameId
                 .~ GameId "test-game-2"
-                & #whitePlayerId
-                ?~ PlayerId "white-player"
-                & #blackPlayerId
-                ?~ PlayerId "black-player"
+                & #mode
+                .~ Online
+                  (Just (RegisteredPlayer (PlayerId "white-player")))
+                  (Just (RegisteredPlayer (PlayerId "black-player")))
 
         shouldSucceed
           ( runTransaction $ do

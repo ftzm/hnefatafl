@@ -28,6 +28,7 @@ module Hnefatafl.Game.Common (
   respondToOffer,
   outcomeFromEngine,
   outcomeToGameStatus,
+  gameStatusToOutcome,
   toGameMove,
   undoMoves,
 ) where
@@ -184,6 +185,22 @@ outcomeToGameStatus = \case
   TimedOut White -> Core.WhiteWonTimeout
   Draw -> Core.Draw
   Abandoned -> Core.Abandoned
+
+gameStatusToOutcome :: GameStatus -> Maybe Outcome
+gameStatusToOutcome = \case
+  Core.Ongoing -> Nothing
+  Core.BlackWonKingCaptured -> Just (BlackWins KingCaptured)
+  Core.BlackWonWhiteSurrounded -> Just (BlackWins WhiteSurrounded)
+  Core.BlackWonNoWhiteMoves -> Just (BlackWins NoWhiteMoves)
+  Core.BlackWonResignation -> Just (ResignedBy White)
+  Core.BlackWonTimeout -> Just (TimedOut White)
+  Core.WhiteWonKingEscaped -> Just (WhiteWins KingEscaped)
+  Core.WhiteWonExitFort -> Just (WhiteWins ExitFort)
+  Core.WhiteWonNoBlackMoves -> Just (WhiteWins NoBlackMoves)
+  Core.WhiteWonResignation -> Just (ResignedBy Black)
+  Core.WhiteWonTimeout -> Just (TimedOut Black)
+  Core.Draw -> Just Draw
+  Core.Abandoned -> Just Abandoned
 
 toGameMove :: AppliedMove -> GameMove
 toGameMove am =

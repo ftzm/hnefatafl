@@ -9,8 +9,8 @@ module Hnefatafl.Interpreter.Storage.SQLite.Player (
   deletePlayerById,
 ) where
 
-import Data.Maybe (fromJust)
 import Chronos (Time)
+import Data.Maybe (fromJust)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
 import Hnefatafl.Interpreter.Storage.SQLite.Type

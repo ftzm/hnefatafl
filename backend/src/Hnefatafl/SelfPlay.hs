@@ -107,7 +107,11 @@ type GameKey = (Int, Bool, Int) -- (id, newAsBlack, playIndex)
 -- Helper to create display name from key
 mkGameName :: GameKey -> Text
 mkGameName (gameId, newAsBlack, playIndex) =
-  show gameId <> "." <> show playIndex <> " " <> if newAsBlack then "New vs. Old" else "Old vs. New"
+  show gameId
+    <> "."
+    <> show playIndex
+    <> " "
+    <> if newAsBlack then "New vs. Old" else "Old vs. New"
 
 -- Extract key from setup
 gameSetupKey :: GameSetup -> GameKey
@@ -116,9 +120,9 @@ gameSetupKey setup = (setup.id, setup.newAsBlack, setup.playIndex)
 -- Immutable game setup
 data GameSetup = GameSetup
   { id :: Int
-  , -- | Index for repeated plays of the same game configuration.
-    -- Multiple plays allow majority voting to filter out timing variance.
-    playIndex :: Int
+  , playIndex :: Int
+  -- ^ Index for repeated plays of the same game configuration.
+  -- Multiple plays allow majority voting to filter out timing variance.
   , setupNotation :: Text
   , startingBoard :: ExternBoard
   , startingBlackToMove :: Bool
@@ -244,7 +248,10 @@ loadStartPositions startPositionsFile = do
                               , selfPlayMoves = []
                               }
                        in GameDefinition setup progress
-                 in [mkGameDef newAsBlack pIdx | newAsBlack <- [True, False], pIdx <- [0 .. playsPerSide - 1]]
+                 in [ mkGameDef newAsBlack pIdx
+                    | newAsBlack <- [True, False]
+                    , pIdx <- [0 .. playsPerSide - 1]
+                    ]
             )
             [0 ..]
             moveLists
@@ -420,7 +427,12 @@ playGame gameKey processingState eventChan moveCount board blackToMove hashes = 
       (Labeled @current) $
         -- Drop first hash because it represents the current position
         -- searchTrusted expects only past positions (game history)
-        SearchTrusted board blackToMove (drop 1 hashes) (SearchTimeout searchTimeoutMs) True
+        SearchTrusted
+          board
+          blackToMove
+          (drop 1 hashes)
+          (SearchTimeout searchTimeoutMs)
+          True
   case getOutcome result.gameStatus of
     Nothing -> do
       updateGameProgress gameKey result blackToMove processingState eventChan

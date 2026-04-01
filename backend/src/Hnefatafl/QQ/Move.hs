@@ -1,8 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Hnefatafl.QQ.Move (
-  -- moves,
-  -- movesNE,
+-- moves,
+-- movesNE,
+
 ) where
 
 -- import Language.Haskell.TH

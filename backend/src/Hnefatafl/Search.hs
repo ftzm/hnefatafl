@@ -7,15 +7,16 @@ module Hnefatafl.Search (
 
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, wait)
-import Control.Exception (
-  finally,
-  uninterruptibleMask_,
- )
+import Control.Exception (bracket, finally, uninterruptibleMask_)
 import Data.Aeson (FromJSON, ToJSON)
 import Foreign (alloca, poke)
 import Foreign.C.Types (CBool (..))
-import Control.Exception (bracket)
-import Hnefatafl.Bindings (SearchTrustedResult (..), searchTrusted, ttCreate, ttDestroy)
+import Hnefatafl.Bindings (
+  SearchTrustedResult (..),
+  searchTrusted,
+  ttCreate,
+  ttDestroy,
+ )
 import Hnefatafl.Core.Data (ExternBoard)
 
 -- | Timeout duration in milliseconds
@@ -25,7 +26,12 @@ newtype SearchTimeout = SearchTimeout Int
 
 -- | Search with a timeout using async for better resource management.
 searchWithTimeout ::
-  ExternBoard -> Bool -> [Word64] -> SearchTimeout -> Bool -> IO SearchTrustedResult
+  ExternBoard ->
+  Bool ->
+  [Word64] ->
+  SearchTimeout ->
+  Bool ->
+  IO SearchTrustedResult
 searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutMs) enableAdminEndings = do
   alloca $ \shouldStopPtr -> do
     -- Initialize the atomic boolean to False
@@ -35,7 +41,13 @@ searchWithTimeout trustedBoard isBlackTurn zobristHashes (SearchTimeout timeoutM
     searchAsync <- async $ do
       uninterruptibleMask_ $
         bracket (ttCreate 256) ttDestroy $ \ttPtr ->
-          searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr ttPtr enableAdminEndings
+          searchTrusted
+            trustedBoard
+            isBlackTurn
+            zobristHashes
+            shouldStopPtr
+            ttPtr
+            enableAdminEndings
 
     -- Start timeout thread to set the stop boolean after timeout
     timeoutAsync <-

@@ -73,7 +73,6 @@ mkInitialUIState snapshot =
     , scoreState = mkInitialScoreState snapshot.completedGames
     }
 
-
 -- | Determine outcome from new engine's perspective
 toGameOutcome :: Bool -> Outcome -> GameOutcome
 toGameOutcome newAsBlack = \case

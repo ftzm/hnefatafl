@@ -9,7 +9,9 @@ module Hnefatafl.Interpreter.Storage.SQLite.Type (
   EnginePlayerDb (..),
   GameIdDb (..),
   GameStatusDb (..),
+  GameType (..),
   GameDb (..),
+  GameJoinRow (..),
   PlayerColorDb (..),
   MoveDb (..),
   GameParticipantTokenIdDb (..),
@@ -135,11 +137,26 @@ instance FromField GameStatusDb where
       "black_won" -> pure $ GameStatusDb BlackWonKingCaptured -- Default to most common black victory
       _ -> returnError ConversionFailed f "Invalid game status"
 
+data GameType = HotseatType | AIType | OnlineType
+  deriving (Show, Eq)
+
+instance ToField GameType where
+  toField HotseatType = toField ("hotseat" :: Text)
+  toField AIType = toField ("ai" :: Text)
+  toField OnlineType = toField ("online" :: Text)
+
+instance FromField GameType where
+  fromField f =
+    fromField @Text f >>= \case
+      "hotseat" -> pure HotseatType
+      "ai" -> pure AIType
+      "online" -> pure OnlineType
+      _ -> returnError ConversionFailed f "Invalid game type"
+
 data GameDb = GameDb
   { gameId :: GameIdDb
   , name :: Maybe Text
-  , whitePlayerId :: Maybe PlayerIdDb
-  , blackPlayerId :: Maybe PlayerIdDb
+  , gameType :: GameType
   , startTime :: Time
   , endTime :: Maybe Time
   , gameStatus :: GameStatusDb
@@ -147,49 +164,28 @@ data GameDb = GameDb
   }
   deriving (Show, Generic, ToRow, FromRow)
 
-instance DomainMapping GameDb Game where
-  toDomain
-    GameDb
-      { gameId
-      , name
-      , whitePlayerId
-      , blackPlayerId
-      , startTime
-      , endTime
-      , gameStatus
-      , createdAt
-      } =
-      Game
-        { gameId = toDomain gameId
-        , name = name
-        , whitePlayerId = toDomain <$> whitePlayerId
-        , blackPlayerId = toDomain <$> blackPlayerId
-        , startTime = startTime
-        , endTime = endTime
-        , gameStatus = toDomain gameStatus
-        , createdAt = createdAt
-        }
-  fromDomain
-    Game
-      { gameId
-      , name
-      , whitePlayerId
-      , blackPlayerId
-      , startTime
-      , endTime
-      , gameStatus
-      , createdAt
-      } =
-      GameDb
-        { gameId = fromDomain gameId
-        , name = name
-        , whitePlayerId = fromDomain <$> whitePlayerId
-        , blackPlayerId = fromDomain <$> blackPlayerId
-        , startTime = startTime
-        , endTime = endTime
-        , gameStatus = fromDomain gameStatus
-        , createdAt = createdAt
-        }
+-- | Row type for the LEFT JOIN query across game + all variant tables
+data GameJoinRow = GameJoinRow
+  { gameId :: GameIdDb
+  , name :: Maybe Text
+  , gameType :: GameType
+  , startTime :: Time
+  , endTime :: Maybe Time
+  , gameStatus :: GameStatusDb
+  , createdAt :: Time
+  , -- hotseat
+    hotseatOwnerId :: Maybe PlayerIdDb
+  , -- ai
+    aiPlayerId :: Maybe PlayerIdDb
+  , aiPlayerColor :: Maybe PlayerColorDb
+  , aiEngineId :: Maybe PlayerIdDb
+  , -- online
+    onlineWhitePlayerId :: Maybe PlayerIdDb
+  , onlineWhiteName :: Maybe Text
+  , onlineBlackPlayerId :: Maybe PlayerIdDb
+  , onlineBlackName :: Maybe Text
+  }
+  deriving (Show, Generic, FromRow)
 
 data PlayerColorDb = WhiteColorDb | BlackColorDb
   deriving (Show, Eq)
