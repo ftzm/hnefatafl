@@ -19,6 +19,7 @@ module Hnefatafl.Core.Data (
   Layer (..),
   ExternBoard (..),
   Move (..),
+  MoveWithCaptures (..),
   MoveResult (..),
   PlayerColor (..),
   GameMove (..),
@@ -37,6 +38,7 @@ import Data.Aeson (
   ToJSON (..),
   withText,
  )
+import Web.HttpApiData (FromHttpApiData, ToHttpApiData)
 
 newtype PlayerId = PlayerId Text
   deriving (Show, Eq)
@@ -59,6 +61,7 @@ data Player = EnginePlayerTag EnginePlayer | HumanPlayerTag HumanPlayer
 
 newtype GameId = GameId Text
   deriving (Show, Eq)
+  deriving newtype (ToJSON, FromJSON, FromHttpApiData, ToHttpApiData)
 
 data GameStatus
   = Ongoing
@@ -137,6 +140,14 @@ data Move = Move
   deriving (Show, Read, Eq, Ord, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
+-- | A move paired with the captures it would produce
+data MoveWithCaptures = MoveWithCaptures
+  { move :: Move
+  , captures :: Layer
+  }
+  deriving (Show, Read, Eq, Ord, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
 -- | Result of applying a move, including captures and board state
 data MoveResult = MoveResult
   { move :: Move
@@ -150,6 +161,16 @@ data MoveResult = MoveResult
 
 data PlayerColor = White | Black
   deriving (Show, Eq)
+
+instance ToJSON PlayerColor where
+  toJSON White = toJSON ("white" :: Text)
+  toJSON Black = toJSON ("black" :: Text)
+
+instance FromJSON PlayerColor where
+  parseJSON = withText "PlayerColor" $ \case
+    "white" -> pure White
+    "black" -> pure Black
+    _ -> fail "expected \"white\" or \"black\""
 
 -- | A game move with full context including board state
 data GameMove = GameMove

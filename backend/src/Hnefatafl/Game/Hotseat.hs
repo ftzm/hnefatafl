@@ -1,4 +1,7 @@
+{-# LANGUAGE PatternSynonyms #-}
+
 module Hnefatafl.Game.Hotseat (
+  Phase (..),
   State (..),
   Event (..),
   Command (..),
@@ -7,33 +10,47 @@ module Hnefatafl.Game.Hotseat (
   reconstruct,
 ) where
 
-import Hnefatafl.Core.Data (PlayerColor (..))
+import Chronos (Time)
+import Hnefatafl.Bindings (nextGameStateWithMovesTrusted, startBlackMoves)
+import Hnefatafl.Core.Data (
+  ExternBoard,
+  Move (..),
+  MoveResult (..),
+  MoveWithCaptures (..),
+  PlayerColor (..),
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   Outcome (..),
-  PendingAction,
   PersistenceCommand (..),
   TransitionError (..),
+  currentBoard,
   currentTurn,
   opponent,
+  outcomeFromEngine,
   undoMoves,
+  zobristHashes,
  )
+import Hnefatafl.Util (pattern Snoc)
 import Prelude hiding (State)
 
-data State
-  = AwaitingMove PlayerColor [AppliedMove]
+data Phase
+  = Awaiting PlayerColor [MoveWithCaptures]
   | Finished Outcome
   deriving (Show, Eq)
 
+data State = State ExternBoard [AppliedMove] Phase
+  deriving (Show, Eq)
+
 data Event
-  = MakeMove PlayerColor AppliedMove (Maybe Outcome)
+  = MakeMove Move Time
   | Undo PlayerColor
   | Resign PlayerColor
   | AgreeDraw
   | Timeout PlayerColor
   deriving (Show, Eq)
 
-data Command = Persist PersistenceCommand
+newtype Command = Persist PersistenceCommand
   deriving (Show, Eq)
 
 data TransitionResult = TransitionResult
@@ -42,50 +59,86 @@ data TransitionResult = TransitionResult
   }
   deriving (Show, Eq)
 
+-- | Compute valid moves for a position from the move history.
+validMovesForPosition :: [AppliedMove] -> [MoveWithCaptures]
+validMovesForPosition moves = case nonEmpty moves of
+  Nothing -> toList startBlackMoves
+  Just (Snoc prevMs lastM) ->
+    let board = currentBoard prevMs
+        hashes = zobristHashes prevMs
+     in case nextGameStateWithMovesTrusted board (lastM.side == Black) lastM.move hashes of
+          Right (_, _, validMoves) -> validMoves
+          Left _ -> []
+
+-- | Construct an Awaiting state, computing valid moves from the position.
+mkAwaiting :: ExternBoard -> [AppliedMove] -> State
+mkAwaiting board moves =
+  State board moves (Awaiting (currentTurn moves) (validMovesForPosition moves))
+
+mkAppliedMove :: MoveResult -> Time -> AppliedMove
+mkAppliedMove m t =
+  AppliedMove
+    { move = m.move
+    , side = if m.wasBlackTurn then Black else White
+    , captures = m.captures
+    , boardAfter = m.board
+    , zobristHash = m.zobristHash
+    , timestamp = t
+    }
+
 transition :: State -> Event -> Either TransitionError TransitionResult
-transition (Finished _) = const $ Left GameAlreadyFinished
-transition (AwaitingMove turn moves) = \case
-  MakeMove color applied maybeOutcome
-    | color /= turn -> Left NotYourTurn
-    | Just outcome <- maybeOutcome ->
-        Right $
-          TransitionResult
-            (Finished outcome)
-            [ Persist $ PersistMove applied
-            , Persist $ PersistOutcome outcome
-            ]
+transition (State _ _ (Finished _)) = const $ Left GameAlreadyFinished
+transition (State board moves (Awaiting turn validMoves)) = \case
+  MakeMove move time
+    | move `notElem` map (.move) validMoves -> Left InvalidMove
     | otherwise ->
-        Right $
-          TransitionResult
-            (AwaitingMove (opponent turn) (moves <> [applied]))
-            [Persist $ PersistMove applied]
-  Undo _color ->
+        let hashes = zobristHashes moves
+            (moveResult, engineStatus, nextValidMoves) =
+              fromRight (error "valid move rejected by engine") $
+                nextGameStateWithMovesTrusted board (turn == Black) move hashes
+            applied = mkAppliedMove moveResult time
+            moves' = moves <> [applied]
+         in case outcomeFromEngine engineStatus of
+              Just outcome ->
+                Right $
+                  TransitionResult
+                    (State applied.boardAfter moves' (Finished outcome))
+                    [ Persist $ PersistMove applied
+                    , Persist $ PersistOutcome outcome
+                    ]
+              Nothing ->
+                Right $
+                  TransitionResult
+                    (State applied.boardAfter moves' (Awaiting (opponent turn) nextValidMoves))
+                    [Persist $ PersistMove applied]
+  Undo _ ->
     case undoMoves 1 moves of
       Nothing -> Left NoMovesToUndo
       Just moves' ->
         Right $
           TransitionResult
-            (AwaitingMove (opponent turn) moves')
+            (mkAwaiting (currentBoard moves') moves')
             [Persist $ DeleteMoves 1]
   Resign color ->
     let outcome = ResignedBy color
      in Right $
           TransitionResult
-            (Finished outcome)
+            (State board moves (Finished outcome))
             [Persist $ PersistOutcome outcome]
   AgreeDraw ->
     Right $
       TransitionResult
-        (Finished Draw)
+        (State board moves (Finished Draw))
         [Persist $ PersistOutcome Draw]
   Timeout color ->
     let outcome = TimedOut color
      in Right $
           TransitionResult
-            (Finished outcome)
+            (State board moves (Finished outcome))
             [Persist $ PersistOutcome outcome]
 
 -- | Reconstruct state from persisted data
-reconstruct :: [AppliedMove] -> Maybe Outcome -> Maybe PendingAction -> State
-reconstruct _ (Just outcome) _ = Finished outcome
-reconstruct moves Nothing _ = AwaitingMove (currentTurn moves) moves
+reconstruct :: ExternBoard -> [AppliedMove] -> Maybe Outcome -> State
+reconstruct board moves = \case
+  (Just outcome) -> State board moves (Finished outcome)
+  Nothing -> mkAwaiting board moves

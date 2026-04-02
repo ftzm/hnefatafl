@@ -12,6 +12,13 @@ data-files:
 
 library
   exposed-modules:
+      Hnefatafl.Api.Handlers
+      Hnefatafl.Api.Handlers.Hotseat
+      Hnefatafl.Api.Routes
+      Hnefatafl.Api.Routes.Hotseat
+      Hnefatafl.Api.Types
+      Hnefatafl.App.Hotseat
+      Hnefatafl.App.Storage
       Hnefatafl.Bindings
       Hnefatafl.Board
       Hnefatafl.CLI
@@ -48,6 +55,7 @@ library
       Hnefatafl.SelfPlay.UI.Widgets
       Hnefatafl.Serialization
       Hnefatafl.Server
+      Hnefatafl.Util
   other-modules:
       Paths_hnefatafl
   autogen-modules:
@@ -86,6 +94,7 @@ library
     , focus
     , heptapod
     , hnefatafl-version
+    , http-api-data
     , http-client
     , list-t
     , optics
@@ -157,6 +166,7 @@ library hnefatafl-version
     , filepath
     , focus
     , heptapod
+    , http-api-data
     , http-client
     , list-t
     , optics
@@ -228,6 +238,7 @@ executable cli
     , focus
     , heptapod
     , hnefatafl
+    , http-api-data
     , http-client
     , list-t
     , optics
@@ -274,6 +285,7 @@ test-suite hnefatafl-test
       Hnefatafl.Interpreter.Search.TestTest
       Hnefatafl.Interpreter.Storage.SQLite.GameTest
       Hnefatafl.Interpreter.Storage.SQLite.MoveTest
+      Hnefatafl.Interpreter.Storage.SQLite.PendingActionTest
       Hnefatafl.Interpreter.Storage.SQLite.PlayerTest
       Hnefatafl.Interpreter.Storage.SQLite.TokenTest
       Hnefatafl.Interpreter.Storage.SQLite.Util
@@ -326,6 +338,7 @@ test-suite hnefatafl-test
     , hnefatafl-version
     , hspec
     , hspec-expectations-pretty-diff
+    , http-api-data
     , http-client
     , list-t
     , optics

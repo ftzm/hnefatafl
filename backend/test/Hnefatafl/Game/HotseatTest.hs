@@ -1,10 +1,13 @@
 module Hnefatafl.Game.HotseatTest where
 
-import Hnefatafl.Core.Data (PlayerColor (..))
-import Hnefatafl.Game.Common (BlackWinCondition (..), Outcome (..))
+import Chronos (Time (..))
+import Hnefatafl.Bindings (startBlackMoves, startBoard)
+import Hnefatafl.Core.Data (MoveWithCaptures (..), PlayerColor (..))
+import Hnefatafl.Game.Common (currentBoard)
 import Hnefatafl.Game.Hotseat (
   Command (..),
   Event (..),
+  Phase (..),
   State (..),
   TransitionResult (..),
   reconstruct,
@@ -12,7 +15,6 @@ import Hnefatafl.Game.Hotseat (
  )
 import Hnefatafl.Game.TestUtil (
   PersistenceStore (..),
-  dummyMove,
   emptyStore,
   executePersistence,
  )
@@ -26,19 +28,22 @@ executeCommands :: [Command] -> PersistenceStore -> PersistenceStore
 executeCommands cmds store = foldl' (\s (Persist c) -> executePersistence c s) store cmds
 
 fromStore :: PersistenceStore -> State
-fromStore store = reconstruct store.storedMoves store.storedOutcome store.storedPendingAction
+fromStore store =
+  reconstruct
+    (currentBoard store.storedMoves)
+    store.storedMoves
+    store.storedOutcome
 
 genEvent :: State -> Maybe (Gen Event)
-genEvent (Finished _) = Nothing
-genEvent (AwaitingMove turn moves) =
+genEvent (State _ _ (Finished _)) = Nothing
+genEvent (State _ moves (Awaiting turn validMoves)) =
   Just $
     frequency $
       concat
         [
           [
             ( 5
-            , MakeMove turn (dummyMove turn)
-                <$> elements [Nothing, Nothing, Nothing, Just (BlackWins KingCaptured)]
+            , MakeMove . (.move) <$> elements (toList validMoves) <*> pure (Time 0)
             )
           ]
         , [(2, pure $ Undo turn) | not (null moves)]
@@ -68,9 +73,10 @@ genSequence s = case genEvent s of
 test_hotseatRoundTrip :: TestTree
 test_hotseatRoundTrip =
   testProperty "Hotseat: reconstructed state equals incremental state" $
-    QC.forAll (genSequence (AwaitingMove Black [])) $ \steps ->
+    QC.forAll
+      (genSequence (State startBoard [] (Awaiting Black (toList startBlackMoves)))) $ \steps ->
       let s = case steps of
-            [] -> AwaitingMove Black []
+            [] -> State startBoard [] (Awaiting Black (toList startBlackMoves))
             _ -> (snd (fromMaybe (error "empty") (viaNonEmpty last steps))).newState
           store = foldl' (\acc (_, tr) -> executeCommands tr.commands acc) emptyStore steps
        in fromStore store === s

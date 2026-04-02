@@ -10,20 +10,6 @@
 typedef struct transposition_table transposition_table;
 
 typedef struct {
-  layer black;
-  layer white;
-  u8 king;
-} compact_board;
-
-typedef struct {
-  move move;
-  compact_board board;
-  layer captures;
-  bool was_black_turn;
-  u64 zobrist_hash;
-} move_result;
-
-typedef struct {
   move move;
   compact_board updated_board;
   layer captures;
@@ -31,8 +17,6 @@ typedef struct {
   game_status status;
 } search_trusted_result;
 
-compact_board to_compact(const board *b);
-board from_compact(compact_board *b);
 void start_board_extern(compact_board *b);
 
 /* Get all moves for white player (white pieces + king).
@@ -61,27 +45,29 @@ void next_game_state(
 void next_game_state_with_moves(
     const move *move_history,
     int history_count,
-    move **moves_out,
+    move_with_captures **moves_out,
     int *move_count,
     game_status *gs,
     move_validation_result *validation_out,
-    bool allow_repetition);
+    bool allow_repetition,
+    move_result *last_move_out);
 
-/* Get the next game state with moves using a trusted board state as input.
- * This function doesn't reconstruct the board state from move history but
- * accepts it as input. The move history is only used to construct a position
- * set for tracking threefold repetition. Sets moves_out to dynamically
- * allocated array of moves and sets move_count. Caller must free the returned
- * array. Returns 0 on success, non-zero error code on failure.
+/* Validate and apply a single move to a trusted board state. Returns the move
+ * result (board, captures, hash), game status, and valid moves for the next
+ * turn. The board state and zobrist hash history are trusted (not recomputed).
+ * The move itself is validated. Sets moves_out to dynamically allocated array.
+ * Caller must free it. Returns 0 on success, non-zero move_error on failure.
  */
 int next_game_state_with_moves_trusted(
     compact_board *trusted_board,
     bool is_black_turn,
-    const move *move_history,
-    int history_count,
-    move **moves_out,
-    int *move_count,
-    game_status *gs);
+    move *m,
+    u64 *zobrist_hashes,
+    int hash_count,
+    move_result *result_out,
+    game_status *status_out,
+    move_with_captures **moves_out,
+    int *move_count);
 
 /* Apply a sequence of moves and return detailed data about each move.
  * Assumes moves are valid - does not perform move validation.

@@ -2,17 +2,17 @@ module Hnefatafl.ClientTest where
 
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (Async, async, cancel)
-import Hnefatafl.Bindings (SearchTrustedResult (..), startBoard)
-import Hnefatafl.Client (HnefataflClient, createClient)
-import Hnefatafl.Core.Data (Move (..))
-import Hnefatafl.Search (SearchTimeout (..))
-import Hnefatafl.Server (
+import Hnefatafl.Api.Routes (
   HealthResponse (..),
   Routes (..),
   SearchTrustedInput (..),
   VersionResponse (..),
-  runServer,
  )
+import Hnefatafl.Bindings (SearchTrustedResult (..), startBoard)
+import Hnefatafl.Client (HnefataflClient, createClient)
+import Hnefatafl.Core.Data (Move (..))
+import Hnefatafl.Search (SearchTimeout (..))
+import Hnefatafl.Server (runServer)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant.Client (
   ClientEnv,

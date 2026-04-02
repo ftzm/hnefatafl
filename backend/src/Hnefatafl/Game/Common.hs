@@ -84,6 +84,7 @@ data AppliedMove = AppliedMove
 data TransitionError
   = NotYourTurn
   | GameAlreadyFinished
+  | InvalidMove
   | NoPendingOffer
   | CannotRespondToOwnOffer
   | ActionAlreadyPending

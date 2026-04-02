@@ -8,9 +8,9 @@ module Hnefatafl.Interpreter.Search.Remote (
 import Effectful (Eff, IOE, type (:>))
 import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Static (Error, throwError)
+import Hnefatafl.Api.Routes (Routes (..), SearchTrustedInput (..))
 import Hnefatafl.Client (HnefataflClient)
 import Hnefatafl.Effect.Search (Search (..))
-import Hnefatafl.Server (Routes (..), SearchTrustedInput (..))
 import Servant.Client (ClientEnv, ClientError, runClientM)
 
 -- | Interpreter for Search effect that calls out to a remote server

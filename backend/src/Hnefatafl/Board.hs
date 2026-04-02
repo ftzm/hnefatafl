@@ -1,4 +1,10 @@
-module Hnefatafl.Board (printBoard, moveResultToArray, formatMoveResult, formatGameMove) where
+module Hnefatafl.Board (
+  printBoard,
+  moveResultToArray,
+  formatMoveResult,
+  formatGameMove,
+  layerPositions,
+) where
 
 import Control.Monad.ST
 import Data.Array.MArray

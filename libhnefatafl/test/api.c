@@ -43,7 +43,7 @@ TEST test_get_possible_moves() {
   // Call next_game_state
   int move_count = 0;
   game_status gs;
-  move *possible_moves = NULL;
+  move_with_captures *possible_moves = NULL;
   move_validation_result result;
   next_game_state_with_moves(
       history,
@@ -52,7 +52,8 @@ TEST test_get_possible_moves() {
       &move_count,
       &gs,
       &result,
-      false);
+      false,
+      NULL);
 
   if (result.error != move_error_no_error) {
     printf(

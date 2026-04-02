@@ -1,0 +1,157 @@
+module Hnefatafl.Api.Handlers.Hotseat (
+  hotseatServer,
+) where
+
+import Effectful (Eff, IOE, (:>))
+import Effectful.Error.Static (Error, throwError)
+import Hnefatafl.Api.Routes.Hotseat (HotseatRoutes (..))
+import Hnefatafl.Api.Types (
+  ActionResponse (..),
+  ApiGameMove (..),
+  ApiGameState (..),
+  ApiGameStatus (..),
+  ApiMove,
+  boardFromExtern,
+  gameStatusFromDomain,
+  moveFromDomain,
+  moveToDomain,
+  positionsFromLayer,
+ )
+import Hnefatafl.App.Hotseat qualified as Hotseat
+import Hnefatafl.Core.Data (
+  Game (..),
+  GameId,
+  MoveWithCaptures (..),
+  PlayerColor (..),
+ )
+import Hnefatafl.Effect.Clock (Clock)
+import Hnefatafl.Effect.IdGen (IdGen)
+import Hnefatafl.Effect.Storage (Storage)
+import Hnefatafl.Game.Common (outcomeToGameStatus)
+import Hnefatafl.Game.Common qualified as Common
+import Hnefatafl.Game.Hotseat qualified as HotseatGame
+import Servant (ServerError (..), err400)
+import Servant.Server.Generic (AsServerT)
+
+hotseatServer ::
+  ( Storage :> es
+  , Clock :> es
+  , IdGen :> es
+  , Error ServerError :> es
+  , IOE :> es
+  ) =>
+  HotseatRoutes (AsServerT (Eff es))
+hotseatServer =
+  HotseatRoutes
+    { create = createHandler
+    , get = getHandler
+    , move = moveHandler
+    , undo = undoHandler
+    , resign = resignHandler
+    , draw = drawHandler
+    }
+
+-- Conversion helpers
+
+toApiGameMove :: Common.AppliedMove -> ApiGameMove
+toApiGameMove am =
+  ApiGameMove
+    { playerColor = am.side
+    , move = moveFromDomain (MoveWithCaptures am.move am.captures)
+    , captures = positionsFromLayer am.captures
+    }
+
+toApiGameState :: GameId -> HotseatGame.State -> ApiGameState
+toApiGameState gId (HotseatGame.State board moves phase) =
+  ApiGameState
+    { gameId = gId
+    , board = boardFromExtern board
+    , turn = case phase of
+        HotseatGame.Awaiting t _ -> t
+        HotseatGame.Finished _ -> Black
+    , status = case phase of
+        HotseatGame.Awaiting _ _ -> ApiOngoing
+        HotseatGame.Finished outcome -> gameStatusFromDomain (outcomeToGameStatus outcome)
+    , history = map toApiGameMove moves
+    , validMoves = case phase of
+        HotseatGame.Awaiting _ vm -> map moveFromDomain vm
+        HotseatGame.Finished _ -> []
+    }
+
+toActionResponse :: HotseatGame.State -> ActionResponse
+toActionResponse (HotseatGame.State _ _ phase) =
+  ActionResponse
+    { turn = case phase of
+        HotseatGame.Awaiting t _ -> t
+        HotseatGame.Finished _ -> Black
+    , status = case phase of
+        HotseatGame.Awaiting _ _ -> ApiOngoing
+        HotseatGame.Finished outcome -> gameStatusFromDomain (outcomeToGameStatus outcome)
+    , validMoves = case phase of
+        HotseatGame.Awaiting _ vm -> map moveFromDomain vm
+        HotseatGame.Finished _ -> []
+    }
+
+badRequest :: Error ServerError :> es => Text -> Eff es a
+badRequest msg = throwError err400{errBody = encodeUtf8 msg}
+
+-- Handlers
+
+createHandler ::
+  (Storage :> es, Clock :> es, IdGen :> es) =>
+  Eff es ApiGameState
+createHandler = do
+  game <- Hotseat.createGame
+  gameState <- Hotseat.loadGameState game.gameId
+  pure $ toApiGameState game.gameId gameState
+
+getHandler ::
+  Storage :> es =>
+  GameId -> Eff es ApiGameState
+getHandler gameId = do
+  gameState <- Hotseat.loadGameState gameId
+  pure $ toApiGameState gameId gameState
+
+moveHandler ::
+  (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
+  GameId -> ApiMove -> Eff es ActionResponse
+moveHandler gameId apiMove = do
+  result <- Hotseat.makeMove gameId (moveToDomain apiMove)
+  case result of
+    Left err -> do
+      putTextLn $ "Move failed: " <> show err
+      badRequest "invalid_move"
+    Right gu -> pure $ toActionResponse gu
+
+undoHandler ::
+  (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
+  GameId -> Eff es ActionResponse
+undoHandler gameId = do
+  result <- Hotseat.undoMove gameId
+  case result of
+    Left err -> do
+      putTextLn $ "Undo failed: " <> show err
+      badRequest "undo_failed"
+    Right gu -> pure $ toActionResponse gu
+
+resignHandler ::
+  (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
+  GameId -> PlayerColor -> Eff es ActionResponse
+resignHandler gameId color = do
+  result <- Hotseat.resign gameId color
+  case result of
+    Left err -> do
+      putTextLn $ "Resign failed: " <> show err
+      badRequest "resign_failed"
+    Right gu -> pure $ toActionResponse gu
+
+drawHandler ::
+  (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
+  GameId -> Eff es ActionResponse
+drawHandler gameId = do
+  result <- Hotseat.agreeDraw gameId
+  case result of
+    Left err -> do
+      putTextLn $ "Draw failed: " <> show err
+      badRequest "draw_failed"
+    Right gu -> pure $ toActionResponse gu

@@ -1,7 +1,12 @@
 module Hnefatafl.BindingsTest where
 
 import Hnefatafl.Bindings
-import Hnefatafl.Core.Data (ExternBoard (..), Move (..), MoveResult (..))
+import Hnefatafl.Core.Data (
+  ExternBoard (..),
+  Move (..),
+  MoveResult (..),
+  MoveWithCaptures (..),
+ )
 import Test.Hspec (Spec, describe, it)
 import Test.Hspec.Expectations.Pretty
 import TestUtil (realGameData)
@@ -33,17 +38,17 @@ spec_StartBlackMoves =
 spec_NextGameState :: Spec
 spec_NextGameState =
   it "should return status after first black move" $ do
-    let firstBlackMove = head startBlackMoves
+    let firstBlackMove = (.move) $ head startBlackMoves
         status = nextGameState (firstBlackMove :| []) False
     status `shouldBe` Right EngineOngoing
 
 spec_NextGameStateWithMoves :: Spec
 spec_NextGameStateWithMoves =
   it "should return status and moves after first black move" $ do
-    let firstBlackMove = head startBlackMoves
+    let firstBlackMove = (.move) $ head startBlackMoves
         result = nextGameStateWithMoves (firstBlackMove :| []) False
     case result of
-      Right (status, possibleMoves) -> do
+      Right (_moveResult, status, possibleMoves) -> do
         status `shouldBe` EngineOngoing
         length possibleMoves `shouldSatisfy` (> 0)
       Left _ -> expectationFailure "Move validation failed"
@@ -63,18 +68,21 @@ spec_StartBoard =
 spec_NextGameStateWithMovesTrusted :: Spec
 spec_NextGameStateWithMovesTrusted =
   describe "nextGameStateWithMovesTrusted" $ do
-    it "should not crash when called" $ do
+    it "should validate and apply a move" $ do
       let board = startBoard
-          firstMove = head startBlackMoves
-          result = nextGameStateWithMovesTrusted board True (firstMove :| [])
+          firstMove = (.move) $ head startBlackMoves
+          result = nextGameStateWithMovesTrusted board True firstMove []
       case result of
-        (_, moves) -> length moves `shouldSatisfy` (>= 0)
+        Right (_moveResult, status, moves) -> do
+          status `shouldBe` EngineOngoing
+          length moves `shouldSatisfy` (> 0)
+        Left err -> expectationFailure $ "Move failed: " <> show err
 
 spec_ApplyMoveSequence :: Spec
 spec_ApplyMoveSequence =
   describe "ApplyMoveSequence" $ do
     it "should apply first black move and return board state" $ do
-      let firstBlackMove = head startBlackMoves
+      let firstBlackMove = (.move) $ head startBlackMoves
           (moveResults, _finalStatus) = applyMoveSequence (firstBlackMove :| [])
           moveResult = head moveResults
       length moveResults `shouldBe` 1

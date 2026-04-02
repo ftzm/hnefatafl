@@ -13,6 +13,9 @@ static const board start_board = {
 
 int boards_equal(board a, board b);
 
+compact_board to_compact(const board *b);
+board from_compact(compact_board *b);
+
 layer board_occ(board b);
 
 layer board_occ_r(board b);

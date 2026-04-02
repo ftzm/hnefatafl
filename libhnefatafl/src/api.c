@@ -8,6 +8,7 @@
 #include "position_set.h"
 #include "search.h"
 #include "transposition_table.h"
+#include "validation.h"
 #include "victory.h"
 #include "zobrist.h"
 
@@ -55,43 +56,66 @@ move *all_white_and_king_moves(board b, position_set *ps, int *total) {
   return combined_moves;
 }
 
+// Compute captures for each move and return as move_with_captures array.
+// Frees the input moves array.
+static move_with_captures *enrich_moves_with_captures(
+    move *moves,
+    int move_count,
+    board b,
+    bool next_is_black) {
+  move_with_captures *result = malloc(sizeof(move_with_captures) * move_count);
+  for (int i = 0; i < move_count; i++) {
+    move m = moves[i];
+    board copy = b;
+    u64 dummy_hash = 0;
+    layer captures;
+    if (next_is_black) {
+      copy = apply_black_move_m(copy, m.orig, m.dest);
+      captures = apply_captures_z_black(&copy, &dummy_hash, m.dest);
+    } else if (LOWEST_INDEX(copy.king) == m.orig) {
+      copy = apply_king_move_m(copy, m.orig, m.dest);
+      captures = apply_captures_z_white(&copy, &dummy_hash, m.dest);
+    } else {
+      copy = apply_white_move_m(copy, m.orig, m.dest);
+      captures = apply_captures_z_white(&copy, &dummy_hash, m.dest);
+    }
+    result[i] = (move_with_captures){m, captures};
+  }
+  free(moves);
+  return result;
+}
+
 void next_game_state_with_moves(
     const move *move_history,
     int history_count,
-    move **moves_out,
+    move_with_captures **moves_out,
     int *move_count,
     game_status *gs,
     move_validation_result *validation_out,
-    bool allow_repetition) {
+    bool allow_repetition,
+    move_result *last_move_out) {
 
-  // First get the game state - this handles all validation
-  next_game_state(
-      move_history,
-      history_count,
-      gs,
-      validation_out,
-      allow_repetition);
-
-  if (validation_out->error != move_error_no_error || *gs != status_ongoing) {
-    *moves_out = NULL;
-    *move_count = 0;
-    return;
-  }
-
-  // Game is ongoing and no errors, generate moves
   board *b;
   position_set *ps;
   bool is_black_turn;
 
-  // Get board state for move generation
-  board_state_from_move_list(
+  move_validation_result result = board_state_from_move_list(
       move_history,
       history_count,
       &b,
       &ps,
       &is_black_turn,
       gs,
-      allow_repetition);
+      allow_repetition,
+      last_move_out);
+
+  *validation_out = result;
+
+  if (result.error != move_error_no_error || *gs != status_ongoing) {
+    *moves_out = NULL;
+    *move_count = 0;
+    return;
+  }
 
   move *possible_moves;
   if (is_black_turn) {
@@ -100,11 +124,15 @@ void next_game_state_with_moves(
     possible_moves = all_white_and_king_moves(*b, ps, move_count);
   }
 
-  // Clean up
+  board board_copy = *b;
   free(b);
   destroy_position_set(ps);
 
-  *moves_out = possible_moves;
+  *moves_out = enrich_moves_with_captures(
+      possible_moves,
+      *move_count,
+      board_copy,
+      is_black_turn);
 }
 
 void next_game_state(
@@ -126,7 +154,8 @@ void next_game_state(
       &ps,
       &is_black_turn,
       gs,
-      allow_repetition);
+      allow_repetition,
+      NULL);
 
   if (result.error != move_error_no_error) {
     *validation_out = result;
@@ -143,94 +172,106 @@ void next_game_state(
 int next_game_state_with_moves_trusted(
     compact_board *trusted_board,
     bool is_black_turn,
-    const move *move_history,
-    int history_count,
-    move **moves_out,
-    int *move_count,
-    game_status *gs) {
+    move *m,
+    u64 *zobrist_hashes,
+    int hash_count,
+    move_result *result_out,
+    game_status *status_out,
+    move_with_captures **moves_out,
+    int *move_count) {
 
-  // Convert compact board to full board
   board board_state = from_compact(trusted_board);
 
-  // Build position sets from move history for threefold repetition tracking
-  // We need two sets: first_ps tracks first occurrences, second_ps tracks
-  // second occurrences
-  position_set *first_ps = create_position_set(history_count);
-  position_set *second_ps = create_position_set(history_count);
+  // Build position sets from caller-provided hashes
+  position_set *first_ps = create_position_set(hash_count + 1);
+  position_set *second_ps = create_position_set(hash_count + 1);
 
-  // Replay moves to build the position sets
-  board temp_board = start_board;
-  bool temp_is_black_turn = true;
-
-  for (int i = 0; i < history_count; i++) {
-    move m = move_history[i];
-
-    // Calculate the board hash after this move
-    u64 board_hash;
-    if (temp_is_black_turn) {
-      board_hash = next_hash_black(
-          hash_for_board(temp_board, temp_is_black_turn),
-          m.orig,
-          m.dest);
-      temp_board = apply_black_move_m(temp_board, m.orig, m.dest);
-      apply_captures_z_black(&temp_board, &board_hash, m.dest);
-    } else if (LOWEST_INDEX(temp_board.king) == m.orig) {
-      board_hash = next_hash_king(
-          hash_for_board(temp_board, temp_is_black_turn),
-          m.orig,
-          m.dest);
-      temp_board = apply_king_move_m(temp_board, m.orig, m.dest);
-      apply_captures_z_white(&temp_board, &board_hash, m.dest);
-    } else {
-      board_hash = next_hash_white(
-          hash_for_board(temp_board, temp_is_black_turn),
-          m.orig,
-          m.dest);
-      temp_board = apply_white_move_m(temp_board, m.orig, m.dest);
-      apply_captures_z_white(&temp_board, &board_hash, m.dest);
-    }
-
-    // Track position occurrences using two-stage logic
+  for (int i = 0; i < hash_count; i++) {
     int deletion_index;
-    if (insert_position(first_ps, board_hash, &deletion_index) != 0) {
-      // Position already exists in first set, add to second set
-      insert_position(second_ps, board_hash, &deletion_index);
+    if (insert_position(first_ps, zobrist_hashes[i], &deletion_index) != 0) {
+      insert_position(second_ps, zobrist_hashes[i], &deletion_index);
     }
-
-    temp_is_black_turn = !temp_is_black_turn;
   }
 
-  // Check game status based on trusted board
-  if (is_black_turn) {
-    *gs = white_victory_check(&board_state);
-  } else {
-    *gs = black_victory_check(&board_state);
-  }
-
-  // If game is over, no moves to generate
-  if (*gs != status_ongoing) {
-    *moves_out = NULL;
-    *move_count = 0;
+  // Validate the move
+  move_error error = validate_move(board_state, *m, is_black_turn);
+  if (error != move_error_no_error) {
     destroy_position_set(first_ps);
     destroy_position_set(second_ps);
-    return 0;
+    return error;
   }
 
-  // Generate moves for the current position using second_ps to avoid threefold
-  // repetition
-  move *possible_moves;
+  // Apply the move
+  u64 board_hash;
+  layer captures;
   if (is_black_turn) {
-    possible_moves = all_black_moves(board_state, second_ps, move_count);
+    board_hash = next_hash_black(
+        hash_for_board(board_state, is_black_turn),
+        m->orig,
+        m->dest);
+    board_state = apply_black_move_m(board_state, m->orig, m->dest);
+    captures = apply_captures_z_black(&board_state, &board_hash, m->dest);
+  } else if (LOWEST_INDEX(board_state.king) == m->orig) {
+    board_hash = next_hash_king(
+        hash_for_board(board_state, is_black_turn),
+        m->orig,
+        m->dest);
+    board_state = apply_king_move_m(board_state, m->orig, m->dest);
+    captures = apply_captures_z_white(&board_state, &board_hash, m->dest);
   } else {
-    possible_moves =
-        all_white_and_king_moves(board_state, second_ps, move_count);
+    board_hash = next_hash_white(
+        hash_for_board(board_state, is_black_turn),
+        m->orig,
+        m->dest);
+    board_state = apply_white_move_m(board_state, m->orig, m->dest);
+    captures = apply_captures_z_white(&board_state, &board_hash, m->dest);
   }
 
-  // Clean up
+  // Check threefold repetition
+  int deletion_index;
+  if (insert_position(first_ps, board_hash, &deletion_index) != 0) {
+    if (insert_position(second_ps, board_hash, &deletion_index) != 0) {
+      destroy_position_set(first_ps);
+      destroy_position_set(second_ps);
+      return move_error_threefold_repetition;
+    }
+  }
+
+  // Populate move result
+  result_out->move = *m;
+  result_out->was_black_turn = is_black_turn;
+  result_out->board = to_compact(&board_state);
+  result_out->captures = captures;
+  result_out->zobrist_hash = board_hash;
+
+  // Check victory after the move
+  bool next_is_black = !is_black_turn;
+  if (next_is_black) {
+    *status_out = white_victory_check(&board_state);
+  } else {
+    *status_out = black_victory_check(&board_state);
+  }
+
+  // Generate valid moves for the next turn
+  if (*status_out != status_ongoing) {
+    *moves_out = NULL;
+    *move_count = 0;
+  } else {
+    move *raw_moves;
+    if (next_is_black) {
+      raw_moves = all_black_moves(board_state, second_ps, move_count);
+    } else {
+      raw_moves = all_white_and_king_moves(board_state, second_ps, move_count);
+    }
+    *moves_out = enrich_moves_with_captures(
+        raw_moves,
+        *move_count,
+        board_state,
+        next_is_black);
+  }
+
   destroy_position_set(first_ps);
   destroy_position_set(second_ps);
-
-  *moves_out = possible_moves;
   return 0;
 }
 

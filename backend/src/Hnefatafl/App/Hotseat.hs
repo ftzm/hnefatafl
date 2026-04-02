@@ -1,25 +1,33 @@
 module Hnefatafl.App.Hotseat (
   createGame,
   loadGameState,
-  processEvent,
-  gameMoveToAppliedMoves,
+  makeMove,
+  undoMove,
+  resign,
+  agreeDraw,
 ) where
 
+import Chronos (Time)
 import Effectful (Eff, (:>))
 import Hnefatafl.App.Storage (persistenceCommandsToTx)
-import Hnefatafl.Bindings (applyMoveSequence)
+import Hnefatafl.Bindings (
+  applyMoveSequence,
+ )
 import Hnefatafl.Core.Data (
   Game (..),
-  GameId,
+  GameId (..),
   GameMode (..),
   GameMove (..),
   GameStatus (..),
+  Move (..),
   MoveResult (..),
+  PlayerColor (..),
  )
 import Hnefatafl.Effect.Clock (Clock, now)
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
 import Hnefatafl.Effect.Storage (
   Storage,
+  StorageTx,
   getGame,
   getMovesForGame,
   insertGame,
@@ -27,10 +35,22 @@ import Hnefatafl.Effect.Storage (
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  TransitionError,
+  TransitionError (..),
+  currentBoard,
   gameStatusToOutcome,
  )
 import Hnefatafl.Game.Hotseat qualified as Hotseat
+
+toApplied :: GameMove -> Word64 -> AppliedMove
+toApplied gm z =
+  AppliedMove
+    { move = gm.move
+    , side = gm.playerColor
+    , captures = gm.captures
+    , boardAfter = gm.boardStateAfter
+    , zobristHash = z
+    , timestamp = gm.timestamp
+    }
 
 -- | Recover AppliedMoves (with zobrist hashes) from stored GameMoves
 -- by replaying the move sequence through the C engine.
@@ -39,55 +59,29 @@ gameMoveToAppliedMoves [] = []
 gameMoveToAppliedMoves gameMoves =
   let moves = map (.move) gameMoves
       moveResults = toList $ fst $ applyMoveSequence (fromList moves)
-   in zipWith toApplied gameMoves moveResults
- where
-  toApplied :: GameMove -> MoveResult -> AppliedMove
-  toApplied gm mr =
-    AppliedMove
-      { move = gm.move
-      , side = gm.playerColor
-      , captures = gm.captures
-      , boardAfter = gm.boardStateAfter
-      , zobristHash = mr.zobristHash
-      , timestamp = gm.timestamp
-      }
+   in zipWith toApplied gameMoves (map (.zobristHash) moveResults)
 
--- | Create a new hotseat game. Returns the generated GameId.
-createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es) =>
-  Eff es GameId
-createGame = do
-  gameId <- generateId
-  currentTime <- now
-  let game =
-        Game
-          { gameId = gameId
-          , name = Nothing
-          , mode = Hotseat Nothing
-          , startTime = currentTime
-          , endTime = Nothing
-          , gameStatus = Ongoing
-          , createdAt = currentTime
-          }
-  runTransaction $ insertGame game
-  pure gameId
+mkGame :: GameId -> Time -> Game
+mkGame gameId time =
+  Game
+    { gameId = gameId
+    , name = Nothing
+    , mode = Hotseat Nothing
+    , startTime = time
+    , endTime = Nothing
+    , gameStatus = Ongoing
+    , createdAt = time
+    }
 
--- | Load a hotseat game's state from the database.
-loadGameState ::
-  Storage :> es =>
-  GameId ->
-  Eff es (Game, Hotseat.State)
-loadGameState gameId = do
-  (game, gameMoves) <-
-    runTransaction $
-      (,) <$> getGame gameId <*> getMovesForGame gameId
+loadHotseatState :: GameId -> StorageTx Hotseat.State
+loadHotseatState gameId = do
+  game <- getGame gameId
+  gameMoves <- getMovesForGame gameId
   let appliedMoves = gameMoveToAppliedMoves gameMoves
-      outcome = gameStatusToOutcome game.gameStatus
-      state = Hotseat.reconstruct appliedMoves outcome Nothing
-  pure (game, state)
+      board = currentBoard appliedMoves
+  pure $
+    Hotseat.reconstruct board appliedMoves (gameStatusToOutcome game.gameStatus)
 
--- | Process an event against a hotseat game. Loads state, applies the
--- transition, and persists any resulting commands atomically.
 processEvent ::
   (Storage :> es, Clock :> es) =>
   GameId ->
@@ -96,16 +90,53 @@ processEvent ::
 processEvent gameId event = do
   currentTime <- now
   runTransaction $ do
-    game <- getGame gameId
-    gameMoves <- getMovesForGame gameId
-    let appliedMoves = gameMoveToAppliedMoves gameMoves
-        outcome = gameStatusToOutcome game.gameStatus
-        state = Hotseat.reconstruct appliedMoves outcome Nothing
-    case Hotseat.transition state event of
+    gameState <- loadHotseatState gameId
+    case Hotseat.transition gameState event of
       Left err -> pure (Left err)
       Right result -> do
-        persistenceCommandsToTx
-          gameId
-          currentTime
-          [cmd | Hotseat.Persist cmd <- result.commands]
+        let cmds = [cmd | Hotseat.Persist cmd <- result.commands]
+        persistenceCommandsToTx gameId currentTime cmds
         pure (Right result.newState)
+
+createGame ::
+  (Storage :> es, Clock :> es, IdGen :> es) =>
+  Eff es Game
+createGame = do
+  game <- mkGame <$> generateId <*> now
+  runTransaction $ insertGame game
+  pure game
+
+loadGameState ::
+  Storage :> es =>
+  GameId ->
+  Eff es Hotseat.State
+loadGameState gameId =
+  runTransaction $ loadHotseatState gameId
+
+undoMove ::
+  (Storage :> es, Clock :> es) =>
+  GameId ->
+  Eff es (Either TransitionError Hotseat.State)
+undoMove gameId = processEvent gameId (Hotseat.Undo Black)
+
+resign ::
+  (Storage :> es, Clock :> es) =>
+  GameId ->
+  PlayerColor ->
+  Eff es (Either TransitionError Hotseat.State)
+resign gameId color = processEvent gameId (Hotseat.Resign color)
+
+agreeDraw ::
+  (Storage :> es, Clock :> es) =>
+  GameId ->
+  Eff es (Either TransitionError Hotseat.State)
+agreeDraw gameId = processEvent gameId Hotseat.AgreeDraw
+
+makeMove ::
+  (Storage :> es, Clock :> es) =>
+  GameId ->
+  Move ->
+  Eff es (Either TransitionError Hotseat.State)
+makeMove gameId move = do
+  currentTime <- now
+  processEvent gameId (Hotseat.MakeMove move currentTime)

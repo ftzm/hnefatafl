@@ -19,6 +19,7 @@ import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
 import Effectful.Labeled
+import Hnefatafl.Api.Routes (Routes (..), VersionResponse (..))
 import Hnefatafl.Bindings (
   EngineGameStatus,
   MoveValidationResult (..),
@@ -48,7 +49,7 @@ import Hnefatafl.Interpreter.Storage.SQLite
 import Hnefatafl.SelfPlay (VersionId (..))
 import Hnefatafl.SelfPlay.Runner (runSelfPlayHeadless, runSelfPlayWithUI)
 import Hnefatafl.Serialization (moveToNotation, parseMoveList)
-import Hnefatafl.Server (Routes (..), VersionResponse (..), runServer)
+import Hnefatafl.Server (runServer)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Options.Applicative
 import Servant.Client (ClientError, mkClientEnv, parseBaseUrl, runClientM)

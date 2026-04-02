@@ -1,5 +1,6 @@
 #pragma once
 
+#include "stdbool.h"
 #include "util.h"
 
 typedef struct layer {
@@ -63,3 +64,22 @@ typedef struct move_validation_result {
   move_error error;
   int move_index;
 } move_validation_result;
+
+typedef struct {
+  layer black;
+  layer white;
+  u8 king;
+} compact_board;
+
+typedef struct {
+  move move;
+  compact_board board;
+  layer captures;
+  bool was_black_turn;
+  u64 zobrist_hash;
+} move_result;
+
+typedef struct {
+  move move;
+  layer captures;
+} move_with_captures;

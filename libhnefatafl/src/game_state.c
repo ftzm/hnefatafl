@@ -17,7 +17,8 @@ int apply_move_to_game(
     bool *is_black_turn,
     move m,
     game_status *gs,
-    bool allow_repetition) {
+    bool allow_repetition,
+    move_result *result_out) {
 
   move_error error = validate_move(*b, m, *is_black_turn);
   if (error != move_error_no_error) {
@@ -25,21 +26,22 @@ int apply_move_to_game(
   }
 
   u64 board_hash;
+  layer captures;
   if (*is_black_turn) {
     board_hash =
         next_hash_black(hash_for_board(*b, is_black_turn), m.orig, m.dest);
     *b = apply_black_move_m(*b, m.orig, m.dest);
-    apply_captures_z_black(b, &board_hash, m.dest);
+    captures = apply_captures_z_black(b, &board_hash, m.dest);
   } else if (LOWEST_INDEX(b->king) == m.orig) {
     board_hash =
         next_hash_king(hash_for_board(*b, is_black_turn), m.orig, m.dest);
     *b = apply_king_move_m(*b, m.orig, m.dest);
-    apply_captures_z_white(b, &board_hash, m.dest);
+    captures = apply_captures_z_white(b, &board_hash, m.dest);
   } else {
     board_hash =
         next_hash_white(hash_for_board(*b, is_black_turn), m.orig, m.dest);
     *b = apply_white_move_m(*b, m.orig, m.dest);
-    apply_captures_z_white(b, &board_hash, m.dest);
+    captures = apply_captures_z_white(b, &board_hash, m.dest);
   }
 
   // Check for threefold repetition only if not allowing repetition
@@ -52,6 +54,14 @@ int apply_move_to_game(
         return move_error_threefold_repetition;
       }
     }
+  }
+
+  if (result_out) {
+    result_out->move = m;
+    result_out->was_black_turn = *is_black_turn;
+    result_out->board = to_compact(b);
+    result_out->captures = captures;
+    result_out->zobrist_hash = board_hash;
   }
 
   *is_black_turn = !*is_black_turn;
@@ -72,7 +82,8 @@ move_validation_result board_state_from_move_list(
     position_set **ps_ptr,
     bool *is_black_turn,
     game_status *gs,
-    bool allow_repetition) {
+    bool allow_repetition,
+    move_result *last_move_out) {
 
   *is_black_turn = true;
 
@@ -82,6 +93,7 @@ move_validation_result board_state_from_move_list(
 
   for (int i = 0; i < count; i++) {
     move m = moves[i];
+    bool is_last = (i == count - 1);
     int result = apply_move_to_game(
         &b,
         first_ps,
@@ -89,7 +101,8 @@ move_validation_result board_state_from_move_list(
         is_black_turn,
         m,
         gs,
-        allow_repetition);
+        allow_repetition,
+        is_last ? last_move_out : NULL);
     if (result != 0) {
       destroy_position_set(first_ps);
       destroy_position_set(second_ps);

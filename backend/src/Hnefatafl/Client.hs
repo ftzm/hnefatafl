@@ -6,7 +6,7 @@ module Hnefatafl.Client (
   createClient,
 ) where
 
-import Hnefatafl.Server (Routes)
+import Hnefatafl.Api.Routes (Routes)
 import Servant.Client (ClientM)
 import Servant.Client.Generic (AsClientT, genericClient)
 

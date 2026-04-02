@@ -92,6 +92,7 @@ dependencies:
   - vty
   - vty-unix
   - http-client
+  - http-api-data
 
 executables:
   cli:
