@@ -12,8 +12,8 @@
 #define QUADRANT_NONE 4
 
 typedef struct quadrant_counts {
-  u8 black[4]; // NW, NE, SW, SE
-  u8 white[4]; // white pawns: NW, NE, SW, SE
+  u8 black[5]; // NW, NE, SW, SE, [4]=unused sink for middle rank/file
+  u8 white[5]; // white pawns: NW, NE, SW, SE, [4]=unused sink
   u8 king;     // quadrant of king (0-3), or QUADRANT_NONE
 } quadrant_counts;
 
@@ -22,22 +22,12 @@ extern const u8 quadrant_table[121];
 quadrant_counts init_quadrant_counts(const board *b);
 
 static inline void quadrant_move(u8 *counts, int orig, int dest) {
-  u8 oq = quadrant_table[orig];
-  u8 dq = quadrant_table[dest];
-  if (oq != dq) {
-    if (oq < 4)
-      counts[oq]--;
-    if (dq < 4)
-      counts[dq]++;
-  }
+  counts[quadrant_table[orig]]--;
+  counts[quadrant_table[dest]]++;
 }
 
 static inline void quadrant_captures(u8 *counts, layer captures) {
-  MAP_INDICES(captures, {
-    u8 q = quadrant_table[i];
-    if (q < 4)
-      counts[q]--;
-  });
+  MAP_INDICES(captures, counts[quadrant_table[i]]--);
 }
 
 static inline quadrant_counts

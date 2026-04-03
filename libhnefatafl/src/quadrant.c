@@ -38,17 +38,9 @@ const u8 quadrant_table[121] = {
 quadrant_counts init_quadrant_counts(const board *b) {
   quadrant_counts qc = {{0}, {0}, QUADRANT_NONE};
   layer black = b->black;
-  MAP_INDICES(black, {
-    u8 q = quadrant_table[i];
-    if (q < 4)
-      qc.black[q]++;
-  });
+  MAP_INDICES(black, qc.black[quadrant_table[i]]++);
   layer white = b->white;
-  MAP_INDICES(white, {
-    u8 q = quadrant_table[i];
-    if (q < 4)
-      qc.white[q]++;
-  });
+  MAP_INDICES(white, qc.white[quadrant_table[i]]++);
   int king_pos = LOWEST_INDEX(b->king);
   qc.king = quadrant_table[king_pos];
   return qc;
