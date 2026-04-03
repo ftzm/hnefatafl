@@ -12,6 +12,7 @@ module Hnefatafl.Api.Routes (
 
 import Data.Aeson (FromJSON, ToJSON)
 import Hnefatafl.Api.Routes.Hotseat (HotseatRoutes)
+import Hnefatafl.Api.Routes.Online (OnlineRoutes)
 import Hnefatafl.Bindings (SearchTrustedResult)
 import Hnefatafl.Core.Data (ExternBoard)
 import Hnefatafl.Search (SearchTimeout)
@@ -59,6 +60,7 @@ data Routes mode = Routes
           :> ReqBody '[JSON] SearchTrustedInput
           :> Post '[JSON] SearchTrustedResult
   , hotseat :: mode :- "hotseat" :> NamedRoutes HotseatRoutes
+  , online :: mode :- "online" :> NamedRoutes OnlineRoutes
   }
   deriving stock (Generic)
 

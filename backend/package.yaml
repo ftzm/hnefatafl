@@ -93,6 +93,9 @@ dependencies:
   - vty-unix
   - http-client
   - http-api-data
+  - websockets
+  - wai-websockets
+  - resourcet
 
 executables:
   cli:

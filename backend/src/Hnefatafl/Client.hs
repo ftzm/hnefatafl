@@ -7,6 +7,7 @@ module Hnefatafl.Client (
 ) where
 
 import Hnefatafl.Api.Routes (Routes)
+import Hnefatafl.Servant.WebSocket () -- HasClient instance for WebSocket
 import Servant.Client (ClientM)
 import Servant.Client.Generic (AsClientT, genericClient)
 

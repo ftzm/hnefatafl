@@ -4,6 +4,7 @@ module Hnefatafl.Game.Online (
   Event (..),
   Command (..),
   Notification (..),
+  ActorNotification (..),
   TransitionResult (..),
   transition,
   reconstruct,
@@ -70,9 +71,15 @@ data Notification
   | UndoDeclined
   deriving (Show, Eq)
 
+data ActorNotification
+  = GameEnded Outcome
+  | UndoApplied
+  deriving (Show, Eq)
+
 data Command
   = Persist PersistenceCommand
   | NotifyOpponent Notification
+  | NotifyActor ActorNotification
   deriving (Show, Eq)
 
 data TransitionResult = TransitionResult
@@ -111,6 +118,7 @@ transition (State board moves (Active turn validMoves pending)) = \case
                     , Persist $ clearPending pending
                     , Persist $ PersistOutcome outcome
                     , NotifyOpponent $ OpponentMoved applied
+                    , NotifyActor $ GameEnded outcome
                     ]
               Nothing ->
                 let (pending', cancelCmd) = cancelPending (opponent color) pending
@@ -190,6 +198,7 @@ transition (State board moves (Active turn validMoves pending)) = \case
                           [ Persist ClearPendingAction
                           , Persist $ DeleteMoves undoCount
                           , NotifyOpponent $ UndoAccepted moves'
+                          , NotifyActor UndoApplied
                           ]
     Just pa | pa.offeredBy == color -> Left CannotRespondToOwnOffer
     _ -> Left NoPendingOffer

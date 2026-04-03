@@ -9,18 +9,13 @@ module Hnefatafl.App.Hotseat (
 
 import Chronos (Time)
 import Effectful (Eff, (:>))
-import Hnefatafl.App.Storage (persistenceCommandsToTx)
-import Hnefatafl.Bindings (
-  applyMoveSequence,
- )
+import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
   GameMode (..),
-  GameMove (..),
   GameStatus (..),
   Move (..),
-  MoveResult (..),
   PlayerColor (..),
  )
 import Hnefatafl.Effect.Clock (Clock, now)
@@ -34,32 +29,11 @@ import Hnefatafl.Effect.Storage (
   runTransaction,
  )
 import Hnefatafl.Game.Common (
-  AppliedMove (..),
   TransitionError (..),
   currentBoard,
   gameStatusToOutcome,
  )
 import Hnefatafl.Game.Hotseat qualified as Hotseat
-
-toApplied :: GameMove -> Word64 -> AppliedMove
-toApplied gm z =
-  AppliedMove
-    { move = gm.move
-    , side = gm.playerColor
-    , captures = gm.captures
-    , boardAfter = gm.boardStateAfter
-    , zobristHash = z
-    , timestamp = gm.timestamp
-    }
-
--- | Recover AppliedMoves (with zobrist hashes) from stored GameMoves
--- by replaying the move sequence through the C engine.
-gameMoveToAppliedMoves :: [GameMove] -> [AppliedMove]
-gameMoveToAppliedMoves [] = []
-gameMoveToAppliedMoves gameMoves =
-  let moves = map (.move) gameMoves
-      moveResults = toList $ fst $ applyMoveSequence (fromList moves)
-   in zipWith toApplied gameMoves (map (.zobristHash) moveResults)
 
 mkGame :: GameId -> Time -> Game
 mkGame gameId time =

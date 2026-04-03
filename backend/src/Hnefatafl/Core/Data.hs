@@ -61,7 +61,7 @@ data Player = EnginePlayerTag EnginePlayer | HumanPlayerTag HumanPlayer
 
 newtype GameId = GameId Text
   deriving (Show, Eq)
-  deriving newtype (ToJSON, FromJSON, FromHttpApiData, ToHttpApiData)
+  deriving newtype (ToJSON, FromJSON, FromHttpApiData, ToHttpApiData, Hashable)
 
 data GameStatus
   = Ongoing

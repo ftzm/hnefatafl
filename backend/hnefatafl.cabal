@@ -14,10 +14,14 @@ library
   exposed-modules:
       Hnefatafl.Api.Handlers
       Hnefatafl.Api.Handlers.Hotseat
+      Hnefatafl.Api.Handlers.Online
       Hnefatafl.Api.Routes
       Hnefatafl.Api.Routes.Hotseat
+      Hnefatafl.Api.Routes.Online
       Hnefatafl.Api.Types
+      Hnefatafl.Api.Types.Online
       Hnefatafl.App.Hotseat
+      Hnefatafl.App.Online
       Hnefatafl.App.Storage
       Hnefatafl.Bindings
       Hnefatafl.Board
@@ -28,6 +32,7 @@ library
       Hnefatafl.Effect.IdGen
       Hnefatafl.Effect.Search
       Hnefatafl.Effect.Storage
+      Hnefatafl.Effect.WebSocket
       Hnefatafl.Game.AI
       Hnefatafl.Game.Common
       Hnefatafl.Game.Hotseat
@@ -46,6 +51,7 @@ library
       Hnefatafl.Interpreter.Storage.SQLite.Token
       Hnefatafl.Interpreter.Storage.SQLite.Type
       Hnefatafl.Interpreter.Storage.SQLite.Util
+      Hnefatafl.Interpreter.WebSocket.IO
       Hnefatafl.QQ.Move
       Hnefatafl.Search
       Hnefatafl.SelfPlay
@@ -54,6 +60,8 @@ library
       Hnefatafl.SelfPlay.UI.State
       Hnefatafl.SelfPlay.UI.Widgets
       Hnefatafl.Serialization
+      Hnefatafl.Servant.WebSocket
+      Hnefatafl.Servant.WebSocket.Pong
       Hnefatafl.Server
       Hnefatafl.Util
   other-modules:
@@ -100,6 +108,7 @@ library
     , optics
     , optparse-applicative
     , relude
+    , resourcet
     , safe-exceptions
     , servant
     , servant-client
@@ -119,7 +128,9 @@ library
     , vty
     , vty-unix
     , wai
+    , wai-websockets
     , warp
+    , websockets
   mixins:
        relude
     , base hiding (Prelude)
@@ -172,6 +183,7 @@ library hnefatafl-version
     , optics
     , optparse-applicative
     , relude
+    , resourcet
     , safe-exceptions
     , servant
     , servant-client
@@ -191,7 +203,9 @@ library hnefatafl-version
     , vty
     , vty-unix
     , wai
+    , wai-websockets
     , warp
+    , websockets
   mixins:
        relude
     , base hiding (Prelude)
@@ -244,6 +258,7 @@ executable cli
     , optics
     , optparse-applicative
     , relude
+    , resourcet
     , safe-exceptions
     , servant
     , servant-client
@@ -263,7 +278,9 @@ executable cli
     , vty
     , vty-unix
     , wai
+    , wai-websockets
     , warp
+    , websockets
   mixins:
        relude
     , base hiding (Prelude)
@@ -345,6 +362,7 @@ test-suite hnefatafl-test
     , optparse-applicative
     , process
     , relude
+    , resourcet
     , safe-exceptions
     , servant
     , servant-client
@@ -369,7 +387,9 @@ test-suite hnefatafl-test
     , vty
     , vty-unix
     , wai
+    , wai-websockets
     , warp
+    , websockets
   mixins:
        relude
     , base hiding (Prelude)

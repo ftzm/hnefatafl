@@ -4,9 +4,13 @@ module Hnefatafl.Api.Handlers (
 
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
+import Effectful.Concurrent (Concurrent)
 import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (Error)
+import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Api.Handlers.Hotseat (hotseatServer)
+import Hnefatafl.Api.Handlers.Online (onlineServer)
+import Hnefatafl.App.Online qualified as Online
 import Hnefatafl.Api.Routes (
   HealthResponse (..),
   Routes (..),
@@ -27,16 +31,20 @@ server ::
   , Storage :> es
   , Clock :> es
   , IdGen :> es
+  , Concurrent :> es
+  , WebSocket :> es
   , Error ServerError :> es
   , IOE :> es
   ) =>
+  Online.GameSessions ->
   Routes (AsServerT (Eff es))
-server =
+server sessions =
   Routes
     { version = versionHandler
     , health = healthHandler
     , searchTrusted = searchTrustedHandler
     , hotseat = hotseatServer
+    , online = onlineServer sessions
     }
 
 versionHandler :: IOE :> es => Eff es VersionResponse
