@@ -1,24 +1,38 @@
 module Hnefatafl.Game.AITest where
 
-import Hnefatafl.Core.Data (PlayerColor (..))
+import Chronos (Time (..))
+import Hnefatafl.Bindings (
+  nextGameStateWithMovesTrusted,
+  startBlackMoves,
+  startBoard,
+ )
+import Hnefatafl.Core.Data (
+  ExternBoard,
+  MoveWithCaptures (..),
+  PlayerColor (..),
+ )
 import Hnefatafl.Game.AI (
   Command (..),
   Event (..),
+  Phase (..),
   State (..),
   TransitionResult (..),
   reconstruct,
   transition,
  )
 import Hnefatafl.Game.Common (
-  BlackWinCondition (..),
+  AppliedMove (..),
   Outcome (..),
   PendingAction (..),
   PendingActionType (..),
-  WhiteWinCondition (..),
+  currentBoard,
+  mkAppliedMove,
+  outcomeFromEngine,
+  validMovesForPosition,
+  zobristHashes,
  )
 import Hnefatafl.Game.TestUtil (
   PersistenceStore (..),
-  dummyMove,
   emptyStore,
   executePersistence,
  )
@@ -27,7 +41,7 @@ import Test.QuickCheck qualified as QC
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 import Test.Tasty.QuickCheck (testProperty)
-import Prelude hiding (State)
+import Prelude hiding (State, state)
 
 humanColor :: PlayerColor
 humanColor = Black
@@ -45,22 +59,32 @@ fromStore :: PersistenceStore -> State
 fromStore store =
   reconstruct
     humanColor
+    (currentBoard store.storedMoves)
     store.storedMoves
     store.storedOutcome
     store.storedPendingAction
 
+-- | Compute a real engine move from the current position
+realEngineMove :: ExternBoard -> [AppliedMove] -> (AppliedMove, Maybe Outcome)
+realEngineMove board moves =
+  case validMovesForPosition moves of
+    (mc : _) ->
+      let hashes = zobristHashes moves
+          (mr, status, _) =
+            fromRight (error "valid move rejected") $
+              nextGameStateWithMovesTrusted board False mc.move hashes
+          applied = mkAppliedMove mr (Time 0)
+       in (applied, outcomeFromEngine status)
+    [] -> error "no valid moves for engine"
+
 genEvent :: State -> Maybe (Gen Event)
-genEvent (Finished _) = Nothing
-genEvent (PlayerTurn moves pending) =
+genEvent (State _ _ (Finished _)) = Nothing
+genEvent (State _ moves (PlayerTurn validMoves pending)) =
   Just $
     frequency $
       concat
         [
-          [
-            ( 5
-            , MakeMove (dummyMove humanColor)
-                <$> elements [Nothing, Nothing, Nothing, Just (BlackWins KingCaptured)]
-            )
+          [ (5, MakeMove . (.move) <$> elements validMoves <*> pure (Time 0))
           ]
         , [(2, pure Undo) | length moves >= 2]
         , [(1, pure $ Resign humanColor)]
@@ -75,29 +99,30 @@ genEvent (PlayerTurn moves pending) =
           ]
         , [(1, pure Timeout)]
         ]
-genEvent (EngineThinking moves pending) =
-  Just $
-    frequency $
-      concat
-        [
-          [
-            ( 5
-            , EngineMove (dummyMove engineColor)
-                <$> elements [Nothing, Nothing, Nothing, Just (WhiteWins KingEscaped)]
-            )
-          ]
-        , [(2, pure Undo) | not (null moves)]
-        , [(1, pure $ Resign engineColor)]
-        , [(1, pure $ OfferDraw engineColor) | isNothing pending]
-        , [ (1, pure $ AcceptDraw engineColor)
-          | Just pa <- [pending]
-          , pa.offeredBy == humanColor
-          ]
-        , [ (1, pure $ DeclineDraw engineColor)
-          | Just pa <- [pending]
-          , pa.offeredBy == humanColor
-          ]
-        ]
+genEvent (State board moves (EngineThinking pending)) =
+  let (applied, outcome) = realEngineMove board moves
+   in Just $
+        frequency $
+          concat
+            [
+              [ (5, pure $ EngineMove applied outcome)
+              ]
+            , [(2, pure Undo) | not (null moves)]
+            , [(1, pure $ Resign engineColor)]
+            , [(1, pure $ OfferDraw engineColor) | isNothing pending]
+            , [ (1, pure $ AcceptDraw engineColor)
+              | Just pa <- [pending]
+              , pa.offeredBy == humanColor
+              ]
+            , [ (1, pure $ DeclineDraw engineColor)
+              | Just pa <- [pending]
+              , pa.offeredBy == humanColor
+              ]
+            ]
+
+initialState :: State
+initialState =
+  State startBoard [] (PlayerTurn (toList startBlackMoves) Nothing)
 
 genSequence :: State -> Gen [(Event, TransitionResult)]
 genSequence s = case genEvent s of
@@ -120,12 +145,21 @@ genSequence s = case genEvent s of
 test_aiRoundTrip :: TestTree
 test_aiRoundTrip =
   testProperty "AI: reconstructed state equals incremental state" $
-    QC.forAll (genSequence (PlayerTurn [] Nothing)) $ \steps ->
+    QC.forAll (genSequence initialState) $ \steps ->
       let s = case steps of
-            [] -> PlayerTurn [] Nothing
+            [] -> initialState
             _ -> (snd (fromMaybe (error "empty") (viaNonEmpty last steps))).newState
           store = foldl' (\acc (_, tr) -> executeCommands tr.commands acc) emptyStore steps
        in fromStore store === s
+
+-- | Make the first black move from starting position, returning the resulting applied move
+firstBlackApplied :: AppliedMove
+firstBlackApplied =
+  let move = (head startBlackMoves).move
+      (mr, _, _) =
+        fromRight (error "first move failed") $
+          nextGameStateWithMovesTrusted startBoard True move []
+   in mkAppliedMove mr (Time 0)
 
 test_aiCancellation :: TestTree
 test_aiCancellation =
@@ -133,40 +167,44 @@ test_aiCancellation =
     "AI implicit cancellation"
     [ testCase "Player move cancels engine's draw offer" $ do
         let pending = Just $ PendingAction DrawOffer engineColor
-            applied = dummyMove humanColor
-        case transition humanColor (PlayerTurn [] pending) (MakeMove applied Nothing) of
+            st = State startBoard [] (PlayerTurn (toList startBlackMoves) pending)
+            move = (head startBlackMoves).move
+        case transition humanColor st (MakeMove move (Time 0)) of
           Right tr -> case tr.newState of
-            EngineThinking _ p -> p @?= Nothing
+            State _ _ (EngineThinking p) -> p @?= Nothing
             other -> fail $ "Expected EngineThinking, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     , testCase "Player move preserves own draw offer" $ do
         let pending = Just $ PendingAction DrawOffer humanColor
-            applied = dummyMove humanColor
-        case transition humanColor (PlayerTurn [] pending) (MakeMove applied Nothing) of
+            st = State startBoard [] (PlayerTurn (toList startBlackMoves) pending)
+            move = (head startBlackMoves).move
+        case transition humanColor st (MakeMove move (Time 0)) of
           Right tr -> case tr.newState of
-            EngineThinking _ p -> p @?= pending
+            State _ _ (EngineThinking p) -> p @?= pending
             other -> fail $ "Expected EngineThinking, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     , testCase "Engine move cancels human's draw offer" $ do
-        let pending = Just $ PendingAction DrawOffer humanColor
-            applied = dummyMove engineColor
-        case transition
-          humanColor
-          (EngineThinking [dummyMove humanColor] pending)
-          (EngineMove applied Nothing) of
+        let applied = firstBlackApplied
+            moves = [applied]
+            board = applied.boardAfter
+            pending = Just $ PendingAction DrawOffer humanColor
+            st = State board moves (EngineThinking pending)
+            (engineApplied, engineOutcome) = realEngineMove board moves
+        case transition humanColor st (EngineMove engineApplied engineOutcome) of
           Right tr -> case tr.newState of
-            PlayerTurn _ p -> p @?= Nothing
+            State _ _ (PlayerTurn _ p) -> p @?= Nothing
             other -> fail $ "Expected PlayerTurn, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     , testCase "Engine move preserves own draw offer" $ do
-        let pending = Just $ PendingAction DrawOffer engineColor
-            applied = dummyMove engineColor
-        case transition
-          humanColor
-          (EngineThinking [dummyMove humanColor] pending)
-          (EngineMove applied Nothing) of
+        let applied = firstBlackApplied
+            moves = [applied]
+            board = applied.boardAfter
+            pending = Just $ PendingAction DrawOffer engineColor
+            st = State board moves (EngineThinking pending)
+            (engineApplied, engineOutcome) = realEngineMove board moves
+        case transition humanColor st (EngineMove engineApplied engineOutcome) of
           Right tr -> case tr.newState of
-            PlayerTurn _ p -> p @?= pending
+            State _ _ (PlayerTurn _ p) -> p @?= pending
             other -> fail $ "Expected PlayerTurn, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     ]

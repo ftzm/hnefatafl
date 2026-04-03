@@ -1,3 +1,5 @@
+{-# LANGUAGE PatternSynonyms #-}
+
 module Hnefatafl.Game.Common (
   -- * Outcome types
   BlackWinCondition (..),
@@ -23,6 +25,8 @@ module Hnefatafl.Game.Common (
   currentBoard,
   currentTurn,
   zobristHashes,
+  validMovesForPosition,
+  mkAppliedMove,
   cancelPending,
   clearPending,
   respondToOffer,
@@ -34,16 +38,24 @@ module Hnefatafl.Game.Common (
 ) where
 
 import Chronos (Time)
-import Hnefatafl.Bindings (EngineGameStatus (..), startBoard)
+import Hnefatafl.Bindings (
+  EngineGameStatus (..),
+  nextGameStateWithMovesTrusted,
+  startBlackMoves,
+  startBoard,
+ )
 import Hnefatafl.Core.Data (
   ExternBoard (..),
   GameMove (..),
   GameStatus,
   Layer (..),
   Move (..),
+  MoveResult (..),
+  MoveWithCaptures (..),
   PlayerColor (..),
  )
 import Hnefatafl.Core.Data qualified as Core
+import Hnefatafl.Util (pattern Snoc)
 
 -- | Conditions under which Black wins
 data BlackWinCondition = KingCaptured | WhiteSurrounded | NoWhiteMoves
@@ -211,4 +223,26 @@ toGameMove am =
     , boardStateAfter = am.boardAfter
     , captures = am.captures
     , timestamp = am.timestamp
+    }
+
+-- | Compute valid moves for a position from the move history.
+validMovesForPosition :: [AppliedMove] -> [MoveWithCaptures]
+validMovesForPosition moves = case nonEmpty moves of
+  Nothing -> toList startBlackMoves
+  Just (Snoc prevMs lastM) ->
+    let board = currentBoard prevMs
+        hashes = zobristHashes prevMs
+     in case nextGameStateWithMovesTrusted board (lastM.side == Black) lastM.move hashes of
+          Right (_, _, validMoves) -> validMoves
+          Left _ -> []
+
+mkAppliedMove :: MoveResult -> Time -> AppliedMove
+mkAppliedMove m t =
+  AppliedMove
+    { move = m.move
+    , side = if m.wasBlackTurn then Black else White
+    , captures = m.captures
+    , boardAfter = m.board
+    , zobristHash = m.zobristHash
+    , timestamp = t
     }

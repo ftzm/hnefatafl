@@ -72,9 +72,10 @@ genSequence s = case genEvent s of
 
 test_hotseatRoundTrip :: TestTree
 test_hotseatRoundTrip =
-  testProperty "Hotseat: reconstructed state equals incremental state" $
-    QC.forAll
-      (genSequence (State startBoard [] (Awaiting Black (toList startBlackMoves)))) $ \steps ->
+  testProperty "Hotseat: reconstructed state equals incremental state"
+    $ QC.forAll
+      (genSequence (State startBoard [] (Awaiting Black (toList startBlackMoves))))
+    $ \steps ->
       let s = case steps of
             [] -> State startBoard [] (Awaiting Black (toList startBlackMoves))
             _ -> (snd (fromMaybe (error "empty") (viaNonEmpty last steps))).newState

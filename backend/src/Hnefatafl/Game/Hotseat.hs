@@ -1,5 +1,3 @@
-{-# LANGUAGE PatternSynonyms #-}
-
 module Hnefatafl.Game.Hotseat (
   Phase (..),
   State (..),
@@ -11,11 +9,10 @@ module Hnefatafl.Game.Hotseat (
 ) where
 
 import Chronos (Time)
-import Hnefatafl.Bindings (nextGameStateWithMovesTrusted, startBlackMoves)
+import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
 import Hnefatafl.Core.Data (
   ExternBoard,
   Move (..),
-  MoveResult (..),
   MoveWithCaptures (..),
   PlayerColor (..),
  )
@@ -26,12 +23,13 @@ import Hnefatafl.Game.Common (
   TransitionError (..),
   currentBoard,
   currentTurn,
+  mkAppliedMove,
   opponent,
   outcomeFromEngine,
   undoMoves,
+  validMovesForPosition,
   zobristHashes,
  )
-import Hnefatafl.Util (pattern Snoc)
 import Prelude hiding (State)
 
 data Phase
@@ -59,32 +57,10 @@ data TransitionResult = TransitionResult
   }
   deriving (Show, Eq)
 
--- | Compute valid moves for a position from the move history.
-validMovesForPosition :: [AppliedMove] -> [MoveWithCaptures]
-validMovesForPosition moves = case nonEmpty moves of
-  Nothing -> toList startBlackMoves
-  Just (Snoc prevMs lastM) ->
-    let board = currentBoard prevMs
-        hashes = zobristHashes prevMs
-     in case nextGameStateWithMovesTrusted board (lastM.side == Black) lastM.move hashes of
-          Right (_, _, validMoves) -> validMoves
-          Left _ -> []
-
 -- | Construct an Awaiting state, computing valid moves from the position.
 mkAwaiting :: ExternBoard -> [AppliedMove] -> State
 mkAwaiting board moves =
   State board moves (Awaiting (currentTurn moves) (validMovesForPosition moves))
-
-mkAppliedMove :: MoveResult -> Time -> AppliedMove
-mkAppliedMove m t =
-  AppliedMove
-    { move = m.move
-    , side = if m.wasBlackTurn then Black else White
-    , captures = m.captures
-    , boardAfter = m.board
-    , zobristHash = m.zobristHash
-    , timestamp = t
-    }
 
 transition :: State -> Event -> Either TransitionError TransitionResult
 transition (State _ _ (Finished _)) = const $ Left GameAlreadyFinished

@@ -1,5 +1,5 @@
 module Hnefatafl.Game.Online (
-  ActiveGame (..),
+  Phase (..),
   State (..),
   Event (..),
   Command (..),
@@ -9,7 +9,14 @@ module Hnefatafl.Game.Online (
   reconstruct,
 ) where
 
-import Hnefatafl.Core.Data (PlayerColor (..))
+import Chronos (Time)
+import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
+import Hnefatafl.Core.Data (
+  ExternBoard,
+  Move (..),
+  MoveWithCaptures (..),
+  PlayerColor (..),
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   Outcome (..),
@@ -19,27 +26,28 @@ import Hnefatafl.Game.Common (
   TransitionError (..),
   cancelPending,
   clearPending,
+  currentBoard,
   currentTurn,
+  mkAppliedMove,
   opponent,
+  outcomeFromEngine,
   respondToOffer,
   undoMoves,
+  validMovesForPosition,
+  zobristHashes,
  )
 import Prelude hiding (State)
 
-data ActiveGame = ActiveGame
-  { turn :: PlayerColor
-  , moves :: [AppliedMove]
-  , pendingAction :: Maybe PendingAction
-  }
-  deriving (Show, Eq)
-
-data State
-  = Active ActiveGame
+data Phase
+  = Active PlayerColor [MoveWithCaptures] (Maybe PendingAction)
   | Finished Outcome
   deriving (Show, Eq)
 
+data State = State ExternBoard [AppliedMove] Phase
+  deriving (Show, Eq)
+
 data Event
-  = MakeMove PlayerColor AppliedMove (Maybe Outcome)
+  = MakeMove PlayerColor Move Time
   | Resign PlayerColor
   | Timeout PlayerColor
   | OfferDraw PlayerColor
@@ -73,41 +81,52 @@ data TransitionResult = TransitionResult
   }
   deriving (Show, Eq)
 
+-- | Construct an Active state, computing valid moves from the position.
+mkActive :: ExternBoard -> [AppliedMove] -> Maybe PendingAction -> State
+mkActive board moves pending =
+  State
+    board
+    moves
+    (Active (currentTurn moves) (validMovesForPosition moves) pending)
+
 transition :: State -> Event -> Either TransitionError TransitionResult
-transition (Finished _) = const $ Left GameAlreadyFinished
-transition (Active g) = \case
-  MakeMove color applied maybeOutcome
-    | color /= g.turn -> Left NotYourTurn
-    | Just outcome <- maybeOutcome ->
-        Right $
-          TransitionResult
-            (Finished outcome)
-            [ Persist $ PersistMove applied
-            , Persist $ clearPending g.pendingAction
-            , Persist $ PersistOutcome outcome
-            , NotifyOpponent $ OpponentMoved applied
-            ]
+transition (State _ _ (Finished _)) = const $ Left GameAlreadyFinished
+transition (State board moves (Active turn validMoves pending)) = \case
+  MakeMove color move time
+    | color /= turn -> Left NotYourTurn
+    | move `notElem` map (.move) validMoves -> Left InvalidMove
     | otherwise ->
-        let (pending', cancelCmd) = cancelPending (opponent color) g.pendingAction
-            g' =
-              g
-                { turn = opponent g.turn
-                , moves = g.moves <> [applied]
-                , pendingAction = pending'
-                }
-         in Right $
-              TransitionResult
-                (Active g')
-                [ Persist $ PersistMove applied
-                , Persist cancelCmd
-                , NotifyOpponent $ OpponentMoved applied
-                ]
+        let hashes = zobristHashes moves
+            (moveResult, engineStatus, nextValidMoves) =
+              fromRight (error "valid move rejected by engine") $
+                nextGameStateWithMovesTrusted board (turn == Black) move hashes
+            applied = mkAppliedMove moveResult time
+            moves' = moves <> [applied]
+         in case outcomeFromEngine engineStatus of
+              Just outcome ->
+                Right $
+                  TransitionResult
+                    (State applied.boardAfter moves' (Finished outcome))
+                    [ Persist $ PersistMove applied
+                    , Persist $ clearPending pending
+                    , Persist $ PersistOutcome outcome
+                    , NotifyOpponent $ OpponentMoved applied
+                    ]
+              Nothing ->
+                let (pending', cancelCmd) = cancelPending (opponent color) pending
+                 in Right $
+                      TransitionResult
+                        (State applied.boardAfter moves' (Active (opponent turn) nextValidMoves pending'))
+                        [ Persist $ PersistMove applied
+                        , Persist cancelCmd
+                        , NotifyOpponent $ OpponentMoved applied
+                        ]
   Resign color ->
     let outcome = ResignedBy color
      in Right $
           TransitionResult
-            (Finished outcome)
-            [ Persist $ clearPending g.pendingAction
+            (State board moves (Finished outcome))
+            [ Persist $ clearPending pending
             , Persist $ PersistOutcome outcome
             , NotifyOpponent $ OpponentResigned color
             ]
@@ -115,59 +134,59 @@ transition (Active g) = \case
     let outcome = TimedOut color
      in Right $
           TransitionResult
-            (Finished outcome)
-            [ Persist $ clearPending g.pendingAction
+            (State board moves (Finished outcome))
+            [ Persist $ clearPending pending
             , Persist $ PersistOutcome outcome
             , NotifyOpponent $ OpponentTimedOut color
             ]
   OfferDraw color
-    | isJust g.pendingAction -> Left ActionAlreadyPending
+    | isJust pending -> Left ActionAlreadyPending
     | otherwise ->
         let pa = PendingAction DrawOffer color
          in Right $
               TransitionResult
-                (Active g{pendingAction = Just pa})
+                (State board moves (Active turn validMoves (Just pa)))
                 [ Persist $ PersistPendingAction pa
                 , NotifyOpponent $ DrawOffered color
                 ]
   AcceptDraw color ->
-    respondToOffer color g.pendingAction $
+    respondToOffer color pending $
       TransitionResult
-        (Finished Draw)
+        (State board moves (Finished Draw))
         [ Persist ClearPendingAction
         , Persist $ PersistOutcome Draw
         , NotifyOpponent DrawAccepted
         ]
   DeclineDraw color ->
-    respondToOffer color g.pendingAction $
+    respondToOffer color pending $
       TransitionResult
-        (Active g{pendingAction = Nothing})
+        (State board moves (Active turn validMoves Nothing))
         [ Persist ClearPendingAction
         , NotifyOpponent DrawDeclined
         ]
   RequestUndo color
-    | isJust g.pendingAction -> Left ActionAlreadyPending
+    | isJust pending -> Left ActionAlreadyPending
     | otherwise ->
         let pa = PendingAction UndoRequest color
          in Right $
               TransitionResult
-                (Active g{pendingAction = Just pa})
+                (State board moves (Active turn validMoves (Just pa)))
                 [ Persist $ PersistPendingAction pa
                 , NotifyOpponent $ UndoRequested color
                 ]
-  AcceptUndo color -> case g.pendingAction of
+  AcceptUndo color -> case pending of
     Just pa
       | pa.actionType == UndoRequest && pa.offeredBy /= color ->
           -- If it's the requester's turn, opponent has responded since,
           -- so undo 2 moves. Otherwise undo 1.
-          let undoCount = if g.turn == pa.offeredBy then 2 else 1
-           in case undoMoves undoCount g.moves of
+          let undoCount = if turn == pa.offeredBy then 2 else 1
+           in case undoMoves undoCount moves of
                 Nothing -> Left NoMovesToUndo
                 Just moves' ->
-                  let g' = ActiveGame{turn = pa.offeredBy, moves = moves', pendingAction = Nothing}
+                  let board' = currentBoard moves'
                    in Right $
                         TransitionResult
-                          (Active g')
+                          (mkActive board' moves' Nothing)
                           [ Persist ClearPendingAction
                           , Persist $ DeleteMoves undoCount
                           , NotifyOpponent $ UndoAccepted moves'
@@ -175,20 +194,15 @@ transition (Active g) = \case
     Just pa | pa.offeredBy == color -> Left CannotRespondToOwnOffer
     _ -> Left NoPendingOffer
   DeclineUndo color ->
-    respondToOffer color g.pendingAction $
+    respondToOffer color pending $
       TransitionResult
-        (Active g{pendingAction = Nothing})
+        (State board moves (Active turn validMoves Nothing))
         [ Persist ClearPendingAction
         , NotifyOpponent UndoDeclined
         ]
 
 -- | Reconstruct state from persisted data
-reconstruct :: [AppliedMove] -> Maybe Outcome -> Maybe PendingAction -> State
-reconstruct _ (Just outcome) _ = Finished outcome
-reconstruct moves Nothing pending =
-  Active
-    ActiveGame
-      { turn = currentTurn moves
-      , moves = moves
-      , pendingAction = pending
-      }
+reconstruct ::
+  ExternBoard -> [AppliedMove] -> Maybe Outcome -> Maybe PendingAction -> State
+reconstruct board moves (Just outcome) _ = State board moves (Finished outcome)
+reconstruct board moves Nothing pending = mkActive board moves pending
