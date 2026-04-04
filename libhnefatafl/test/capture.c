@@ -33,7 +33,9 @@ board swap_sides(board b) {
 TEST test_shield_wall_capture(
     const char *input,
     const char *expected,
-    unsigned char capture_pos) {
+    unsigned char capture_pos,
+    int line,
+    const char *func) {
   const board exp = read_board(expected);
 
   board white = read_board(input);
@@ -49,7 +51,9 @@ TEST test_shield_wall_capture(
 
   layer capture_dests_white = white_capture_destinations(&white);
   if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_white))) {
-    printf("capture_dests_white missing pos %d\nExpected:\n", capture_pos);
+    printf(
+        "%s (line %d): capture_dests_white missing pos %d\nExpected:\n",
+        func, line, capture_pos);
     print_layer(pos_layer);
     printf("Actual capture destinations:\n");
     print_layer(capture_dests_white);
@@ -58,7 +62,9 @@ TEST test_shield_wall_capture(
 
   layer capture_dests_black = black_capture_destinations(&black);
   if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_black))) {
-    printf("capture_dests_black missing pos %d\nExpected:\n", capture_pos);
+    printf(
+        "%s (line %d): capture_dests_black missing pos %d\nExpected:\n",
+        func, line, capture_pos);
     print_layer(pos_layer);
     printf("Actual capture destinations:\n");
     print_layer(capture_dests_black);
@@ -81,7 +87,8 @@ TEST test_shield_wall_capture(
   PASS();
 }
 
-#define TEST_SHIELD_WALL(a, b, p) test_shield_wall_capture(a, b, p)
+#define TEST_SHIELD_WALL(a, b, p)                                              \
+  test_shield_wall_capture(a, b, p, __LINE__, __FUNCTION__)
 
 TEST test_team(
     bool is_black,
