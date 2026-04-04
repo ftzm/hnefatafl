@@ -9,26 +9,17 @@
 #include "string.h"
 #include "zobrist.h"
 
-void assert_boards_equal(board a, board b, int line, const char *func) {
-  if (!boards_equal(a, b)) {
-
-    char a_str[strlen(base) + 1];
-    strcpy(a_str, base);
-    fmt_board(a, a_str);
-
-    char b_str[strlen(base) + 1];
-    strcpy(b_str, base);
-    fmt_board(b, b_str);
-
-    printf(
-        "Boards not equal in function %s at line %d:\n%s%s",
-        func,
-        line,
-        a_str,
-        b_str);
-    exit(1);
-  }
-}
+// Uses greatest's ASSERT so a board mismatch is reported as a test failure
+// rather than killing the entire test runner with exit(1).
+#define ASSERT_BOARDS_EQUAL(a, b)                                              \
+  do {                                                                         \
+    if (!boards_equal(a, b)) {                                                 \
+      board_string_t _a_str = to_board_string(a);                              \
+      board_string_t _b_str = to_board_string(b);                              \
+      printf("Boards not equal:\n%s%s", _a_str._, _b_str._);                  \
+      FAIL();                                                                  \
+    }                                                                          \
+  } while (0)
 
 board reverse_teams(board b) {
   return (board){.black = b.white,
@@ -85,14 +76,11 @@ TEST test(
     FAIL();
   }
 
-  // bool is_black = true;
-  // u64 z = hash_for_board(read_board(board_str), is_black);
-
   shield_wall_white(&white, &white_zobrist, pos);
-  assert_boards_equal(exp, white, line, func);
+  ASSERT_BOARDS_EQUAL(exp, white);
 
   shield_wall_black(&black, &black_zobrist, pos);
-  assert_boards_equal(reverse_teams(exp), black, line, func);
+  ASSERT_BOARDS_EQUAL(reverse_teams(exp), black);
 
   u64 white_zobrist_recalculated = hash_for_board(white, false);
   if (white_zobrist_recalculated != white_zobrist) {
@@ -114,28 +102,22 @@ TEST test_team(
     bool is_black,
     const char *input,
     const char *expected,
-    unsigned char pos,
-    int line,
-    const char *func) {
+    unsigned char pos) {
   const board exp = read_board(expected);
-
   board got = read_board(input);
-
   u64 z = 0;
 
   if (is_black) {
     shield_wall_black(&got, &z, pos);
-    assert_boards_equal(exp, got, line, func);
   } else {
     shield_wall_white(&got, &z, pos);
-    assert_boards_equal(exp, got, line, func);
   }
+  ASSERT_BOARDS_EQUAL(exp, got);
 
   PASS();
 }
 
-#define TEST_SHIELD_WALL_TEAM(is_black, a, b, p)                               \
-  test_team(is_black, a, b, p, __LINE__, __FUNCTION__)
+#define TEST_SHIELD_WALL_TEAM(is_black, a, b, p) test_team(is_black, a, b, p)
 
 TEST test_capture_s_m(void) {
   const char *s_input = ".  .  .  .  .  .  .  .  .  .  ."

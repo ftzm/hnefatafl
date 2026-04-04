@@ -16,89 +16,44 @@ const char *sanity_capture_king_string = " .  .  X  .  X  .  O  .  .  .  . "
                                          " .  .  .  .  .  X  .  .  .  .  . "
                                          " .  .  X  .  X  X  X  X  .  .  . ";
 
-TEST test_black_zobrist() {
-  board b = read_board(sanity_capture_king_string);
-  u64 start_zobrist = hash_for_board(b, true);
-
-  moves_to_t r =
-      moves_to_black(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
-
-  for (int i = 0; i < r.total; i++) {
-    move m = r.ms[i];
-    board b2 = b;
-    OP_LAYER_BIT(b2.black, m.orig, ^=);
-    OP_LAYER_BIT(b2.black, m.dest, ^=);
-
-    u64 incremental_hash = next_hash_black(start_zobrist, m.orig, m.dest);
-    apply_captures_z_black(&b2, &incremental_hash, m.dest);
-
-    u64 re_hash = hash_for_board(b2, false);
-
-    board_string_t b2_str =
-        to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.white, b2.white));
-    static char msg_buf[1000];
-    strcpy(msg_buf, b2_str._);
-    ASSERT_EQm(msg_buf, re_hash, incremental_hash);
+// Parameterized zobrist test macro: verifies incremental hash updates match
+// full recalculation for every legal move of a given piece type.
+#define ZOBRIST_TEST(name, piece_field, moves_fn, hash_fn, capture_fn,         \
+                     opponent_field, start_black)                               \
+  TEST name(void) {                                                            \
+    board b = read_board(sanity_capture_king_string);                          \
+    u64 start_zobrist = hash_for_board(b, start_black);                        \
+                                                                               \
+    moves_to_t r =                                                             \
+        moves_fn(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));       \
+                                                                               \
+    for (int i = 0; i < r.total; i++) {                                        \
+      move m = r.ms[i];                                                        \
+      board b2 = b;                                                            \
+      OP_LAYER_BIT(b2.piece_field, m.orig, ^=);                                \
+      OP_LAYER_BIT(b2.piece_field, m.dest, ^=);                                \
+                                                                               \
+      u64 incremental_hash = hash_fn(start_zobrist, m.orig, m.dest);           \
+      capture_fn(&b2, &incremental_hash, m.dest);                              \
+                                                                               \
+      u64 re_hash = hash_for_board(b2, !(start_black));                        \
+                                                                               \
+      board_string_t b2_str = to_board_move_string(                            \
+          b2, m.orig, m.dest, LAYER_XOR(b.opponent_field, b2.opponent_field)); \
+      static char msg_buf[1000];                                               \
+      strcpy(msg_buf, b2_str._);                                               \
+      ASSERT_EQm(msg_buf, re_hash, incremental_hash);                          \
+    }                                                                          \
+                                                                               \
+    PASS();                                                                    \
   }
 
-  PASS();
-}
-
-TEST test_white_zobrist() {
-  board b = read_board(sanity_capture_king_string);
-  u64 start_zobrist = hash_for_board(b, false);
-
-  moves_to_t r =
-      moves_to_white(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
-
-  for (int i = 0; i < r.total; i++) {
-    move m = r.ms[i];
-    board b2 = b;
-    OP_LAYER_BIT(b2.white, m.orig, ^=);
-    OP_LAYER_BIT(b2.white, m.dest, ^=);
-
-    u64 incremental_hash = next_hash_white(start_zobrist, m.orig, m.dest);
-    apply_captures_z_white(&b2, &incremental_hash, m.dest);
-
-    u64 re_hash = hash_for_board(b2, true);
-
-    board_string_t b2_str =
-        to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.black, b2.black));
-    static char msg_buf[1000];
-    strcpy(msg_buf, b2_str._);
-    ASSERT_EQm(msg_buf, re_hash, incremental_hash);
-  }
-
-  PASS();
-}
-
-TEST test_king_zobrist() {
-  board b = read_board(sanity_capture_king_string);
-  u64 start_zobrist = hash_for_board(b, false);
-
-  moves_to_t r =
-      moves_to_king(b, LAYER_NEG(board_occ(b)), LAYER_NEG(board_occ_r(b)));
-
-  for (int i = 0; i < r.total; i++) {
-    move m = r.ms[i];
-    board b2 = b;
-    OP_LAYER_BIT(b2.king, m.orig, ^=);
-    OP_LAYER_BIT(b2.king, m.dest, ^=);
-
-    u64 incremental_hash = next_hash_king(start_zobrist, m.orig, m.dest);
-    apply_captures_z_king(&b2, &incremental_hash, m.dest);
-
-    u64 re_hash = hash_for_board(b2, true);
-
-    board_string_t b2_str =
-        to_board_move_string(b2, m.orig, m.dest, LAYER_XOR(b.black, b2.black));
-    static char msg_buf[1000];
-    strcpy(msg_buf, b2_str._);
-    ASSERT_EQm(msg_buf, re_hash, incremental_hash);
-  }
-
-  PASS();
-}
+ZOBRIST_TEST(test_black_zobrist, black, moves_to_black, next_hash_black,
+             apply_captures_z_black, white, true)
+ZOBRIST_TEST(test_white_zobrist, white, moves_to_white, next_hash_white,
+             apply_captures_z_white, black, false)
+ZOBRIST_TEST(test_king_zobrist, king, moves_to_king, next_hash_king,
+             apply_captures_z_king, black, false)
 
 SUITE(zobrist_suite) {
   RUN_TEST(test_black_zobrist);

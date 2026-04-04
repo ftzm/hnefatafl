@@ -42,7 +42,7 @@ TEST test_add_and_remove_nullifies() {
       post_elem_count,
       0,
       "elem count should be 0 after insertion, is %d");
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 TEST test_single_insertion_succeeds() {
@@ -59,7 +59,7 @@ TEST test_single_insertion_succeeds() {
   // assert
   ASSERT_EQ_FMT(res, 0, "signal should be 0, is %d");
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 TEST test_duplicate_insertion_errors() {
@@ -77,7 +77,7 @@ TEST test_duplicate_insertion_errors() {
   // assert
   ASSERT_EQ_FMT(res, 1, "signal should be 1, is %d");
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 TEST test_position_value_zero() {
@@ -102,7 +102,7 @@ TEST test_position_value_zero() {
 
   destroy_position_set(ps);
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 TEST test_hash_collisions_linear_probing() {
@@ -131,7 +131,7 @@ TEST test_hash_collisions_linear_probing() {
   ASSERT_NEQ(index2, index3);
   ASSERT_NEQ(index1, index3);
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 TEST test_wraparound_behavior() {
@@ -153,7 +153,7 @@ TEST test_wraparound_behavior() {
   ASSERT_EQ_FMT(res, 0, "insertion should succeed, got %d");
   ASSERT_EQ_FMT(index, 0, "insertion should wrap to index 0, got %d");
 
-  return GREATEST_TEST_RES_PASS;
+  PASS();
 }
 
 SUITE(position_set_suite) {

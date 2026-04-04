@@ -2,42 +2,33 @@
 #include "board.h"
 #include "capture.h"
 #include "constants.h"
-#include "fixtures.h"
-#include "greatest.h"
-#include "io.h"
 #include "layer.h"
 #include "move.h"
-#include "theft.h"
-#include "theft_types.h"
+#include "test_util.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-bool corner_guard_states_equal(corner_guard_state *a, corner_guard_state *b) {
-  return a->ne_guard_count
-         == b->ne_guard_count
-         && a->nw_guard_count
-         == b->nw_guard_count
-         && a->se_guard_count
-         == b->se_guard_count
-         && a->sw_guard_count
-         == b->sw_guard_count;
+static bool
+corner_guard_states_equal(corner_guard_state *a, corner_guard_state *b) {
+  return a->ne_guard_count == b->ne_guard_count
+         && a->nw_guard_count == b->nw_guard_count
+         && a->se_guard_count == b->se_guard_count
+         && a->sw_guard_count == b->sw_guard_count;
 }
 
-bool score_states_equal(score_state *a, score_state *b) {
-  return a->score
-         == b->score
+static bool score_states_equal(score_state *a, score_state *b) {
+  return a->score == b->score
          && corner_guard_states_equal(&a->corner_guard, &b->corner_guard);
 }
 
-void print_corner_guard_state(FILE *f, corner_guard_state *cgs) {
+static void print_corner_guard_state(FILE *f, corner_guard_state *cgs) {
   fprintf(f, "ne_guard_count: %d\n", cgs->ne_guard_count);
   fprintf(f, "nw_guard_count: %d\n", cgs->nw_guard_count);
   fprintf(f, "se_guard_count: %d\n", cgs->se_guard_count);
   fprintf(f, "sw_guard_count: %d\n", cgs->sw_guard_count);
 }
 
-void print_score_state(FILE *f, score_state *ss) {
+static void print_score_state(FILE *f, score_state *ss) {
   print_corner_guard_state(f, &ss->corner_guard);
   fprintf(f, "score: %d\n", ss->score);
 }
@@ -66,15 +57,13 @@ score_evaluations_equal(struct theft *t, void *arg1) {
   return THEFT_TRIAL_PASS;
 }
 
-void score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
+static void
+score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
   (void)env;
   struct score_evaluations *input = (struct score_evaluations *)instance;
 
-  // print board
-  char output[strlen(base) + 1];
-  strcpy(output, base);
-  fmt_board(input->b, output);
-  fprintf(f, "%s", output);
+  board_string_t bs = to_board_string(input->b);
+  fprintf(f, "%s", bs._);
 
   for (int i = 0; i < input->total; i++) {
     if (!score_states_equal(
@@ -94,43 +83,29 @@ void score_evaluations_print_cb(FILE *f, const void *instance, void *env) {
   }
 }
 
-// -----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
-inline layer unoccupied(const board *b) {
+static inline layer unoccupied(const board *b) {
   layer res = LAYER_NEG(board_occ(*b));
   res._[1] &= UPPER_HALF_MASK;
   return res;
 }
 
-inline layer unoccupied_r(const board *b) {
+static inline layer unoccupied_r(const board *b) {
   layer res = LAYER_NEG(board_occ_r(*b));
   res._[1] &= UPPER_HALF_MASK;
   return res;
 }
 
-inline layer unoccupied_king(const board *b) {
-  layer res = LAYER_NEG(king_board_occ(*b));
-  res._[1] &= UPPER_HALF_MASK;
-  return res;
-}
-
-inline layer unoccupied_king_r(const board *b) {
-  layer res = LAYER_NEG(king_board_occ(*b));
-  res._[1] &= UPPER_HALF_MASK;
-  return res;
-}
-
-inline layer non_capture(board *b, const layer *captures) {
+static inline layer non_capture(board *b, const layer *captures) {
   return LAYER_XOR(unoccupied(b), (*captures));
 }
 
-inline layer non_capture_r(board *b, const layer *captures) {
+static inline layer non_capture_r(board *b, const layer *captures) {
   return LAYER_XOR(unoccupied_r(b), (*captures));
 }
 
-inline layer non_capture_king_r(board *b, const layer *captures) {
-  return LAYER_XOR(unoccupied_king_r(b), (*captures));
-}
+// ---------------------------------------------------------------------------
 
 static enum theft_alloc_res
 white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
@@ -142,9 +117,7 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
 
   const layer capture_dests = white_capture_destinations(&b);
   const layer non_capture_dests = non_capture(&b, &capture_dests);
-
   const layer capture_dests_r = white_capture_destinations_r(&b);
-
   const layer non_capture_dests_r = non_capture_r(&b, &capture_dests_r);
 
   moves_to_t moves = moves_to_white(b, non_capture_dests, non_capture_dests_r);
@@ -154,8 +127,6 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
     move m = moves.ms[i];
 
     results.moves[i] = m;
-    // print_move(m.orig, m.dest);
-    // printf("\n");
     board result_board = b;
     LAYER_XOR_ASSG(result_board.white, moves.ls[i]);
     LAYER_XOR_ASSG(result_board.white_r, moves.ls_r[i]);
@@ -175,33 +146,19 @@ white_scores_no_capture_cb(struct theft *t, void *env, void **instance) {
   *instance = output;
 
   return THEFT_ALLOC_OK;
-};
-
-TEST prop_white_scores_no_capture_inc_correct(void) {
-  theft_seed seed = theft_seed_of_time();
-
-  static struct theft_type_info info = {
-      .alloc = white_scores_no_capture_cb,
-      .free = theft_generic_free_cb,
-      .print = score_evaluations_print_cb,
-      .autoshrink_config = {.enable = false},
-  };
-
-  struct theft_run_config config = {
-      .name = __func__,
-      .prop1 = score_evaluations_equal,
-      .type_info = {&info},
-      .trials = 500,
-      .seed = seed,
-  };
-
-  enum theft_run_res res = theft_run(&config);
-
-  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
-  PASS();
 }
 
-// -----------------------------------------------------------------------------
+static struct theft_type_info score_no_capture_info = {
+    .alloc = white_scores_no_capture_cb,
+    .free = theft_generic_free_cb,
+    .print = score_evaluations_print_cb,
+    .autoshrink_config = {.enable = false},
+};
+
+PROP_TEST(prop_white_scores_no_capture_inc_correct, score_evaluations_equal,
+          &score_no_capture_info, 500)
+
+// ---------------------------------------------------------------------------
 
 static enum theft_alloc_res
 white_scores_capture_cb(struct theft *t, void *env, void **instance) {
@@ -213,7 +170,6 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
 
   const layer capture_dests =
       LAYER_AND(LAYER_NOT(throne), white_capture_destinations(&b));
-
   const layer capture_dests_r =
       LAYER_AND(LAYER_NOT(throne), white_capture_destinations_r(&b));
 
@@ -236,17 +192,10 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
         m.dest);
     results.results_boards[i] = result_board;
     layer captures = LAYER_XOR(b.black, result_board.black);
-    // print_layer(b.black);
-    // print_layer(result_board.black);
-    // print_layer(captures);
 
     score_state updated_score_state = ss;
     updated_score_state = update_score_state_white_move_and_capture(
-        &w,
-        &updated_score_state,
-        m.orig,
-        m.dest,
-        captures);
+        &w, &updated_score_state, m.orig, m.dest, captures);
     results.incremental_score_states[i] = updated_score_state;
 
     score_state recalculated_score_state = init_score_state(&w, &result_board);
@@ -258,33 +207,19 @@ white_scores_capture_cb(struct theft *t, void *env, void **instance) {
   *instance = output;
 
   return THEFT_ALLOC_OK;
-};
-
-TEST prop_white_scores_capture_inc_correct(void) {
-  theft_seed seed = theft_seed_of_time();
-
-  static struct theft_type_info info = {
-      .alloc = white_scores_capture_cb,
-      .free = theft_generic_free_cb,
-      .print = score_evaluations_print_cb,
-      .autoshrink_config = {.enable = false},
-  };
-
-  struct theft_run_config config = {
-      .name = __func__,
-      .prop1 = score_evaluations_equal,
-      .type_info = {&info},
-      .trials = 500,
-      .seed = seed,
-  };
-
-  enum theft_run_res res = theft_run(&config);
-
-  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
-  PASS();
 }
 
-// -----------------------------------------------------------------------------
+static struct theft_type_info score_capture_info = {
+    .alloc = white_scores_capture_cb,
+    .free = theft_generic_free_cb,
+    .print = score_evaluations_print_cb,
+    .autoshrink_config = {.enable = false},
+};
+
+PROP_TEST(prop_white_scores_capture_inc_correct, score_evaluations_equal,
+          &score_capture_info, 500)
+
+// ---------------------------------------------------------------------------
 
 SUITE(score_suite) {
   RUN_TEST(prop_white_scores_no_capture_inc_correct);
