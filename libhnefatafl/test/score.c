@@ -35,10 +35,10 @@ static void print_score_state(FILE *f, score_state *ss) {
 
 typedef struct score_evaluations {
   board b;
-  move moves[400];
-  board results_boards[400];
-  score_state full_score_states[400];
-  score_state incremental_score_states[400];
+  move moves[MAX_MOVES];
+  board results_boards[MAX_MOVES];
+  score_state full_score_states[MAX_MOVES];
+  score_state incremental_score_states[MAX_MOVES];
   int total;
 } score_evaluations;
 

@@ -506,8 +506,8 @@ struct move_breakdown_diff get_move_breakdown_diff(
 };
 
 void get_move_breakdown(
-    board bs[235],
-    move ms[235],
+    board bs[MAX_MOVES],
+    move ms[MAX_MOVES],
     int total,
     move_breakdown r) {
 
@@ -534,8 +534,8 @@ void get_move_breakdown(
 }
 
 void get_team_moves_black_move_breakdown(board b, move_breakdown r) {
-  board bs[235];
-  move ms[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_black(b, &total, ms, bs);
   get_move_breakdown(bs, ms, total, r);
@@ -710,8 +710,8 @@ void gen_reference_move_breakdown_white(board b, move_breakdown r) {
 }
 
 void get_team_moves_white_move_breakdown(board b, move_breakdown r) {
-  board bs[235];
-  move ms[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
 
   get_team_moves_white(b, &total, ms, bs);
@@ -844,8 +844,8 @@ void gen_reference_move_breakdown_king(board b, move_breakdown r) {
 }
 
 void get_team_moves_king_move_breakdown(board b, move_breakdown r) {
-  board bs[235];
-  move ms[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
 
   get_king_moves(b, &total, ms, bs);
@@ -905,18 +905,18 @@ PROP_TEST_DEFAULT(test_get_team_moves_king, prop_diff_empty,
 
 struct moves_diffs {
   board b;
-  move a_excess[235];
+  move a_excess[MAX_MOVES];
   int a_excess_len;
-  move b_excess[235];
+  move b_excess[MAX_MOVES];
   int b_excess_len;
 };
 
 /* requires input lists to be sorted and unique.
  */
 struct moves_diffs compare_moves(
-    const move a[235],
+    const move a[MAX_MOVES],
     const int a_len,
-    const move b[235],
+    const move b[MAX_MOVES],
     const int b_len) {
   struct moves_diffs d;
   memset(&d, 0, sizeof(d));
@@ -996,14 +996,14 @@ create_reference_moves_black_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // orig
-  board bs[235];
-  move ms[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_black(b, &total, ms, bs);
 
   // to test
-  board bs2[235];
-  move ms2[235];
+  board bs2[MAX_MOVES];
+  move ms2[MAX_MOVES];
   int total2 = 0;
   gen_reference_moves_black3(b, &total2, ms2, bs2);
 
@@ -1032,14 +1032,14 @@ create_reference_moves_white_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // orig
-  board bs[235];
-  move ms[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_white(b, &total, ms, bs);
 
   // to test
-  board bs2[235];
-  move ms2[235];
+  board bs2[MAX_MOVES];
+  move ms2[MAX_MOVES];
   int total2 = 0;
   gen_reference_moves_white3(b, &total2, ms2, bs2);
 
@@ -1068,15 +1068,15 @@ create_mm_moves_white_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // orig
-  board bs[235];
-  move ms[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_white(b, &total, ms, bs);
 
   // to test
-  board bs2[235];
-  move ms2[235];
-  dir ds2[235];
+  board bs2[MAX_MOVES];
+  move ms2[MAX_MOVES];
+  dir ds2[MAX_MOVES];
   int total2 = 0;
 
   move_map mm;
@@ -1160,15 +1160,15 @@ create_mm_moves_king_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // orig
-  board bs[235];
-  move ms[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_king_moves(b, &total, ms, bs);
 
   // to test
-  board bs2[235];
-  move ms2[235];
-  dir ds2[235];
+  board bs2[MAX_MOVES];
+  move ms2[MAX_MOVES];
+  dir ds2[MAX_MOVES];
   int total2 = 0;
 
   struct move_maps mms = build_mms(b);
@@ -1217,15 +1217,15 @@ moves_to_black_cb(struct theft *t, void *env, void **instance) {
   OP_LAYER_BIT(throne_mask, 60, |=);
 
   // orig
-  board bs[335];
-  move ms[335];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_black(b, &total, ms, bs);
 
   // to test
-  layer ls[335];
-  layer ls_r[335];
-  move ms2[335];
+  layer ls[MAX_MOVES];
+  layer ls_r[MAX_MOVES];
+  move ms2[MAX_MOVES];
   int total2 = 0;
   moves_to(
       LAYER_AND(LAYER_NEG(board_occ(b)), LAYER_NEG(throne_mask)),
@@ -1267,15 +1267,15 @@ moves_to_white_cb(struct theft *t, void *env, void **instance) {
   OP_LAYER_BIT(throne_mask, 60, |=);
 
   // orig
-  board bs[335];
-  move ms[335];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_white(b, &total, ms, bs);
 
   // to test
-  layer ls[235];
-  layer ls_r[335];
-  move ms2[335];
+  layer ls[MAX_MOVES];
+  layer ls_r[MAX_MOVES];
+  move ms2[MAX_MOVES];
   int total2 = 0;
   moves_to(
       LAYER_AND(LAYER_NEG(board_occ(b)), LAYER_NEG(throne_mask)),
@@ -1314,8 +1314,8 @@ moves_to_king_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // orig
-  board bs[335];
-  move ms[335];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_king_moves(b, &total, ms, bs);
 
@@ -1348,7 +1348,7 @@ struct move_to_entry {
 };
 
 struct move_to_entries {
-  struct move_to_entry entries[400];
+  struct move_to_entry entries[MAX_MOVES];
   int len;
 };
 
@@ -1363,11 +1363,11 @@ test_moves_to_layers(struct theft *t, void *env, void **instance) {
   free._[1] &= 144115188075855871;
   layer free_r = rotate_layer_right(free);
 
-  layer ls[235] = {0};
-  layer ls_r[335] = {0};
-  board bs[335] = {0};
+  layer ls[MAX_MOVES] = {0};
+  layer ls_r[MAX_MOVES] = {0};
+  board bs[MAX_MOVES] = {0};
   (void)bs;
-  move ms[335] = {0};
+  move ms[MAX_MOVES] = {0};
   int total = 0;
 
   moves_to(
@@ -1621,15 +1621,15 @@ moves_from_layers_white_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // orig
-  board bs[335];
-  move ms[335];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_white(b, &total, ms, bs);
 
   // to test
-  move ms2[335];
-  layer ls[335];
-  layer ls_r[335];
+  move ms2[MAX_MOVES];
+  layer ls[MAX_MOVES];
+  layer ls_r[MAX_MOVES];
   int total2 = 0;
 
   move_layers layers = generate_white_move_layers(&b);
@@ -1710,8 +1710,8 @@ generator_moves_white_cb(struct theft *t, void *env, void **instance) {
   board b = theft_create_board(t);
 
   // Generate moves using reference implementation
-  board bs[335];
-  move ms[335];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
   int total = 0;
   get_team_moves_white(b, &total, ms, bs);
 
@@ -1719,7 +1719,7 @@ generator_moves_white_cb(struct theft *t, void *env, void **instance) {
   move_layers layers = generate_white_move_layers(&b);
   move_state state = init_move_state(&layers, b.white);
 
-  move ms2[335];
+  move ms2[MAX_MOVES];
   int total2 = 0;
   move_data current_move;
 
@@ -1729,7 +1729,7 @@ generator_moves_white_cb(struct theft *t, void *env, void **instance) {
       b.white_r,
       &state,
       &current_move)) {
-    if (total2 >= 335)
+    if (total2 >= MAX_MOVES)
       break; // Safety check
     ms2[total2] = current_move.m;
     total2++;
@@ -1833,7 +1833,7 @@ bool validate_move_list(board b, move *ms, int total, bool is_black_turn) {
 
 struct validated_moves {
   board b;
-  move ms[335];
+  move ms[MAX_MOVES];
   int total;
 };
 

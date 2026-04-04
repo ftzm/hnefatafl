@@ -851,7 +851,7 @@ i32 quiesce_black(
         layers = generate_black_move_layers(&b);
         layers_generated = true;
       }
-      move ms[400];
+      move ms[MAX_MOVES];
       int total = 0;
       moves_from_layers(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
 
@@ -1218,7 +1218,7 @@ i32 quiesce_white(
   // to the fallback all-move generation done to prevent 2-move escapes in black
   // quiescence.
   if (corner_move_count && best_value < (MAX_SCORE - 100)) {
-    move ms[400];
+    move ms[MAX_MOVES];
     int total = 0;
     moves_from_layers(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
 
@@ -2164,7 +2164,7 @@ i32 search_black(
   mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
   {
-    move ms[400];
+    move ms[MAX_MOVES];
     int total = 0;
     moves_from_layers(
         &capture_layers,
@@ -2176,7 +2176,7 @@ i32 search_black(
         &total);
 
     // hacky bounds check
-    assert(total < 400);
+    assert(total < MAX_MOVES);
 
     // iterate
     for (int i = 0; i < total; i++) {
@@ -2253,15 +2253,15 @@ i32 search_black(
   // ---------------------------------------------------------------------------
   // Remaining
 
-  move ms[400];
+  move ms[MAX_MOVES];
   int total = 0;
   moves_from_layers(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
 
   // hacky bounds check
-  assert(total < 400);
+  assert(total < MAX_MOVES);
 
   // Score quiet moves by PST delta for move ordering
-  i32 move_scores[400];
+  i32 move_scores[MAX_MOVES];
   for (int i = 0; i < total; i++) {
     move_scores[i] =
         w->psts.black_pst._[ms[i].dest] - w->psts.black_pst._[ms[i].orig];
@@ -2638,7 +2638,7 @@ i32 search_white(
     move_layers capture_layers = layers;
     mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
-    move ms[400];
+    move ms[MAX_MOVES];
     int total = 0;
     moves_from_layers(
         &capture_layers,
@@ -2650,7 +2650,7 @@ i32 search_white(
         &total);
 
     // hacky bounds check
-    assert(total < 400);
+    assert(total < MAX_MOVES);
 
     // iterate
     for (int i = 0; i < total; i++) {
@@ -2725,15 +2725,15 @@ i32 search_white(
   // ---------------------------------------------------------------------------
   // Remaining pawn moves
 
-  move ms[400];
+  move ms[MAX_MOVES];
   int total = 0;
   moves_from_layers(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
 
   // hacky bounds check
-  assert(total < 400);
+  assert(total < MAX_MOVES);
 
   // // Score quiet moves by PST delta for move ordering
-  // i32 move_scores[400];
+  // i32 move_scores[MAX_MOVES];
   // for (int i = 0; i < total; i++) {
   //   move_scores[i] =
   //       w->psts.white_pst._[ms[i].dest] - w->psts.white_pst._[ms[i].orig];

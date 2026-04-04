@@ -14,9 +14,9 @@
 
 struct generator_comparison {
   board b;
-  move extra_moves[335];
+  move extra_moves[MAX_MOVES];
   int extra_count;
-  move missing_moves[335];
+  move missing_moves[MAX_MOVES];
   int missing_count;
 };
 
@@ -45,7 +45,7 @@ static struct generator_comparison diff_move_arrays(
         break;
       }
     }
-    if (!found && comp.missing_count < 335) {
+    if (!found && comp.missing_count < MAX_MOVES) {
       comp.missing_moves[comp.missing_count++] = ref[i];
     }
   }
@@ -59,7 +59,7 @@ static struct generator_comparison diff_move_arrays(
         break;
       }
     }
-    if (!found && comp.extra_count < 335) {
+    if (!found && comp.extra_count < MAX_MOVES) {
       comp.extra_moves[comp.extra_count++] = gen[i];
     }
   }
@@ -104,16 +104,16 @@ move_generator_cb(struct theft *t, void *env, void **instance) {
   layer targets_r = LAYER_NEG(LAYER_OR(throne_mask, board_occ_r(b)));
 
   // Reference: bulk move generation
-  layer ls[335];
-  layer ls_r[335];
-  move ref_moves[335];
+  layer ls[MAX_MOVES];
+  layer ls_r[MAX_MOVES];
+  move ref_moves[MAX_MOVES];
   int ref_total = 0;
   moves_to(
       targets, targets_r, b.black, b.black_r, board_occ(b), board_occ_r(b),
       ref_moves, ls, ls_r, &ref_total);
 
   // Under test: streaming generator
-  move gen_moves[335];
+  move gen_moves[MAX_MOVES];
   int gen_total = 0;
   move_generator gen;
   init_move_generator(
@@ -123,7 +123,7 @@ move_generator_cb(struct theft *t, void *env, void **instance) {
   move current_move;
   while (next_move(&gen, &current_move)) {
     gen_moves[gen_total++] = current_move;
-    if (gen_total >= 335)
+    if (gen_total >= MAX_MOVES)
       break;
   }
 
@@ -147,16 +147,16 @@ king_move_generator_cb(struct theft *t, void *env, void **instance) {
   layer targets_r = king_destinations_r(b);
 
   // Reference: bulk move generation
-  layer ls[335];
-  layer ls_r[335];
-  move ref_moves[335];
+  layer ls[MAX_MOVES];
+  layer ls_r[MAX_MOVES];
+  move ref_moves[MAX_MOVES];
   int ref_total = 0;
   moves_to_king_impl(
       targets, targets_r, b.king, b.king_r, king_board_occ(b),
       king_board_occ_r(b), ref_moves, ls, ls_r, &ref_total);
 
   // Under test: streaming king generator
-  move gen_moves[335];
+  move gen_moves[MAX_MOVES];
   int gen_total = 0;
   move_generator gen;
   init_move_generator_king(
@@ -166,7 +166,7 @@ king_move_generator_cb(struct theft *t, void *env, void **instance) {
   move current_move;
   while (next_move_king(&gen, &current_move)) {
     gen_moves[gen_total++] = current_move;
-    if (gen_total >= 335)
+    if (gen_total >= MAX_MOVES)
       break;
   }
 
