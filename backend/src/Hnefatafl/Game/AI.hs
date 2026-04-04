@@ -3,6 +3,7 @@ module Hnefatafl.Game.AI (
   State (..),
   Event (..),
   Command (..),
+  PlayerNotification (..),
   TransitionResult (..),
   transition,
   reconstruct,
@@ -57,10 +58,17 @@ data Event
   | Timeout
   deriving (Show, Eq)
 
+data PlayerNotification
+  = EngineMoved AppliedMove
+  | GameEnded Outcome
+  | UndoApplied
+  deriving (Show, Eq)
+
 data Command
   = Persist PersistenceCommand
   | TriggerEngineSearch [AppliedMove]
   | CancelEngineSearch
+  | NotifyPlayer PlayerNotification
   deriving (Show, Eq)
 
 data TransitionResult = TransitionResult
@@ -98,6 +106,7 @@ transition humanColor (State board moves (PlayerTurn validMoves pending)) = \cas
                     [ Persist $ PersistMove applied
                     , Persist cancelCmd
                     , Persist $ PersistOutcome outcome
+                    , NotifyPlayer $ GameEnded outcome
                     ]
               Nothing ->
                 Right $
@@ -117,6 +126,7 @@ transition humanColor (State board moves (PlayerTurn validMoves pending)) = \cas
             (mkPlayerTurn (currentBoard moves') moves' Nothing)
             [ Persist $ DeleteMoves 2
             , Persist $ clearPending pending
+            , NotifyPlayer UndoApplied
             ]
   Resign color ->
     let outcome = ResignedBy color
@@ -163,12 +173,15 @@ transition humanColor (State board moves (EngineThinking pending)) = \case
               [ Persist $ PersistMove applied
               , Persist cancelCmd
               , Persist $ PersistOutcome outcome
+              , NotifyPlayer $ EngineMoved applied
+              , NotifyPlayer $ GameEnded outcome
               ]
           Nothing ->
             TransitionResult
               (mkPlayerTurn applied.boardAfter moves' pending')
               [ Persist $ PersistMove applied
               , Persist cancelCmd
+              , NotifyPlayer $ EngineMoved applied
               ]
   MakeMove{} -> Left NotYourTurn
   Undo ->
@@ -181,6 +194,7 @@ transition humanColor (State board moves (EngineThinking pending)) = \case
             [ CancelEngineSearch
             , Persist $ DeleteMoves 1
             , Persist $ clearPending pending
+            , NotifyPlayer UndoApplied
             ]
   Resign color ->
     let outcome = ResignedBy color

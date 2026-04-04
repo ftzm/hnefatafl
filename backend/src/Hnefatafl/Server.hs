@@ -27,7 +27,8 @@ runServer port = do
   conn <- open "db.db"
   connectionVar <- newMVar conn
   let settings = defaultSettings & setPort port
-  gameSessions <- STMMap.newIO
+  onlineSessions <- STMMap.newIO
+  aiSessions <- STMMap.newIO
   qsem <- newQSem 20
   let ctx = defaultConnectionOptions :. EmptyContext
   result <-
@@ -40,7 +41,7 @@ runServer port = do
       . runIdGenUUIDv7
       . runSearchLocal qsem
       . runWebSocketIO
-      $ runWarpServerSettingsContext @HnefataflAPI settings ctx (genericServerT (server gameSessions)) id
+      $ runWarpServerSettingsContext @HnefataflAPI settings ctx (genericServerT (server onlineSessions aiSessions)) id
   close conn
   case result of
     Left err -> putTextLn $ "Server error: " <> show err

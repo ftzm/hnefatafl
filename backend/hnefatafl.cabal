@@ -13,13 +13,17 @@ data-files:
 library
   exposed-modules:
       Hnefatafl.Api.Handlers
+      Hnefatafl.Api.Handlers.AI
       Hnefatafl.Api.Handlers.Hotseat
       Hnefatafl.Api.Handlers.Online
       Hnefatafl.Api.Routes
+      Hnefatafl.Api.Routes.AI
       Hnefatafl.Api.Routes.Hotseat
       Hnefatafl.Api.Routes.Online
       Hnefatafl.Api.Types
+      Hnefatafl.Api.Types.AI
       Hnefatafl.Api.Types.Online
+      Hnefatafl.App.AI
       Hnefatafl.App.Hotseat
       Hnefatafl.App.Online
       Hnefatafl.App.Storage

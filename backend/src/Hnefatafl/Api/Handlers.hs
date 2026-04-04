@@ -8,8 +8,10 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (Error)
 import Hnefatafl.Effect.WebSocket (WebSocket)
+import Hnefatafl.Api.Handlers.AI (aiServer)
 import Hnefatafl.Api.Handlers.Hotseat (hotseatServer)
 import Hnefatafl.Api.Handlers.Online (onlineServer)
+import Hnefatafl.App.AI qualified as AI
 import Hnefatafl.App.Online qualified as Online
 import Hnefatafl.Api.Routes (
   HealthResponse (..),
@@ -37,14 +39,16 @@ server ::
   , IOE :> es
   ) =>
   Online.GameSessions ->
+  AI.GameSessions ->
   Routes (AsServerT (Eff es))
-server sessions =
+server onlineSessions aiSessions =
   Routes
     { version = versionHandler
     , health = healthHandler
     , searchTrusted = searchTrustedHandler
     , hotseat = hotseatServer
-    , online = onlineServer sessions
+    , online = onlineServer onlineSessions
+    , ai = aiServer aiSessions
     }
 
 versionHandler :: IOE :> es => Eff es VersionResponse

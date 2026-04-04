@@ -11,6 +11,7 @@ module Hnefatafl.Api.Routes (
 ) where
 
 import Data.Aeson (FromJSON, ToJSON)
+import Hnefatafl.Api.Routes.AI (AIRoutes)
 import Hnefatafl.Api.Routes.Hotseat (HotseatRoutes)
 import Hnefatafl.Api.Routes.Online (OnlineRoutes)
 import Hnefatafl.Bindings (SearchTrustedResult)
@@ -61,6 +62,7 @@ data Routes mode = Routes
           :> Post '[JSON] SearchTrustedResult
   , hotseat :: mode :- "hotseat" :> NamedRoutes HotseatRoutes
   , online :: mode :- "online" :> NamedRoutes OnlineRoutes
+  , ai :: mode :- "ai" :> NamedRoutes AIRoutes
   }
   deriving stock (Generic)
 
