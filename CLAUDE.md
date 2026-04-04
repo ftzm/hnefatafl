@@ -8,6 +8,10 @@ Viking board game (11x11, Hnefatafl Copenhagen rules). Three sub-projects:
 
 Each has its own `CLAUDE.md` with project-specific details.
 
+## Game Rules
+
+Copenhagen Hnefatafl rules are documented in `RULES.md`. Read that file when working on game logic, captures, victory conditions, or anything rule-related.
+
 ## Build Order
 
 libhnefatafl must be built first — the backend links against `libhnefatafl.a`.
