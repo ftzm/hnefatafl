@@ -38,11 +38,11 @@ const char *sanity_capture_king_string = " .  .  X  .  X  .  O  .  .  .  . "
                                                                                \
       u64 re_hash = hash_for_board(b2, !(start_black));                        \
                                                                                \
-      board_string_t b2_str = to_board_move_string(                            \
+      /* static so greatest can safely store the pointer in msg */             \
+      static board_string_t b2_str;                                            \
+      b2_str = to_board_move_string(                                           \
           b2, m.orig, m.dest, LAYER_XOR(b.opponent_field, b2.opponent_field)); \
-      static char msg_buf[1000];                                               \
-      strcpy(msg_buf, b2_str._);                                               \
-      ASSERT_EQm(msg_buf, re_hash, incremental_hash);                          \
+      ASSERT_EQm(b2_str._, re_hash, incremental_hash);                          \
     }                                                                          \
                                                                                \
     PASS();                                                                    \

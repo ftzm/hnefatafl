@@ -502,8 +502,6 @@ struct move_breakdown_diff get_move_breakdown_diff(
         &diff.extra[i].west_count,
         diff.extra[i].west);
   }
-  /*
-   */
   return diff;
 };
 
@@ -515,14 +513,8 @@ void get_move_breakdown(
 
   for (int i = 0; i < total; i++) {
     move m = ms[i];
-    char orig_notation[] = "   ";
-    as_notation(m.orig, orig_notation);
-    char dest_notation[] = "   ";
-    as_notation(m.dest, dest_notation);
-    assert(m.orig >= 0);
-    assert(m.orig < 121);
-    assert(m.dest >= 0);
-    assert(m.dest < 121);
+    assert(m.orig >= 0 && m.orig < 121);
+    assert(m.dest >= 0 && m.dest < 121);
     assert(m.orig != m.dest);
     board b = bs[i];
     if (m.dest > (m.orig + 10)) {
@@ -726,14 +718,8 @@ void get_team_moves_white_move_breakdown(board b, move_breakdown r) {
 
   for (int i = 0; i < total; i++) {
     move m = ms[i];
-    char orig_notation[] = "   ";
-    as_notation(m.orig, orig_notation);
-    char dest_notation[] = "   ";
-    as_notation(m.dest, dest_notation);
-    assert(m.orig >= 0);
-    assert(m.orig < 121);
-    assert(m.dest >= 0);
-    assert(m.dest < 121);
+    assert(m.orig >= 0 && m.orig < 121);
+    assert(m.dest >= 0 && m.dest < 121);
     assert(m.orig != m.dest);
     board b = bs[i];
     if (m.dest > (m.orig + 10)) {
@@ -866,14 +852,8 @@ void get_team_moves_king_move_breakdown(board b, move_breakdown r) {
 
   for (int i = 0; i < total; i++) {
     move m = ms[i];
-    char orig_notation[] = "   ";
-    as_notation(m.orig, orig_notation);
-    char dest_notation[] = "   ";
-    as_notation(m.dest, dest_notation);
-    assert(m.orig >= 0);
-    assert(m.orig < 121);
-    assert(m.dest >= 0);
-    assert(m.dest < 121);
+    assert(m.orig >= 0 && m.orig < 121);
+    assert(m.dest >= 0 && m.dest < 121);
     assert(m.orig != m.dest);
     board b = bs[i];
     if (m.dest > (m.orig + 10)) {

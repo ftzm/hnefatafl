@@ -21,7 +21,7 @@
     }                                                                          \
   } while (0)
 
-board reverse_teams(board b) {
+board swap_sides(board b) {
   return (board){.black = b.white,
                  .black_r = b.white_r,
                  .white = b.black,
@@ -30,73 +30,48 @@ board reverse_teams(board b) {
                  .king_r = b.king_r};
 }
 
-TEST test(
+TEST test_shield_wall_capture(
     const char *input,
     const char *expected,
-    unsigned char pos,
-    int line,
-    const char *func) {
+    unsigned char capture_pos) {
   const board exp = read_board(expected);
 
   board white = read_board(input);
-  board black = reverse_teams(white);
+  board black = swap_sides(white);
 
   // Calculate zobrist hashes for initial board states
   u64 white_zobrist = hash_for_board(white, false);
   u64 black_zobrist = hash_for_board(black, true);
 
-  // Test that the pos which triggers a shield wall capture is detected in our
-  // capture destinations function
+  // Verify the capture position is detected by the capture destinations function
   layer pos_layer = EMPTY_LAYER;
-  SET_INDEX(pos_layer, pos);
-  layer capture_dests_white = white_capture_destinations(&white);
-  if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_white))) {
-    printf(
-        "%s (line %d): capture_dests_white missing pos %d\nExpected pos "
-        "layer:\n",
-        func,
-        line,
-        pos);
-    print_layer(pos_layer);
-    printf("Actual capture destinations:\n");
-    print_layer(capture_dests_white);
-    FAIL();
-  }
-  layer capture_dests_black = black_capture_destinations(&black);
-  if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_black))) {
-    printf(
-        "%s (line %d): capture_dests_black missing pos %d\nExpected pos "
-        "layer:\n",
-        func,
-        line,
-        pos);
-    print_layer(pos_layer);
-    printf("Actual capture destinations:\n");
-    print_layer(capture_dests_black);
-    FAIL();
-  }
+  SET_INDEX(pos_layer, capture_pos);
 
-  shield_wall_white(&white, &white_zobrist, pos);
+  layer capture_dests_white = white_capture_destinations(&white);
+  ASSERTm("capture_pos should be in white capture destinations",
+           !IS_EMPTY(LAYER_AND(pos_layer, capture_dests_white)));
+
+  layer capture_dests_black = black_capture_destinations(&black);
+  ASSERTm("capture_pos should be in black capture destinations",
+           !IS_EMPTY(LAYER_AND(pos_layer, capture_dests_black)));
+
+  // Apply shield wall and verify resulting board state
+  shield_wall_white(&white, &white_zobrist, capture_pos);
   ASSERT_BOARDS_EQUAL(exp, white);
 
-  shield_wall_black(&black, &black_zobrist, pos);
-  ASSERT_BOARDS_EQUAL(reverse_teams(exp), black);
+  shield_wall_black(&black, &black_zobrist, capture_pos);
+  ASSERT_BOARDS_EQUAL(swap_sides(exp), black);
 
-  u64 white_zobrist_recalculated = hash_for_board(white, false);
-  if (white_zobrist_recalculated != white_zobrist) {
-    printf("white zobrist unequal\n");
-    FAIL();
-  }
-  u64 black_zobrist_recalculated = hash_for_board(black, true);
-  if (black_zobrist_recalculated != black_zobrist) {
-    printf("black zobrist unequal\n");
-    FAIL();
-  }
+  // Verify zobrist hashes are consistent after capture
+  ASSERT_EQm("white zobrist should match after shield wall",
+             hash_for_board(white, false), white_zobrist);
+  ASSERT_EQm("black zobrist should match after shield wall",
+             hash_for_board(black, true), black_zobrist);
 
   PASS();
 }
 
-#define TEST_SHIELD_WALL(a, b, p) test(a, b, p, __LINE__, __FUNCTION__)
+#define TEST_SHIELD_WALL(a, b, p) test_shield_wall_capture(a, b, p)
 
 TEST test_team(
     bool is_black,
@@ -119,7 +94,7 @@ TEST test_team(
 
 #define TEST_SHIELD_WALL_TEAM(is_black, a, b, p) test_team(is_black, a, b, p)
 
-TEST test_capture_s_m(void) {
+TEST test_shield_wall_south_middle(void) {
   const char *s_input = ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
@@ -147,7 +122,7 @@ TEST test_capture_s_m(void) {
   return TEST_SHIELD_WALL(s_input, s_expected, 5);
 }
 
-TEST test_capture_s_left(void) {
+TEST test_shield_wall_south_left(void) {
   const char *se_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -175,7 +150,7 @@ TEST test_capture_s_left(void) {
   return TEST_SHIELD_WALL(se_input, se_expected, 1);
 }
 
-TEST test_capture_s_right(void) {
+TEST test_shield_wall_south_right(void) {
   const char *sw_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -203,7 +178,7 @@ TEST test_capture_s_right(void) {
   return TEST_SHIELD_WALL(sw_input, sw_expected, 9);
 }
 
-TEST test_capture_e_m(void) {
+TEST test_shield_wall_east_middle(void) {
 
   const char *e_input = ".  .  .  .  .  .  .  .  .  .  ."
                         ".  .  .  .  .  .  .  .  .  .  O"
@@ -231,7 +206,7 @@ TEST test_capture_e_m(void) {
   return TEST_SHIELD_WALL(e_input, e_expected, 55);
 }
 
-TEST test_capture_e_r(void) {
+TEST test_shield_wall_east_right(void) {
   const char *en_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  O"
                          ".  .  .  .  .  .  .  .  .  O  X"
@@ -258,7 +233,7 @@ TEST test_capture_e_r(void) {
   return TEST_SHIELD_WALL(en_input, en_expected, 55);
 }
 
-TEST test_capture_e_l(void) {
+TEST test_shield_wall_east_left(void) {
   const char *es_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -286,7 +261,7 @@ TEST test_capture_e_l(void) {
   return TEST_SHIELD_WALL(es_input, es_expected, 55);
 }
 
-TEST test_capture_w_m(void) {
+TEST test_shield_wall_west_middle(void) {
   const char *w_input = ".  .  .  .  .  .  .  .  .  .  ."
                         "O  .  .  .  .  .  .  .  .  .  ."
                         "X  O  .  .  .  .  .  .  .  .  ."
@@ -314,7 +289,7 @@ TEST test_capture_w_m(void) {
   return TEST_SHIELD_WALL(w_input, w_expected, 65);
 }
 
-TEST test_capture_w_r(void) {
+TEST test_shield_wall_west_right(void) {
   const char *wn_input = ".  .  .  .  .  .  .  .  .  .  ."
                          "O  .  .  .  .  .  .  .  .  .  ."
                          "X  O  .  .  .  .  .  .  .  .  ."
@@ -342,7 +317,7 @@ TEST test_capture_w_r(void) {
   return TEST_SHIELD_WALL(wn_input, wn_expected, 65);
 }
 
-TEST test_capture_w_l(void) {
+TEST test_shield_wall_west_left(void) {
   const char *ws_input = ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -369,7 +344,7 @@ TEST test_capture_w_l(void) {
   return TEST_SHIELD_WALL(ws_input, ws_expected, 65);
 }
 
-TEST test_capture_n_m(void) {
+TEST test_shield_wall_north_middle(void) {
   const char *n_input = ".  O  X  X  X  .  X  X  X  O  ."
                         ".  .  O  O  O  .  O  O  O  .  ."
                         ".  .  .  .  .  .  .  .  .  .  ."
@@ -397,7 +372,7 @@ TEST test_capture_n_m(void) {
   return TEST_SHIELD_WALL(n_input, n_expected, 115);
 }
 
-TEST test_capture_n_m_2(void) {
+TEST test_shield_wall_north_middle_2(void) {
   const char *n_input_2 = ".  .  X  X  X  .  X  X  X  O  ."
                           ".  .  O  O  O  .  O  O  O  .  ."
                           ".  .  .  .  .  .  .  .  .  .  ."
@@ -424,7 +399,7 @@ TEST test_capture_n_m_2(void) {
   return TEST_SHIELD_WALL(n_input_2, n_expected_2, 115);
 }
 
-TEST test_capture_n_e(void) {
+TEST test_shield_wall_north_east(void) {
   const char *ne_input = ".  .  .  X  X  X  X  O  .  .  ."
                          ".  .  .  O  O  O  O  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -451,7 +426,7 @@ TEST test_capture_n_e(void) {
   return TEST_SHIELD_WALL(ne_input, ne_expected, 118);
 }
 
-TEST test_capture_n_l(void) {
+TEST test_shield_wall_north_left(void) {
   const char *nw_input = ".  .  O  X  X  X  X  .  .  .  ."
                          ".  .  .  O  O  O  O  .  .  .  ."
                          ".  .  .  .  .  .  .  .  .  .  ."
@@ -478,7 +453,7 @@ TEST test_capture_n_l(void) {
   return TEST_SHIELD_WALL(nw_input, nw_expected, 113);
 }
 
-TEST test_capture_n_l_king(void) {
+TEST test_shield_wall_north_left_king(void) {
   const char *inp = ".  .  X  #  O  O  O  .  .  .  ."
                     ".  .  .  X  X  X  X  .  .  .  ."
                     ".  .  .  .  .  .  .  .  .  .  ."
@@ -649,20 +624,20 @@ TEST test_throne_capture_dest_white_unoccupied(void) {
 }
 
 SUITE(capture_suite) {
-  RUN_TEST(test_capture_s_m);
-  RUN_TEST(test_capture_s_left);
-  RUN_TEST(test_capture_s_right);
-  RUN_TEST(test_capture_e_m);
-  RUN_TEST(test_capture_e_r);
-  RUN_TEST(test_capture_e_l);
-  RUN_TEST(test_capture_w_m);
-  RUN_TEST(test_capture_w_r);
-  RUN_TEST(test_capture_w_l);
-  RUN_TEST(test_capture_n_m);
-  RUN_TEST(test_capture_n_m_2);
-  RUN_TEST(test_capture_n_e);
-  RUN_TEST(test_capture_n_l);
-  RUN_TEST(test_capture_n_l_king);
+  RUN_TEST(test_shield_wall_south_middle);
+  RUN_TEST(test_shield_wall_south_left);
+  RUN_TEST(test_shield_wall_south_right);
+  RUN_TEST(test_shield_wall_east_middle);
+  RUN_TEST(test_shield_wall_east_right);
+  RUN_TEST(test_shield_wall_east_left);
+  RUN_TEST(test_shield_wall_west_middle);
+  RUN_TEST(test_shield_wall_west_right);
+  RUN_TEST(test_shield_wall_west_left);
+  RUN_TEST(test_shield_wall_north_middle);
+  RUN_TEST(test_shield_wall_north_middle_2);
+  RUN_TEST(test_shield_wall_north_east);
+  RUN_TEST(test_shield_wall_north_left);
+  RUN_TEST(test_shield_wall_north_left_king);
   RUN_TEST(test_throne_capture_dest_black_occupied);
   RUN_TEST(test_throne_capture_dest_black_unoccupied);
   RUN_TEST(test_throne_capture_dest_white_occupied);
