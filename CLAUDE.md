@@ -1,100 +1,64 @@
-# Hnefatafl Multi-Project Repository - Development Guide for Claude
+# Hnefatafl
 
-## Project Overview
-This is a multi-project repository for a Hnefatafl (Viking board game) implementation consisting of:
-- **libhnefatafl** (C library) - Core game engine and logic
-- **backend** (Haskell) - Web API server that uses the C library
+Viking board game (11x11, Hnefatafl Copenhagen rules). Three sub-projects:
 
-## Development Philosophy
-- **Separation of Concerns**: Game logic in C, web API in Haskell
-- **Performance**: Critical game calculations in optimized C
-- **Type Safety**: Business logic and web API in Haskell
-- **Integration**: Haskell backend links against C library
+- **libhnefatafl/** — C game engine (bitboard-based, with AI search)
+- **backend/** — Haskell web API server (Servant + Effectful, links against C library)
+- **frontend/** — SolidJS TypeScript UI (Vite, currently uses mock backends)
 
-## Repository Structure
+Each has its own `CLAUDE.md` with project-specific details.
+
+## Build Order
+
+libhnefatafl must be built first — the backend links against `libhnefatafl.a`.
+
 ```
-├── libhnefatafl/     # C library project (game engine)
-├── backend/          # Haskell project (web API)
-├── flake.nix         # Root Nix development environment
-├── ci-build-and-test.sh  # CI/CD script for both projects
-└── format.sh         # Code formatting for both projects
+cd libhnefatafl && make static   # produces .lib/libhnefatafl.a
+cd backend && cabal build        # links against the static lib
+cd frontend && npm install && npm run dev
 ```
 
-## Build and Development Workflow
+## Root Commands
 
-### Prerequisites
-- Use Nix development environment: `nix develop`
-- Both projects must build successfully for integration
+| Command | What it does |
+|---|---|
+| `nix develop` | Enter dev shell (C + Haskell + Python tools) |
+| `./ci-build-and-test.sh` | Full CI: build + test C lib, build + test backend, lint + typecheck frontend |
+| `./format.sh` | `clang-format` all C sources (`src/`, `bin/`, `test/`) |
+| `./build-release.sh` | Build versioned CLI binary to `dist/<version>/hnefatafl` |
+| `./test-engine.sh [version]` | Self-play current engine vs previous version for regression testing |
 
-### Build Order (Important!)
-1. **First**: Build libhnefatafl C library
-2. **Second**: Build backend (depends on libhnefatafl.a)
+## CI Pipeline (`ci-build-and-test.sh`)
 
-### Root-Level Commands
-- **Format all code**: `./format.sh`
-- **CI build and test**: `./ci-build-and-test.sh`
-- **Development shell**: `nix develop`
+Runs in order: C library build → C tests → Haskell build → Haskell tests → frontend `npm ci` → Biome lint → TypeScript typecheck.
 
-### Project-Specific Development
-Each sub-project has its own CLAUDE.md with specific instructions:
-- See `libhnefatafl/CLAUDE.md` for C library development
-- See `backend/CLAUDE.md` for Haskell backend development
+## Git Conventions
 
-## Integration Points
+- Main branch: `master`
+- Pre-commit hooks (via Nix `git-hooks`): no direct commits to master, merge conflict check, commitizen conventional commit format
+- On merge to master: full CI runs automatically
 
-### C Library → Haskell Backend
-- Haskell backend links against `libhnefatafl.a`
-- C library provides game logic functions
-- Haskell provides web API and business logic
+## Cross-Project Changes
 
-### Shared Considerations
-- **Data Types**: Ensure C and Haskell data representations are compatible
-- **Memory Management**: C library owns game state, Haskell manages API state
-- **Error Handling**: C functions return status codes, Haskell translates to effects
+When changing the C library's API (`api.h`):
+1. Update the FFI bindings in `backend/src/Hnefatafl/Bindings.hs`
+2. Update corresponding `Storable*` types and `DomainMapping` instances
+3. Run both `make test` (in libhnefatafl) and `cabal test` (in backend)
 
-## Development Guidelines for Claude
+## Analysis Tools
 
-### Critical Testing Requirements
-- **TEST FAILURES ARE NEVER TO BE IGNORED**: All tests must pass before any task is considered complete
-- **No exceptions**: If tests fail, the work is not done - investigate and fix all failures
-- **Full test coverage**: Run both C library tests and Haskell tests after any changes
+`analysis/fit_pst.py` — learns piece-square table weights from a game database via logistic regression. Requires numpy, scikit-learn, matplotlib (available in the Nix dev shell).
 
-### When Working on Both Projects
-1. **Always build libhnefatafl first** before building backend
-2. **Run tests for both projects** to ensure integration works
-3. **Use project-specific CLAUDE.md files** for detailed instructions
-4. **Check CI script** (`ci-build-and-test.sh`) for complete build process
+```
+python analysis/fit_pst.py stats <db>          # game statistics
+python analysis/fit_pst.py fit <db> --plot      # fit PSTs, generate heatmaps
+```
 
-### Cross-Project Changes
-- If changing C library API, update Haskell bindings accordingly
-- Test both projects after cross-cutting changes
-- Consider backward compatibility for API changes
+## Testing Requirements
 
-### Git Workflow
-- **Current branch**: `self-play`
-- **Main branch**: `master`
-- Both projects share the same git repository
-
-## Troubleshooting
-
-### Build Issues
-- Ensure libhnefatafl builds first and produces `libhnefatafl.a`
-- Check that Haskell can find the C library (linking errors)
-- Verify Nix environment is active for consistent toolchain
-
-### Integration Issues
-- Verify C library exports expected functions
-- Check Haskell FFI bindings match C signatures
-- Test with simple C library calls before complex integration
-
-## Quick Reference
-- **C project**: `cd libhnefatafl && make`
-- **Haskell project**: `cd backend && cabal build`
-- **Full CI build**: `./ci-build-and-test.sh`
-- **Code formatting**: `./format.sh`
-
-## Important Notes
-- **Never modify auto-generated files** (e.g., backend/hnefatafl.cabal)
-- **Follow each project's conventions** as specified in their CLAUDE.md
-- **Test integration** after changes to either project
-- **Use Nix environment** for consistent builds across machines
+All tests must pass before work is considered complete. Run the full suite:
+```
+cd libhnefatafl && make test
+cd backend && cabal test
+cd frontend && npm test
+```
