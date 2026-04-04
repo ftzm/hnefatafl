@@ -11,7 +11,6 @@ import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Hnefatafl.Core.Data (
   Game (..),
   GameMode (..),
-  GameStatus (..),
   HumanPlayer (..),
   Move (..),
   MoveResult (..),
@@ -128,7 +127,7 @@ spec_ImportGame =
 
             -- Verify game properties
             game.name `shouldBe` Just "Test Import Game"
-            game.gameStatus `shouldBe` Ongoing
+            game.outcome `shouldBe` Nothing
             case game.mode of
               Online (Just _) (Just _) -> pure ()
               other -> expectationFailure $ "Expected Online with two players, got: " <> show other

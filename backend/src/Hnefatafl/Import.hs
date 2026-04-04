@@ -35,20 +35,21 @@ import Hnefatafl.Bindings (
   EngineGameStatus,
   applyMoveSequence,
   nextGameState,
-  toGameStatus,
  )
 import Hnefatafl.Core.Data (
+  BlackWinCondition (..),
   Game (..),
   GameId (..),
   GameMode (..),
   GameMove (..),
-  GameStatus (..),
   HumanPlayer (..),
   Move,
   MoveResult (..),
+  Outcome (..),
   Participant (..),
   PlayerColor (..),
   PlayerId (..),
+  WhiteWinCondition (..),
  )
 import Hnefatafl.Effect.Clock
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
@@ -61,6 +62,7 @@ import Hnefatafl.Effect.Storage (
   insertMoves,
   runTransaction,
  )
+import Hnefatafl.Game.Common (outcomeFromEngine)
 import Hnefatafl.Serialization (movesToNotation, parseMoveList)
 import Prelude hiding (putStrLn, readFile)
 
@@ -123,20 +125,21 @@ instance ToJSON GameImport where
       , "moves" .= movesToNotation (toList moves)
       ]
 
--- | Parse text game status into GameStatus type
-parseGameStatus :: Text -> Maybe GameStatus
-parseGameStatus = \case
-  "ongoing" -> Just Ongoing
-  "black_won_king_captured" -> Just BlackWonKingCaptured
-  "black_won_white_surrounded" -> Just BlackWonWhiteSurrounded
-  "black_won_no_white_moves" -> Just BlackWonNoWhiteMoves
-  "black_won_resignation" -> Just BlackWonResignation
-  "black_won_timeout" -> Just BlackWonTimeout
-  "white_won_king_escaped" -> Just WhiteWonKingEscaped
-  "white_won_exit_fort" -> Just WhiteWonExitFort
-  "white_won_no_black_moves" -> Just WhiteWonNoBlackMoves
-  "white_won_resignation" -> Just WhiteWonResignation
-  "white_won_timeout" -> Just WhiteWonTimeout
+-- | Parse text game status into an Outcome.
+-- Returns Nothing for "ongoing" or unrecognized values.
+parseOutcome :: Text -> Maybe Outcome
+parseOutcome = \case
+  "ongoing" -> Nothing
+  "black_won_king_captured" -> Just $ BlackWins KingCaptured
+  "black_won_white_surrounded" -> Just $ BlackWins WhiteSurrounded
+  "black_won_no_white_moves" -> Just $ BlackWins NoWhiteMoves
+  "black_won_resignation" -> Just $ ResignedBy Black
+  "black_won_timeout" -> Just $ TimedOut Black
+  "white_won_king_escaped" -> Just $ WhiteWins KingEscaped
+  "white_won_exit_fort" -> Just $ WhiteWins ExitFort
+  "white_won_no_black_moves" -> Just $ WhiteWins NoBlackMoves
+  "white_won_resignation" -> Just $ ResignedBy White
+  "white_won_timeout" -> Just $ TimedOut White
   "draw" -> Just Draw
   "abandoned" -> Just Abandoned
   _ -> Nothing
@@ -176,9 +179,9 @@ importGame input = do
         -- victory condition, but in the event of a timeout or resignation
         -- when the game is technically ongoing we'll need to defer to the
         -- explicitly defined status.
-        let status = case toGameStatus engineStatus of
-              Ongoing -> fromMaybe Ongoing (input.gameStatus >>= parseGameStatus)
-              other -> other
+        let outcome = case outcomeFromEngine engineStatus of
+              Nothing -> input.gameStatus >>= parseOutcome
+              Just o -> Just o
 
         let (moveResults, _finalStatus) = applyMoveSequence input.moves
             gameMoves = map (moveResultToGameMove startTime) (toList moveResults)
@@ -196,7 +199,7 @@ importGame input = do
                         (Just (RegisteredPlayer blackPlayer.playerId))
                   , startTime = startTime
                   , endTime = input.endTime
-                  , gameStatus = status
+                  , outcome = outcome
                   , createdAt = currentTime
                   }
           insertGame game

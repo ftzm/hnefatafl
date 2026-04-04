@@ -22,7 +22,7 @@ module Hnefatafl.Effect.Storage (
   insertGame,
   getGame,
   listGames,
-  updateGameStatus,
+  setOutcome,
   deleteGame,
   insertMove,
   insertMoves,
@@ -64,7 +64,7 @@ data StorageCmd a where
   InsertGame :: Game -> StorageCmd ()
   GetGame :: GameId -> StorageCmd Game
   ListGames :: StorageCmd [Game]
-  UpdateGameStatus :: GameId -> GameStatus -> Maybe Time -> StorageCmd ()
+  SetOutcome :: GameId -> Outcome -> Maybe Time -> StorageCmd ()
   DeleteGame :: GameId -> StorageCmd ()
   InsertMove :: GameId -> GameMove -> StorageCmd ()
   InsertMoves :: GameId -> [GameMove] -> StorageCmd ()
@@ -137,8 +137,8 @@ getGame = liftCmd . GetGame
 listGames :: StorageTx [Game]
 listGames = liftCmd ListGames
 
-updateGameStatus :: GameId -> GameStatus -> Maybe Time -> StorageTx ()
-updateGameStatus gid s t = liftCmd $ UpdateGameStatus gid s t
+setOutcome :: GameId -> Outcome -> Maybe Time -> StorageTx ()
+setOutcome gid o t = liftCmd $ SetOutcome gid o t
 
 deleteGame :: GameId -> StorageTx ()
 deleteGame = liftCmd . DeleteGame

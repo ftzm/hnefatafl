@@ -10,15 +10,9 @@ module Hnefatafl.Game.Hotseat (
 
 import Chronos (Time)
 import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
-import Hnefatafl.Core.Data (
-  ExternBoard,
-  Move (..),
-  MoveWithCaptures (..),
-  PlayerColor (..),
- )
+import Hnefatafl.Core.Data (ExternBoard, Move (..), MoveWithCaptures (..), Outcome (..), PlayerColor (..))
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  Outcome (..),
   PersistenceCommand (..),
   TransitionError (..),
   currentBoard,
@@ -42,7 +36,7 @@ data State = State ExternBoard [AppliedMove] Phase
 
 data Event
   = MakeMove Move Time
-  | Undo PlayerColor
+  | Undo
   | Resign PlayerColor
   | AgreeDraw
   | Timeout PlayerColor
@@ -67,27 +61,25 @@ transition (State _ _ (Finished _)) = const $ Left GameAlreadyFinished
 transition (State board moves (Awaiting turn validMoves)) = \case
   MakeMove move time
     | move `notElem` map (.move) validMoves -> Left InvalidMove
-    | otherwise ->
+    | otherwise -> do
         let hashes = zobristHashes moves
-            (moveResult, engineStatus, nextValidMoves) =
-              fromRight (error "valid move rejected by engine") $
-                nextGameStateWithMovesTrusted board (turn == Black) move hashes
-            applied = mkAppliedMove moveResult time
+        (moveResult, engineStatus, nextValidMoves) <-
+          first (const EngineError) $
+            nextGameStateWithMovesTrusted board (turn == Black) move hashes
+        let applied = mkAppliedMove moveResult time
             moves' = moves <> [applied]
-         in case outcomeFromEngine engineStatus of
-              Just outcome ->
-                Right $
-                  TransitionResult
-                    (State applied.boardAfter moves' (Finished outcome))
-                    [ Persist $ PersistMove applied
-                    , Persist $ PersistOutcome outcome
-                    ]
-              Nothing ->
-                Right $
-                  TransitionResult
-                    (State applied.boardAfter moves' (Awaiting (opponent turn) nextValidMoves))
-                    [Persist $ PersistMove applied]
-  Undo _ ->
+        Right $ case outcomeFromEngine engineStatus of
+          Just outcome ->
+            TransitionResult
+              (State applied.boardAfter moves' (Finished outcome))
+              [ Persist $ PersistMove applied
+              , Persist $ PersistOutcome outcome
+              ]
+          Nothing ->
+            TransitionResult
+              (State applied.boardAfter moves' (Awaiting (opponent turn) nextValidMoves))
+              [Persist $ PersistMove applied]
+  Undo ->
     case undoMoves 1 moves of
       Nothing -> Left NoMovesToUndo
       Just moves' ->

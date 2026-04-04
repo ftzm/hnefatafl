@@ -1,11 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 
 module Hnefatafl.Game.Common (
-  -- * Outcome types
-  BlackWinCondition (..),
-  WhiteWinCondition (..),
-  Outcome (..),
-
   -- * Pending actions
   PendingActionType (..),
   PendingAction (..),
@@ -19,7 +14,7 @@ module Hnefatafl.Game.Common (
   -- * Commands
   PersistenceCommand (..),
 
-  -- * Helpers
+  -- * Helpers (re-exports)
   opponent,
   winner,
   currentBoard,
@@ -31,8 +26,6 @@ module Hnefatafl.Game.Common (
   clearPending,
   respondToOffer,
   outcomeFromEngine,
-  outcomeToGameStatus,
-  gameStatusToOutcome,
   toGameMove,
   undoMoves,
 ) where
@@ -45,34 +38,19 @@ import Hnefatafl.Bindings (
   startBoard,
  )
 import Hnefatafl.Core.Data (
+  BlackWinCondition (..),
   ExternBoard (..),
   GameMove (..),
-  GameStatus,
   Layer (..),
   Move (..),
   MoveResult (..),
   MoveWithCaptures (..),
+  Outcome (..),
   PlayerColor (..),
+  WhiteWinCondition (..),
+  opponent,
  )
-import Hnefatafl.Core.Data qualified as Core
 import Hnefatafl.Util (pattern Snoc)
-
--- | Conditions under which Black wins
-data BlackWinCondition = KingCaptured | WhiteSurrounded | NoWhiteMoves
-  deriving (Show, Eq)
-
--- | Conditions under which White wins
-data WhiteWinCondition = KingEscaped | ExitFort | NoBlackMoves
-  deriving (Show, Eq)
-
-data Outcome
-  = BlackWins BlackWinCondition
-  | WhiteWins WhiteWinCondition
-  | ResignedBy PlayerColor
-  | TimedOut PlayerColor
-  | Draw
-  | Abandoned
-  deriving (Show, Eq)
 
 data PendingActionType = DrawOffer | UndoRequest
   deriving (Show, Eq)
@@ -101,6 +79,7 @@ data TransitionError
   | CannotRespondToOwnOffer
   | ActionAlreadyPending
   | NoMovesToUndo
+  | EngineError
   deriving (Show, Eq)
 
 data PersistenceCommand
@@ -113,10 +92,6 @@ data PersistenceCommand
     -- without wrapping everything in Maybe
     NoOp
   deriving (Show, Eq)
-
-opponent :: PlayerColor -> PlayerColor
-opponent White = Black
-opponent Black = White
 
 winner :: Outcome -> Maybe PlayerColor
 winner (BlackWins _) = Just Black
@@ -183,37 +158,6 @@ outcomeFromEngine = \case
   EngineDrawOffered -> Just Draw
   EngineWhiteResigned -> Just $ ResignedBy White
   EngineBlackResigned -> Just $ ResignedBy Black
-
-outcomeToGameStatus :: Outcome -> GameStatus
-outcomeToGameStatus = \case
-  BlackWins KingCaptured -> Core.BlackWonKingCaptured
-  BlackWins WhiteSurrounded -> Core.BlackWonWhiteSurrounded
-  BlackWins NoWhiteMoves -> Core.BlackWonNoWhiteMoves
-  WhiteWins KingEscaped -> Core.WhiteWonKingEscaped
-  WhiteWins ExitFort -> Core.WhiteWonExitFort
-  WhiteWins NoBlackMoves -> Core.WhiteWonNoBlackMoves
-  ResignedBy Black -> Core.BlackWonResignation
-  ResignedBy White -> Core.WhiteWonResignation
-  TimedOut Black -> Core.BlackWonTimeout
-  TimedOut White -> Core.WhiteWonTimeout
-  Draw -> Core.Draw
-  Abandoned -> Core.Abandoned
-
-gameStatusToOutcome :: GameStatus -> Maybe Outcome
-gameStatusToOutcome = \case
-  Core.Ongoing -> Nothing
-  Core.BlackWonKingCaptured -> Just (BlackWins KingCaptured)
-  Core.BlackWonWhiteSurrounded -> Just (BlackWins WhiteSurrounded)
-  Core.BlackWonNoWhiteMoves -> Just (BlackWins NoWhiteMoves)
-  Core.BlackWonResignation -> Just (ResignedBy White)
-  Core.BlackWonTimeout -> Just (TimedOut White)
-  Core.WhiteWonKingEscaped -> Just (WhiteWins KingEscaped)
-  Core.WhiteWonExitFort -> Just (WhiteWins ExitFort)
-  Core.WhiteWonNoBlackMoves -> Just (WhiteWins NoBlackMoves)
-  Core.WhiteWonResignation -> Just (ResignedBy Black)
-  Core.WhiteWonTimeout -> Just (TimedOut Black)
-  Core.Draw -> Just Draw
-  Core.Abandoned -> Just Abandoned
 
 toGameMove :: AppliedMove -> GameMove
 toGameMove am =

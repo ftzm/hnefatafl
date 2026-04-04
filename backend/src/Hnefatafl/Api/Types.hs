@@ -40,12 +40,14 @@ import Hnefatafl.Board (layerPositions)
 import Hnefatafl.Core.Data (
   ExternBoard (..),
   GameId,
-  GameStatus (..),
   Layer,
   Move (..),
   MoveWithCaptures (..),
+  Outcome (..),
   PlayerColor (..),
+  opponent,
  )
+import Hnefatafl.Core.Data qualified as Core
 
 newtype Position = Position Int
   deriving (Show, Eq)
@@ -151,21 +153,19 @@ instance FromJSON ApiGameStatus where
       "finished" -> ApiFinished <$> o .: "winner" <*> o .: "reason"
       _ -> fail "invalid game status state"
 
-gameStatusFromDomain :: GameStatus -> ApiGameStatus
+gameStatusFromDomain :: Maybe Outcome -> ApiGameStatus
 gameStatusFromDomain = \case
-  Ongoing -> ApiOngoing
-  BlackWonKingCaptured -> ApiFinished (Just Black) KingCaptured
-  BlackWonWhiteSurrounded -> ApiFinished (Just Black) WhiteSurrounded
-  BlackWonNoWhiteMoves -> ApiFinished (Just Black) NoMoves
-  BlackWonResignation -> ApiFinished (Just Black) Resignation
-  BlackWonTimeout -> ApiFinished (Just Black) Timeout
-  WhiteWonKingEscaped -> ApiFinished (Just White) KingEscaped
-  WhiteWonExitFort -> ApiFinished (Just White) ExitFort
-  WhiteWonNoBlackMoves -> ApiFinished (Just White) NoMoves
-  WhiteWonResignation -> ApiFinished (Just White) Resignation
-  WhiteWonTimeout -> ApiFinished (Just White) Timeout
-  Draw -> ApiFinished Nothing DrawAgreed
-  Abandoned -> ApiFinished Nothing GameAbandoned
+  Nothing -> ApiOngoing
+  Just (BlackWins Core.KingCaptured) -> ApiFinished (Just Black) KingCaptured
+  Just (BlackWins Core.WhiteSurrounded) -> ApiFinished (Just Black) WhiteSurrounded
+  Just (BlackWins Core.NoWhiteMoves) -> ApiFinished (Just Black) NoMoves
+  Just (WhiteWins Core.KingEscaped) -> ApiFinished (Just White) KingEscaped
+  Just (WhiteWins Core.ExitFort) -> ApiFinished (Just White) ExitFort
+  Just (WhiteWins Core.NoBlackMoves) -> ApiFinished (Just White) NoMoves
+  Just (ResignedBy color) -> ApiFinished (Just (opponent color)) Resignation
+  Just (TimedOut color) -> ApiFinished (Just (opponent color)) Timeout
+  Just Draw -> ApiFinished Nothing DrawAgreed
+  Just Abandoned -> ApiFinished Nothing GameAbandoned
 
 data ApiGameMove = ApiGameMove
   { playerColor :: PlayerColor

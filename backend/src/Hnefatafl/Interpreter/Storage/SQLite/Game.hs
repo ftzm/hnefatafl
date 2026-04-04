@@ -2,7 +2,7 @@ module Hnefatafl.Interpreter.Storage.SQLite.Game (
   createGame,
   getGameById,
   listGamesDb,
-  updateGameStatusById,
+  setOutcomeById,
   deleteGameById,
   gameToDb,
 ) where
@@ -17,7 +17,7 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 -- Helpers
 
 gameToDb :: Game -> GameDb
-gameToDb Game{gameId, name, mode, startTime, endTime, gameStatus, createdAt} =
+gameToDb Game{gameId, name, mode, startTime, endTime, outcome, createdAt} =
   GameDb
     { gameId = fromDomain gameId
     , name = name
@@ -27,7 +27,7 @@ gameToDb Game{gameId, name, mode, startTime, endTime, gameStatus, createdAt} =
         Online{} -> OnlineType
     , startTime = startTime
     , endTime = endTime
-    , gameStatus = fromDomain gameStatus
+    , outcome = fromDomain outcome
     , createdAt = createdAt
     }
 
@@ -63,7 +63,7 @@ gameJoinRowToDomain row =
             (toParticipant row.onlineBlackPlayerId row.onlineBlackName)
     , startTime = row.startTime
     , endTime = row.endTime
-    , gameStatus = toDomain row.gameStatus
+    , outcome = toDomain row.outcome
     , createdAt = row.createdAt
     }
 
@@ -139,12 +139,12 @@ listGamesDb conn =
       ()
       conn
 
-updateGameStatusById ::
-  GameIdDb -> GameStatusDb -> Maybe Time -> Connection -> IO ()
-updateGameStatusById gameId gameStatus endTime =
+setOutcomeById ::
+  GameIdDb -> OutcomeDb -> Maybe Time -> Connection -> IO ()
+setOutcomeById gameId outcome endTime =
   execute'
     "UPDATE game SET game_status = ?, end_time = ? WHERE id = ?"
-    (gameStatus, endTime, gameId)
+    (outcome, endTime, gameId)
 
 deleteGameById :: GameIdDb -> Connection -> IO ()
 deleteGameById =

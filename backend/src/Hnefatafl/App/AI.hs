@@ -16,30 +16,21 @@ module Hnefatafl.App.AI (
 import Chronos (Time)
 import Data.Aeson (
   FromJSON (..),
-  Key,
-  Value,
   decode,
-  encode,
-  object,
   withObject,
   (.:),
-  (.=),
  )
-import Data.Aeson.Types (Parser, parseMaybe)
+import Data.Aeson.Types (Parser)
 import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (catch, finally, onException)
-import Focus qualified
-import Hnefatafl.Api.Types (
-  ApiMove,
-  boardFromExtern,
-  gameStatusFromDomain,
-  moveFromDomain,
- )
+import Hnefatafl.App.AI.Serialization (gameStateToJSON, notificationToJSON)
+import Hnefatafl.App.Session (getOrInsert)
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
+import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON)
 import Hnefatafl.Bindings (SearchTrustedResult (..))
 import Hnefatafl.Core.Data (
   Game (..),
@@ -47,8 +38,6 @@ import Hnefatafl.Core.Data (
   GameMode (..),
   GameParticipantToken (..),
   GameParticipantTokenId (..),
-  GameStatus (..),
-  MoveWithCaptures (..),
   PlayerColor (..),
  )
 import Hnefatafl.Core.Data qualified as Data
@@ -70,14 +59,10 @@ import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
 import Hnefatafl.Game.AI qualified as AI
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  PendingAction (..),
-  PendingActionType (..),
   currentBoard,
   currentTurn,
-  gameStatusToOutcome,
   opponent,
   outcomeFromEngine,
-  outcomeToGameStatus,
   zobristHashes,
  )
 import Hnefatafl.Search (SearchTimeout (..))
@@ -98,7 +83,6 @@ data GameSession = GameSession
   }
 
 type GameSessions = STMMap.Map GameId (MVar GameSession)
-
 
 -------------------------------------------------------------------------------
 -- Messages from the client
@@ -136,98 +120,6 @@ toEvent humanColor time = \case
   DeclineDraw -> AI.DeclineDraw humanColor
 
 -------------------------------------------------------------------------------
--- Messages from the server
-
--- | Serialize a player notification.
-notificationToJSON :: AI.State -> AI.PlayerNotification -> LByteString
-notificationToJSON newState = \case
-  AI.EngineMoved am ->
-    encode $
-      object $
-        [ "type" .= ("engine_moved" :: Text)
-        , "move" .= moveFromDomain (MoveWithCaptures am.move am.captures)
-        , "side" .= am.side
-        ]
-          <> stateFields newState
-  AI.GameEnded outcome ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "status" .= gameStatusFromDomain (outcomeToGameStatus outcome)
-        ]
-  AI.UndoApplied ->
-    encode $
-      object $
-        ["type" .= ("undo_applied" :: Text)]
-          <> stateFields newState
-
--- | Common state fields included in messages where the board/turn changed.
-stateFields :: AI.State -> [(Key, Value)]
-stateFields (AI.State board _moves phase) =
-  case phase of
-    AI.PlayerTurn validMoves _pending ->
-      [ "turn" .= ("player" :: Text)
-      , "status" .= gameStatusFromDomain Ongoing
-      , "validMoves" .= map moveFromDomain validMoves
-      , "board" .= boardFromExtern board
-      ]
-    AI.EngineThinking _pending ->
-      [ "turn" .= ("engine" :: Text)
-      , "status" .= gameStatusFromDomain Ongoing
-      , "board" .= boardFromExtern board
-      ]
-    AI.Finished outcome ->
-      [ "status" .= gameStatusFromDomain (outcomeToGameStatus outcome)
-      , "board" .= boardFromExtern board
-      ]
-
--- | Serialize the full game state for initial sync on connect.
-gameStateToJSON :: GameId -> PlayerColor -> AI.State -> LByteString
-gameStateToJSON gId humanColor (AI.State board moves phase) =
-  encode $
-    object $
-      [ "type" .= ("game_state" :: Text)
-      , "gameId" .= gId
-      , "humanColor" .= humanColor
-      , "board" .= boardFromExtern board
-      , "history" .= map appliedMoveToJSON moves
-      ]
-        <> case phase of
-          AI.PlayerTurn validMoves pending ->
-            [ "turn" .= ("player" :: Text)
-            , "status" .= gameStatusFromDomain Ongoing
-            , "validMoves" .= map moveFromDomain validMoves
-            , "pendingAction" .= fmap pendingActionToJSON pending
-            ]
-          AI.EngineThinking pending ->
-            [ "turn" .= ("engine" :: Text)
-            , "status" .= gameStatusFromDomain Ongoing
-            , "validMoves" .= ([] :: [ApiMove])
-            , "pendingAction" .= fmap pendingActionToJSON pending
-            ]
-          AI.Finished outcome ->
-            [ "status" .= gameStatusFromDomain (outcomeToGameStatus outcome)
-            , "validMoves" .= ([] :: [ApiMove])
-            , "pendingAction" .= (Nothing :: Maybe Value)
-            ]
- where
-  appliedMoveToJSON am =
-    object
-      [ "move" .= moveFromDomain (MoveWithCaptures am.move am.captures)
-      , "side" .= am.side
-      ]
-  pendingActionToJSON pa =
-    object
-      [ "actionType" .= case pa.actionType of
-          DrawOffer -> "draw_offer" :: Text
-          UndoRequest -> "undo_request"
-      , "offeredBy" .= pa.offeredBy
-      ]
-
-errorToJSON :: Text -> LByteString
-errorToJSON msg = encode $ object ["type" .= ("error" :: Text), "message" .= msg]
-
--------------------------------------------------------------------------------
 -- Storage
 
 -- | Load AI game state from the database
@@ -243,7 +135,7 @@ loadAIState humanColor gameId = do
       humanColor
       board
       appliedMoves
-      (gameStatusToOutcome game.gameStatus)
+      game.outcome
       pendingAction
 
 mkGame :: GameId -> Time -> PlayerColor -> Game
@@ -254,7 +146,7 @@ mkGame gameId time humanColor =
     , mode = VsAI Nothing humanColor (Data.PlayerId "engine")
     , startTime = time
     , endTime = Nothing
-    , gameStatus = Ongoing
+    , outcome = Nothing
     , createdAt = time
     }
 
@@ -287,12 +179,6 @@ createGame humanColor = do
 -------------------------------------------------------------------------------
 -- Session management
 
-getOrInsert :: Hashable key => a -> key -> STMMap.Map key a -> STM (a, Bool)
-getOrInsert new = STMMap.focus (Focus.cases insert' get')
- where
-  insert' = ((new, True), Focus.Set new)
-  get' existing = ((existing, False), Focus.Leave)
-
 -- | Connect to an AI game. Gets or creates the session in the STMMap,
 -- sets the connection, and re-triggers engine search if needed (e.g.
 -- reconnect during EngineThinking). Returns the MVar handle and the
@@ -309,21 +195,20 @@ connectToGame sessions gameId humanColor uid conn = do
   emptyVar <- MVar.newEmptyMVar
   (var, isNew) <- STM.atomically $ getOrInsert emptyVar gameId sessions
   if isNew
-    then
-      onException
-        do
-          gameState <- runTransaction $ loadAIState humanColor gameId
-          let session = GameSession gameState humanColor (uid, conn) Nothing
-          -- If engine was thinking (e.g. server restart), re-trigger the search
-          case gameState of
-            AI.State _ moves (AI.EngineThinking _) -> do
-              searchAsync <- spawnEngineSearch var gameId humanColor moves
-              MVar.putMVar var session{engineAsync = Just searchAsync}
-            _ -> MVar.putMVar var session
-          pure (var, gameState)
-        do
-          STM.atomically $ STMMap.delete gameId sessions
-          void $ MVar.tryPutMVar var (error "session failed to load")
+    then onException
+      do
+        gameState <- runTransaction $ loadAIState humanColor gameId
+        let session = GameSession gameState humanColor (uid, conn) Nothing
+        -- If engine was thinking (e.g. server restart), re-trigger the search
+        case gameState of
+          AI.State _ moves (AI.EngineThinking _) -> do
+            searchAsync <- spawnEngineSearch var gameId humanColor moves
+            MVar.putMVar var session{engineAsync = Just searchAsync}
+          _ -> MVar.putMVar var session
+        pure (var, gameState)
+      do
+        STM.atomically $ STMMap.delete gameId sessions
+        void $ MVar.tryPutMVar var (error "session failed to load")
     else do
       -- Existing session (e.g. quick reconnect before old finally ran)
       gameState <- MVar.modifyMVar var $ \session -> do
@@ -409,25 +294,31 @@ spawnEngineSearch ::
   PlayerColor ->
   [AppliedMove] ->
   Eff es (Async.Async ())
-spawnEngineSearch sessionVar gameId humanColor moves = Async.async $ do
-  let board = currentBoard moves
-      engineColor = opponent humanColor
-      blackToMove = currentTurn moves == Black
-      hashes = zobristHashes moves
-      timeout = SearchTimeout 5000 -- 5 second search
-  result <- searchTrusted board blackToMove hashes timeout False
-  time <- now
-  let applied =
-        AppliedMove
-          { move = result.searchMove
-          , side = engineColor
-          , captures = result.captures
-          , boardAfter = result.updatedBoard
-          , zobristHash = result.updatedZobristHash
-          , timestamp = time
-          }
-      maybeOutcome = outcomeFromEngine result.gameStatus
-  processEvent sessionVar gameId (AI.EngineMove applied maybeOutcome)
+spawnEngineSearch sessionVar gameId humanColor moves =
+  Async.async $
+    doSearch `catch` \(ex :: SomeException) ->
+      MVar.withMVar sessionVar $ \session ->
+        sendToPlayer session (errorToJSON $ "Engine search failed: " <> show ex)
+ where
+  doSearch = do
+    let board = currentBoard moves
+        engineColor = opponent humanColor
+        blackToMove = currentTurn moves == Black
+        hashes = zobristHashes moves
+        timeout = SearchTimeout 5000 -- 5 second search
+    result <- searchTrusted board blackToMove hashes timeout False
+    time <- now
+    let applied =
+          AppliedMove
+            { move = result.searchMove
+            , side = engineColor
+            , captures = result.captures
+            , boardAfter = result.updatedBoard
+            , zobristHash = result.updatedZobristHash
+            , timestamp = time
+            }
+        maybeOutcome = outcomeFromEngine result.gameStatus
+    processEvent sessionVar gameId (AI.EngineMove applied maybeOutcome)
 
 -- | Send a message to the player's WebSocket connection.
 -- Silently catches connection exceptions.
@@ -442,7 +333,13 @@ sendToPlayer session msg =
 
 -- | Handle a WebSocket connection for an AI game.
 handleWebSocket ::
-  (Storage :> es, Clock :> es, IdGen :> es, Search :> es, Concurrent :> es, WebSocket :> es) =>
+  ( Storage :> es
+  , Clock :> es
+  , IdGen :> es
+  , Search :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  ) =>
   GameSessions ->
   Connection ->
   Eff es ()
@@ -462,14 +359,6 @@ handleWebSocket sessions conn = do
           sendData conn (gameStateToJSON gameId humanColor gameState)
           receiveLoop sessionVar gameId humanColor conn
             `finally` disconnectPlayer sessions gameId sessionVar uid
-
-decodeAuthToken :: LByteString -> Maybe Text
-decodeAuthToken msg = do
-  obj <- decode msg
-  flip parseMaybe obj $ withObject "auth" $ \o -> do
-    typ <- o .: "type" :: Parser Text
-    guard (typ == "auth")
-    o .: "token"
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::

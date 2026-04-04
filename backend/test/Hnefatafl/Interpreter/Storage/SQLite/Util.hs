@@ -147,7 +147,7 @@ baseGame currentTime =
     , mode = Hotseat Nothing
     , startTime = currentTime
     , endTime = Nothing
-    , gameStatus = Ongoing
+    , outcome = Nothing
     , createdAt = currentTime
     }
 

@@ -46,7 +46,7 @@ genEvent (State _ moves (Awaiting turn validMoves)) =
             , MakeMove . (.move) <$> elements (toList validMoves) <*> pure (Time 0)
             )
           ]
-        , [(2, pure $ Undo turn) | not (null moves)]
+        , [(2, pure Undo) | not (null moves)]
         , [(1, pure $ Resign turn)]
         , [(1, pure AgreeDraw)]
         , [(1, pure $ Timeout turn)]

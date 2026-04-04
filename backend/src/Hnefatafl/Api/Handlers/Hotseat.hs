@@ -9,7 +9,6 @@ import Hnefatafl.Api.Types (
   ActionResponse (..),
   ApiGameMove (..),
   ApiGameState (..),
-  ApiGameStatus (..),
   ApiMove,
   boardFromExtern,
   gameStatusFromDomain,
@@ -27,7 +26,6 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
-import Hnefatafl.Game.Common (outcomeToGameStatus)
 import Hnefatafl.Game.Common qualified as Common
 import Hnefatafl.Game.Hotseat qualified as HotseatGame
 import Servant (ServerError (..), err400)
@@ -70,8 +68,8 @@ toApiGameState gId (HotseatGame.State board moves phase) =
         HotseatGame.Awaiting t _ -> t
         HotseatGame.Finished _ -> Black
     , status = case phase of
-        HotseatGame.Awaiting _ _ -> ApiOngoing
-        HotseatGame.Finished outcome -> gameStatusFromDomain (outcomeToGameStatus outcome)
+        HotseatGame.Awaiting _ _ -> gameStatusFromDomain Nothing
+        HotseatGame.Finished outcome -> gameStatusFromDomain (Just outcome)
     , history = map toApiGameMove moves
     , validMoves = case phase of
         HotseatGame.Awaiting _ vm -> map moveFromDomain vm
@@ -85,8 +83,8 @@ toActionResponse (HotseatGame.State _ _ phase) =
         HotseatGame.Awaiting t _ -> t
         HotseatGame.Finished _ -> Black
     , status = case phase of
-        HotseatGame.Awaiting _ _ -> ApiOngoing
-        HotseatGame.Finished outcome -> gameStatusFromDomain (outcomeToGameStatus outcome)
+        HotseatGame.Awaiting _ _ -> gameStatusFromDomain Nothing
+        HotseatGame.Finished outcome -> gameStatusFromDomain (Just outcome)
     , validMoves = case phase of
         HotseatGame.Awaiting _ vm -> map moveFromDomain vm
         HotseatGame.Finished _ -> []

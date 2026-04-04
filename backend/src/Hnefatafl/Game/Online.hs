@@ -12,15 +12,9 @@ module Hnefatafl.Game.Online (
 
 import Chronos (Time)
 import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
-import Hnefatafl.Core.Data (
-  ExternBoard,
-  Move (..),
-  MoveWithCaptures (..),
-  PlayerColor (..),
- )
+import Hnefatafl.Core.Data (ExternBoard, Move (..), MoveWithCaptures (..), Outcome (..), PlayerColor (..))
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  Outcome (..),
   PendingAction (..),
   PendingActionType (..),
   PersistenceCommand (..),
@@ -102,33 +96,31 @@ transition (State board moves (Active turn validMoves pending)) = \case
   MakeMove color move time
     | color /= turn -> Left NotYourTurn
     | move `notElem` map (.move) validMoves -> Left InvalidMove
-    | otherwise ->
+    | otherwise -> do
         let hashes = zobristHashes moves
-            (moveResult, engineStatus, nextValidMoves) =
-              fromRight (error "valid move rejected by engine") $
-                nextGameStateWithMovesTrusted board (turn == Black) move hashes
-            applied = mkAppliedMove moveResult time
+        (moveResult, engineStatus, nextValidMoves) <-
+          first (const EngineError) $
+            nextGameStateWithMovesTrusted board (turn == Black) move hashes
+        let applied = mkAppliedMove moveResult time
             moves' = moves <> [applied]
-         in case outcomeFromEngine engineStatus of
-              Just outcome ->
-                Right $
-                  TransitionResult
-                    (State applied.boardAfter moves' (Finished outcome))
-                    [ Persist $ PersistMove applied
-                    , Persist $ clearPending pending
-                    , Persist $ PersistOutcome outcome
-                    , NotifyOpponent $ OpponentMoved applied
-                    , NotifyActor $ GameEnded outcome
-                    ]
-              Nothing ->
-                let (pending', cancelCmd) = cancelPending (opponent color) pending
-                 in Right $
-                      TransitionResult
-                        (State applied.boardAfter moves' (Active (opponent turn) nextValidMoves pending'))
-                        [ Persist $ PersistMove applied
-                        , Persist cancelCmd
-                        , NotifyOpponent $ OpponentMoved applied
-                        ]
+        Right $ case outcomeFromEngine engineStatus of
+          Just outcome ->
+            TransitionResult
+              (State applied.boardAfter moves' (Finished outcome))
+              [ Persist $ PersistMove applied
+              , Persist $ clearPending pending
+              , Persist $ PersistOutcome outcome
+              , NotifyOpponent $ OpponentMoved applied
+              , NotifyActor $ GameEnded outcome
+              ]
+          Nothing ->
+            let (pending', cancelCmd) = cancelPending (opponent color) pending
+             in TransitionResult
+                  (State applied.boardAfter moves' (Active (opponent turn) nextValidMoves pending'))
+                  [ Persist $ PersistMove applied
+                  , Persist cancelCmd
+                  , NotifyOpponent $ OpponentMoved applied
+                  ]
   Resign color ->
     let outcome = ResignedBy color
      in Right $

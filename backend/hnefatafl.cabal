@@ -24,9 +24,13 @@ library
       Hnefatafl.Api.Types.AI
       Hnefatafl.Api.Types.Online
       Hnefatafl.App.AI
+      Hnefatafl.App.AI.Serialization
       Hnefatafl.App.Hotseat
       Hnefatafl.App.Online
+      Hnefatafl.App.Online.Serialization
+      Hnefatafl.App.Session
       Hnefatafl.App.Storage
+      Hnefatafl.App.WebSocket
       Hnefatafl.Bindings
       Hnefatafl.Board
       Hnefatafl.CLI

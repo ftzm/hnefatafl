@@ -10,7 +10,9 @@ module Hnefatafl.Core.Data (
 
   -- * Game Types
   GameId (..),
-  GameStatus (..),
+  BlackWinCondition (..),
+  WhiteWinCondition (..),
+  Outcome (..),
   Participant (..),
   GameMode (..),
   Game (..),
@@ -22,6 +24,7 @@ module Hnefatafl.Core.Data (
   MoveWithCaptures (..),
   MoveResult (..),
   PlayerColor (..),
+  opponent,
   GameMove (..),
 
   -- * Game Participant Token Types
@@ -63,22 +66,20 @@ newtype GameId = GameId Text
   deriving (Show, Eq)
   deriving newtype (ToJSON, FromJSON, FromHttpApiData, ToHttpApiData, Hashable)
 
-data GameStatus
-  = Ongoing
-  | -- Black victory conditions
-    BlackWonKingCaptured
-  | BlackWonWhiteSurrounded
-  | BlackWonNoWhiteMoves
-  | BlackWonResignation
-  | BlackWonTimeout
-  | -- White victory conditions
-    WhiteWonKingEscaped
-  | WhiteWonExitFort
-  | WhiteWonNoBlackMoves
-  | WhiteWonResignation
-  | WhiteWonTimeout
-  | -- Other outcomes
-    Draw
+-- | Conditions under which Black wins
+data BlackWinCondition = KingCaptured | WhiteSurrounded | NoWhiteMoves
+  deriving (Show, Eq)
+
+-- | Conditions under which White wins
+data WhiteWinCondition = KingEscaped | ExitFort | NoBlackMoves
+  deriving (Show, Eq)
+
+data Outcome
+  = BlackWins BlackWinCondition
+  | WhiteWins WhiteWinCondition
+  | ResignedBy PlayerColor
+  | TimedOut PlayerColor
+  | Draw
   | Abandoned
   deriving (Show, Eq)
 
@@ -99,7 +100,7 @@ data Game = Game
   , mode :: GameMode
   , startTime :: Time
   , endTime :: Maybe Time
-  , gameStatus :: GameStatus
+  , outcome :: Maybe Outcome
   , createdAt :: Time
   }
   deriving (Show, Eq, Generic)
@@ -171,6 +172,10 @@ instance FromJSON PlayerColor where
     "white" -> pure White
     "black" -> pure Black
     _ -> fail "expected \"white\" or \"black\""
+
+opponent :: PlayerColor -> PlayerColor
+opponent White = Black
+opponent Black = White
 
 -- | A game move with full context including board state
 data GameMove = GameMove

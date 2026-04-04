@@ -364,7 +364,8 @@ printGameMoves gameId = do
   Console.putStrLn $
     encodeUtf8
       ("Game: " <> fromMaybe (let (GameId gid) = game.gameId in gid) game.name :: Text)
-  Console.putStrLn $ encodeUtf8 ("Status: " <> show game.gameStatus :: Text)
+  Console.putStrLn $
+    encodeUtf8 ("Status: " <> maybe "ongoing" show game.outcome :: Text)
   Console.putStrLn ""
 
   if null moves

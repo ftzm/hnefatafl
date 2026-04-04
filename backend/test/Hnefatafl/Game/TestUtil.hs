@@ -2,15 +2,19 @@ module Hnefatafl.Game.TestUtil where
 
 import Chronos (Time (..))
 import Hnefatafl.Bindings (startBoard)
-import Hnefatafl.Core.Data (Layer (..), Move (..), PlayerColor (..))
+import Hnefatafl.Core.Data (
+  BlackWinCondition (..),
+  Layer (..),
+  Move (..),
+  Outcome (..),
+  PlayerColor (..),
+  WhiteWinCondition (..),
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  BlackWinCondition (..),
-  Outcome (..),
   PendingAction (..),
   PendingActionType (..),
   PersistenceCommand (..),
-  WhiteWinCondition (..),
  )
 import Test.QuickCheck (Arbitrary (..), elements, oneof)
 

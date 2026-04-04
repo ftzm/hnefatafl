@@ -11,15 +11,9 @@ module Hnefatafl.Game.AI (
 
 import Chronos (Time)
 import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
-import Hnefatafl.Core.Data (
-  ExternBoard,
-  Move (..),
-  MoveWithCaptures (..),
-  PlayerColor (..),
- )
+import Hnefatafl.Core.Data (ExternBoard, Move (..), MoveWithCaptures (..), Outcome (..), PlayerColor (..))
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  Outcome (..),
   PendingAction (..),
   PendingActionType (..),
   PersistenceCommand (..),
@@ -47,6 +41,11 @@ data Phase
 data State = State ExternBoard [AppliedMove] Phase
   deriving (Show, Eq)
 
+-- NOTE: Draw/undo offers involving the engine are not yet fully implemented.
+-- Currently, pending actions from one side are silently cancelled when the
+-- other side moves (via cancelPending). The engine never initiates or responds
+-- to draw/undo offers through the event flow. The types and transitions are
+-- in place for when this is implemented.
 data Event
   = MakeMove Move Time
   | EngineMove AppliedMove (Maybe Outcome)
@@ -89,33 +88,31 @@ transition _ (State _ _ (Finished _)) = const $ Left GameAlreadyFinished
 transition humanColor (State board moves (PlayerTurn validMoves pending)) = \case
   MakeMove move time
     | move `notElem` map (.move) validMoves -> Left InvalidMove
-    | otherwise ->
+    | otherwise -> do
         let engineColor = opponent humanColor
             hashes = zobristHashes moves
-            (moveResult, engineStatus, _nextValidMoves) =
-              fromRight (error "valid move rejected by engine") $
-                nextGameStateWithMovesTrusted board (currentTurn moves == Black) move hashes
-            applied = mkAppliedMove moveResult time
+        (moveResult, engineStatus, _nextValidMoves) <-
+          first (const EngineError) $
+            nextGameStateWithMovesTrusted board (currentTurn moves == Black) move hashes
+        let applied = mkAppliedMove moveResult time
             moves' = moves <> [applied]
             (pending', cancelCmd) = cancelPending engineColor pending
-         in case outcomeFromEngine engineStatus of
-              Just outcome ->
-                Right $
-                  TransitionResult
-                    (State applied.boardAfter moves' (Finished outcome))
-                    [ Persist $ PersistMove applied
-                    , Persist cancelCmd
-                    , Persist $ PersistOutcome outcome
-                    , NotifyPlayer $ GameEnded outcome
-                    ]
-              Nothing ->
-                Right $
-                  TransitionResult
-                    (State applied.boardAfter moves' (EngineThinking pending'))
-                    [ Persist $ PersistMove applied
-                    , Persist cancelCmd
-                    , TriggerEngineSearch moves'
-                    ]
+        Right $ case outcomeFromEngine engineStatus of
+          Just outcome ->
+            TransitionResult
+              (State applied.boardAfter moves' (Finished outcome))
+              [ Persist $ PersistMove applied
+              , Persist cancelCmd
+              , Persist $ PersistOutcome outcome
+              , NotifyPlayer $ GameEnded outcome
+              ]
+          Nothing ->
+            TransitionResult
+              (State applied.boardAfter moves' (EngineThinking pending'))
+              [ Persist $ PersistMove applied
+              , Persist cancelCmd
+              , TriggerEngineSearch moves'
+              ]
   EngineMove{} -> Left NotYourTurn
   Undo ->
     case undoMoves 2 moves of

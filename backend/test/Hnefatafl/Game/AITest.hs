@@ -9,6 +9,7 @@ import Hnefatafl.Bindings (
 import Hnefatafl.Core.Data (
   ExternBoard,
   MoveWithCaptures (..),
+  Outcome (..),
   PlayerColor (..),
  )
 import Hnefatafl.Game.AI (
@@ -22,7 +23,6 @@ import Hnefatafl.Game.AI (
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  Outcome (..),
   PendingAction (..),
   PendingActionType (..),
   currentBoard,

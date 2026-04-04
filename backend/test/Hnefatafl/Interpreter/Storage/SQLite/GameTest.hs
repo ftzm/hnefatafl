@@ -63,8 +63,8 @@ spec_Game =
               baseGame currentTime
                 & #endTime
                 ?~ currentTime
-                & #gameStatus
-                .~ WhiteWonKingEscaped
+                & #outcome
+                .~ Just (WhiteWins KingEscaped)
         resultEquals
           ( runTransaction $ do
               insertGame testGame
@@ -73,16 +73,21 @@ spec_Game =
           testGame
           conn
 
-    describe "updateGameStatus" $ do
+    describe "setOutcome" $ do
       it "can update game status to completed" $ \conn -> do
         currentTime <- now
         let originalGame = baseGame currentTime
-            expectedGame = originalGame & #gameStatus .~ BlackWonKingCaptured & #endTime ?~ currentTime
+            expectedGame =
+              originalGame
+                & #outcome
+                .~ Just (BlackWins KingCaptured)
+                & #endTime
+                ?~ currentTime
 
         resultEquals
           ( runTransaction $ do
               insertGame originalGame
-              updateGameStatus originalGame.gameId BlackWonKingCaptured (Just currentTime)
+              setOutcome originalGame.gameId (BlackWins KingCaptured) (Just currentTime)
               getGame originalGame.gameId
           )
           expectedGame
@@ -91,12 +96,12 @@ spec_Game =
       it "can update game status without setting end time" $ \conn -> do
         currentTime <- now
         let originalGame = baseGame currentTime
-            expectedGame = originalGame & #gameStatus .~ Draw
+            expectedGame = originalGame & #outcome .~ Just Draw
 
         resultEquals
           ( runTransaction $ do
               insertGame originalGame
-              updateGameStatus originalGame.gameId Draw Nothing
+              setOutcome originalGame.gameId Draw Nothing
               getGame originalGame.gameId
           )
           expectedGame
@@ -197,8 +202,8 @@ spec_Game =
                 .~ GameId "completed"
                 & #name
                 ?~ "Completed Game"
-                & #gameStatus
-                .~ WhiteWonKingEscaped
+                & #outcome
+                .~ Just (WhiteWins KingEscaped)
                 & #endTime
                 ?~ currentTime
 
@@ -212,25 +217,25 @@ spec_Game =
           Left err -> expectationFailure $ "Expected success but got error: " ++ err
           Right games -> do
             length games `shouldBe` 2
-            let statuses = map (.gameStatus) games
-            statuses `shouldContain` [Ongoing, WhiteWonKingEscaped]
+            let statuses = map (.outcome) games
+            statuses `shouldContain` [Nothing, Just (WhiteWins KingEscaped)]
 
-    describe "game with all status types" $ it "can handle all GameStatus variants" $ \conn -> do
+    describe "game with all outcome types" $ it "can handle all Outcome variants" $ \conn -> do
       currentTime <- now
       let statusTests =
-            [ (Ongoing, "ongoing-game")
-            , (BlackWonKingCaptured, "black-won-king-captured-game")
-            , (BlackWonWhiteSurrounded, "black-won-white-surrounded-game")
-            , (BlackWonNoWhiteMoves, "black-won-no-white-moves-game")
-            , (BlackWonResignation, "black-resignation-game")
-            , (BlackWonTimeout, "black-timeout-game")
-            , (WhiteWonKingEscaped, "white-won-king-escaped-game")
-            , (WhiteWonExitFort, "white-won-exit-fort-game")
-            , (WhiteWonNoBlackMoves, "white-won-no-black-moves-game")
-            , (WhiteWonResignation, "white-resignation-game")
-            , (WhiteWonTimeout, "white-timeout-game")
-            , (Draw, "draw-game")
-            , (Abandoned, "abandoned-game")
+            [ (Nothing, "ongoing-game")
+            , (Just (BlackWins KingCaptured), "black-won-king-captured-game")
+            , (Just (BlackWins WhiteSurrounded), "black-won-white-surrounded-game")
+            , (Just (BlackWins NoWhiteMoves), "black-won-no-white-moves-game")
+            , (Just (ResignedBy White), "black-resignation-game")
+            , (Just (TimedOut White), "black-timeout-game")
+            , (Just (WhiteWins KingEscaped), "white-won-king-escaped-game")
+            , (Just (WhiteWins ExitFort), "white-won-exit-fort-game")
+            , (Just (WhiteWins NoBlackMoves), "white-won-no-black-moves-game")
+            , (Just (ResignedBy Black), "white-resignation-game")
+            , (Just (TimedOut Black), "white-timeout-game")
+            , (Just Draw, "draw-game")
+            , (Just Abandoned, "abandoned-game")
             ]
 
       shouldSucceed
@@ -243,11 +248,11 @@ spec_Game =
                     .~ gameId
                     & #name
                     ?~ ("Test Game " <> gameIdSuffix)
-                    & #gameStatus
+                    & #outcome
                     .~ status
             retrievedGame <- runTransaction $ do
               insertGame testGame
               getGame gameId
             -- Verify status was stored and retrieved correctly
-            liftIO $ retrievedGame.gameStatus `shouldBe` status
+            liftIO $ retrievedGame.outcome `shouldBe` status
         conn

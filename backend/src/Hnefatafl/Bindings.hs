@@ -17,7 +17,6 @@ module Hnefatafl.Bindings (
   ttDestroy,
   ttClear,
   ttNewGeneration,
-  toGameStatus,
   EngineGameStatus (..),
   MoveError (..),
   MoveValidationResult (..),
@@ -43,7 +42,6 @@ import Foreign.Storable.Generic (GStorable)
 import Hnefatafl.Core.Data (
   DomainMapping (..),
   ExternBoard (..),
-  GameStatus (..),
   Layer (..),
   Move (..),
   MoveResult (..),
@@ -65,19 +63,6 @@ data EngineGameStatus
   | EngineBlackResigned -- white victory
   deriving (Show, Read, Eq, Ord, Enum, Generic)
   deriving anyclass (ToJSON, FromJSON)
-
-toGameStatus :: EngineGameStatus -> GameStatus
-toGameStatus = \case
-  EngineOngoing -> Hnefatafl.Core.Data.Ongoing
-  EngineKingCaptured -> BlackWonKingCaptured
-  EngineWhiteSurrounded -> BlackWonWhiteSurrounded
-  EngineNoWhiteMoves -> BlackWonNoWhiteMoves
-  EngineKingEscaped -> WhiteWonKingEscaped
-  EngineExitFort -> WhiteWonExitFort
-  EngineNoBlackMoves -> WhiteWonNoBlackMoves
-  EngineDrawOffered -> Draw
-  EngineWhiteResigned -> BlackWonResignation
-  EngineBlackResigned -> WhiteWonResignation
 
 -- Internal storable types for FFI
 data StorableLayer = StorableLayer {lower :: Word64, upper :: Word64}

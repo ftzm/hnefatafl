@@ -14,7 +14,6 @@ import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
   GameMode (..),
-  GameStatus (..),
   Move (..),
   PlayerColor (..),
  )
@@ -31,7 +30,6 @@ import Hnefatafl.Effect.Storage (
 import Hnefatafl.Game.Common (
   TransitionError (..),
   currentBoard,
-  gameStatusToOutcome,
  )
 import Hnefatafl.Game.Hotseat qualified as Hotseat
 
@@ -43,7 +41,7 @@ mkGame gameId time =
     , mode = Hotseat Nothing
     , startTime = time
     , endTime = Nothing
-    , gameStatus = Ongoing
+    , outcome = Nothing
     , createdAt = time
     }
 
@@ -54,7 +52,7 @@ loadHotseatState gameId = do
   let appliedMoves = gameMoveToAppliedMoves gameMoves
       board = currentBoard appliedMoves
   pure $
-    Hotseat.reconstruct board appliedMoves (gameStatusToOutcome game.gameStatus)
+    Hotseat.reconstruct board appliedMoves game.outcome
 
 processEvent ::
   (Storage :> es, Clock :> es) =>
@@ -91,7 +89,7 @@ undoMove ::
   (Storage :> es, Clock :> es) =>
   GameId ->
   Eff es (Either TransitionError Hotseat.State)
-undoMove gameId = processEvent gameId (Hotseat.Undo Black)
+undoMove gameId = processEvent gameId Hotseat.Undo
 
 resign ::
   (Storage :> es, Clock :> es) =>

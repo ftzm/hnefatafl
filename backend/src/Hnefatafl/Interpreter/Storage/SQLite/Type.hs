@@ -8,7 +8,7 @@ module Hnefatafl.Interpreter.Storage.SQLite.Type (
   HumanPlayerDb (..),
   EnginePlayerDb (..),
   GameIdDb (..),
-  GameStatusDb (..),
+  OutcomeDb (..),
   GameType (..),
   GameDb (..),
   GameJoinRow (..),
@@ -93,48 +93,48 @@ instance DomainMapping GameIdDb GameId where
   toDomain (GameIdDb txt) = GameId txt
   fromDomain (GameId txt) = GameIdDb txt
 
-newtype GameStatusDb = GameStatusDb GameStatus
+newtype OutcomeDb = OutcomeDb (Maybe Outcome)
   deriving (Show, Eq)
 
-instance DomainMapping GameStatusDb GameStatus where
+instance DomainMapping OutcomeDb (Maybe Outcome) where
   toDomain = coerce
   fromDomain = coerce
 
-instance ToField GameStatusDb where
-  toField (GameStatusDb status) = toField $ case status of
-    Ongoing -> "ongoing" :: Text
-    BlackWonKingCaptured -> "black_won_king_captured"
-    BlackWonWhiteSurrounded -> "black_won_white_surrounded"
-    BlackWonNoWhiteMoves -> "black_won_no_white_moves"
-    BlackWonResignation -> "black_won_resignation"
-    BlackWonTimeout -> "black_won_timeout"
-    WhiteWonKingEscaped -> "white_won_king_escaped"
-    WhiteWonExitFort -> "white_won_exit_fort"
-    WhiteWonNoBlackMoves -> "white_won_no_black_moves"
-    WhiteWonResignation -> "white_won_resignation"
-    WhiteWonTimeout -> "white_won_timeout"
-    Draw -> "draw"
-    Abandoned -> "abandoned"
+instance ToField OutcomeDb where
+  toField (OutcomeDb outcome) = toField $ case outcome of
+    Nothing -> "ongoing" :: Text
+    Just (BlackWins KingCaptured) -> "black_won_king_captured"
+    Just (BlackWins WhiteSurrounded) -> "black_won_white_surrounded"
+    Just (BlackWins NoWhiteMoves) -> "black_won_no_white_moves"
+    Just (WhiteWins KingEscaped) -> "white_won_king_escaped"
+    Just (WhiteWins ExitFort) -> "white_won_exit_fort"
+    Just (WhiteWins NoBlackMoves) -> "white_won_no_black_moves"
+    Just (ResignedBy White) -> "white_won_resignation"
+    Just (ResignedBy Black) -> "black_won_resignation"
+    Just (TimedOut White) -> "white_won_timeout"
+    Just (TimedOut Black) -> "black_won_timeout"
+    Just Draw -> "draw"
+    Just Abandoned -> "abandoned"
 
-instance FromField GameStatusDb where
+instance FromField OutcomeDb where
   fromField f =
     fromField @Text f >>= \case
-      "ongoing" -> pure $ GameStatusDb Ongoing
-      "black_won_king_captured" -> pure $ GameStatusDb BlackWonKingCaptured
-      "black_won_white_surrounded" -> pure $ GameStatusDb BlackWonWhiteSurrounded
-      "black_won_no_white_moves" -> pure $ GameStatusDb BlackWonNoWhiteMoves
-      "black_won_resignation" -> pure $ GameStatusDb BlackWonResignation
-      "black_won_timeout" -> pure $ GameStatusDb BlackWonTimeout
-      "white_won_king_escaped" -> pure $ GameStatusDb WhiteWonKingEscaped
-      "white_won_exit_fort" -> pure $ GameStatusDb WhiteWonExitFort
-      "white_won_no_black_moves" -> pure $ GameStatusDb WhiteWonNoBlackMoves
-      "white_won_resignation" -> pure $ GameStatusDb WhiteWonResignation
-      "white_won_timeout" -> pure $ GameStatusDb WhiteWonTimeout
-      "draw" -> pure $ GameStatusDb Draw
-      "abandoned" -> pure $ GameStatusDb Abandoned
+      "ongoing" -> pure $ OutcomeDb Nothing
+      "black_won_king_captured" -> pure $ OutcomeDb $ Just $ BlackWins KingCaptured
+      "black_won_white_surrounded" -> pure $ OutcomeDb $ Just $ BlackWins WhiteSurrounded
+      "black_won_no_white_moves" -> pure $ OutcomeDb $ Just $ BlackWins NoWhiteMoves
+      "black_won_resignation" -> pure $ OutcomeDb $ Just $ ResignedBy Black
+      "black_won_timeout" -> pure $ OutcomeDb $ Just $ TimedOut Black
+      "white_won_king_escaped" -> pure $ OutcomeDb $ Just $ WhiteWins KingEscaped
+      "white_won_exit_fort" -> pure $ OutcomeDb $ Just $ WhiteWins ExitFort
+      "white_won_no_black_moves" -> pure $ OutcomeDb $ Just $ WhiteWins NoBlackMoves
+      "white_won_resignation" -> pure $ OutcomeDb $ Just $ ResignedBy White
+      "white_won_timeout" -> pure $ OutcomeDb $ Just $ TimedOut White
+      "draw" -> pure $ OutcomeDb $ Just Draw
+      "abandoned" -> pure $ OutcomeDb $ Just Abandoned
       -- Legacy support for old values
-      "white_won" -> pure $ GameStatusDb WhiteWonKingEscaped -- Default to most common white victory
-      "black_won" -> pure $ GameStatusDb BlackWonKingCaptured -- Default to most common black victory
+      "white_won" -> pure $ OutcomeDb $ Just $ WhiteWins KingEscaped
+      "black_won" -> pure $ OutcomeDb $ Just $ BlackWins KingCaptured
       _ -> returnError ConversionFailed f "Invalid game status"
 
 data GameType = HotseatType | AIType | OnlineType
@@ -159,7 +159,7 @@ data GameDb = GameDb
   , gameType :: GameType
   , startTime :: Time
   , endTime :: Maybe Time
-  , gameStatus :: GameStatusDb
+  , outcome :: OutcomeDb
   , createdAt :: Time
   }
   deriving (Show, Generic, ToRow, FromRow)
@@ -171,7 +171,7 @@ data GameJoinRow = GameJoinRow
   , gameType :: GameType
   , startTime :: Time
   , endTime :: Maybe Time
-  , gameStatus :: GameStatusDb
+  , outcome :: OutcomeDb
   , createdAt :: Time
   , -- hotseat
     hotseatOwnerId :: Maybe PlayerIdDb

@@ -21,7 +21,7 @@ import Hnefatafl.Interpreter.Storage.SQLite.Game (
   gameToDb,
   getGameById,
   listGamesDb,
-  updateGameStatusById,
+  setOutcomeById,
  )
 import Hnefatafl.Interpreter.Storage.SQLite.Move qualified as MoveDb
 import Hnefatafl.Interpreter.Storage.SQLite.PendingAction qualified as PendingDb
@@ -81,8 +81,8 @@ dispatch = \case
     getGameById (fromDomain gameId)
   ListGames ->
     listGamesDb
-  UpdateGameStatus gameId gameStatus endTime ->
-    updateGameStatusById (fromDomain gameId) (fromDomain gameStatus) endTime
+  SetOutcome gameId outcome endTime ->
+    setOutcomeById (fromDomain gameId) (fromDomain (Just outcome)) endTime
   DeleteGame gameId ->
     deleteGameById (fromDomain gameId)
   InsertMove gameId gameMove -> \conn ->

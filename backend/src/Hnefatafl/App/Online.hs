@@ -17,37 +17,30 @@ module Hnefatafl.App.Online (
 import Chronos (Time)
 import Data.Aeson (
   FromJSON (..),
-  Key,
-  Value,
   decode,
-  encode,
-  object,
   withObject,
   (.:),
-  (.=),
  )
-import Data.Aeson.Types (Parser, parseMaybe)
+import Data.Aeson.Types (Parser)
 import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (catch, finally, onException)
-import Focus qualified
-import Hnefatafl.Api.Types (
-  ApiMove,
-  boardFromExtern,
-  gameStatusFromDomain,
-  moveFromDomain,
+import Hnefatafl.App.Online.Serialization (
+  actorNotificationToJSON,
+  gameStateToJSON,
+  notificationToJSON,
  )
+import Hnefatafl.App.Session (getOrInsert)
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
+import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
   GameMode (..),
   GameParticipantToken (..),
   GameParticipantTokenId (..),
-  GameStatus (..),
-  MoveWithCaptures (..),
   PlayerColor (..),
  )
 import Hnefatafl.Core.Data qualified as Data
@@ -66,13 +59,8 @@ import Hnefatafl.Effect.Storage (
  )
 import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
 import Hnefatafl.Game.Common (
-  AppliedMove (..),
-  PendingAction (..),
-  PendingActionType (..),
   currentBoard,
-  gameStatusToOutcome,
   opponent,
-  outcomeToGameStatus,
  )
 import Hnefatafl.Game.Online qualified as Online
 import Network.WebSockets (Connection, ConnectionException)
@@ -151,121 +139,6 @@ toEvent color time = \case
   DeclineUndo -> Online.DeclineUndo color
 
 -------------------------------------------------------------------------------
--- Messages from the server
-
--- | Serialize a notification for the opponent.
-notificationToJSON :: Online.State -> Online.Notification -> LByteString
-notificationToJSON newState = \case
-  Online.OpponentMoved am ->
-    encode $
-      object $
-        [ "type" .= ("opponent_moved" :: Text)
-        , "move" .= moveFromDomain (MoveWithCaptures am.move am.captures)
-        , "side" .= am.side
-        ]
-          <> stateFields newState
-  Online.OpponentResigned color ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "reason" .= ("resignation" :: Text)
-        , "winner" .= opponent color
-        ]
-  Online.OpponentTimedOut color ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "reason" .= ("timeout" :: Text)
-        , "winner" .= opponent color
-        ]
-  Online.DrawOffered color ->
-    encode $ object ["type" .= ("draw_offered" :: Text), "by" .= color]
-  Online.DrawAccepted ->
-    encode $ object ["type" .= ("game_over" :: Text), "reason" .= ("draw" :: Text)]
-  Online.DrawDeclined ->
-    encode $ object ["type" .= ("draw_declined" :: Text)]
-  Online.UndoRequested color ->
-    encode $ object ["type" .= ("undo_requested" :: Text), "by" .= color]
-  Online.UndoAccepted _moves ->
-    encode $
-      object $
-        ["type" .= ("undo_accepted" :: Text)]
-          <> stateFields newState
-  Online.UndoDeclined ->
-    encode $ object ["type" .= ("undo_declined" :: Text)]
-
--- | Serialize an actor notification.
-actorNotificationToJSON ::
-  Online.State -> Online.ActorNotification -> LByteString
-actorNotificationToJSON newState = \case
-  Online.GameEnded outcome ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "status" .= gameStatusFromDomain (outcomeToGameStatus outcome)
-        ]
-  Online.UndoApplied ->
-    encode $
-      object $
-        ["type" .= ("undo_accepted" :: Text)]
-          <> stateFields newState
-
--- | Common state fields included in messages where the board/turn changed.
--- Includes turn, status, valid moves, and board.
-stateFields :: Online.State -> [(Key, Value)]
-stateFields (Online.State board _moves phase) =
-  case phase of
-    Online.Active turn validMoves _pending ->
-      [ "turn" .= turn
-      , "status" .= gameStatusFromDomain Ongoing
-      , "validMoves" .= map moveFromDomain validMoves
-      , "board" .= boardFromExtern board
-      ]
-    Online.Finished outcome ->
-      [ "status" .= gameStatusFromDomain (outcomeToGameStatus outcome)
-      , "board" .= boardFromExtern board
-      ]
-
--- | Serialize the full game state for initial sync on connect.
-gameStateToJSON :: GameId -> Online.State -> LByteString
-gameStateToJSON gId (Online.State board moves phase) =
-  encode $
-    object $
-      [ "type" .= ("game_state" :: Text)
-      , "gameId" .= gId
-      , "board" .= boardFromExtern board
-      , "history" .= map appliedMoveToJSON moves
-      ]
-        <> case phase of
-          Online.Active turn validMoves pending ->
-            [ "turn" .= turn
-            , "status" .= gameStatusFromDomain Ongoing
-            , "validMoves" .= map moveFromDomain validMoves
-            , "pendingAction" .= fmap pendingActionToJSON pending
-            ]
-          Online.Finished outcome ->
-            [ "status" .= gameStatusFromDomain (outcomeToGameStatus outcome)
-            , "validMoves" .= ([] :: [ApiMove])
-            , "pendingAction" .= (Nothing :: Maybe Value)
-            ]
- where
-  appliedMoveToJSON am =
-    object
-      [ "move" .= moveFromDomain (MoveWithCaptures am.move am.captures)
-      , "side" .= am.side
-      ]
-  pendingActionToJSON pa =
-    object
-      [ "actionType" .= case pa.actionType of
-          DrawOffer -> "draw_offer" :: Text
-          UndoRequest -> "undo_request"
-      , "offeredBy" .= pa.offeredBy
-      ]
-
-errorToJSON :: Text -> LByteString
-errorToJSON msg = encode $ object ["type" .= ("error" :: Text), "message" .= msg]
-
--------------------------------------------------------------------------------
 -- Storage
 
 -- | Load online game state from the database
@@ -280,7 +153,7 @@ loadOnlineState gameId = do
     Online.reconstruct
       board
       appliedMoves
-      (gameStatusToOutcome game.gameStatus)
+      game.outcome
       pendingAction
 
 mkGame :: GameId -> Time -> Game
@@ -291,7 +164,7 @@ mkGame gameId time =
     , mode = Online Nothing Nothing
     , startTime = time
     , endTime = Nothing
-    , gameStatus = Ongoing
+    , outcome = Nothing
     , createdAt = time
     }
 
@@ -334,11 +207,6 @@ createGame = do
 
 -------------------------------------------------------------------------------
 -- Session management
-getOrInsert :: Hashable key => a -> key -> STMMap.Map key a -> STM (a, Bool)
-getOrInsert new = STMMap.focus (Focus.cases insert' get')
- where
-  insert' = ((new, True), Focus.Set new)
-  get' existing = ((existing, False), Focus.Leave)
 
 -- | Get or create a session in the STMMap. If not found, atomically
 -- inserts an empty MVar as a placeholder atomically then fills it from DB.
@@ -462,14 +330,6 @@ handleWebSocket sessions conn = do
           -- Receive loop with disconnect cleanup
           receiveLoop sessionVar gameId color conn
             `finally` disconnectPlayer sessions gameId sessionVar color uid
-
-decodeAuthToken :: LByteString -> Maybe Text
-decodeAuthToken msg = do
-  obj <- decode msg
-  flip parseMaybe obj $ withObject "auth" $ \o -> do
-    typ <- o .: "type" :: Parser Text
-    guard (typ == "auth")
-    o .: "token"
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::

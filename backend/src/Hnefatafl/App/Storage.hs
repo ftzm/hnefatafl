@@ -10,11 +10,17 @@ import Hnefatafl.Core.Data (
   GameMove (..),
   MoveResult (..),
  )
-import Hnefatafl.Effect.Storage
+import Hnefatafl.Effect.Storage (
+  StorageTx,
+  deleteLastNMoves,
+  deletePendingAction,
+  insertMove,
+  insertPendingAction,
+  setOutcome,
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   PersistenceCommand (..),
-  outcomeToGameStatus,
   toGameMove,
  )
 
@@ -25,7 +31,7 @@ persistenceCommandsToTx gameId time = traverse_ go
   go = \case
     PersistMove am -> insertMove gameId (toGameMove am)
     DeleteMoves n -> deleteLastNMoves gameId n
-    PersistOutcome o -> updateGameStatus gameId (outcomeToGameStatus o) (Just time)
+    PersistOutcome o -> setOutcome gameId o (Just time)
     PersistPendingAction pa -> insertPendingAction gameId pa time
     ClearPendingAction -> deletePendingAction gameId
     NoOp -> pure ()
