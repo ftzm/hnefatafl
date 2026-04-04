@@ -48,12 +48,22 @@ TEST test_shield_wall_capture(
   SET_INDEX(pos_layer, capture_pos);
 
   layer capture_dests_white = white_capture_destinations(&white);
-  ASSERTm("capture_pos should be in white capture destinations",
-           !IS_EMPTY(LAYER_AND(pos_layer, capture_dests_white)));
+  if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_white))) {
+    printf("capture_dests_white missing pos %d\nExpected:\n", capture_pos);
+    print_layer(pos_layer);
+    printf("Actual capture destinations:\n");
+    print_layer(capture_dests_white);
+    FAIL();
+  }
 
   layer capture_dests_black = black_capture_destinations(&black);
-  ASSERTm("capture_pos should be in black capture destinations",
-           !IS_EMPTY(LAYER_AND(pos_layer, capture_dests_black)));
+  if (IS_EMPTY(LAYER_AND(pos_layer, capture_dests_black))) {
+    printf("capture_dests_black missing pos %d\nExpected:\n", capture_pos);
+    print_layer(pos_layer);
+    printf("Actual capture destinations:\n");
+    print_layer(capture_dests_black);
+    FAIL();
+  }
 
   // Apply shield wall and verify resulting board state
   shield_wall_white(&white, &white_zobrist, capture_pos);
