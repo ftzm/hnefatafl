@@ -1,5 +1,6 @@
 #include "score.h"
 #include "board.h"
+#include "quadrant.h"
 #include "capture.h"
 #include "constants.h"
 #include "fixtures.h"
@@ -24,10 +25,19 @@ bool corner_guard_states_equal(corner_guard_state *a, corner_guard_state *b) {
          == b->sw_guard_count;
 }
 
+bool quadrant_counts_equal(quadrant_counts *a, quadrant_counts *b) {
+  return a->black[0] == b->black[0] && a->black[1] == b->black[1]
+         && a->black[2] == b->black[2] && a->black[3] == b->black[3]
+         && a->white[0] == b->white[0] && a->white[1] == b->white[1]
+         && a->white[2] == b->white[2] && a->white[3] == b->white[3]
+         && a->king == b->king;
+}
+
 bool score_states_equal(score_state *a, score_state *b) {
   return a->score
          == b->score
-         && corner_guard_states_equal(&a->corner_guard, &b->corner_guard);
+         && corner_guard_states_equal(&a->corner_guard, &b->corner_guard)
+         && quadrant_counts_equal(&a->quadrants, &b->quadrants);
 }
 
 void print_corner_guard_state(FILE *f, corner_guard_state *cgs) {
@@ -37,8 +47,24 @@ void print_corner_guard_state(FILE *f, corner_guard_state *cgs) {
   fprintf(f, "sw_guard_count: %d\n", cgs->sw_guard_count);
 }
 
+void print_quadrant_counts(FILE *f, quadrant_counts *qc) {
+  fprintf(
+      f,
+      "quadrants: black[NW=%d,NE=%d,SW=%d,SE=%d] white[NW=%d,NE=%d,SW=%d,SE=%d] king=%d\n",
+      qc->black[0],
+      qc->black[1],
+      qc->black[2],
+      qc->black[3],
+      qc->white[0],
+      qc->white[1],
+      qc->white[2],
+      qc->white[3],
+      qc->king);
+}
+
 void print_score_state(FILE *f, score_state *ss) {
   print_corner_guard_state(f, &ss->corner_guard);
+  print_quadrant_counts(f, &ss->quadrants);
   fprintf(f, "score: %d\n", ss->score);
 }
 
