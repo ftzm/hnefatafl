@@ -8,8 +8,6 @@ module Hnefatafl.Serialization (
 import Data.Attoparsec.Text
 import Data.Char (isAlphaNum)
 import Data.Either.Combinators (mapLeft)
-import Data.List (elemIndex, (!!))
-import Data.Maybe (fromJust)
 import Data.Text (singleton)
 import Hnefatafl.Core.Data
 
@@ -30,8 +28,8 @@ data MovePositions = MovePositions Position Position
 
 positionToNotation :: Position -> Text
 positionToNotation (Position (File file) (Rank rank)) =
-  let fileSymbols :: [Text] = map singleton ['k', 'j' ..]
-   in (fileSymbols !! file) <> show (rank + 1)
+  let fileChar = chr (ord 'k' - file)
+   in singleton fileChar <> show (rank + 1)
 
 positionToIndex :: Position -> Int
 positionToIndex (Position (File file) (Rank rank)) = rank * 11 + file
@@ -59,8 +57,7 @@ movesToNotation = mconcat . intersperse " " . map moveToNotation
 fileParser :: Parser File
 fileParser = do
   c <- satisfy (inClass chars)
-  let index = fromJust $ elemIndex c chars
-  pure $ File index
+  pure $ File (ord 'k' - ord c)
  where
   chars = ['k', 'j' .. 'a']
 

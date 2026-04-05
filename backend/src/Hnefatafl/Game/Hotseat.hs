@@ -10,7 +10,13 @@ module Hnefatafl.Game.Hotseat (
 
 import Chronos (Time)
 import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
-import Hnefatafl.Core.Data (ExternBoard, Move (..), MoveWithCaptures (..), Outcome (..), PlayerColor (..))
+import Hnefatafl.Core.Data (
+  ExternBoard,
+  Move (..),
+  MoveWithCaptures (..),
+  Outcome (..),
+  PlayerColor (..),
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   PersistenceCommand (..),

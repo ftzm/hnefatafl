@@ -2,10 +2,10 @@ module Hnefatafl.Server (
   runServer,
 ) where
 
+import Control.Concurrent.QSem (newQSem)
 import Database.SQLite.Simple (close, open)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
-import Control.Concurrent.QSem (newQSem)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Servant (runWarpServerSettingsContext)
 import Hnefatafl.Api.Handlers (server)
@@ -13,8 +13,8 @@ import Hnefatafl.Api.Routes (HnefataflAPI)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
 import Hnefatafl.Interpreter.Search.Local (runSearchLocal)
-import Hnefatafl.Interpreter.WebSocket.IO (runWebSocketIO)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
+import Hnefatafl.Interpreter.WebSocket.IO (runWebSocketIO)
 import Network.Wai.Handler.Warp (defaultSettings, setPort)
 import Network.WebSockets (defaultConnectionOptions)
 import Servant (Context (EmptyContext, (:.)), ServerError)
@@ -41,7 +41,11 @@ runServer port = do
       . runIdGenUUIDv7
       . runSearchLocal qsem
       . runWebSocketIO
-      $ runWarpServerSettingsContext @HnefataflAPI settings ctx (genericServerT (server onlineSessions aiSessions)) id
+      $ runWarpServerSettingsContext @HnefataflAPI
+        settings
+        ctx
+        (genericServerT (server onlineSessions aiSessions))
+        id
   close conn
   case result of
     Left err -> putTextLn $ "Server error: " <> show err

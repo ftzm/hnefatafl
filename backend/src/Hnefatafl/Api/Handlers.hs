@@ -7,23 +7,23 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (Error)
-import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Api.Handlers.AI (aiServer)
 import Hnefatafl.Api.Handlers.Hotseat (hotseatServer)
 import Hnefatafl.Api.Handlers.Online (onlineServer)
-import Hnefatafl.App.AI qualified as AI
-import Hnefatafl.App.Online qualified as Online
 import Hnefatafl.Api.Routes (
   HealthResponse (..),
   Routes (..),
   SearchTrustedInput (..),
   VersionResponse (..),
  )
+import Hnefatafl.App.AI qualified as AI
+import Hnefatafl.App.Online qualified as Online
 import Hnefatafl.Bindings (SearchTrustedResult)
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Effect.Storage (Storage)
+import Hnefatafl.Effect.WebSocket (WebSocket)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
 import Version qualified

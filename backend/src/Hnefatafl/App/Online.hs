@@ -26,15 +26,20 @@ import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (catch, finally, onException)
+import Effectful.Exception (finally)
 import Hnefatafl.App.Online.Serialization (
   actorNotificationToJSON,
   gameStateToJSON,
   notificationToJSON,
  )
-import Hnefatafl.App.Session (getOrInsert)
+import Hnefatafl.App.Session (
+  SessionEntry (..),
+  insertOrAcquire,
+  release,
+  tryAcquire,
+ )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON)
+import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, safeSend)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -63,7 +68,7 @@ import Hnefatafl.Game.Common (
   opponent,
  )
 import Hnefatafl.Game.Online qualified as Online
-import Network.WebSockets (Connection, ConnectionException)
+import Network.WebSockets (Connection)
 import StmContainers.Map qualified as STMMap
 
 -------------------------------------------------------------------------------
@@ -72,18 +77,24 @@ import StmContainers.Map qualified as STMMap
 newtype ConnectionId = ConnectionId Text
   deriving (Eq)
 
+-- | In-memory session for an active online game. Connections are wrapped
+-- in MVars to ensure thread-safe sends — only one thread can write to a
+-- WebSocket connection at a time.
 data GameSession = GameSession
   { gameState :: Online.State
-  , whiteConn :: Maybe (ConnectionId, Connection)
-  , blackConn :: Maybe (ConnectionId, Connection)
+  , whiteConn :: Maybe (ConnectionId, MVar Connection)
+  , blackConn :: Maybe (ConnectionId, MVar Connection)
   }
 
-type GameSessions = STMMap.Map GameId (MVar GameSession)
+type GameSessions = STMMap.Map GameId (SessionEntry GameSession)
 
 -- Convenience helpers
 
 setConn ::
-  PlayerColor -> Maybe (ConnectionId, Connection) -> GameSession -> GameSession
+  PlayerColor ->
+  Maybe (ConnectionId, MVar Connection) ->
+  GameSession ->
+  GameSession
 setConn White val session = session{whiteConn = val}
 setConn Black val session = session{blackConn = val}
 
@@ -93,7 +104,7 @@ clearConn color uid session =
     Just (u, _) | u == uid -> setConn color Nothing session
     _ -> session
 
-getConn :: PlayerColor -> GameSession -> Maybe (ConnectionId, Connection)
+getConn :: PlayerColor -> GameSession -> Maybe (ConnectionId, MVar Connection)
 getConn White session = session.whiteConn
 getConn Black session = session.blackConn
 
@@ -208,61 +219,52 @@ createGame = do
 -------------------------------------------------------------------------------
 -- Session management
 
--- | Get or create a session in the STMMap. If not found, atomically
--- inserts an empty MVar as a placeholder atomically then fills it from DB.
--- Concurrent callers for the same gameId get the same MVar and block
--- until it's filled.
+-- | Get or create a session. If a session already exists in the map,
+-- acquires it (fast path, no DB load). Otherwise loads from DB, creates
+-- a full MVar, and inserts it. If two threads race on creation, one
+-- wins and the other's work is discarded (optimistic concurrency).
 getOrCreateSession ::
   (Storage :> es, Concurrent :> es) =>
   GameSessions ->
   GameId ->
   Eff es (MVar GameSession)
 getOrCreateSession sessions gameId = do
-  emptyVar <- MVar.newEmptyMVar
-  (var, isNew) <- STM.atomically $ getOrInsert emptyVar gameId sessions
-  when isNew $
-    onException
-      do
-        gameState <- runTransaction $ loadOnlineState gameId
-        MVar.putMVar var (GameSession gameState Nothing Nothing)
-      do
-        STM.atomically $ STMMap.delete gameId sessions
-        void $ MVar.tryPutMVar var (error "session failed to load")
-  pure var
+  mVar <- STM.atomically $ tryAcquire gameId sessions
+  case mVar of
+    Just var -> pure var
+    Nothing -> do
+      gameState <- runTransaction $ loadOnlineState gameId
+      var <- MVar.newMVar (GameSession gameState Nothing Nothing)
+      STM.atomically $ insertOrAcquire var gameId sessions
 
--- | Register a connection in the session. Returns the current game state
--- for sending to the connecting player.
+-- | Register a connection in the session. Wraps the raw Connection in an
+-- MVar and returns it alongside the game state for initial send.
 connectPlayer ::
   Concurrent :> es =>
   MVar GameSession ->
   PlayerColor ->
   ConnectionId ->
   Connection ->
-  Eff es Online.State
-connectPlayer sessionVar color uid conn =
+  Eff es (MVar Connection, Online.State)
+connectPlayer sessionVar color uid conn = do
+  connVar <- MVar.newMVar conn
   MVar.modifyMVar sessionVar $ \session ->
-    let session' = setConn color (Just (uid, conn)) session
-     in pure (session', session'.gameState)
+    let session' = setConn color (Just (uid, connVar)) session
+     in pure (session', (connVar, session'.gameState))
 
--- | Unregister a connection. Deletes the session from the map if both
--- players are now disconnected.
+-- | Unregister a connection from the session. Only clears if the uid
+-- matches, so a stale finally from a reconnected player won't remove
+-- the new connection. Map lifecycle is handled separately by
+-- release in the finally block.
 disconnectPlayer ::
   Concurrent :> es =>
-  GameSessions ->
-  GameId ->
   MVar GameSession ->
   PlayerColor ->
   ConnectionId ->
   Eff es ()
-disconnectPlayer sessions gameId sessionVar color uid =
+disconnectPlayer sessionVar color uid =
   MVar.modifyMVar_ sessionVar $ \session ->
-    -- clearConn first: it only clears if the uid matches, so a stale
-    -- finally from a reconnected player won't remove the new connection
-    -- or trigger a spurious session delete.
-    let session' = clearConn color uid session
-     in if isNothing session'.whiteConn && isNothing session'.blackConn
-          then STM.atomically (STMMap.delete gameId sessions) $> session'
-          else pure session'
+    pure $ clearConn color uid session
 
 -------------------------------------------------------------------------------
 -- Event processing
@@ -277,6 +279,8 @@ processEvent ::
 processEvent sessionVar gameId color clientMsg = do
   currentTime <- now
   let event = toEvent color currentTime clientMsg
+  -- All effects (DB writes, notifications) run under the MVar lock so that
+  -- no concurrent event can observe or act on intermediate state.
   MVar.modifyMVar_ sessionVar $ \session ->
     case Online.transition session.gameState event of
       Left err -> do
@@ -295,13 +299,12 @@ processEvent sessionVar gameId color clientMsg = do
         pure session{gameState = tr.newState}
 
 -- | Send a message to a player's WebSocket connection, if connected.
--- Silently catches connection exceptions.
 sendToPlayer ::
-  WebSocket :> es => GameSession -> PlayerColor -> LByteString -> Eff es ()
+  (Concurrent :> es, WebSocket :> es) =>
+  GameSession -> PlayerColor -> LByteString -> Eff es ()
 sendToPlayer session color msg =
-  for_ (getConn color session) $ \(_, conn) ->
-    sendData conn msg
-      `catch` \(_ :: ConnectionException) -> pure ()
+  for_ (getConn color session) $ \(_, connVar) ->
+    safeSend connVar msg
 
 -------------------------------------------------------------------------------
 -- WebSocket handler
@@ -324,12 +327,13 @@ handleWebSocket sessions conn = do
               color = tok.role
           sessionVar <- getOrCreateSession sessions gameId
           uid <- generateId
-          gameState <- connectPlayer sessionVar color uid conn
-          -- Send initial game state
-          sendData conn (gameStateToJSON gameId gameState)
+          (connVar, gameState) <- connectPlayer sessionVar color uid conn
+          safeSend connVar (gameStateToJSON gameId gameState)
           -- Receive loop with disconnect cleanup
-          receiveLoop sessionVar gameId color conn
-            `finally` disconnectPlayer sessions gameId sessionVar color uid
+          receiveLoop sessionVar gameId color connVar
+            `finally` do
+              disconnectPlayer sessionVar color uid
+              STM.atomically $ release gameId sessions
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::
@@ -337,10 +341,12 @@ receiveLoop ::
   MVar GameSession ->
   GameId ->
   PlayerColor ->
-  Connection ->
+  MVar Connection ->
   Eff es ()
-receiveLoop sessionVar gameId color conn = forever $ do
-  msg <- receiveData conn
-  case decode msg of
-    Nothing -> sendData conn (errorToJSON "invalid message")
-    Just clientMsg -> processEvent sessionVar gameId color clientMsg
+receiveLoop sessionVar gameId color connVar = do
+  conn <- MVar.readMVar connVar
+  forever $ do
+    msg <- receiveData conn
+    case decode msg of
+      Nothing -> safeSend connVar (errorToJSON "invalid message")
+      Just clientMsg -> processEvent sessionVar gameId color clientMsg

@@ -178,7 +178,10 @@ validMovesForPosition moves = case nonEmpty moves of
         hashes = zobristHashes prevMs
      in case nextGameStateWithMovesTrusted board (lastM.side == Black) lastM.move hashes of
           Right (_, _, validMoves) -> validMoves
-          Left _ -> []
+          Left err ->
+            error $
+              "validMovesForPosition: engine error replaying move history (data corruption?): "
+                <> show err
 
 mkAppliedMove :: MoveResult -> Time -> AppliedMove
 mkAppliedMove m t =

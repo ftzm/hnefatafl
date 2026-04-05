@@ -28,6 +28,7 @@ library
       Hnefatafl.App.Hotseat
       Hnefatafl.App.Online
       Hnefatafl.App.Online.Serialization
+      Hnefatafl.App.Serialization
       Hnefatafl.App.Session
       Hnefatafl.App.Storage
       Hnefatafl.App.WebSocket

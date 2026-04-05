@@ -5,7 +5,6 @@ module Hnefatafl.Api.Handlers.Online (
 import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Error.Static (Error)
-import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Api.Routes.Online (OnlineRoutes (..))
 import Hnefatafl.Api.Types.Online (
   CreateGameResponse (..),
@@ -18,6 +17,7 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
+import Hnefatafl.Effect.WebSocket (WebSocket)
 import Network.WebSockets (Connection)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)

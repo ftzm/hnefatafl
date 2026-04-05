@@ -26,11 +26,16 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (catch, finally, onException)
+import Effectful.Exception (catch, finally)
 import Hnefatafl.App.AI.Serialization (gameStateToJSON, notificationToJSON)
-import Hnefatafl.App.Session (getOrInsert)
+import Hnefatafl.App.Session (
+  SessionEntry (..),
+  insertOrAcquire,
+  release,
+  tryAcquire,
+ )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON)
+import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, safeSend)
 import Hnefatafl.Bindings (SearchTrustedResult (..))
 import Hnefatafl.Core.Data (
   Game (..),
@@ -66,7 +71,7 @@ import Hnefatafl.Game.Common (
   zobristHashes,
  )
 import Hnefatafl.Search (SearchTimeout (..))
-import Network.WebSockets (Connection, ConnectionException)
+import Network.WebSockets (Connection)
 import StmContainers.Map qualified as STMMap
 
 -------------------------------------------------------------------------------
@@ -75,14 +80,17 @@ import StmContainers.Map qualified as STMMap
 newtype ConnectionId = ConnectionId Text
   deriving (Eq)
 
+-- | In-memory session for an active AI game. The connection is wrapped
+-- in an MVar to ensure thread-safe sends — only one thread can write to
+-- the WebSocket connection at a time.
 data GameSession = GameSession
   { gameState :: AI.State
   , humanColor :: PlayerColor
-  , playerConn :: (ConnectionId, Connection)
+  , playerConn :: (ConnectionId, MVar Connection)
   , engineAsync :: Maybe (Async.Async ())
   }
 
-type GameSessions = STMMap.Map GameId (MVar GameSession)
+type GameSessions = STMMap.Map GameId (SessionEntry GameSession)
 
 -------------------------------------------------------------------------------
 -- Messages from the client
@@ -179,10 +187,10 @@ createGame humanColor = do
 -------------------------------------------------------------------------------
 -- Session management
 
--- | Connect to an AI game. Gets or creates the session in the STMMap,
--- sets the connection, and re-triggers engine search if needed (e.g.
--- reconnect during EngineThinking). Returns the MVar handle and the
--- current game state.
+-- | Connect to an AI game. If a session exists, acquires it and updates
+-- the connection. Otherwise loads from DB, creates the session, and
+-- re-triggers engine search if needed (e.g. reconnect during
+-- EngineThinking). Returns the MVar handle and the current game state.
 connectToGame ::
   (Storage :> es, Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es) =>
   GameSessions ->
@@ -190,48 +198,45 @@ connectToGame ::
   PlayerColor ->
   ConnectionId ->
   Connection ->
-  Eff es (MVar GameSession, AI.State)
+  Eff es (MVar GameSession, MVar Connection, AI.State)
 connectToGame sessions gameId humanColor uid conn = do
-  emptyVar <- MVar.newEmptyMVar
-  (var, isNew) <- STM.atomically $ getOrInsert emptyVar gameId sessions
-  if isNew
-    then onException
-      do
-        gameState <- runTransaction $ loadAIState humanColor gameId
-        let session = GameSession gameState humanColor (uid, conn) Nothing
-        -- If engine was thinking (e.g. server restart), re-trigger the search
+  connVar <- MVar.newMVar conn
+  mVar <- STM.atomically $ tryAcquire gameId sessions
+  case mVar of
+    Just var -> do
+      -- Existing session (e.g. quick reconnect before old finally ran)
+      gameState <- MVar.modifyMVar var $ \session ->
+        let session' = session{playerConn = (uid, connVar)}
+         in pure (session', session'.gameState)
+      pure (var, connVar, gameState)
+    Nothing -> do
+      gameState <- runTransaction $ loadAIState humanColor gameId
+      let session = GameSession gameState humanColor (uid, connVar) Nothing
+      var <- MVar.newMVar session
+      sessionVar <- STM.atomically $ insertOrAcquire var gameId sessions
+      -- If engine was thinking (e.g. server restart), re-trigger the search
+      when (sessionVar == var) $
         case gameState of
           AI.State _ moves (AI.EngineThinking _) -> do
-            searchAsync <- spawnEngineSearch var gameId humanColor moves
-            MVar.putMVar var session{engineAsync = Just searchAsync}
-          _ -> MVar.putMVar var session
-        pure (var, gameState)
-      do
-        STM.atomically $ STMMap.delete gameId sessions
-        void $ MVar.tryPutMVar var (error "session failed to load")
-    else do
-      -- Existing session (e.g. quick reconnect before old finally ran)
-      gameState <- MVar.modifyMVar var $ \session -> do
-        let session' = session{playerConn = (uid, conn)}
-        pure (session', session'.gameState)
-      pure (var, gameState)
+            searchAsync <- spawnEngineSearch sessionVar gameId humanColor moves
+            MVar.modifyMVar_ sessionVar $ \s -> pure s{engineAsync = Just searchAsync}
+          _ -> pure ()
+      pure (sessionVar, connVar, gameState)
 
 -- | Disconnect from an AI game. If the uid matches the current connection,
--- cancels any engine search and deletes the session. Stale disconnects
--- (uid mismatch from a previous connection) are ignored.
+-- cancels any engine search. Stale disconnects (uid mismatch from a
+-- previous connection) are ignored. Map lifecycle is handled separately
+-- by release in the finally block.
 disconnectPlayer ::
   Concurrent :> es =>
-  GameSessions ->
-  GameId ->
   MVar GameSession ->
   ConnectionId ->
   Eff es ()
-disconnectPlayer sessions gameId sessionVar uid =
+disconnectPlayer sessionVar uid =
   MVar.modifyMVar_ sessionVar $ \session ->
     if fst session.playerConn == uid
       then do
         for_ session.engineAsync Async.cancel
-        STM.atomically $ STMMap.delete gameId sessions
         pure session
       else pure session
 
@@ -248,6 +253,8 @@ processEvent ::
   Eff es ()
 processEvent sessionVar gameId event = do
   currentTime <- now
+  -- All effects (DB writes, notifications) run under the MVar lock so that
+  -- no concurrent event can observe or act on intermediate state.
   MVar.modifyMVar_ sessionVar $ \session -> do
     case AI.transition session.humanColor session.gameState event of
       Left err -> do
@@ -282,8 +289,11 @@ handleEngineCommands ::
   Eff es (Maybe (Async.Async ()))
 handleEngineCommands sessionVar gameId session commands =
   case [moves | AI.TriggerEngineSearch moves <- commands] of
-    (moves : _) -> Just <$> spawnEngineSearch sessionVar gameId session.humanColor moves
+    [moves] -> Just <$> spawnEngineSearch sessionVar gameId session.humanColor moves
     [] -> pure Nothing
+    _ ->
+      error
+        "handleEngineCommands: multiple TriggerEngineSearch commands in one transition"
 
 -- | Spawn an async thread to run the engine search. When the search
 -- completes, it feeds an EngineMove event back through processEvent.
@@ -297,8 +307,10 @@ spawnEngineSearch ::
 spawnEngineSearch sessionVar gameId humanColor moves =
   Async.async $
     doSearch `catch` \(ex :: SomeException) ->
-      MVar.withMVar sessionVar $ \session ->
-        sendToPlayer session (errorToJSON $ "Engine search failed: " <> show ex)
+      -- Don't report cancellation as an error — it's intentional (e.g. player undo)
+      unless (isJust $ fromException @Async.AsyncCancelled ex) $
+        MVar.withMVar sessionVar $ \session ->
+          sendToPlayer session (errorToJSON $ "Engine search failed: " <> show ex)
  where
   doSearch = do
     let board = currentBoard moves
@@ -321,12 +333,11 @@ spawnEngineSearch sessionVar gameId humanColor moves =
     processEvent sessionVar gameId (AI.EngineMove applied maybeOutcome)
 
 -- | Send a message to the player's WebSocket connection.
--- Silently catches connection exceptions.
-sendToPlayer :: WebSocket :> es => GameSession -> LByteString -> Eff es ()
+sendToPlayer ::
+  (Concurrent :> es, WebSocket :> es) => GameSession -> LByteString -> Eff es ()
 sendToPlayer session msg =
-  let (_, conn) = session.playerConn
-   in sendData conn msg
-        `catch` \(_ :: ConnectionException) -> pure ()
+  let (_, connVar) = session.playerConn
+   in safeSend connVar msg
 
 -------------------------------------------------------------------------------
 -- WebSocket handler
@@ -355,10 +366,13 @@ handleWebSocket sessions conn = do
           let gameId = tok.gameId
               humanColor = tok.role
           uid <- generateId
-          (sessionVar, gameState) <- connectToGame sessions gameId humanColor uid conn
-          sendData conn (gameStateToJSON gameId humanColor gameState)
-          receiveLoop sessionVar gameId humanColor conn
-            `finally` disconnectPlayer sessions gameId sessionVar uid
+          (sessionVar, connVar, gameState) <-
+            connectToGame sessions gameId humanColor uid conn
+          safeSend connVar (gameStateToJSON gameId humanColor gameState)
+          receiveLoop sessionVar gameId humanColor connVar
+            `finally` do
+              disconnectPlayer sessionVar uid
+              STM.atomically $ release gameId sessions
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::
@@ -366,12 +380,14 @@ receiveLoop ::
   MVar GameSession ->
   GameId ->
   PlayerColor ->
-  Connection ->
+  MVar Connection ->
   Eff es ()
-receiveLoop sessionVar gameId humanColor conn = forever $ do
-  msg <- receiveData conn
-  case decode msg of
-    Nothing -> sendData conn (errorToJSON "invalid message")
-    Just clientMsg -> do
-      time <- now
-      processEvent sessionVar gameId (toEvent humanColor time clientMsg)
+receiveLoop sessionVar gameId humanColor connVar = do
+  conn <- MVar.readMVar connVar
+  forever $ do
+    msg <- receiveData conn
+    case decode msg of
+      Nothing -> safeSend connVar (errorToJSON "invalid message")
+      Just clientMsg -> do
+        time <- now
+        processEvent sessionVar gameId (toEvent humanColor time clientMsg)

@@ -11,7 +11,13 @@ module Hnefatafl.Game.AI (
 
 import Chronos (Time)
 import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
-import Hnefatafl.Core.Data (ExternBoard, Move (..), MoveWithCaptures (..), Outcome (..), PlayerColor (..))
+import Hnefatafl.Core.Data (
+  ExternBoard,
+  Move (..),
+  MoveWithCaptures (..),
+  Outcome (..),
+  PlayerColor (..),
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   PendingAction (..),

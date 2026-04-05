@@ -10,11 +10,15 @@ module Hnefatafl.Servant.WebSocket (
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.Time.Clock (NominalDiffTime)
 import Data.Time.Clock.POSIX (getPOSIXTime)
+import Hnefatafl.Servant.WebSocket.Pong (
+  pingHandler,
+  pongHandler,
+  withInterruptiblePingThread,
+ )
 import Network.Wai (Request, Response, ResponseReceived)
 import Network.Wai.Handler.WebSockets (websocketsOr)
 import Network.WebSockets (Connection, ConnectionOptions (..), acceptRequest)
 import Network.WebSockets.Connection (PendingConnection)
-import Hnefatafl.Servant.WebSocket.Pong (pingHandler, pongHandler, withInterruptiblePingThread)
 import Servant (Handler, HasContextEntry, getContextEntry)
 import Servant.Client.Core (HasClient (..), RunClient)
 import Servant.Server (HasServer (..), ServerError (..), ServerT, runHandler)
@@ -24,7 +28,7 @@ import Servant.Server.Internal.Router (leafRouter)
 
 data WebSocket
 
-instance (HasContextEntry ctx ConnectionOptions) => HasServer WebSocket ctx where
+instance HasContextEntry ctx ConnectionOptions => HasServer WebSocket ctx where
   type ServerT WebSocket m = Connection -> m ()
 
   route Proxy context app = leafRouter $ \env request respond ->
@@ -64,9 +68,11 @@ instance (HasContextEntry ctx ConnectionOptions) => HasServer WebSocket ctx wher
       IO ()
     runApp lastPongRef a pendingConnection = do
       connection <- acceptRequest pendingConnection
-      withInterruptiblePingThread connection pingIntervalSeconds
-        (pingHandler lastPongRef (fromIntegral pingIntervalSeconds) pongTimeoutSeconds) $
-        void (runHandler $ a connection)
+      withInterruptiblePingThread
+        connection
+        pingIntervalSeconds
+        (pingHandler lastPongRef (fromIntegral pingIntervalSeconds) pongTimeoutSeconds)
+        $ void (runHandler $ a connection)
 
     backupApp respond _ _ =
       respond $
@@ -81,7 +87,7 @@ instance (HasContextEntry ctx ConnectionOptions) => HasServer WebSocket ctx wher
   hoistServerWithContext _ _ nat svr conn = nat $ svr conn
 
 -- | WebSocket endpoints have no meaningful HTTP client representation.
-instance (RunClient m) => HasClient m WebSocket where
+instance RunClient m => HasClient m WebSocket where
   type Client m WebSocket = ()
   clientWithRoute _ _ _ = ()
   hoistClientMonad _ _ _ _ = ()

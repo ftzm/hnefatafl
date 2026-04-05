@@ -10,7 +10,6 @@ module Hnefatafl.Interpreter.Storage.SQLite.Player (
 ) where
 
 import Chronos (Time)
-import Data.Maybe (fromJust)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
 import Hnefatafl.Interpreter.Storage.SQLite.Type
@@ -45,7 +44,9 @@ createEnginePlayer player createdAt conn = do
 
 getPlayerById :: Connection -> PlayerIdDb -> IO Player
 getPlayerById conn playerId =
-  fromJust . fromSql <$> q
+  maybe (error $ "getPlayerById: player not found: " <> show playerId) id
+    . fromSql
+    <$> q
  where
   fromSql ::
     (PlayerIdDb, PlayerType, Maybe Text, Maybe Text, Maybe Text) -> Maybe Player

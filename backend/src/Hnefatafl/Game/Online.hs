@@ -12,7 +12,13 @@ module Hnefatafl.Game.Online (
 
 import Chronos (Time)
 import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
-import Hnefatafl.Core.Data (ExternBoard, Move (..), MoveWithCaptures (..), Outcome (..), PlayerColor (..))
+import Hnefatafl.Core.Data (
+  ExternBoard,
+  Move (..),
+  MoveWithCaptures (..),
+  Outcome (..),
+  PlayerColor (..),
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   PendingAction (..),
@@ -61,7 +67,7 @@ data Notification
   | DrawAccepted
   | DrawDeclined
   | UndoRequested PlayerColor
-  | UndoAccepted [AppliedMove]
+  | UndoAccepted
   | UndoDeclined
   deriving (Show, Eq)
 
@@ -189,7 +195,7 @@ transition (State board moves (Active turn validMoves pending)) = \case
                           (mkActive board' moves' Nothing)
                           [ Persist ClearPendingAction
                           , Persist $ DeleteMoves undoCount
-                          , NotifyOpponent $ UndoAccepted moves'
+                          , NotifyOpponent UndoAccepted
                           , NotifyActor UndoApplied
                           ]
     Just pa | pa.offeredBy == color -> Left CannotRespondToOwnOffer

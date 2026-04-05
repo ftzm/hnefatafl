@@ -16,7 +16,8 @@ import Servant (
 import Servant.API ((:>))
 
 data AIRoutes mode = AIRoutes
-  { create :: mode :- ReqBody '[JSON] CreateGameRequest :> Post '[JSON] CreateGameResponse
+  { create ::
+      mode :- ReqBody '[JSON] CreateGameRequest :> Post '[JSON] CreateGameResponse
   , ws :: mode :- "ws" :> WebSocket
   }
   deriving stock (Generic)
