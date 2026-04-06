@@ -12,8 +12,7 @@ import Database.SQLite.Simple (Connection, Query (..), execute_)
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effectful.Exception (catch, throwIO)
-import Hnefatafl.Effect.Log (Log)
-import Katip (Severity (..), katipAddNamespace, logTM, ls)
+import Hnefatafl.Effect.Log (KatipE, Severity (..), katipAddNamespace, logTM, ls)
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Exception (DatabaseException (..), DomainException)
@@ -49,7 +48,7 @@ withSavepoint conn txAction =
     pure result
 
 runStorageSQLite ::
-  (IOE :> es, Log :> es) =>
+  (IOE :> es, KatipE :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLite connectionVar = interpret $ \_ -> \case
   RunTransaction txAction ->

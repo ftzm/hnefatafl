@@ -13,7 +13,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Servant (runWarpServerSettingsContext)
 import Hnefatafl.Api.Handlers (server)
 import Hnefatafl.Api.Routes (HnefataflAPI)
-import Hnefatafl.Effect.Log (runLog)
+import Hnefatafl.Effect.Log (runKatipE)
 import Hnefatafl.Exception (guardExceptions)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
@@ -44,7 +44,7 @@ runServer port = do
       runEff
         . runErrorNoCallStack @ServerError
         . runConcurrent
-        . runLog logEnv
+        . runKatipE logEnv
         . runStorageSQLite connectionVar
         . runClockIO
         . runIdGenUUIDv7

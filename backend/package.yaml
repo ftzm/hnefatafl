@@ -99,6 +99,7 @@ dependencies:
   - wai-websockets
   - resourcet
   - katip
+  - katip-effectful
 
 executables:
   cli:

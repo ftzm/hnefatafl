@@ -16,7 +16,7 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
-import Hnefatafl.Effect.Log (Log)
+import Hnefatafl.Effect.Log (KatipE)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Network.WebSockets (Connection)
@@ -29,7 +29,7 @@ onlineServer ::
   , IdGen :> es
   , Concurrent :> es
   , WebSocket :> es
-  , Log :> es
+  , KatipE :> es
   , Error ServerError :> es
   , IOE :> es
   ) =>
@@ -59,7 +59,7 @@ handleWebSocket ::
   , IdGen :> es
   , Concurrent :> es
   , WebSocket :> es
-  , Log :> es
+  , KatipE :> es
   , IOE :> es
   ) =>
   Online.GameSessions ->

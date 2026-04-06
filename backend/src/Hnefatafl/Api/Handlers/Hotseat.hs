@@ -25,7 +25,7 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
-import Hnefatafl.Effect.Log (Log)
+import Hnefatafl.Effect.Log (KatipE)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Game.Common qualified as Common
 import Hnefatafl.Game.Hotseat qualified as HotseatGame
@@ -36,7 +36,7 @@ hotseatServer ::
   ( Storage :> es
   , Clock :> es
   , IdGen :> es
-  , Log :> es
+  , KatipE :> es
   , Error ServerError :> es
   , IOE :> es
   ) =>
@@ -98,7 +98,7 @@ badRequest msg = throwError err400{errBody = encodeUtf8 msg}
 -- Handlers
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, Log :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es) =>
   Eff es ApiGameState
 createHandler = do
   game <- Hotseat.createGame

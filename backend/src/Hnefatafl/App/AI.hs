@@ -27,8 +27,7 @@ import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (catch, finally, throwIO)
-import Hnefatafl.Effect.Log (Log)
-import Katip (Severity (..), katipAddContext, katipAddNamespace, logTM, ls, sl)
+import Hnefatafl.Effect.Log (KatipE, Severity (..), katipAddContext, katipAddNamespace, logTM, ls, sl)
 import Hnefatafl.App.AI.Serialization (gameStateToJSON, notificationToJSON)
 import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.App.Session (
@@ -195,7 +194,7 @@ createGame humanColor = do
 -- re-triggers engine search if needed (e.g. reconnect during
 -- EngineThinking). Returns the MVar handle and the current game state.
 connectToGame ::
-  (Storage :> es, Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
+  (Storage :> es, Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, KatipE :> es) =>
   GameSessions ->
   GameId ->
   PlayerColor ->
@@ -249,7 +248,7 @@ disconnectPlayer sessionVar uid =
 -- | Process a game event. Transitions state, persists to DB, sends
 -- notifications to the player, and handles engine search commands.
 processEvent ::
-  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es, KatipE :> es) =>
   MVar GameSession ->
   GameId ->
   AI.Event ->
@@ -284,7 +283,7 @@ processEvent sessionVar gameId event = do
 -- | Handle engine-related commands from a transition result.
 -- Returns the new engine async handle (if a search was triggered).
 handleEngineCommands ::
-  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es, Log :> es, IOE :> es) =>
+  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es, KatipE :> es) =>
   MVar GameSession ->
   GameId ->
   GameSession ->
@@ -301,7 +300,7 @@ handleEngineCommands sessionVar gameId session commands =
 -- | Spawn an async thread to run the engine search. When the search
 -- completes, it feeds an EngineMove event back through processEvent.
 spawnEngineSearch ::
-  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es, Log :> es, IOE :> es) =>
+  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es, KatipE :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
@@ -354,7 +353,7 @@ handleWebSocket ::
   , Search :> es
   , Concurrent :> es
   , WebSocket :> es
-  , Log :> es
+  , KatipE :> es
   , IOE :> es
   ) =>
   GameSessions ->
@@ -386,7 +385,7 @@ handleWebSocket sessions conn = katipAddNamespace "ai" $ do
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::
-  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es, KatipE :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->

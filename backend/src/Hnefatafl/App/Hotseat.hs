@@ -8,10 +8,9 @@ module Hnefatafl.App.Hotseat (
 ) where
 
 import Chronos (Time)
-import Effectful (Eff, IOE, (:>))
+import Effectful (Eff, (:>))
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.Effect.Log (Log)
-import Katip (Severity (..), katipAddNamespace, logTM)
+import Hnefatafl.Effect.Log (KatipE, Severity (..), katipAddNamespace, logTM)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -73,7 +72,7 @@ processEvent gameId event = do
         pure (Right result.newState)
 
 createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es, Log :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es) =>
   Eff es Game
 createGame = katipAddNamespace "hotseat" $ do
   game <- mkGame <$> generateId <*> now

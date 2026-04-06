@@ -20,7 +20,7 @@ import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
 import Effectful.Labeled
-import Hnefatafl.Effect.Log (runLog)
+import Hnefatafl.Effect.Log (runKatipE)
 import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Api.Routes (Routes (..), VersionResponse (..))
 import Hnefatafl.Bindings (
@@ -255,7 +255,7 @@ withStandardEffects dbPathOpt eff = do
         runEff $
           runConsole $
             runFileSystem $
-              runLog logEnv $
+              runKatipE logEnv $
                 runStorageSQLite connectionVar $
                   runClockIO $
                     runIdGenUUIDv7 eff
@@ -343,7 +343,7 @@ runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlSt
       runErrorNoCallStack @Text $
         runErrorNoCallStack @ClientError $
           runConcurrent $
-            runLog logEnv $ do
+            runKatipE logEnv $ do
               qsem <- newQSem numActors
               runFileSystem $
                 runLabeled @"new" (runSearchLocal qsem) $

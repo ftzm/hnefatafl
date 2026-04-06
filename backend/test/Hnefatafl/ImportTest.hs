@@ -18,7 +18,7 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Effect.Clock
 import Hnefatafl.Effect.IdGen
 import Hnefatafl.Effect.Storage
-import Hnefatafl.Effect.Log (runLog)
+import Hnefatafl.Effect.Log (runKatipE)
 import Hnefatafl.Import (GameImport (..), importGame)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
@@ -78,7 +78,7 @@ runImportTest connectionVar action =
   withNoLogEnv "test" $ \logEnv ->
     runEff $
       runErrorNoCallStack @String $
-        runLog logEnv $
+        runKatipE logEnv $
           runStorageSQLiteWithRollback connectionVar $
             runClockIO $
               runIdGenUUIDv7 action

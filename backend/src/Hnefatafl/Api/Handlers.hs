@@ -21,7 +21,7 @@ import Hnefatafl.App.Online qualified as Online
 import Hnefatafl.Bindings (SearchTrustedResult)
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
-import Hnefatafl.Effect.Log (Log)
+import Hnefatafl.Effect.Log (KatipE)
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
@@ -36,7 +36,7 @@ server ::
   , IdGen :> es
   , Concurrent :> es
   , WebSocket :> es
-  , Log :> es
+  , KatipE :> es
   , Error ServerError :> es
   , IOE :> es
   ) =>

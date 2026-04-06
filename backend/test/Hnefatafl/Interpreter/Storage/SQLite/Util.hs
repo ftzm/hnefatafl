@@ -11,7 +11,7 @@ import Database.SQLite.Simple hiding (Error)
 import Database.SQLite3 qualified as SQLite3
 import Effectful
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Effect.Log (Log, runLog)
+import Hnefatafl.Effect.Log (KatipE, runKatipE)
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
@@ -32,7 +32,7 @@ withSharedDB action = do
 
 -- | Run storage effects with automatic rollback for test isolation
 runStorageSQLiteWithRollback ::
-  (IOE :> es, Log :> es) =>
+  (IOE :> es, KatipE :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLiteWithRollback connectionVar action = do
   -- Start transaction
@@ -54,7 +54,7 @@ runStorageTest connectionVar action =
   withNoLogEnv "test" $ \logEnv ->
     tryAny
       ( runEff $
-          runLog logEnv $
+          runKatipE logEnv $
             runStorageSQLiteWithRollback connectionVar action
       )
       <&> first displayException
@@ -116,7 +116,7 @@ shouldThrowException ::
   Expectation
 shouldThrowException action connectionVar = do
   result <- withNoLogEnv "test" $ \logEnv ->
-    tryAny $ runEff $ runLog logEnv $ runStorageSQLiteWithRollback connectionVar action
+    tryAny $ runEff $ runKatipE logEnv $ runStorageSQLiteWithRollback connectionVar action
   case result of
     Left exception -> case fromException @e exception of
       Just _ -> pure () -- Expected exception type

@@ -27,8 +27,7 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (finally)
-import Hnefatafl.Effect.Log (Log)
-import Katip (Severity (..), katipAddContext, katipAddNamespace, logTM, sl)
+import Hnefatafl.Effect.Log (KatipE, Severity (..), katipAddContext, katipAddNamespace, logTM, sl)
 import Hnefatafl.App.Online.Serialization (
   actorNotificationToJSON,
   gameStateToJSON,
@@ -272,7 +271,7 @@ disconnectPlayer sessionVar color uid =
 -- Event processing
 
 processEvent ::
-  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Log :> es) =>
+  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, KatipE :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
@@ -312,7 +311,7 @@ sendToPlayer session color msg =
 -- WebSocket handler
 
 handleWebSocket ::
-  (Storage :> es, Clock :> es, IdGen :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Concurrent :> es, WebSocket :> es, KatipE :> es, IOE :> es) =>
   GameSessions ->
   Connection ->
   Eff es ()
@@ -344,7 +343,7 @@ handleWebSocket sessions conn = katipAddNamespace "online" $ do
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::
-  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Log :> es) =>
+  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, KatipE :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
