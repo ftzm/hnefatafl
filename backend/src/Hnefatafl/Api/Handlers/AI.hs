@@ -20,7 +20,6 @@ import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Search (Search)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
-import Hnefatafl.Exception (guardExceptions)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
 
@@ -43,9 +42,9 @@ aiServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, Error ServerError :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es) =>
   CreateGameRequest -> Eff es CreateGameResponse
-createHandler req = guardExceptions $ do
+createHandler req = do
   result <- AI.createGame req.humanColor
   pure
     CreateGameResponse

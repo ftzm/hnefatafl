@@ -18,7 +18,6 @@ import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
-import Hnefatafl.Exception (guardExceptions)
 import Network.WebSockets (Connection)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
@@ -41,9 +40,9 @@ onlineServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, Error ServerError :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es) =>
   Eff es CreateGameResponse
-createHandler = guardExceptions $ do
+createHandler = do
   result <- Online.createGame
   pure
     CreateGameResponse

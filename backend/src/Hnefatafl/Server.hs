@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+
 module Hnefatafl.Server (
   runServer,
 ) where
@@ -11,6 +13,8 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Servant (runWarpServerSettingsContext)
 import Hnefatafl.Api.Handlers (server)
 import Hnefatafl.Api.Routes (HnefataflAPI)
+import Hnefatafl.Exception (guardExceptions)
+import Network.WebSockets (ConnectionOptions)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
 import Hnefatafl.Interpreter.Search.Local (runSearchLocal)
@@ -18,7 +22,7 @@ import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.WebSocket.IO (runWebSocketIO)
 import Network.Wai.Handler.Warp (defaultSettings, setPort)
 import Network.WebSockets (defaultConnectionOptions)
-import Servant (Context (EmptyContext, (:.)), ServerError)
+import Servant (Context (EmptyContext, (:.)), ServerError, hoistServerWithContext)
 import Servant.Server.Generic (genericServerT)
 import StmContainers.Map qualified as STMMap
 
@@ -45,7 +49,12 @@ runServer port = do
       $ runWarpServerSettingsContext @HnefataflAPI
         settings
         ctx
-        (genericServerT (server onlineSessions aiSessions))
+        ( hoistServerWithContext
+            (Proxy @HnefataflAPI)
+            (Proxy @'[ConnectionOptions])
+            guardExceptions
+            (genericServerT (server onlineSessions aiSessions))
+        )
         id
   close conn
   case result of

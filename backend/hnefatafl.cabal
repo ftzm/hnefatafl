@@ -303,6 +303,7 @@ test-suite hnefatafl-test
   other-modules:
       Hnefatafl.BindingsTest
       Hnefatafl.ClientTest
+      Hnefatafl.ExceptionTest
       Hnefatafl.Game.AITest
       Hnefatafl.Game.HotseatTest
       Hnefatafl.Game.OnlineTest

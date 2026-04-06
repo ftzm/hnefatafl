@@ -5,7 +5,6 @@ module Hnefatafl.Api.Handlers.Hotseat (
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Hnefatafl.Api.Routes.Hotseat (HotseatRoutes (..))
-import Hnefatafl.Exception (guardExceptions)
 import Hnefatafl.Api.Types (
   ActionResponse (..),
   ApiGameMove (..),
@@ -97,24 +96,24 @@ badRequest msg = throwError err400{errBody = encodeUtf8 msg}
 -- Handlers
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, Error ServerError :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es) =>
   Eff es ApiGameState
-createHandler = guardExceptions $ do
+createHandler = do
   game <- Hotseat.createGame
   gameState <- Hotseat.loadGameState game.gameId
   pure $ toApiGameState game.gameId gameState
 
 getHandler ::
-  (Storage :> es, Error ServerError :> es, IOE :> es) =>
+  Storage :> es =>
   GameId -> Eff es ApiGameState
-getHandler gameId = guardExceptions $ do
+getHandler gameId = do
   gameState <- Hotseat.loadGameState gameId
   pure $ toApiGameState gameId gameState
 
 moveHandler ::
   (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
   GameId -> ApiMove -> Eff es ActionResponse
-moveHandler gameId apiMove = guardExceptions $ do
+moveHandler gameId apiMove = do
   result <- Hotseat.makeMove gameId (moveToDomain apiMove)
   case result of
     Left err -> do
@@ -125,7 +124,7 @@ moveHandler gameId apiMove = guardExceptions $ do
 undoHandler ::
   (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
   GameId -> Eff es ActionResponse
-undoHandler gameId = guardExceptions $ do
+undoHandler gameId = do
   result <- Hotseat.undoMove gameId
   case result of
     Left err -> do
@@ -136,7 +135,7 @@ undoHandler gameId = guardExceptions $ do
 resignHandler ::
   (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
   GameId -> PlayerColor -> Eff es ActionResponse
-resignHandler gameId color = guardExceptions $ do
+resignHandler gameId color = do
   result <- Hotseat.resign gameId color
   case result of
     Left err -> do
@@ -147,7 +146,7 @@ resignHandler gameId color = guardExceptions $ do
 drawHandler ::
   (Storage :> es, Clock :> es, Error ServerError :> es, IOE :> es) =>
   GameId -> Eff es ActionResponse
-drawHandler gameId = guardExceptions $ do
+drawHandler gameId = do
   result <- Hotseat.agreeDraw gameId
   case result of
     Left err -> do
