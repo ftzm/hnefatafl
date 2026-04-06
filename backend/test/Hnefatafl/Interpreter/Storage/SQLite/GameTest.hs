@@ -6,6 +6,7 @@ import Chronos (now)
 import Data.List (isInfixOf)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
+import Hnefatafl.Exception (DatabaseException (..))
 import Hnefatafl.Interpreter.Storage.SQLite.Util
 import Optics
 import Test.Hspec (Spec, around, describe, it)
@@ -256,3 +257,14 @@ spec_Game =
             -- Verify status was stored and retrieved correctly
             liftIO $ retrievedGame.outcome `shouldBe` status
         conn
+
+    describe "exception types" $ do
+      it "failed GetGame throws DatabaseException with operation and entity" $ \connVar ->
+        shouldThrowException @DatabaseException
+          (runTransaction $ getGame (GameId "nonexistent-game"))
+          connVar
+
+      it "failed GetMove throws DatabaseException" $ \connVar ->
+        shouldThrowException @DatabaseException
+          (runTransaction $ getMove (GameId "no-game") 0)
+          connVar

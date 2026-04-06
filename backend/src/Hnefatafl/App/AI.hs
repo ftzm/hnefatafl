@@ -21,13 +21,14 @@ import Data.Aeson (
   (.:),
  )
 import Data.Aeson.Types (Parser)
-import Effectful (Eff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (catch, finally)
+import Effectful.Exception (catch, finally, throwIO)
 import Hnefatafl.App.AI.Serialization (gameStateToJSON, notificationToJSON)
+import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.App.Session (
   SessionEntry (..),
   insertOrAcquire,
@@ -35,7 +36,7 @@ import Hnefatafl.App.Session (
   tryAcquire,
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, safeSend)
+import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, guardWebSocket, safeSend)
 import Hnefatafl.Bindings (SearchTrustedResult (..))
 import Hnefatafl.Core.Data (
   Game (..),
@@ -292,8 +293,8 @@ handleEngineCommands sessionVar gameId session commands =
     [moves] -> Just <$> spawnEngineSearch sessionVar gameId session.humanColor moves
     [] -> pure Nothing
     _ ->
-      error
-        "handleEngineCommands: multiple TriggerEngineSearch commands in one transition"
+      throwIO $
+        InvariantViolation "multiple TriggerEngineSearch commands in one transition"
 
 -- | Spawn an async thread to run the engine search. When the search
 -- completes, it feeds an EngineMove event back through processEvent.
@@ -350,6 +351,7 @@ handleWebSocket ::
   , Search :> es
   , Concurrent :> es
   , WebSocket :> es
+  , IOE :> es
   ) =>
   GameSessions ->
   Connection ->
@@ -362,7 +364,7 @@ handleWebSocket sessions conn = do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
         Nothing -> sendData conn (errorToJSON "invalid token")
-        Just tok -> do
+        Just tok -> guardWebSocket conn $ do
           let gameId = tok.gameId
               humanColor = tok.role
           uid <- generateId

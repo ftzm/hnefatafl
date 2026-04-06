@@ -2,7 +2,7 @@ module Hnefatafl.Api.Handlers.AI (
   aiServer,
 ) where
 
-import Effectful (Eff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Error.Static (Error)
 import Hnefatafl.Api.Routes.AI (AIRoutes (..))
@@ -20,6 +20,7 @@ import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Search (Search)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
+import Hnefatafl.Exception (guardExceptions)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
 
@@ -31,6 +32,7 @@ aiServer ::
   , Concurrent :> es
   , WebSocket :> es
   , Error ServerError :> es
+  , IOE :> es
   ) =>
   AI.GameSessions ->
   AIRoutes (AsServerT (Eff es))
@@ -41,9 +43,9 @@ aiServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Error ServerError :> es, IOE :> es) =>
   CreateGameRequest -> Eff es CreateGameResponse
-createHandler req = do
+createHandler req = guardExceptions $ do
   result <- AI.createGame req.humanColor
   pure
     CreateGameResponse

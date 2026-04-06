@@ -8,8 +8,10 @@ module Hnefatafl.Interpreter.Storage.SQLite.Game (
 ) where
 
 import Chronos (Time)
+import Control.Exception (throw)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
+import Hnefatafl.Exception (StorageException (..))
 import Hnefatafl.Interpreter.Storage.SQLite.Type
 import Hnefatafl.Interpreter.Storage.SQLite.Util
 
@@ -55,8 +57,8 @@ gameJoinRowToDomain row =
         AIType ->
           VsAI
             (toDomain <$> row.aiPlayerId)
-            (toDomain (fromMaybe (error "ai_game missing player_color") row.aiPlayerColor))
-            (toDomain (fromMaybe (error "ai_game missing engine_id") row.aiEngineId))
+            (toDomain (fromMaybe (throw MissingRequiredField{entity = "ai_game", field = "player_color", entityId = show row.gameId}) row.aiPlayerColor))
+            (toDomain (fromMaybe (throw MissingRequiredField{entity = "ai_game", field = "engine_id", entityId = show row.gameId}) row.aiEngineId))
         OnlineType ->
           Online
             (toParticipant row.onlineWhitePlayerId row.onlineWhiteName)

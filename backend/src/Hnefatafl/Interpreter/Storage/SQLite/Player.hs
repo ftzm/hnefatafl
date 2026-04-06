@@ -10,8 +10,10 @@ module Hnefatafl.Interpreter.Storage.SQLite.Player (
 ) where
 
 import Chronos (Time)
+import Control.Exception (throw)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
+import Hnefatafl.Exception (StorageException (..))
 import Hnefatafl.Interpreter.Storage.SQLite.Type
 import Hnefatafl.Interpreter.Storage.SQLite.Util
 
@@ -44,7 +46,7 @@ createEnginePlayer player createdAt conn = do
 
 getPlayerById :: Connection -> PlayerIdDb -> IO Player
 getPlayerById conn playerId =
-  maybe (error $ "getPlayerById: player not found: " <> show playerId) id
+  maybe (throw EntityNotFound{entity = "Player", entityId = show playerId}) id
     . fromSql
     <$> q
  where

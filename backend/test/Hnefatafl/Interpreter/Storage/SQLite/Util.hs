@@ -10,7 +10,6 @@ import Data.Typeable (typeRep)
 import Database.SQLite.Simple hiding (Error)
 import Database.SQLite3 qualified as SQLite3
 import Effectful
-import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
@@ -31,7 +30,7 @@ withSharedDB action = do
 
 -- | Run storage effects with automatic rollback for test isolation
 runStorageSQLiteWithRollback ::
-  (IOE :> es, Error String :> es) =>
+  (IOE :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLiteWithRollback connectionVar action = do
   -- Start transaction
@@ -43,19 +42,22 @@ runStorageSQLiteWithRollback connectionVar action = do
   liftIO $ execute_ conn "ROLLBACK"
   return result
 
--- | Run storage effects in a transaction and roll back
+-- | Run storage effects in a transaction and roll back.
+-- Catches synchronous exceptions and returns them as Left.
 runStorageTest ::
   MVar Connection ->
-  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
+  (forall es. (IOE :> es, Storage :> es) => Eff es a) ->
   IO (Either String a)
 runStorageTest connectionVar action =
-  runEff $
-    runErrorNoCallStack @String $
-      runStorageSQLiteWithRollback connectionVar action
+  tryAny
+    ( runEff $
+        runStorageSQLiteWithRollback connectionVar action
+    )
+    <&> first displayException
 
 -- | Test utility that runs a storage action and asserts it completes without error
 shouldSucceed ::
-  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
+  (forall es. (IOE :> es, Storage :> es) => Eff es a) ->
   MVar Connection ->
   Expectation
 shouldSucceed action connectionVar = do
@@ -67,7 +69,7 @@ shouldSucceed action connectionVar = do
 -- | Test utility that runs a storage action and asserts the result equals expected value
 resultEquals ::
   (Eq a, Show a) =>
-  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
+  (forall es. (IOE :> es, Storage :> es) => Eff es a) ->
   a ->
   MVar Connection ->
   Expectation
@@ -79,7 +81,7 @@ resultEquals action expected connectionVar = do
 
 -- | Test utility that runs a storage action and asserts it fails with an error
 shouldFail ::
-  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
+  (forall es. (IOE :> es, Storage :> es) => Eff es a) ->
   MVar Connection ->
   Expectation
 shouldFail action connectionVar = do
@@ -90,7 +92,7 @@ shouldFail action connectionVar = do
 
 -- | Test utility that runs a storage action returning a Bool and asserts it's True
 shouldBeTrue ::
-  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es Bool) ->
+  (forall es. (IOE :> es, Storage :> es) => Eff es Bool) ->
   MVar Connection ->
   Expectation
 shouldBeTrue action connectionVar = do
@@ -100,15 +102,16 @@ shouldBeTrue action connectionVar = do
     Right False -> expectationFailure "Expected True but got False"
     Right True -> pure ()
 
--- | Test utility that runs a storage action and asserts it throws a specific exception type
+-- | Test utility that runs a storage action and asserts it throws a specific exception type.
+-- Runs without the exception-catching layer so the raw exception can be inspected.
 shouldThrowException ::
   forall e a.
   Exception e =>
-  (forall es. (IOE :> es, Error String :> es, Storage :> es) => Eff es a) ->
+  (forall es. (IOE :> es, Storage :> es) => Eff es a) ->
   MVar Connection ->
   Expectation
 shouldThrowException action connectionVar = do
-  result <- liftIO $ tryAny $ runStorageTest connectionVar action
+  result <- tryAny $ runEff $ runStorageSQLiteWithRollback connectionVar action
   case result of
     Left exception -> case fromException @e exception of
       Just _ -> pure () -- Expected exception type

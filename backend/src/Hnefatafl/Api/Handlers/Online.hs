@@ -2,7 +2,7 @@ module Hnefatafl.Api.Handlers.Online (
   onlineServer,
 ) where
 
-import Effectful (Eff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Error.Static (Error)
 import Hnefatafl.Api.Routes.Online (OnlineRoutes (..))
@@ -18,6 +18,7 @@ import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
+import Hnefatafl.Exception (guardExceptions)
 import Network.WebSockets (Connection)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
@@ -29,6 +30,7 @@ onlineServer ::
   , Concurrent :> es
   , WebSocket :> es
   , Error ServerError :> es
+  , IOE :> es
   ) =>
   Online.GameSessions ->
   OnlineRoutes (AsServerT (Eff es))
@@ -39,9 +41,9 @@ onlineServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Error ServerError :> es, IOE :> es) =>
   Eff es CreateGameResponse
-createHandler = do
+createHandler = guardExceptions $ do
   result <- Online.createGame
   pure
     CreateGameResponse
@@ -56,6 +58,7 @@ handleWebSocket ::
   , IdGen :> es
   , Concurrent :> es
   , WebSocket :> es
+  , IOE :> es
   ) =>
   Online.GameSessions ->
   Connection ->

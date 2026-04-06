@@ -26,9 +26,10 @@ import Data.Aeson (
   (.=),
  )
 import Data.Either.Combinators (mapLeft)
+import Control.Exception (SomeAsyncException (..))
 import Effectful (Eff, (:>))
 import Effectful.Console.ByteString
-import Effectful.Error.Static (Error, tryError)
+import Effectful.Exception (throwIO, try)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO.ByteString
 import Hnefatafl.Bindings (
@@ -163,10 +164,10 @@ getOrCreateHumanPlayer playerName = do
   runTransaction $ getOrCreateHumanPlayerTx freshId playerName
 
 importGame ::
-  (Clock :> es, Storage :> es, IdGen :> es, Error String :> es) =>
+  (Clock :> es, Storage :> es, IdGen :> es) =>
   GameImport -> Eff es (Either Text ())
 importGame input = do
-  result <- tryError @String $ do
+  result <- try @SomeException $ do
     case validStatus of
       Left err -> pure $ Left err
       Right engineStatus -> do
@@ -206,7 +207,9 @@ importGame input = do
           insertMoves gameId gameMoves
         pure $ Right ()
   case result of
-    Left (_, err) -> pure $ Left $ "Import failed: " <> toText err
+    Left ex
+      | isJust (fromException @SomeAsyncException ex) -> throwIO ex
+      | otherwise -> pure $ Left $ "Import failed: " <> toText (displayException ex)
     Right eitherResult -> pure eitherResult
  where
   validStatus :: Either Text EngineGameStatus = mapLeft show $ nextGameState input.moves True
@@ -225,7 +228,6 @@ importGameFromFile ::
   , Clock :> es
   , Storage :> es
   , IdGen :> es
-  , Error String :> es
   , Console :> es
   ) =>
   Text -> Eff es (Either Text ())

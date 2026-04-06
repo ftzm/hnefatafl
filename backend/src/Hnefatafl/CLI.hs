@@ -11,6 +11,7 @@ module Hnefatafl.CLI (
 import Chronos (Time)
 import Data.Aeson (FromJSON, ToJSON)
 import Database.SQLite.Simple (close, open)
+import Control.Exception.Safe (tryAny)
 import Effectful
 import Effectful.Concurrent
 import Effectful.Concurrent.QSem
@@ -228,7 +229,8 @@ printError MoveValidationResult{err, moveIndex} (m :| ms) = do
   formattedResults = formatMoves movesUntilError
   errorMsg = "Error at last move (" <> show (1 + moveIdx) <> "): " <> show err
 
--- | Run an effectful computation with standard CLI effects (storage, clock, ID gen, console, filesystem, error)
+-- | Run an effectful computation with standard CLI effects (storage, clock, ID gen, console, filesystem).
+-- Catches synchronous exceptions and returns them as Left.
 withStandardEffects ::
   Maybe Text ->
   ( forall es.
@@ -237,7 +239,6 @@ withStandardEffects ::
     , IdGen :> es
     , Console :> es
     , FileSystem :> es
-    , Error String :> es
     ) =>
     Eff es a
   ) ->
@@ -247,15 +248,15 @@ withStandardEffects dbPathOpt eff = do
   conn <- open (toString dbPath)
   connectionVar <- newMVar conn
   result <-
-    runEff $
-      runErrorNoCallStack @String $
+    tryAny $
+      runEff $
         runConsole $
           runFileSystem $
             runStorageSQLite connectionVar $
               runClockIO $
                 runIdGenUUIDv7 eff
   close conn
-  pure result
+  pure $ first displayException result
 
 runOptions :: Options -> IO ExitCode
 runOptions options = case options.cmd of

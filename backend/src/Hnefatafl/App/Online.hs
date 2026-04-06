@@ -22,7 +22,7 @@ import Data.Aeson (
   (.:),
  )
 import Data.Aeson.Types (Parser)
-import Effectful (Eff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
@@ -39,7 +39,7 @@ import Hnefatafl.App.Session (
   tryAcquire,
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, safeSend)
+import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, guardWebSocket, safeSend)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -310,7 +310,7 @@ sendToPlayer session color msg =
 -- WebSocket handler
 
 handleWebSocket ::
-  (Storage :> es, Clock :> es, IdGen :> es, Concurrent :> es, WebSocket :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Concurrent :> es, WebSocket :> es, IOE :> es) =>
   GameSessions ->
   Connection ->
   Eff es ()
@@ -322,7 +322,7 @@ handleWebSocket sessions conn = do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
         Nothing -> sendData conn (errorToJSON "invalid token")
-        Just tok -> do
+        Just tok -> guardWebSocket conn $ do
           let gameId = tok.gameId
               color = tok.role
           sessionVar <- getOrCreateSession sessions gameId

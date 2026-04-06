@@ -3,6 +3,7 @@ module Hnefatafl.Server (
 ) where
 
 import Control.Concurrent.QSem (newQSem)
+import Control.Exception.Backtrace (BacktraceMechanism (..), setBacktraceMechanismState)
 import Database.SQLite.Simple (close, open)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
@@ -23,6 +24,7 @@ import StmContainers.Map qualified as STMMap
 
 runServer :: Int -> IO ()
 runServer port = do
+  setBacktraceMechanismState IPEBacktrace True
   putTextLn $ "Starting Hnefatafl server on port " <> show port
   conn <- open "db.db"
   connectionVar <- newMVar conn
@@ -34,7 +36,6 @@ runServer port = do
   result <-
     runEff
       . runErrorNoCallStack @ServerError
-      . runErrorNoCallStack @String
       . runConcurrent
       . runStorageSQLite connectionVar
       . runClockIO
@@ -49,5 +50,4 @@ runServer port = do
   close conn
   case result of
     Left err -> putTextLn $ "Server error: " <> show err
-    Right (Left err) -> putTextLn $ "Server error: " <> toText err
-    Right (Right ()) -> pure ()
+    Right () -> pure ()
