@@ -27,6 +27,8 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (finally)
+import Hnefatafl.Effect.Log (Log)
+import Katip (Severity (..), katipAddContext, katipAddNamespace, logTM, sl)
 import Hnefatafl.App.Online.Serialization (
   actorNotificationToJSON,
   gameStateToJSON,
@@ -270,7 +272,7 @@ disconnectPlayer sessionVar color uid =
 -- Event processing
 
 processEvent ::
-  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es) =>
+  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Log :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
@@ -310,11 +312,11 @@ sendToPlayer session color msg =
 -- WebSocket handler
 
 handleWebSocket ::
-  (Storage :> es, Clock :> es, IdGen :> es, Concurrent :> es, WebSocket :> es, IOE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
   GameSessions ->
   Connection ->
   Eff es ()
-handleWebSocket sessions conn = do
+handleWebSocket sessions conn = katipAddNamespace "online" $ do
   authMsg <- receiveData conn
   case decodeAuthToken authMsg of
     Nothing -> sendData conn (errorToJSON "invalid auth message")
@@ -325,19 +327,24 @@ handleWebSocket sessions conn = do
         Just tok -> guardWebSocket conn $ do
           let gameId = tok.gameId
               color = tok.role
-          sessionVar <- getOrCreateSession sessions gameId
-          uid <- generateId
-          (connVar, gameState) <- connectPlayer sessionVar color uid conn
-          safeSend connVar (gameStateToJSON gameId gameState)
-          -- Receive loop with disconnect cleanup
-          receiveLoop sessionVar gameId color connVar
-            `finally` do
-              disconnectPlayer sessionVar color uid
-              STM.atomically $ release gameId sessions
+          katipAddNamespace "game" $
+            katipAddContext (sl "gameId" (show @Text gameId)) $
+              katipAddContext (sl "player" (show @Text color)) $ do
+                sessionVar <- getOrCreateSession sessions gameId
+                uid <- generateId
+                $(logTM) InfoS "player connected"
+                (connVar, gameState) <- connectPlayer sessionVar color uid conn
+                safeSend connVar (gameStateToJSON gameId gameState)
+                -- Receive loop with disconnect cleanup
+                receiveLoop sessionVar gameId color connVar
+                  `finally` do
+                    $(logTM) InfoS "player disconnected"
+                    disconnectPlayer sessionVar color uid
+                    STM.atomically $ release gameId sessions
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::
-  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es) =>
+  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Log :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->

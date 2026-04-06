@@ -20,6 +20,8 @@ import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
 import Effectful.Labeled
+import Hnefatafl.Effect.Log (runLog)
+import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Api.Routes (Routes (..), VersionResponse (..))
 import Hnefatafl.Bindings (
   EngineGameStatus,
@@ -249,12 +251,14 @@ withStandardEffects dbPathOpt eff = do
   connectionVar <- newMVar conn
   result <-
     tryAny $
-      runEff $
-        runConsole $
-          runFileSystem $
-            runStorageSQLite connectionVar $
-              runClockIO $
-                runIdGenUUIDv7 eff
+      withNoLogEnv "hnefatafl-cli" $ \logEnv ->
+        runEff $
+          runConsole $
+            runFileSystem $
+              runLog logEnv $
+                runStorageSQLite connectionVar $
+                  runClockIO $
+                    runIdGenUUIDv7 eff
   close conn
   pure $ first displayException result
 
@@ -334,20 +338,22 @@ runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlSt
 
   let runner = if headless then runSelfPlayHeadless else runSelfPlayWithUI
       oldVersionLabel = fromMaybe "old" expectedOldVersion
-  result <- runEff $
-    runErrorNoCallStack @Text $
-      runErrorNoCallStack @ClientError $
-        runConcurrent $ do
-          qsem <- newQSem numActors
-          runFileSystem $
-            runLabeled @"new" (runSearchLocal qsem) $
-              runLabeled @"old" (runSearchRemote clientEnv client) $
-                runner
-                  numActors
-                  (VersionId Version.version)
-                  (VersionId oldVersionLabel)
-                  stateDir
-                  startPositionsFile
+  result <- withNoLogEnv "hnefatafl-cli" $ \logEnv ->
+    runEff $
+      runErrorNoCallStack @Text $
+        runErrorNoCallStack @ClientError $
+          runConcurrent $
+            runLog logEnv $ do
+              qsem <- newQSem numActors
+              runFileSystem $
+                runLabeled @"new" (runSearchLocal qsem) $
+                  runLabeled @"old" (runSearchRemote clientEnv client) $
+                    runner
+                      numActors
+                      (VersionId Version.version)
+                      (VersionId oldVersionLabel)
+                      stateDir
+                      startPositionsFile
 
   case result of
     Left err -> putTextLn ("Self-play failed: " <> err) >> pure (ExitFailure 1)

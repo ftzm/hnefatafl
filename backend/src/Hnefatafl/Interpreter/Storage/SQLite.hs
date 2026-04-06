@@ -11,6 +11,9 @@ import Data.Unique (hashUnique, newUnique)
 import Database.SQLite.Simple (Connection, Query (..), execute_)
 import Effectful
 import Effectful.Dispatch.Dynamic
+import Effectful.Exception (catch, throwIO)
+import Hnefatafl.Effect.Log (Log)
+import Katip (Severity (..), katipAddNamespace, logTM, ls)
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Exception (DatabaseException (..), DomainException)
@@ -46,11 +49,15 @@ withSavepoint conn txAction =
     pure result
 
 runStorageSQLite ::
-  (IOE :> es) =>
+  (IOE :> es, Log :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLite connectionVar = interpret $ \_ -> \case
   RunTransaction txAction ->
-    liftIO (withMVar connectionVar $ \conn -> withSavepoint conn txAction)
+    katipAddNamespace "storage" $
+      liftIO (withMVar connectionVar $ \conn -> withSavepoint conn txAction)
+        `catch` \(ex :: SomeException) -> do
+          $(logTM) ErrorS $ ls @Text ("Transaction failed: " <> toText (displayException ex))
+          throwIO ex
 
 dispatch :: StorageCmd a -> Connection -> IO a
 dispatch = \case

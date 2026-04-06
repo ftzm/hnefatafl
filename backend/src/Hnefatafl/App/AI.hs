@@ -27,6 +27,8 @@ import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (catch, finally, throwIO)
+import Hnefatafl.Effect.Log (Log)
+import Katip (Severity (..), katipAddContext, katipAddNamespace, logTM, ls, sl)
 import Hnefatafl.App.AI.Serialization (gameStateToJSON, notificationToJSON)
 import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.App.Session (
@@ -193,7 +195,7 @@ createGame humanColor = do
 -- re-triggers engine search if needed (e.g. reconnect during
 -- EngineThinking). Returns the MVar handle and the current game state.
 connectToGame ::
-  (Storage :> es, Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es) =>
+  (Storage :> es, Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
   GameSessions ->
   GameId ->
   PlayerColor ->
@@ -247,7 +249,7 @@ disconnectPlayer sessionVar uid =
 -- | Process a game event. Transitions state, persists to DB, sends
 -- notifications to the player, and handles engine search commands.
 processEvent ::
-  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es) =>
+  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
   MVar GameSession ->
   GameId ->
   AI.Event ->
@@ -282,7 +284,7 @@ processEvent sessionVar gameId event = do
 -- | Handle engine-related commands from a transition result.
 -- Returns the new engine async handle (if a search was triggered).
 handleEngineCommands ::
-  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es) =>
+  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es, Log :> es, IOE :> es) =>
   MVar GameSession ->
   GameId ->
   GameSession ->
@@ -299,7 +301,7 @@ handleEngineCommands sessionVar gameId session commands =
 -- | Spawn an async thread to run the engine search. When the search
 -- completes, it feeds an EngineMove event back through processEvent.
 spawnEngineSearch ::
-  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es) =>
+  (Search :> es, Clock :> es, Concurrent :> es, WebSocket :> es, Storage :> es, Log :> es, IOE :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
@@ -309,7 +311,8 @@ spawnEngineSearch sessionVar gameId humanColor moves =
   Async.async $
     doSearch `catch` \(ex :: SomeException) ->
       -- Don't report cancellation as an error — it's intentional (e.g. player undo)
-      unless (isJust $ fromException @Async.AsyncCancelled ex) $
+      unless (isJust $ fromException @Async.AsyncCancelled ex) $ do
+        $(logTM) ErrorS $ ls @Text ("Engine search failed: " <> show ex)
         MVar.withMVar sessionVar $ \session ->
           sendToPlayer session (errorToJSON $ "Engine search failed: " <> show ex)
  where
@@ -351,12 +354,13 @@ handleWebSocket ::
   , Search :> es
   , Concurrent :> es
   , WebSocket :> es
+  , Log :> es
   , IOE :> es
   ) =>
   GameSessions ->
   Connection ->
   Eff es ()
-handleWebSocket sessions conn = do
+handleWebSocket sessions conn = katipAddNamespace "ai" $ do
   authMsg <- receiveData conn
   case decodeAuthToken authMsg of
     Nothing -> sendData conn (errorToJSON "invalid auth message")
@@ -367,18 +371,22 @@ handleWebSocket sessions conn = do
         Just tok -> guardWebSocket conn $ do
           let gameId = tok.gameId
               humanColor = tok.role
-          uid <- generateId
-          (sessionVar, connVar, gameState) <-
-            connectToGame sessions gameId humanColor uid conn
-          safeSend connVar (gameStateToJSON gameId humanColor gameState)
-          receiveLoop sessionVar gameId humanColor connVar
-            `finally` do
-              disconnectPlayer sessionVar uid
-              STM.atomically $ release gameId sessions
+          katipAddNamespace "game" $
+            katipAddContext (sl "gameId" (show @Text gameId)) $ do
+              uid <- generateId
+              $(logTM) InfoS "player connected"
+              (sessionVar, connVar, gameState) <-
+                connectToGame sessions gameId humanColor uid conn
+              safeSend connVar (gameStateToJSON gameId humanColor gameState)
+              receiveLoop sessionVar gameId humanColor connVar
+                `finally` do
+                  $(logTM) InfoS "player disconnected"
+                  disconnectPlayer sessionVar uid
+                  STM.atomically $ release gameId sessions
 
 -- | Read messages from the WebSocket and process them.
 receiveLoop ::
-  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es) =>
+  (Storage :> es, Clock :> es, Search :> es, Concurrent :> es, WebSocket :> es, Log :> es, IOE :> es) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->

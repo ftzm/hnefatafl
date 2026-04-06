@@ -11,7 +11,9 @@ import Database.SQLite.Simple hiding (Error)
 import Database.SQLite3 qualified as SQLite3
 import Effectful
 import Hnefatafl.Core.Data as CoreData
+import Hnefatafl.Effect.Log (Log, runLog)
 import Hnefatafl.Effect.Storage
+import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Paths_hnefatafl (getDataFileName)
 import Test.Hspec.Expectations.Pretty
@@ -30,7 +32,7 @@ withSharedDB action = do
 
 -- | Run storage effects with automatic rollback for test isolation
 runStorageSQLiteWithRollback ::
-  (IOE :> es) =>
+  (IOE :> es, Log :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLiteWithRollback connectionVar action = do
   -- Start transaction
@@ -49,11 +51,13 @@ runStorageTest ::
   (forall es. (IOE :> es, Storage :> es) => Eff es a) ->
   IO (Either String a)
 runStorageTest connectionVar action =
-  tryAny
-    ( runEff $
-        runStorageSQLiteWithRollback connectionVar action
-    )
-    <&> first displayException
+  withNoLogEnv "test" $ \logEnv ->
+    tryAny
+      ( runEff $
+          runLog logEnv $
+            runStorageSQLiteWithRollback connectionVar action
+      )
+      <&> first displayException
 
 -- | Test utility that runs a storage action and asserts it completes without error
 shouldSucceed ::
@@ -111,7 +115,8 @@ shouldThrowException ::
   MVar Connection ->
   Expectation
 shouldThrowException action connectionVar = do
-  result <- tryAny $ runEff $ runStorageSQLiteWithRollback connectionVar action
+  result <- withNoLogEnv "test" $ \logEnv ->
+    tryAny $ runEff $ runLog logEnv $ runStorageSQLiteWithRollback connectionVar action
   case result of
     Left exception -> case fromException @e exception of
       Just _ -> pure () -- Expected exception type
