@@ -6,6 +6,7 @@ module Hnefatafl.ExceptionTest where
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Exception (throwIO)
+import Hnefatafl.Effect.Log (runKatipE)
 import Hnefatafl.Exception (
   DatabaseException (..),
   DomainException (..),
@@ -14,6 +15,7 @@ import Hnefatafl.Exception (
   StorageException (..),
   guardExceptions,
  )
+import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Servant (ServerError (..))
 import System.IO.Error (userError)
 import Test.Hspec (Spec, describe, it)
@@ -83,41 +85,45 @@ spec_GuardExceptions :: Spec
 spec_GuardExceptions =
   describe "guardExceptions" $ do
     it "passes through successful actions" $ do
-      result <-
+      result <- withNoLogEnv "test" $ \logEnv ->
         runEff $
           runErrorNoCallStack @ServerError $
-            guardExceptions (pure (42 :: Int))
+            runKatipE logEnv $
+              guardExceptions (pure (42 :: Int))
       result `shouldBe` Right 42
 
     it "catches DomainException and returns 500" $ do
-      result <-
+      result <- withNoLogEnv "test" $ \logEnv ->
         runEff $
           runErrorNoCallStack @ServerError $
-            guardExceptions $
-              throwIO $
-                EntityNotFound{entity = "Game", entityId = "abc"}
+            runKatipE logEnv $
+              guardExceptions $
+                throwIO $
+                  EntityNotFound{entity = "Game", entityId = "abc"}
       case result of
         Left err -> errHTTPCode err `shouldBe` 500
         Right _ -> expectationFailure "Expected ServerError 500"
 
     it "catches DatabaseException and returns 500" $ do
-      result <-
+      result <- withNoLogEnv "test" $ \logEnv ->
         runEff $
           runErrorNoCallStack @ServerError $
-            guardExceptions $
-              throwIO $
-                DatabaseException "GetGame" "Game" (Just "xyz") (toException $ userError "SQL error")
+            runKatipE logEnv $
+              guardExceptions $
+                throwIO $
+                  DatabaseException "GetGame" "Game" (Just "xyz") (toException $ userError "SQL error")
       case result of
         Left err -> errHTTPCode err `shouldBe` 500
         Right _ -> expectationFailure "Expected ServerError 500"
 
     it "catches non-domain exceptions and returns 500" $ do
-      result <-
+      result <- withNoLogEnv "test" $ \logEnv ->
         runEff $
           runErrorNoCallStack @ServerError $
-            guardExceptions $
-              throwIO $
-                userError "something went wrong"
+            runKatipE logEnv $
+              guardExceptions $
+                throwIO $
+                  userError "something went wrong"
       case result of
         Left err -> errHTTPCode err `shouldBe` 500
         Right _ -> expectationFailure "Expected ServerError 500"

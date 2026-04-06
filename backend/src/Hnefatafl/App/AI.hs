@@ -371,7 +371,8 @@ handleWebSocket sessions conn = katipAddNamespace "ai" $ do
           let gameId = tok.gameId
               humanColor = tok.role
           katipAddNamespace "game" $
-            katipAddContext (sl "gameId" (show @Text gameId)) $ do
+            katipAddContext (sl "gameId" (show @Text gameId)) $
+              katipAddContext (sl "player" (show @Text humanColor)) $ do
               uid <- generateId
               $(logTM) InfoS "player connected"
               (sessionVar, connVar, gameState) <-
