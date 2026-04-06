@@ -6,39 +6,34 @@
 #include "stdbool.h"
 #include "victory.h"
 
+// Attacker direction bitmask for king_capture_check exhaustive test
+#define DIR_NORTH 0x1
+#define DIR_SOUTH 0x2
+#define DIR_EAST  0x4
+#define DIR_WEST  0x8
+
 TEST test_king_capture_check(
-    bool (*check1)(const board *b),
-    bool (*check2)(const board *b)) {
+    bool (*reference)(const board *b),
+    bool (*optimized)(const board *b)) {
   for (int i = 0; i < 121; i++) {
     for (u8 attackers = 0; attackers < 16; attackers++) {
       board b = {.king = EMPTY_LAYER, .black = EMPTY_LAYER};
       SET_INDEX(b.king, i);
-      // north
-      if (attackers & 1 && RANK(i) != 10) {
-        int index = i + 11;
-        SET_INDEX(b.black, index);
-      }
-      // south
-      if (attackers & 0b10 && RANK(i) != 0) {
-        int index = i - 11;
-        SET_INDEX(b.black, index);
-      }
-      // east
-      if (attackers & 0b100 && FILE(i) != 0) {
-        int index = i - 1;
-        SET_INDEX(b.black, index);
-      }
-      // west
-      if (attackers & 0b1000 && FILE(i) != 10) {
-        int index = i + 1;
-        SET_INDEX(b.black, index);
-      }
-      bool check1_res = check1(&b);
-      bool check2_res = check2(&b);
-      // print_board(b);
-      if (check1_res != check2_res) {
-        printf("check1: %b\n", check1_res);
-        printf("check2: %b\n", check2_res);
+
+      if ((attackers & DIR_NORTH) && RANK(i) != 10)
+        SET_INDEX(b.black, i + 11);
+      if ((attackers & DIR_SOUTH) && RANK(i) != 0)
+        SET_INDEX(b.black, i - 11);
+      if ((attackers & DIR_EAST) && FILE(i) != 0)
+        SET_INDEX(b.black, i - 1);
+      if ((attackers & DIR_WEST) && FILE(i) != 10)
+        SET_INDEX(b.black, i + 1);
+
+      bool ref_res = reference(&b);
+      bool opt_res = optimized(&b);
+      if (ref_res != opt_res) {
+        printf("king at %d, attackers=0x%x: reference=%d optimized=%d\n",
+               i, attackers, ref_res, opt_res);
         print_board(b);
         FAIL();
       }
@@ -47,45 +42,24 @@ TEST test_king_capture_check(
   PASS();
 }
 
-TEST test_surround(const char *b, bool should_surround) {
-  board board = read_board(b);
-  bool is_surrounded = surrounded(&board);
-  if (is_surrounded != should_surround) {
-    FAIL();
-  }
+TEST test_surround(const char *board_str, bool should_surround) {
+  board b = read_board(board_str);
+  ASSERT_EQ(should_surround, surrounded(&b));
   PASS();
 }
 
 TEST test_exit_fort(const char *board_string, bool should_be_exit_fort) {
-  board b = read_board(board_string);
-  board b_r = rotate_board_right(b);
-  board b_r_r = rotate_board_right(b_r);
-  board b_r_r_r = rotate_board_right(b_r_r);
-  bool is_exit_fort;
+  board rotations[4];
+  rotations[0] = read_board(board_string);
+  for (int r = 1; r < 4; r++)
+    rotations[r] = rotate_board_right(rotations[r - 1]);
 
-  is_exit_fort = exit_fort(&b);
-  if (is_exit_fort != should_be_exit_fort) {
-    FAIL();
-  }
-
-  is_exit_fort = exit_fort(&b_r);
-  if (is_exit_fort != should_be_exit_fort) {
-    print_board(b);
-    print_board(b_r);
-    FAIL();
-  }
-
-  is_exit_fort = exit_fort(&b_r_r);
-  if (is_exit_fort != should_be_exit_fort) {
-    print_board(b);
-    print_board(b_r_r);
-    FAIL();
-  }
-
-  is_exit_fort = exit_fort(&b_r_r_r);
-  if (is_exit_fort != should_be_exit_fort) {
-    print_board(b_r_r_r);
-    FAIL();
+  for (int r = 0; r < 4; r++) {
+    if (exit_fort(&rotations[r]) != should_be_exit_fort) {
+      printf("exit_fort mismatch at rotation %d:\n", r);
+      print_board(rotations[r]);
+      FAIL();
+    }
   }
 
   PASS();

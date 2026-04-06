@@ -54,10 +54,7 @@ static board theft_create_board(struct theft *t) {
   layer king = EMPTY_LAYER;
   u64 start = theft_random_choice(t, 120);
   int index = find_free_index(occ, start);
-  if (index < 0) {
-    printf("failed to generate king position\n");
-    exit(1);
-  }
+  assert(index >= 0 && "failed to generate king position: board is full");
   OP_LAYER_BIT(king, index, |=);
   layer king_r = rotate_layer_right(king);
 

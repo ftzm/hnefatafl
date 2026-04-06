@@ -57,9 +57,9 @@ void moves_to_king_impl(
     int *total);
 
 typedef struct moves_to {
-  move ms[335];
-  layer ls[335];
-  layer ls_r[335];
+  move ms[MAX_MOVES];
+  layer ls[MAX_MOVES];
+  layer ls_r[MAX_MOVES];
   int total;
 } moves_to_t;
 
