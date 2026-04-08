@@ -19,6 +19,9 @@ import Network.Wai (Request, Response, ResponseReceived)
 import Network.Wai.Handler.WebSockets (websocketsOr)
 import Network.WebSockets (Connection, ConnectionOptions (..), acceptRequest)
 import Network.WebSockets.Connection (PendingConnection)
+import Data.OpenApi (Referenced (..))
+import Data.OpenApi qualified as OpenApi
+import Servant.OpenApi (HasOpenApi (..))
 import Servant (Handler, HasContextEntry, getContextEntry)
 import Servant.Client.Core (HasClient (..), RunClient)
 import Servant.Server (HasServer (..), ServerError (..), ServerT, runHandler)
@@ -27,6 +30,29 @@ import Servant.Server.Internal.RouteResult (RouteResult (..))
 import Servant.Server.Internal.Router (leafRouter)
 
 data WebSocket
+
+instance HasOpenApi WebSocket where
+  toOpenApi _ =
+    mempty
+      { OpenApi._openApiPaths =
+          fromList
+            [
+              ( "/"
+              , mempty
+                  { OpenApi._pathItemGet =
+                      Just $
+                        mempty
+                          { OpenApi._operationDescription = Just "WebSocket endpoint — see AsyncAPI spec for message schemas"
+                          , OpenApi._operationResponses =
+                              mempty
+                                { OpenApi._responsesResponses =
+                                    fromList [(101, Inline $ mempty{OpenApi._responseDescription = "WebSocket connection established"})]
+                                }
+                          }
+                  }
+              )
+            ]
+      }
 
 instance HasContextEntry ctx ConnectionOptions => HasServer WebSocket ctx where
   type ServerT WebSocket m = Connection -> m ()

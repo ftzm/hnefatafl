@@ -96,6 +96,8 @@ dependencies:
   - websockets
   - wai-websockets
   - resourcet
+  - openapi3
+  - servant-openapi3
 
 executables:
   cli:
@@ -103,11 +105,18 @@ executables:
     source-dirs: cli
     dependencies:
       - hnefatafl
+  dump-specs:
+    main: "Main.hs"
+    source-dirs: dump-specs
+    dependencies:
+      - hnefatafl
+      - aeson-pretty
       
 library:
   source-dirs: src
   dependencies:
     - hnefatafl-version
+    - insert-ordered-containers
 
 internal-libraries:
   hnefatafl-version:
@@ -143,6 +152,9 @@ tests:
       - async
       - QuickCheck
       - tasty-quickcheck
+      - websockets
+      - stm
+      - aeson
 
 # benchmarks:
 #   board:

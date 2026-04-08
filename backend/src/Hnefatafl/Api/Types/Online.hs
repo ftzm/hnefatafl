@@ -5,6 +5,7 @@ module Hnefatafl.Api.Types.Online (
 ) where
 
 import Data.Aeson (FromJSON, ToJSON)
+import Data.OpenApi (ToSchema)
 import Hnefatafl.Core.Data (
   GameId,
  )
@@ -15,4 +16,4 @@ data CreateGameResponse = CreateGameResponse
   , blackToken :: Text
   }
   deriving stock (Generic, Show)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (ToJSON, FromJSON, ToSchema)

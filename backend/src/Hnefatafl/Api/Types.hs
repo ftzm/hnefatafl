@@ -18,6 +18,8 @@ module Hnefatafl.Api.Types (
   GameEndReason (..),
   ApiGameStatus (..),
   gameStatusFromDomain,
+  gameStatusOptions,
+  gameEndReasonOptions,
 
   -- * History
   ApiGameMove (..),
@@ -25,17 +27,22 @@ module Hnefatafl.Api.Types (
   -- * Responses
   ApiGameState (..),
   ActionResponse (..),
+
+  -- * Utilities
+  camelToSnake,
 ) where
 
 import Data.Aeson (
   FromJSON (..),
   ToJSON (..),
-  object,
-  withObject,
-  withText,
-  (.:),
-  (.=),
+  defaultOptions,
+  genericParseJSON,
+  genericToJSON,
  )
+import Data.Aeson qualified as Aeson
+import Data.Char (isUpper, toLower)
+import Data.OpenApi (ToSchema (..), genericDeclareNamedSchema)
+import Data.OpenApi.SchemaOptions (fromAesonOptions)
 import Hnefatafl.Board (layerPositions)
 import Hnefatafl.Core.Data (
   ExternBoard (..),
@@ -43,15 +50,25 @@ import Hnefatafl.Core.Data (
   Layer,
   Move (..),
   MoveWithCaptures (..),
-  Outcome (..),
   PlayerColor (..),
   opponent,
  )
 import Hnefatafl.Core.Data qualified as Core
 
+-- | Convert CamelCase to snake_case
+camelToSnake :: String -> String
+camelToSnake [] = []
+camelToSnake (x : xs) = toLower x : go xs
+ where
+  go [] = []
+  go (c : cs)
+    | isUpper c = '_' : toLower c : go cs
+    | otherwise = c : go cs
+
 newtype Position = Position Int
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
   deriving newtype (ToJSON, FromJSON)
+  deriving anyclass (ToSchema)
 
 positionsFromLayer :: Layer -> [Position]
 positionsFromLayer = map Position . layerPositions
@@ -62,7 +79,7 @@ data ApiBoard = ApiBoard
   , king :: Position
   }
   deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (ToJSON, FromJSON, ToSchema)
 
 boardFromExtern :: ExternBoard -> ApiBoard
 boardFromExtern eb =
@@ -78,7 +95,7 @@ data ApiMove = ApiMove
   , captures :: [Position]
   }
   deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (ToJSON, FromJSON, ToSchema)
 
 moveFromDomain :: MoveWithCaptures -> ApiMove
 moveFromDomain mc =
@@ -94,6 +111,9 @@ moveToDomain m =
       Position d = m.dest
    in Move (fromIntegral o) (fromIntegral d)
 
+-------------------------------------------------------------------------------
+-- Game end reason
+
 data GameEndReason
   = KingCaptured
   | WhiteSurrounded
@@ -102,70 +122,62 @@ data GameEndReason
   | ExitFort
   | Resignation
   | Timeout
-  | DrawAgreed
-  | GameAbandoned
-  deriving (Show, Eq)
+  | Draw
+  | Abandoned
+  deriving (Show, Eq, Generic)
 
-instance ToJSON GameEndReason where
-  toJSON = \case
-    KingCaptured -> toJSON ("king_captured" :: Text)
-    WhiteSurrounded -> toJSON ("white_surrounded" :: Text)
-    NoMoves -> toJSON ("no_moves" :: Text)
-    KingEscaped -> toJSON ("king_escaped" :: Text)
-    ExitFort -> toJSON ("exit_fort" :: Text)
-    Resignation -> toJSON ("resignation" :: Text)
-    Timeout -> toJSON ("timeout" :: Text)
-    DrawAgreed -> toJSON ("draw" :: Text)
-    GameAbandoned -> toJSON ("abandoned" :: Text)
+gameEndReasonOptions :: Aeson.Options
+gameEndReasonOptions =
+  defaultOptions
+    { Aeson.constructorTagModifier = camelToSnake
+    , Aeson.allNullaryToStringTag = True
+    }
 
-instance FromJSON GameEndReason where
-  parseJSON = withText "GameEndReason" $ \case
-    "king_captured" -> pure KingCaptured
-    "white_surrounded" -> pure WhiteSurrounded
-    "no_moves" -> pure NoMoves
-    "king_escaped" -> pure KingEscaped
-    "exit_fort" -> pure ExitFort
-    "resignation" -> pure Resignation
-    "timeout" -> pure Timeout
-    "draw" -> pure DrawAgreed
-    "abandoned" -> pure GameAbandoned
-    _ -> fail "invalid game end reason"
+instance ToJSON GameEndReason where toJSON = genericToJSON gameEndReasonOptions
+instance FromJSON GameEndReason where parseJSON = genericParseJSON gameEndReasonOptions
+instance ToSchema GameEndReason where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions gameEndReasonOptions)
+
+-------------------------------------------------------------------------------
+-- Game status
 
 data ApiGameStatus
-  = ApiOngoing
-  | ApiFinished (Maybe PlayerColor) GameEndReason
-  deriving (Show, Eq)
+  = Ongoing
+  | Finished {_winner :: Maybe PlayerColor, _reason :: GameEndReason}
+  deriving (Show, Eq, Generic)
 
-instance ToJSON ApiGameStatus where
-  toJSON ApiOngoing = object ["state" .= ("ongoing" :: Text)]
-  toJSON (ApiFinished winner reason) =
-    object
-      [ "state" .= ("finished" :: Text)
-      , "winner" .= winner
-      , "reason" .= reason
-      ]
+gameStatusOptions :: Aeson.Options
+gameStatusOptions =
+  defaultOptions
+    { Aeson.sumEncoding = Aeson.TaggedObject "state" "contents"
+    , Aeson.constructorTagModifier = map toLower
+    , Aeson.fieldLabelModifier = drop 1 -- strip leading underscore
+    }
 
-instance FromJSON ApiGameStatus where
-  parseJSON = withObject "ApiGameStatus" $ \o -> do
-    st <- o .: "state"
-    case st :: Text of
-      "ongoing" -> pure ApiOngoing
-      "finished" -> ApiFinished <$> o .: "winner" <*> o .: "reason"
-      _ -> fail "invalid game status state"
+instance ToJSON ApiGameStatus where toJSON = genericToJSON gameStatusOptions
+instance FromJSON ApiGameStatus where parseJSON = genericParseJSON gameStatusOptions
+instance ToSchema ApiGameStatus where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions gameStatusOptions)
 
-gameStatusFromDomain :: Maybe Outcome -> ApiGameStatus
+-------------------------------------------------------------------------------
+-- Domain mapping
+
+gameStatusFromDomain :: Maybe Core.Outcome -> ApiGameStatus
 gameStatusFromDomain = \case
-  Nothing -> ApiOngoing
-  Just (BlackWins Core.KingCaptured) -> ApiFinished (Just Black) KingCaptured
-  Just (BlackWins Core.WhiteSurrounded) -> ApiFinished (Just Black) WhiteSurrounded
-  Just (BlackWins Core.NoWhiteMoves) -> ApiFinished (Just Black) NoMoves
-  Just (WhiteWins Core.KingEscaped) -> ApiFinished (Just White) KingEscaped
-  Just (WhiteWins Core.ExitFort) -> ApiFinished (Just White) ExitFort
-  Just (WhiteWins Core.NoBlackMoves) -> ApiFinished (Just White) NoMoves
-  Just (ResignedBy color) -> ApiFinished (Just (opponent color)) Resignation
-  Just (TimedOut color) -> ApiFinished (Just (opponent color)) Timeout
-  Just Draw -> ApiFinished Nothing DrawAgreed
-  Just Abandoned -> ApiFinished Nothing GameAbandoned
+  Nothing -> Ongoing
+  Just (Core.BlackWins Core.KingCaptured) -> Finished{_winner = Just Black, _reason = KingCaptured}
+  Just (Core.BlackWins Core.WhiteSurrounded) -> Finished{_winner = Just Black, _reason = WhiteSurrounded}
+  Just (Core.BlackWins Core.NoWhiteMoves) -> Finished{_winner = Just Black, _reason = NoMoves}
+  Just (Core.WhiteWins Core.KingEscaped) -> Finished{_winner = Just White, _reason = KingEscaped}
+  Just (Core.WhiteWins Core.ExitFort) -> Finished{_winner = Just White, _reason = ExitFort}
+  Just (Core.WhiteWins Core.NoBlackMoves) -> Finished{_winner = Just White, _reason = NoMoves}
+  Just (Core.ResignedBy color) -> Finished{_winner = Just (opponent color), _reason = Resignation}
+  Just (Core.TimedOut color) -> Finished{_winner = Just (opponent color), _reason = Timeout}
+  Just Core.Draw -> Finished{_winner = Nothing, _reason = Draw}
+  Just Core.Abandoned -> Finished{_winner = Nothing, _reason = Abandoned}
+
+-------------------------------------------------------------------------------
+-- History and responses
 
 data ApiGameMove = ApiGameMove
   { playerColor :: PlayerColor
@@ -173,7 +185,7 @@ data ApiGameMove = ApiGameMove
   , captures :: [Position]
   }
   deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (ToJSON, FromJSON, ToSchema)
 
 data ApiGameState = ApiGameState
   { gameId :: GameId
@@ -184,7 +196,7 @@ data ApiGameState = ApiGameState
   , validMoves :: [ApiMove]
   }
   deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (ToJSON, FromJSON, ToSchema)
 
 data ActionResponse = ActionResponse
   { turn :: PlayerColor
@@ -192,4 +204,4 @@ data ActionResponse = ActionResponse
   , validMoves :: [ApiMove]
   }
   deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (ToJSON, FromJSON, ToSchema)

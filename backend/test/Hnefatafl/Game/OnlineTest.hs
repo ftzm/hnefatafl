@@ -2,7 +2,7 @@ module Hnefatafl.Game.OnlineTest where
 
 import Chronos (Time (..))
 import Hnefatafl.Bindings (startBlackMoves, startBoard)
-import Hnefatafl.Core.Data (MoveWithCaptures (..), PlayerColor (..))
+import Hnefatafl.Core.Data (MoveWithCaptures (..), Outcome (..), PlayerColor (..))
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   PendingAction (..),
@@ -12,8 +12,10 @@ import Hnefatafl.Game.Common (
   validMovesForPosition,
  )
 import Hnefatafl.Game.Online (
+  ActorNotification (..),
   Command (..),
   Event (..),
+  Notification (..),
   Phase (..),
   State (..),
   TransitionResult (..),
@@ -218,4 +220,26 @@ test_onlineUndoCount =
                 Left e -> fail $ "White move failed: " <> show e
             other -> fail $ "Expected Active after black move, got " <> show other
           Left e -> fail $ "Black move failed: " <> show e
+    ]
+
+assertRight :: Show e => Either e a -> IO a
+assertRight (Right a) = pure a
+assertRight (Left e) = fail $ "Transition failed: " <> show e
+
+test_onlineActorNotifications :: TestTree
+test_onlineActorNotifications =
+  testGroup
+    "Online actor notifications"
+    [ testCase "Resign notifies both opponent and actor" $ do
+        tr <- assertRight $ transition initialState (Resign Black)
+        let opponentNotifs = [n | NotifyOpponent n <- tr.commands]
+            actorNotifs = [n | NotifyActor n <- tr.commands]
+        opponentNotifs @?= [OpponentResigned Black]
+        actorNotifs @?= [GameEnded (ResignedBy Black)]
+    , testCase "Timeout notifies both opponent and actor" $ do
+        tr <- assertRight $ transition initialState (Timeout Black)
+        let opponentNotifs = [n | NotifyOpponent n <- tr.commands]
+            actorNotifs = [n | NotifyActor n <- tr.commands]
+        opponentNotifs @?= [OpponentTimedOut Black]
+        actorNotifs @?= [GameEnded (TimedOut Black)]
     ]

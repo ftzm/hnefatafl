@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.App.Online (
   GameSession (..),
@@ -16,21 +17,22 @@ module Hnefatafl.App.Online (
 
 import Chronos (Time)
 import Data.Aeson (
-  FromJSON (..),
+  FromJSON,
+  ToJSON,
   decode,
-  withObject,
-  (.:),
+  encode,
  )
-import Data.Aeson.Types (Parser)
 import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (finally)
+import Hnefatafl.Api.Types.WS (WsErrorCode (..), transitionErrorToCode)
+import Hnefatafl.Api.Types.WS.Online (OnlineServerMessage (..))
 import Hnefatafl.App.Online.Serialization (
-  actorNotificationToJSON,
-  gameStateToJSON,
-  notificationToJSON,
+  actorNotificationMessage,
+  gameStateMessage,
+  notificationMessage,
  )
 import Hnefatafl.App.Session (
   SessionEntry (..),
@@ -39,7 +41,7 @@ import Hnefatafl.App.Session (
   tryAcquire,
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, safeSend)
+import Hnefatafl.App.WebSocket (decodeAuthToken, safeSend)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -120,21 +122,8 @@ data ClientMessage
   | RequestUndo
   | AcceptUndo
   | DeclineUndo
-  deriving (Show, Eq)
-
-instance FromJSON ClientMessage where
-  parseJSON = withObject "ClientMessage" $ \o -> do
-    typ <- o .: "type" :: Parser Text
-    case typ of
-      "move" -> Move <$> (Data.Move <$> o .: "orig" <*> o .: "dest")
-      "resign" -> pure Resign
-      "offer_draw" -> pure OfferDraw
-      "accept_draw" -> pure AcceptDraw
-      "decline_draw" -> pure DeclineDraw
-      "request_undo" -> pure RequestUndo
-      "accept_undo" -> pure AcceptUndo
-      "decline_undo" -> pure DeclineUndo
-      _ -> fail $ "unknown client message type: " <> toString typ
+  deriving (Show, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | Convert a client message to an Online event, adding the player's
 -- color and the current time.
@@ -284,7 +273,7 @@ processEvent sessionVar gameId color clientMsg = do
   MVar.modifyMVar_ sessionVar $ \session ->
     case Online.transition session.gameState event of
       Left err -> do
-        sendToPlayer session color (errorToJSON $ show err)
+        sendToPlayer session color (encode $ OnlineError{_code = transitionErrorToCode err, _message = show err})
         pure session
       Right tr -> do
         let persistCmds = [cmd | Online.Persist cmd <- tr.commands]
@@ -292,10 +281,10 @@ processEvent sessionVar gameId color clientMsg = do
         -- Send notifications to opponent
         let opponentColor = opponent color
         for_ [n | Online.NotifyOpponent n <- tr.commands] $
-          sendToPlayer session opponentColor . notificationToJSON tr.newState
+          sendToPlayer session opponentColor . encode . notificationMessage tr.newState
         -- Send actor notifications
         for_ [n | Online.NotifyActor n <- tr.commands] $
-          sendToPlayer session color . actorNotificationToJSON tr.newState
+          sendToPlayer session color . encode . actorNotificationMessage tr.newState
         pure session{gameState = tr.newState}
 
 -- | Send a message to a player's WebSocket connection, if connected.
@@ -317,18 +306,18 @@ handleWebSocket ::
 handleWebSocket sessions conn = do
   authMsg <- receiveData conn
   case decodeAuthToken authMsg of
-    Nothing -> sendData conn (errorToJSON "invalid auth message")
+    Nothing -> sendData conn (encode $ OnlineError{_code = InvalidAuth, _message = "invalid auth message"})
     Just tokenText -> do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
-        Nothing -> sendData conn (errorToJSON "invalid token")
+        Nothing -> sendData conn (encode $ OnlineError{_code = InvalidToken, _message = "invalid token"})
         Just tok -> do
           let gameId = tok.gameId
               color = tok.role
           sessionVar <- getOrCreateSession sessions gameId
           uid <- generateId
           (connVar, gameState) <- connectPlayer sessionVar color uid conn
-          safeSend connVar (gameStateToJSON gameId gameState)
+          safeSend connVar (encode $ gameStateMessage gameId gameState)
           -- Receive loop with disconnect cleanup
           receiveLoop sessionVar gameId color connVar
             `finally` do
@@ -348,5 +337,5 @@ receiveLoop sessionVar gameId color connVar = do
   forever $ do
     msg <- receiveData conn
     case decode msg of
-      Nothing -> safeSend connVar (errorToJSON "invalid message")
+      Nothing -> safeSend connVar (encode $ OnlineError{_code = InvalidMessage, _message = "invalid message"})
       Just clientMsg -> processEvent sessionVar gameId color clientMsg

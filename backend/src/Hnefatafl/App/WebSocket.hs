@@ -1,6 +1,6 @@
 module Hnefatafl.App.WebSocket (
   safeSend,
-  errorToJSON,
+  encodeAuthMsg,
   decodeAuthToken,
 ) where
 
@@ -31,8 +31,8 @@ safeSend connVar msg =
     sendData conn msg
       `catch` \(_ :: ConnectionException) -> pure ()
 
-errorToJSON :: Text -> LByteString
-errorToJSON msg = encode $ object ["type" .= ("error" :: Text), "message" .= msg]
+encodeAuthMsg :: Text -> LByteString
+encodeAuthMsg token = encode $ object ["type" .= ("auth" :: Text), "token" .= token]
 
 decodeAuthToken :: LByteString -> Maybe Text
 decodeAuthToken msg = do

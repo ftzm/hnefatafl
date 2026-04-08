@@ -80,7 +80,7 @@ data StorableMoveResult = StorableMoveResult
   { move :: StorableMove
   , board :: StorableExternBoard
   , captures :: StorableLayer
-  , was_black_turn :: Bool
+  , was_black_turn :: CBool
   , zobrist_hash :: Word64
   }
   deriving (Show, Read, Generic, GStorable)
@@ -165,8 +165,8 @@ instance DomainMapping StorableMove Move where
   fromDomain (Move o d) = StorableMove o d
 
 instance DomainMapping StorableMoveResult MoveResult where
-  toDomain (StorableMoveResult m b c wbt zh) = MoveResult (toDomain m) (toDomain b) (toDomain c) wbt zh
-  fromDomain (MoveResult m b c wbt zh) = StorableMoveResult (fromDomain m) (fromDomain b) (fromDomain c) wbt zh
+  toDomain (StorableMoveResult m b c wbt zh) = MoveResult (toDomain m) (toDomain b) (toDomain c) (wbt /= 0) zh
+  fromDomain (MoveResult m b c wbt zh) = StorableMoveResult (fromDomain m) (fromDomain b) (fromDomain c) (if wbt then 1 else 0) zh
 
 instance DomainMapping StorableMoveWithCaptures MoveWithCaptures where
   toDomain (StorableMoveWithCaptures m c) = MoveWithCaptures (toDomain m) (toDomain c)

@@ -10,6 +10,8 @@ import Effectful.Error.Static (Error)
 import Hnefatafl.Api.Handlers.AI (aiServer)
 import Hnefatafl.Api.Handlers.Hotseat (hotseatServer)
 import Hnefatafl.Api.Handlers.Online (onlineServer)
+import Hnefatafl.Api.AsyncApi (asyncApiSpec)
+import Hnefatafl.Api.OpenApi (openApiSpec)
 import Hnefatafl.Api.Routes (
   HealthResponse (..),
   Routes (..),
@@ -45,6 +47,8 @@ server onlineSessions aiSessions =
   Routes
     { version = versionHandler
     , health = healthHandler
+    , openapi = pure openApiSpec
+    , asyncapi = pure asyncApiSpec
     , searchTrusted = searchTrustedHandler
     , hotseat = hotseatServer
     , online = onlineServer onlineSessions

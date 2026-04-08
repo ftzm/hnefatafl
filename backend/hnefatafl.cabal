@@ -12,10 +12,12 @@ data-files:
 
 library
   exposed-modules:
+      Hnefatafl.Api.AsyncApi
       Hnefatafl.Api.Handlers
       Hnefatafl.Api.Handlers.AI
       Hnefatafl.Api.Handlers.Hotseat
       Hnefatafl.Api.Handlers.Online
+      Hnefatafl.Api.OpenApi
       Hnefatafl.Api.Routes
       Hnefatafl.Api.Routes.AI
       Hnefatafl.Api.Routes.Hotseat
@@ -23,12 +25,14 @@ library
       Hnefatafl.Api.Types
       Hnefatafl.Api.Types.AI
       Hnefatafl.Api.Types.Online
+      Hnefatafl.Api.Types.WS
+      Hnefatafl.Api.Types.WS.AI
+      Hnefatafl.Api.Types.WS.Online
       Hnefatafl.App.AI
       Hnefatafl.App.AI.Serialization
       Hnefatafl.App.Hotseat
       Hnefatafl.App.Online
       Hnefatafl.App.Online.Serialization
-      Hnefatafl.App.Serialization
       Hnefatafl.App.Session
       Hnefatafl.App.Storage
       Hnefatafl.App.WebSocket
@@ -113,7 +117,9 @@ library
     , hnefatafl-version
     , http-api-data
     , http-client
+    , insert-ordered-containers
     , list-t
+    , openapi3
     , optics
     , optparse-applicative
     , relude
@@ -123,6 +129,7 @@ library
     , servant-client
     , servant-client-core
     , servant-effectful
+    , servant-openapi3
     , servant-server
     , split
     , sqlite-simple
@@ -189,6 +196,7 @@ library hnefatafl-version
     , http-api-data
     , http-client
     , list-t
+    , openapi3
     , optics
     , optparse-applicative
     , relude
@@ -198,6 +206,7 @@ library hnefatafl-version
     , servant-client
     , servant-client-core
     , servant-effectful
+    , servant-openapi3
     , servant-server
     , split
     , sqlite-simple
@@ -264,6 +273,7 @@ executable cli
     , http-api-data
     , http-client
     , list-t
+    , openapi3
     , optics
     , optparse-applicative
     , relude
@@ -273,6 +283,84 @@ executable cli
     , servant-client
     , servant-client-core
     , servant-effectful
+    , servant-openapi3
+    , servant-server
+    , split
+    , sqlite-simple
+    , stm
+    , stm-containers
+    , template-haskell
+    , temporary
+    , text
+    , time
+    , transformers
+    , uuid-types
+    , vty
+    , vty-unix
+    , wai
+    , wai-websockets
+    , warp
+    , websockets
+  mixins:
+       relude
+    , base hiding (Prelude)
+    , relude (Relude as Prelude)
+  default-language: GHC2021
+
+executable dump-specs
+  main-is: Main.hs
+  other-modules:
+      Paths_hnefatafl
+  autogen-modules:
+      Paths_hnefatafl
+  hs-source-dirs:
+      dump-specs
+  default-extensions:
+      TemplateHaskell
+      OverloadedStrings
+      OverloadedRecordDot
+      OverloadedLabels
+      DuplicateRecordFields
+      LambdaCase
+      DerivingVia
+      ImportQualifiedPost
+      MultilineStrings
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  build-depends:
+      
+    , aeson
+    , aeson-pretty
+    , array
+    , async
+    , attoparsec
+    , base
+    , brick
+    , chronos
+    , clock
+    , derive-storable
+    , derive-storable-plugin
+    , directory
+    , effectful
+    , effectful-th
+    , either
+    , filepath
+    , focus
+    , heptapod
+    , hnefatafl
+    , http-api-data
+    , http-client
+    , list-t
+    , openapi3
+    , optics
+    , optparse-applicative
+    , relude
+    , resourcet
+    , safe-exceptions
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-effectful
+    , servant-openapi3
     , servant-server
     , split
     , sqlite-simple
@@ -300,6 +388,9 @@ test-suite hnefatafl-test
   type: exitcode-stdio-1.0
   main-is: Driver.hs
   other-modules:
+      Hnefatafl.Api.SpecTest
+      Hnefatafl.App.HotseatTest
+      Hnefatafl.App.TestUtil
       Hnefatafl.BindingsTest
       Hnefatafl.ClientTest
       Hnefatafl.Game.AITest
@@ -367,6 +458,7 @@ test-suite hnefatafl-test
     , http-api-data
     , http-client
     , list-t
+    , openapi3
     , optics
     , optparse-applicative
     , process
@@ -377,6 +469,7 @@ test-suite hnefatafl-test
     , servant-client
     , servant-client-core
     , servant-effectful
+    , servant-openapi3
     , servant-server
     , split
     , sqlite-simple

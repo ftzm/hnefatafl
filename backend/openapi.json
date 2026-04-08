@@ -1,0 +1,703 @@
+{
+    "components": {
+        "schemas": {
+            "ActionResponse": {
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/ApiGameStatus"
+                    },
+                    "turn": {
+                        "$ref": "#/components/schemas/PlayerColor"
+                    },
+                    "validMoves": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiMove"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "turn",
+                    "status",
+                    "validMoves"
+                ],
+                "type": "object"
+            },
+            "ApiBoard": {
+                "properties": {
+                    "black": {
+                        "items": {
+                            "$ref": "#/components/schemas/Position"
+                        },
+                        "type": "array"
+                    },
+                    "king": {
+                        "$ref": "#/components/schemas/Position"
+                    },
+                    "white": {
+                        "items": {
+                            "$ref": "#/components/schemas/Position"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "black",
+                    "white",
+                    "king"
+                ],
+                "type": "object"
+            },
+            "ApiGameMove": {
+                "properties": {
+                    "captures": {
+                        "items": {
+                            "$ref": "#/components/schemas/Position"
+                        },
+                        "type": "array"
+                    },
+                    "move": {
+                        "$ref": "#/components/schemas/ApiMove"
+                    },
+                    "playerColor": {
+                        "$ref": "#/components/schemas/PlayerColor"
+                    }
+                },
+                "required": [
+                    "playerColor",
+                    "move",
+                    "captures"
+                ],
+                "type": "object"
+            },
+            "ApiGameState": {
+                "properties": {
+                    "board": {
+                        "$ref": "#/components/schemas/ApiBoard"
+                    },
+                    "gameId": {
+                        "$ref": "#/components/schemas/GameId"
+                    },
+                    "history": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiGameMove"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ApiGameStatus"
+                    },
+                    "turn": {
+                        "$ref": "#/components/schemas/PlayerColor"
+                    },
+                    "validMoves": {
+                        "items": {
+                            "$ref": "#/components/schemas/ApiMove"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "gameId",
+                    "board",
+                    "turn",
+                    "status",
+                    "history",
+                    "validMoves"
+                ],
+                "type": "object"
+            },
+            "ApiGameStatus": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "state": {
+                                "enum": [
+                                    "ongoing"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "state"
+                        ],
+                        "title": "Ongoing",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/GameEndReason"
+                            },
+                            "state": {
+                                "enum": [
+                                    "finished"
+                                ],
+                                "type": "string"
+                            },
+                            "winner": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            }
+                        },
+                        "required": [
+                            "reason",
+                            "state"
+                        ],
+                        "title": "Finished",
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiMove": {
+                "properties": {
+                    "captures": {
+                        "items": {
+                            "$ref": "#/components/schemas/Position"
+                        },
+                        "type": "array"
+                    },
+                    "dest": {
+                        "$ref": "#/components/schemas/Position"
+                    },
+                    "orig": {
+                        "$ref": "#/components/schemas/Position"
+                    }
+                },
+                "required": [
+                    "orig",
+                    "dest",
+                    "captures"
+                ],
+                "type": "object"
+            },
+            "CreateGameRequest": {
+                "properties": {
+                    "humanColor": {
+                        "$ref": "#/components/schemas/PlayerColor"
+                    }
+                },
+                "required": [
+                    "humanColor"
+                ],
+                "type": "object"
+            },
+            "CreateGameResponse": {
+                "properties": {
+                    "gameId": {
+                        "$ref": "#/components/schemas/GameId"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "gameId",
+                    "token"
+                ],
+                "type": "object"
+            },
+            "EngineGameStatus": {
+                "enum": [
+                    "EngineOngoing",
+                    "EngineKingCaptured",
+                    "EngineWhiteSurrounded",
+                    "EngineNoWhiteMoves",
+                    "EngineKingEscaped",
+                    "EngineExitFort",
+                    "EngineNoBlackMoves",
+                    "EngineDrawOffered",
+                    "EngineWhiteResigned",
+                    "EngineBlackResigned"
+                ],
+                "type": "string"
+            },
+            "ExternBoard": {
+                "properties": {
+                    "black": {
+                        "$ref": "#/components/schemas/Layer"
+                    },
+                    "king": {
+                        "maximum": 255,
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "white": {
+                        "$ref": "#/components/schemas/Layer"
+                    }
+                },
+                "required": [
+                    "black",
+                    "white",
+                    "king"
+                ],
+                "type": "object"
+            },
+            "GameEndReason": {
+                "enum": [
+                    "king_captured",
+                    "white_surrounded",
+                    "no_moves",
+                    "king_escaped",
+                    "exit_fort",
+                    "resignation",
+                    "timeout",
+                    "draw",
+                    "abandoned"
+                ],
+                "type": "string"
+            },
+            "GameId": {
+                "type": "string"
+            },
+            "HealthResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string"
+                    },
+                    "timestamp": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "status",
+                    "timestamp"
+                ],
+                "type": "object"
+            },
+            "Layer": {
+                "description": "Two space-separated Word64 values (lower upper)",
+                "type": "string"
+            },
+            "Move": {
+                "properties": {
+                    "dest": {
+                        "maximum": 255,
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "orig": {
+                        "maximum": 255,
+                        "minimum": 0,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "orig",
+                    "dest"
+                ],
+                "type": "object"
+            },
+            "PlayerColor": {
+                "enum": [
+                    "white",
+                    "black"
+                ],
+                "type": "string"
+            },
+            "Position": {
+                "maximum": 9223372036854775807,
+                "minimum": -9223372036854775808,
+                "type": "integer"
+            },
+            "SearchTimeout": {
+                "maximum": 9223372036854775807,
+                "minimum": -9223372036854775808,
+                "type": "integer"
+            },
+            "SearchTrustedInput": {
+                "properties": {
+                    "blackToMove": {
+                        "type": "boolean"
+                    },
+                    "board": {
+                        "$ref": "#/components/schemas/ExternBoard"
+                    },
+                    "enableAdminEndings": {
+                        "type": "boolean"
+                    },
+                    "hashes": {
+                        "items": {
+                            "format": "int64",
+                            "maximum": 1.8446744073709551615e19,
+                            "minimum": 0,
+                            "type": "integer"
+                        },
+                        "type": "array"
+                    },
+                    "timeout": {
+                        "$ref": "#/components/schemas/SearchTimeout"
+                    }
+                },
+                "required": [
+                    "board",
+                    "blackToMove",
+                    "hashes",
+                    "timeout",
+                    "enableAdminEndings"
+                ],
+                "type": "object"
+            },
+            "SearchTrustedResult": {
+                "properties": {
+                    "captures": {
+                        "$ref": "#/components/schemas/Layer"
+                    },
+                    "gameStatus": {
+                        "$ref": "#/components/schemas/EngineGameStatus"
+                    },
+                    "searchMove": {
+                        "$ref": "#/components/schemas/Move"
+                    },
+                    "updatedBoard": {
+                        "$ref": "#/components/schemas/ExternBoard"
+                    },
+                    "updatedZobristHash": {
+                        "format": "int64",
+                        "maximum": 1.8446744073709551615e19,
+                        "minimum": 0,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "searchMove",
+                    "updatedBoard",
+                    "captures",
+                    "updatedZobristHash",
+                    "gameStatus"
+                ],
+                "type": "object"
+            },
+            "VersionResponse": {
+                "properties": {
+                    "buildDate": {
+                        "type": "string"
+                    },
+                    "versionNumber": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "versionNumber",
+                    "buildDate"
+                ],
+                "type": "object"
+            }
+        }
+    },
+    "info": {
+        "title": "",
+        "version": ""
+    },
+    "openapi": "3.0.0",
+    "paths": {
+        "/ai": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateGameRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CreateGameResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/ai/ws": {
+            "get": {
+                "description": "WebSocket endpoint — see AsyncAPI spec for message schemas",
+                "responses": {
+                    "101": {
+                        "description": "WebSocket connection established"
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HealthResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/hotseat": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGameState"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/hotseat/{id}": {
+            "get": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGameState"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "description": "`id` not found"
+                    }
+                }
+            }
+        },
+        "/hotseat/{id}/draw": {
+            "post": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "description": "`id` not found"
+                    }
+                }
+            }
+        },
+        "/hotseat/{id}/move": {
+            "post": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiMove"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    },
+                    "404": {
+                        "description": "`id` not found"
+                    }
+                }
+            }
+        },
+        "/hotseat/{id}/resign": {
+            "post": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    },
+                    "404": {
+                        "description": "`id` not found"
+                    }
+                }
+            }
+        },
+        "/hotseat/{id}/undo": {
+            "post": {
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "description": "`id` not found"
+                    }
+                }
+            }
+        },
+        "/online": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CreateGameResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/online/ws": {
+            "get": {
+                "description": "WebSocket endpoint — see AsyncAPI spec for message schemas",
+                "responses": {
+                    "101": {
+                        "description": "WebSocket connection established"
+                    }
+                }
+            }
+        },
+        "/searchTrusted": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SearchTrustedInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchTrustedResult"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/version": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VersionResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        }
+    }
+}

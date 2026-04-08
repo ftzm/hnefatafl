@@ -1,0 +1,963 @@
+{
+    "asyncapi": "3.0.0",
+    "channels": {
+        "ai-ws": {
+            "address": "/ai/ws",
+            "description": "AI game WebSocket channel",
+            "messages": {
+                "authMessage": {
+                    "$ref": "#/components/messages/AuthMessage"
+                },
+                "clientMessage": {
+                    "$ref": "#/components/messages/AIClientMessage"
+                },
+                "serverMessage": {
+                    "$ref": "#/components/messages/AIServerMessage"
+                }
+            }
+        },
+        "online-ws": {
+            "address": "/online/ws",
+            "description": "Online game WebSocket channel",
+            "messages": {
+                "authMessage": {
+                    "$ref": "#/components/messages/AuthMessage"
+                },
+                "clientMessage": {
+                    "$ref": "#/components/messages/OnlineClientMessage"
+                },
+                "serverMessage": {
+                    "$ref": "#/components/messages/OnlineServerMessage"
+                }
+            }
+        }
+    },
+    "components": {
+        "messages": {
+            "AIClientMessage": {
+                "payload": {
+                    "$ref": "#/components/schemas/AIClientMessage"
+                }
+            },
+            "AIServerMessage": {
+                "payload": {
+                    "$ref": "#/components/schemas/AIServerMessage"
+                }
+            },
+            "AuthMessage": {
+                "payload": {
+                    "$ref": "#/components/schemas/AuthMessage"
+                }
+            },
+            "OnlineClientMessage": {
+                "payload": {
+                    "$ref": "#/components/schemas/OnlineClientMessage"
+                }
+            },
+            "OnlineServerMessage": {
+                "payload": {
+                    "$ref": "#/components/schemas/OnlineServerMessage"
+                }
+            }
+        },
+        "schemas": {
+            "AIClientMessage": {
+                "discriminator": "type",
+                "oneOf": [
+                    {
+                        "properties": {
+                            "dest": {
+                                "maximum": 255,
+                                "minimum": 0,
+                                "type": "integer"
+                            },
+                            "orig": {
+                                "maximum": 255,
+                                "minimum": 0,
+                                "type": "integer"
+                            },
+                            "type": {
+                                "enum": [
+                                    "move"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "orig",
+                            "dest",
+                            "type"
+                        ],
+                        "title": "AIMove",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "undo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "AIUndo",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "resign"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "AIResign",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "offer_draw"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "AIOfferDraw",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "accept_draw"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "AIAcceptDraw",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "decline_draw"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "AIDeclineDraw",
+                        "type": "object"
+                    }
+                ]
+            },
+            "AIServerMessage": {
+                "discriminator": "type",
+                "oneOf": [
+                    {
+                        "properties": {
+                            "board": {
+                                "$ref": "#/components/schemas/ApiBoard"
+                            },
+                            "gameId": {
+                                "$ref": "#/components/schemas/GameId"
+                            },
+                            "history": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AppliedMovePayload"
+                                },
+                                "type": "array"
+                            },
+                            "humanColor": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "pendingAction": {
+                                "$ref": "#/components/schemas/PendingActionPayload"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "turn": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "enum": [
+                                    "game_state"
+                                ],
+                                "type": "string"
+                            },
+                            "validMoves": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiMove"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "gameId",
+                            "humanColor",
+                            "board",
+                            "history",
+                            "turn",
+                            "status",
+                            "validMoves",
+                            "type"
+                        ],
+                        "title": "AIGameState",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "board": {
+                                "$ref": "#/components/schemas/ApiBoard"
+                            },
+                            "move": {
+                                "$ref": "#/components/schemas/ApiMove"
+                            },
+                            "side": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "turn": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "enum": [
+                                    "engine_moved"
+                                ],
+                                "type": "string"
+                            },
+                            "validMoves": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiMove"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "move",
+                            "side",
+                            "turn",
+                            "status",
+                            "validMoves",
+                            "board",
+                            "type"
+                        ],
+                        "title": "AIEngineMoved",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "type": {
+                                "enum": [
+                                    "game_over"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "status",
+                            "type"
+                        ],
+                        "title": "AIGameOver",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "board": {
+                                "$ref": "#/components/schemas/ApiBoard"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "turn": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "enum": [
+                                    "undo_applied"
+                                ],
+                                "type": "string"
+                            },
+                            "validMoves": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiMove"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "turn",
+                            "status",
+                            "validMoves",
+                            "board",
+                            "type"
+                        ],
+                        "title": "AIUndoApplied",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "code": {
+                                "$ref": "#/components/schemas/WsErrorCode"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "enum": [
+                                    "error"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "code",
+                            "message",
+                            "type"
+                        ],
+                        "title": "AIError",
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiBoard": {
+                "properties": {
+                    "black": {
+                        "items": {
+                            "$ref": "#/components/schemas/Position"
+                        },
+                        "type": "array"
+                    },
+                    "king": {
+                        "$ref": "#/components/schemas/Position"
+                    },
+                    "white": {
+                        "items": {
+                            "$ref": "#/components/schemas/Position"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "black",
+                    "white",
+                    "king"
+                ],
+                "type": "object"
+            },
+            "ApiGameStatus": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "state": {
+                                "enum": [
+                                    "ongoing"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "state"
+                        ],
+                        "title": "Ongoing",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/GameEndReason"
+                            },
+                            "state": {
+                                "enum": [
+                                    "finished"
+                                ],
+                                "type": "string"
+                            },
+                            "winner": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            }
+                        },
+                        "required": [
+                            "reason",
+                            "state"
+                        ],
+                        "title": "Finished",
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiMove": {
+                "properties": {
+                    "captures": {
+                        "items": {
+                            "$ref": "#/components/schemas/Position"
+                        },
+                        "type": "array"
+                    },
+                    "dest": {
+                        "$ref": "#/components/schemas/Position"
+                    },
+                    "orig": {
+                        "$ref": "#/components/schemas/Position"
+                    }
+                },
+                "required": [
+                    "orig",
+                    "dest",
+                    "captures"
+                ],
+                "type": "object"
+            },
+            "AppliedMovePayload": {
+                "properties": {
+                    "move": {
+                        "$ref": "#/components/schemas/ApiMove"
+                    },
+                    "side": {
+                        "$ref": "#/components/schemas/PlayerColor"
+                    }
+                },
+                "required": [
+                    "move",
+                    "side"
+                ],
+                "type": "object"
+            },
+            "AuthMessage": {
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "enum": [
+                            "auth"
+                        ],
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "token"
+                ],
+                "type": "object"
+            },
+            "GameEndReason": {
+                "enum": [
+                    "king_captured",
+                    "white_surrounded",
+                    "no_moves",
+                    "king_escaped",
+                    "exit_fort",
+                    "resignation",
+                    "timeout",
+                    "draw",
+                    "abandoned"
+                ],
+                "type": "string"
+            },
+            "GameId": {
+                "type": "string"
+            },
+            "OnlineClientMessage": {
+                "discriminator": "type",
+                "oneOf": [
+                    {
+                        "properties": {
+                            "dest": {
+                                "maximum": 255,
+                                "minimum": 0,
+                                "type": "integer"
+                            },
+                            "orig": {
+                                "maximum": 255,
+                                "minimum": 0,
+                                "type": "integer"
+                            },
+                            "type": {
+                                "enum": [
+                                    "move"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "orig",
+                            "dest",
+                            "type"
+                        ],
+                        "title": "OnlineMove",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "resign"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineResign",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "offer_draw"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineOfferDraw",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "accept_draw"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineAcceptDraw",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "decline_draw"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineDeclineDraw",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "request_undo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineRequestUndo",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "accept_undo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineAcceptUndo",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "decline_undo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineDeclineUndo",
+                        "type": "object"
+                    }
+                ]
+            },
+            "OnlineServerMessage": {
+                "discriminator": "type",
+                "oneOf": [
+                    {
+                        "properties": {
+                            "board": {
+                                "$ref": "#/components/schemas/ApiBoard"
+                            },
+                            "gameId": {
+                                "$ref": "#/components/schemas/GameId"
+                            },
+                            "history": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AppliedMovePayload"
+                                },
+                                "type": "array"
+                            },
+                            "pendingAction": {
+                                "$ref": "#/components/schemas/PendingActionPayload"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "turn": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "type": {
+                                "enum": [
+                                    "game_state"
+                                ],
+                                "type": "string"
+                            },
+                            "validMoves": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiMove"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "gameId",
+                            "board",
+                            "history",
+                            "turn",
+                            "status",
+                            "validMoves",
+                            "type"
+                        ],
+                        "title": "OnlineGameState",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "board": {
+                                "$ref": "#/components/schemas/ApiBoard"
+                            },
+                            "move": {
+                                "$ref": "#/components/schemas/ApiMove"
+                            },
+                            "side": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "turn": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "type": {
+                                "enum": [
+                                    "opponent_moved"
+                                ],
+                                "type": "string"
+                            },
+                            "validMoves": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiMove"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "move",
+                            "side",
+                            "turn",
+                            "status",
+                            "validMoves",
+                            "board",
+                            "type"
+                        ],
+                        "title": "OnlineOpponentMoved",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "type": {
+                                "enum": [
+                                    "game_over"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "status",
+                            "type"
+                        ],
+                        "title": "OnlineGameOver",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "by": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "type": {
+                                "enum": [
+                                    "draw_offered"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "by",
+                            "type"
+                        ],
+                        "title": "OnlineDrawOffered",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "draw_declined"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineDrawDeclined",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "by": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "type": {
+                                "enum": [
+                                    "undo_requested"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "by",
+                            "type"
+                        ],
+                        "title": "OnlineUndoRequested",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "board": {
+                                "$ref": "#/components/schemas/ApiBoard"
+                            },
+                            "status": {
+                                "$ref": "#/components/schemas/ApiGameStatus"
+                            },
+                            "turn": {
+                                "$ref": "#/components/schemas/PlayerColor"
+                            },
+                            "type": {
+                                "enum": [
+                                    "undo_accepted"
+                                ],
+                                "type": "string"
+                            },
+                            "validMoves": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiMove"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "turn",
+                            "status",
+                            "validMoves",
+                            "board",
+                            "type"
+                        ],
+                        "title": "OnlineUndoAccepted",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "undo_declined"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineUndoDeclined",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "code": {
+                                "$ref": "#/components/schemas/WsErrorCode"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "enum": [
+                                    "error"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "code",
+                            "message",
+                            "type"
+                        ],
+                        "title": "OnlineError",
+                        "type": "object"
+                    }
+                ]
+            },
+            "PendingActionPayload": {
+                "properties": {
+                    "actionType": {
+                        "type": "string"
+                    },
+                    "offeredBy": {
+                        "$ref": "#/components/schemas/PlayerColor"
+                    }
+                },
+                "required": [
+                    "actionType",
+                    "offeredBy"
+                ],
+                "type": "object"
+            },
+            "PlayerColor": {
+                "enum": [
+                    "white",
+                    "black"
+                ],
+                "type": "string"
+            },
+            "Position": {
+                "maximum": 9223372036854775807,
+                "minimum": -9223372036854775808,
+                "type": "integer"
+            },
+            "WsErrorCode": {
+                "enum": [
+                    "invalid_message",
+                    "invalid_auth",
+                    "invalid_token",
+                    "not_your_turn",
+                    "game_already_finished",
+                    "invalid_move",
+                    "no_pending_offer",
+                    "cannot_respond_to_own_offer",
+                    "action_already_pending",
+                    "no_moves_to_undo",
+                    "engine_error",
+                    "engine_search_failed"
+                ],
+                "type": "string"
+            }
+        }
+    },
+    "info": {
+        "description": "WebSocket message schemas for AI and Online game modes",
+        "title": "Hnefatafl WebSocket API",
+        "version": "0.0.16"
+    },
+    "operations": {
+        "receiveAiServer": {
+            "action": "receive",
+            "channel": {
+                "$ref": "#/channels/ai-ws"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/ai-ws/messages/serverMessage"
+                }
+            ]
+        },
+        "receiveOnlineServer": {
+            "action": "receive",
+            "channel": {
+                "$ref": "#/channels/online-ws"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/online-ws/messages/serverMessage"
+                }
+            ]
+        },
+        "sendAiClient": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/ai-ws"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/ai-ws/messages/clientMessage"
+                },
+                {
+                    "$ref": "#/channels/ai-ws/messages/authMessage"
+                }
+            ]
+        },
+        "sendOnlineClient": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/online-ws"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/online-ws/messages/clientMessage"
+                },
+                {
+                    "$ref": "#/channels/online-ws/messages/authMessage"
+                }
+            ]
+        }
+    }
+}

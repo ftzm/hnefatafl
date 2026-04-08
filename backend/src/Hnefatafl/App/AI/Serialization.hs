@@ -1,99 +1,106 @@
 module Hnefatafl.App.AI.Serialization (
-  notificationToJSON,
-  gameStateToJSON,
+  notificationMessage,
+  gameStateMessage,
 ) where
 
-import Data.Aeson (
-  Key,
-  Value,
-  encode,
-  object,
-  (.=),
- )
 import Hnefatafl.Api.Types (
+  ApiBoard,
+  ApiGameStatus,
   ApiMove,
   boardFromExtern,
   gameStatusFromDomain,
   moveFromDomain,
  )
-import Hnefatafl.App.Serialization (appliedMoveToJSON, pendingActionToJSON)
+import Hnefatafl.Api.Types.WS (
+  appliedMoveFromDomain,
+  pendingActionFromDomain,
+ )
+import Hnefatafl.Api.Types.WS.AI (AIServerMessage (..))
 import Hnefatafl.Core.Data (
-  GameId (..),
+  GameId,
   MoveWithCaptures (..),
-  PlayerColor (..),
+  PlayerColor,
  )
 import Hnefatafl.Game.AI qualified as AI
 import Hnefatafl.Game.Common (AppliedMove (..))
 
--- | Serialize a player notification.
-notificationToJSON :: AI.State -> AI.PlayerNotification -> LByteString
-notificationToJSON newState = \case
+-- | Convert a player notification to an AIServerMessage.
+notificationMessage :: AI.State -> AI.PlayerNotification -> AIServerMessage
+notificationMessage newState = \case
   AI.EngineMoved am ->
-    encode $
-      object $
-        [ "type" .= ("engine_moved" :: Text)
-        , "move" .= moveFromDomain (MoveWithCaptures am.move am.captures)
-        , "side" .= am.side
-        ]
-          <> stateFields newState
+    let (turn', status', validMoves', board') = activeStateFields newState
+     in AIEngineMoved
+          { _move = moveFromDomain (MoveWithCaptures am.move am.captures)
+          , _side = am.side
+          , _turn = turn'
+          , _status = status'
+          , _validMoves = validMoves'
+          , _board = board'
+          }
   AI.GameEnded outcome ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "status" .= gameStatusFromDomain (Just outcome)
-        ]
+    AIGameOver{_status = gameStatusFromDomain (Just outcome)}
   AI.UndoApplied ->
-    encode $
-      object $
-        ["type" .= ("undo_applied" :: Text)]
-          <> stateFields newState
-
--- | Common state fields included in messages where the board/turn changed.
-stateFields :: AI.State -> [(Key, Value)]
-stateFields (AI.State board _moves phase) =
-  case phase of
-    AI.PlayerTurn validMoves _pending ->
-      [ "turn" .= ("player" :: Text)
-      , "status" .= gameStatusFromDomain Nothing
-      , "validMoves" .= map moveFromDomain validMoves
-      , "board" .= boardFromExtern board
-      ]
-    AI.EngineThinking _pending ->
-      [ "turn" .= ("engine" :: Text)
-      , "status" .= gameStatusFromDomain Nothing
-      , "board" .= boardFromExtern board
-      ]
-    AI.Finished outcome ->
-      [ "status" .= gameStatusFromDomain (Just outcome)
-      , "board" .= boardFromExtern board
-      ]
+    let (turn', status', validMoves', board') = activeStateFields newState
+     in AIUndoApplied
+          { _turn = turn'
+          , _status = status'
+          , _validMoves = validMoves'
+          , _board = board'
+          }
 
 -- | Serialize the full game state for initial sync on connect.
-gameStateToJSON :: GameId -> PlayerColor -> AI.State -> LByteString
-gameStateToJSON gId humanColor (AI.State board moves phase) =
-  encode $
-    object $
-      [ "type" .= ("game_state" :: Text)
-      , "gameId" .= gId
-      , "humanColor" .= humanColor
-      , "board" .= boardFromExtern board
-      , "history" .= map appliedMoveToJSON moves
-      ]
-        <> case phase of
-          AI.PlayerTurn validMoves pending ->
-            [ "turn" .= ("player" :: Text)
-            , "status" .= gameStatusFromDomain Nothing
-            , "validMoves" .= map moveFromDomain validMoves
-            , "pendingAction" .= fmap pendingActionToJSON pending
-            ]
-          AI.EngineThinking pending ->
-            [ "turn" .= ("engine" :: Text)
-            , "status" .= gameStatusFromDomain Nothing
-            , "validMoves" .= ([] :: [ApiMove])
-            , "pendingAction" .= fmap pendingActionToJSON pending
-            ]
-          AI.Finished outcome ->
-            [ "status" .= gameStatusFromDomain (Just outcome)
-            , "validMoves" .= ([] :: [ApiMove])
-            , "pendingAction" .= (Nothing :: Maybe Value)
-            ]
+gameStateMessage :: GameId -> PlayerColor -> AI.State -> AIServerMessage
+gameStateMessage gId humanColor (AI.State board moves phase) =
+  AIGameState
+    { _gameId = gId
+    , _humanColor = humanColor
+    , _board = boardFromExtern board
+    , _history = map appliedMoveFromDomain moves
+    , _turn = turnText
+    , _status = status'
+    , _validMoves = validMoves'
+    , _pendingAction = pending'
+    }
+ where
+  (turnText, status', validMoves', pending') = case phase of
+    AI.PlayerTurn validMoves pending ->
+      ( "player"
+      , gameStatusFromDomain Nothing
+      , map moveFromDomain validMoves
+      , fmap pendingActionFromDomain pending
+      )
+    AI.EngineThinking pending ->
+      ( "engine"
+      , gameStatusFromDomain Nothing
+      , []
+      , fmap pendingActionFromDomain pending
+      )
+    AI.Finished outcome ->
+      ( "player"
+      , gameStatusFromDomain (Just outcome)
+      , []
+      , Nothing
+      )
+
+-- | Extract common state fields from an AI state.
+activeStateFields :: AI.State -> (Text, ApiGameStatus, [ApiMove], ApiBoard)
+activeStateFields (AI.State board _moves phase) =
+  case phase of
+    AI.PlayerTurn validMoves _pending ->
+      ( "player"
+      , gameStatusFromDomain Nothing
+      , map moveFromDomain validMoves
+      , boardFromExtern board
+      )
+    AI.EngineThinking _pending ->
+      ( "engine"
+      , gameStatusFromDomain Nothing
+      , []
+      , boardFromExtern board
+      )
+    AI.Finished outcome ->
+      ( "player"
+      , gameStatusFromDomain (Just outcome)
+      , []
+      , boardFromExtern board
+      )

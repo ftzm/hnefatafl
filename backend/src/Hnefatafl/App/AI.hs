@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.App.AI (
   GameSession (..),
@@ -15,19 +16,20 @@ module Hnefatafl.App.AI (
 
 import Chronos (Time)
 import Data.Aeson (
-  FromJSON (..),
+  FromJSON,
+  ToJSON,
   decode,
-  withObject,
-  (.:),
+  encode,
  )
-import Data.Aeson.Types (Parser)
 import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (catch, finally)
-import Hnefatafl.App.AI.Serialization (gameStateToJSON, notificationToJSON)
+import Hnefatafl.App.AI.Serialization (gameStateMessage, notificationMessage)
+import Hnefatafl.Api.Types.WS (WsErrorCode (..), transitionErrorToCode)
+import Hnefatafl.Api.Types.WS.AI (AIServerMessage (..))
 import Hnefatafl.App.Session (
   SessionEntry (..),
   insertOrAcquire,
@@ -35,7 +37,7 @@ import Hnefatafl.App.Session (
   tryAcquire,
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, errorToJSON, safeSend)
+import Hnefatafl.App.WebSocket (decodeAuthToken, safeSend)
 import Hnefatafl.Bindings (SearchTrustedResult (..))
 import Hnefatafl.Core.Data (
   Game (..),
@@ -102,19 +104,8 @@ data ClientMessage
   | OfferDraw
   | AcceptDraw
   | DeclineDraw
-  deriving (Show, Eq)
-
-instance FromJSON ClientMessage where
-  parseJSON = withObject "ClientMessage" $ \o -> do
-    typ <- o .: "type" :: Parser Text
-    case typ of
-      "move" -> Move <$> (Data.Move <$> o .: "orig" <*> o .: "dest")
-      "undo" -> pure Undo
-      "resign" -> pure Resign
-      "offer_draw" -> pure OfferDraw
-      "accept_draw" -> pure AcceptDraw
-      "decline_draw" -> pure DeclineDraw
-      _ -> fail $ "unknown client message type: " <> toString typ
+  deriving (Show, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | Convert a client message to an AI event, adding the current time
 -- and player color where needed.
@@ -258,14 +249,14 @@ processEvent sessionVar gameId event = do
   MVar.modifyMVar_ sessionVar $ \session -> do
     case AI.transition session.humanColor session.gameState event of
       Left err -> do
-        sendToPlayer session (errorToJSON $ show err)
+        sendToPlayer session (encode $ AIError{_code = transitionErrorToCode err, _message = show err})
         pure session
       Right tr -> do
         let persistCmds = [cmd | AI.Persist cmd <- tr.commands]
         runTransaction $ persistenceCommandsToTx gameId currentTime persistCmds
         -- Send player notifications
         for_ [n | AI.NotifyPlayer n <- tr.commands] $
-          sendToPlayer session . notificationToJSON tr.newState
+          sendToPlayer session . encode . notificationMessage tr.newState
         -- Handle engine search commands
         engineAsync' <- handleEngineCommands sessionVar gameId session tr.commands
         -- Cancel previous engine search if a new one was triggered or cancelled
@@ -310,7 +301,7 @@ spawnEngineSearch sessionVar gameId humanColor moves =
       -- Don't report cancellation as an error — it's intentional (e.g. player undo)
       unless (isJust $ fromException @Async.AsyncCancelled ex) $
         MVar.withMVar sessionVar $ \session ->
-          sendToPlayer session (errorToJSON $ "Engine search failed: " <> show ex)
+          sendToPlayer session (encode $ AIError{_code = EngineSearchFailed, _message = "Engine search failed: " <> show ex})
  where
   doSearch = do
     let board = currentBoard moves
@@ -357,18 +348,18 @@ handleWebSocket ::
 handleWebSocket sessions conn = do
   authMsg <- receiveData conn
   case decodeAuthToken authMsg of
-    Nothing -> sendData conn (errorToJSON "invalid auth message")
+    Nothing -> sendData conn (encode $ AIError{_code = InvalidAuth, _message = "invalid auth message"})
     Just tokenText -> do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
-        Nothing -> sendData conn (errorToJSON "invalid token")
+        Nothing -> sendData conn (encode $ AIError{_code = InvalidToken, _message = "invalid token"})
         Just tok -> do
           let gameId = tok.gameId
               humanColor = tok.role
           uid <- generateId
           (sessionVar, connVar, gameState) <-
             connectToGame sessions gameId humanColor uid conn
-          safeSend connVar (gameStateToJSON gameId humanColor gameState)
+          safeSend connVar (encode $ gameStateMessage gameId humanColor gameState)
           receiveLoop sessionVar gameId humanColor connVar
             `finally` do
               disconnectPlayer sessionVar uid
@@ -387,7 +378,7 @@ receiveLoop sessionVar gameId humanColor connVar = do
   forever $ do
     msg <- receiveData conn
     case decode msg of
-      Nothing -> safeSend connVar (errorToJSON "invalid message")
+      Nothing -> safeSend connVar (encode $ AIError{_code = InvalidMessage, _message = "invalid message"})
       Just clientMsg -> do
         time <- now
         processEvent sessionVar gameId (toEvent humanColor time clientMsg)

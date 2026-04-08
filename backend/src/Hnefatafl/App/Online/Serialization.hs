@@ -1,123 +1,122 @@
 module Hnefatafl.App.Online.Serialization (
-  notificationToJSON,
-  actorNotificationToJSON,
-  gameStateToJSON,
+  notificationMessage,
+  actorNotificationMessage,
+  gameStateMessage,
 ) where
 
-import Data.Aeson (
-  Key,
-  Value,
-  encode,
-  object,
-  (.=),
- )
 import Hnefatafl.Api.Types (
+  ApiBoard,
+  ApiGameStatus,
   ApiMove,
   boardFromExtern,
   gameStatusFromDomain,
   moveFromDomain,
  )
-import Hnefatafl.App.Serialization (appliedMoveToJSON, pendingActionToJSON)
-import Hnefatafl.Core.Data (
-  GameId (..),
-  MoveWithCaptures (..),
-  opponent,
+import Hnefatafl.Api.Types.WS (
+  appliedMoveFromDomain,
+  pendingActionFromDomain,
  )
+import Hnefatafl.Api.Types.WS.Online (OnlineServerMessage (..))
+import Hnefatafl.Core.Data (
+  GameId,
+  MoveWithCaptures (..),
+  PlayerColor (..),
+ )
+import Hnefatafl.Core.Data qualified as Core
 import Hnefatafl.Game.Common (AppliedMove (..))
 import Hnefatafl.Game.Online qualified as Online
 
 -- | Serialize a notification for the opponent.
-notificationToJSON :: Online.State -> Online.Notification -> LByteString
-notificationToJSON newState = \case
+notificationMessage :: Online.State -> Online.Notification -> OnlineServerMessage
+notificationMessage newState = \case
   Online.OpponentMoved am ->
-    encode $
-      object $
-        [ "type" .= ("opponent_moved" :: Text)
-        , "move" .= moveFromDomain (MoveWithCaptures am.move am.captures)
-        , "side" .= am.side
-        ]
-          <> stateFields newState
+    let (turn', status', validMoves', board') = activeStateFields newState
+     in OnlineOpponentMoved
+          { _move = moveFromDomain (MoveWithCaptures am.move am.captures)
+          , _side = am.side
+          , _turn = turn'
+          , _status = status'
+          , _validMoves = validMoves'
+          , _board = board'
+          }
   Online.OpponentResigned color ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "reason" .= ("resignation" :: Text)
-        , "winner" .= opponent color
-        ]
+    OnlineGameOver{_status = gameStatusFromDomain (Just (Core.ResignedBy color))}
   Online.OpponentTimedOut color ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "reason" .= ("timeout" :: Text)
-        , "winner" .= opponent color
-        ]
+    OnlineGameOver{_status = gameStatusFromDomain (Just (Core.TimedOut color))}
   Online.DrawOffered color ->
-    encode $ object ["type" .= ("draw_offered" :: Text), "by" .= color]
+    OnlineDrawOffered{_by = color}
   Online.DrawAccepted ->
-    encode $ object ["type" .= ("game_over" :: Text), "reason" .= ("draw" :: Text)]
+    OnlineGameOver{_status = gameStatusFromDomain (Just Core.Draw)}
   Online.DrawDeclined ->
-    encode $ object ["type" .= ("draw_declined" :: Text)]
+    OnlineDrawDeclined
   Online.UndoRequested color ->
-    encode $ object ["type" .= ("undo_requested" :: Text), "by" .= color]
+    OnlineUndoRequested{_by = color}
   Online.UndoAccepted ->
-    encode $
-      object $
-        ["type" .= ("undo_accepted" :: Text)]
-          <> stateFields newState
+    let (turn', status', validMoves', board') = activeStateFields newState
+     in OnlineUndoAccepted
+          { _turn = turn'
+          , _status = status'
+          , _validMoves = validMoves'
+          , _board = board'
+          }
   Online.UndoDeclined ->
-    encode $ object ["type" .= ("undo_declined" :: Text)]
+    OnlineUndoDeclined
 
 -- | Serialize an actor notification.
-actorNotificationToJSON ::
-  Online.State -> Online.ActorNotification -> LByteString
-actorNotificationToJSON newState = \case
+actorNotificationMessage :: Online.State -> Online.ActorNotification -> OnlineServerMessage
+actorNotificationMessage newState = \case
   Online.GameEnded outcome ->
-    encode $
-      object
-        [ "type" .= ("game_over" :: Text)
-        , "status" .= gameStatusFromDomain (Just outcome)
-        ]
+    OnlineGameOver{_status = gameStatusFromDomain (Just outcome)}
   Online.UndoApplied ->
-    encode $
-      object $
-        ["type" .= ("undo_accepted" :: Text)]
-          <> stateFields newState
-
--- | Common state fields included in messages where the board/turn changed.
--- Includes turn, status, valid moves, and board.
-stateFields :: Online.State -> [(Key, Value)]
-stateFields (Online.State board _moves phase) =
-  case phase of
-    Online.Active turn validMoves _pending ->
-      [ "turn" .= turn
-      , "status" .= gameStatusFromDomain Nothing
-      , "validMoves" .= map moveFromDomain validMoves
-      , "board" .= boardFromExtern board
-      ]
-    Online.Finished outcome ->
-      [ "status" .= gameStatusFromDomain (Just outcome)
-      , "board" .= boardFromExtern board
-      ]
+    let (turn', status', validMoves', board') = activeStateFields newState
+     in OnlineUndoAccepted
+          { _turn = turn'
+          , _status = status'
+          , _validMoves = validMoves'
+          , _board = board'
+          }
 
 -- | Serialize the full game state for initial sync on connect.
-gameStateToJSON :: GameId -> Online.State -> LByteString
-gameStateToJSON gId (Online.State board moves phase) =
-  encode $
-    object $
-      [ "type" .= ("game_state" :: Text)
-      , "gameId" .= gId
-      , "board" .= boardFromExtern board
-      , "history" .= map appliedMoveToJSON moves
-      ]
-        <> case phase of
-          Online.Active turn validMoves pending ->
-            [ "turn" .= turn
-            , "status" .= gameStatusFromDomain Nothing
-            , "validMoves" .= map moveFromDomain validMoves
-            , "pendingAction" .= fmap pendingActionToJSON pending
-            ]
-          Online.Finished outcome ->
-            [ "status" .= gameStatusFromDomain (Just outcome)
-            , "validMoves" .= ([] :: [ApiMove])
-            , "pendingAction" .= (Nothing :: Maybe Value)
-            ]
+gameStateMessage :: GameId -> Online.State -> OnlineServerMessage
+gameStateMessage gId (Online.State board moves phase) =
+  OnlineGameState
+    { _gameId = gId
+    , _board = boardFromExtern board
+    , _history = map appliedMoveFromDomain moves
+    , _turn = turn'
+    , _status = status'
+    , _validMoves = validMoves'
+    , _pendingAction = pending'
+    }
+ where
+  (turn', status', validMoves', pending') = case phase of
+    Online.Active turn validMoves pending ->
+      ( turn
+      , gameStatusFromDomain Nothing
+      , map moveFromDomain validMoves
+      , fmap pendingActionFromDomain pending
+      )
+    Online.Finished outcome ->
+      ( -- Turn is irrelevant when finished; use Black as default
+        Black
+      , gameStatusFromDomain (Just outcome)
+      , []
+      , Nothing
+      )
+
+-- | Extract common state fields from an Online state.
+activeStateFields :: Online.State -> (PlayerColor, ApiGameStatus, [ApiMove], ApiBoard)
+activeStateFields (Online.State board _moves phase) =
+  case phase of
+    Online.Active turn validMoves _pending ->
+      ( turn
+      , gameStatusFromDomain Nothing
+      , map moveFromDomain validMoves
+      , boardFromExtern board
+      )
+    Online.Finished outcome ->
+      ( Black
+      , gameStatusFromDomain (Just outcome)
+      , []
+      , boardFromExtern board
+      )

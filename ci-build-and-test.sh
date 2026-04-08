@@ -37,5 +37,15 @@ print_header "Frontend: install dependencies"
 print_header "Frontend: lint and format check"
 (cd frontend && npx biome check src)
 
+print_header "Generating API spec files"
+(cd backend && cabal run dump-specs)
+
+print_header "Frontend: check generated types are up to date"
+(cd frontend && npm run generate:types)
+if ! git diff --exit-code frontend/src/api/generated/; then
+    echo "ERROR: Generated types are out of date. Run 'cabal run dump-specs' in backend/ then 'npm run generate:types' in frontend/ and commit the result."
+    exit 1
+fi
+
 print_header "Frontend: typecheck"
 (cd frontend && npm run typecheck)

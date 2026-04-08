@@ -39,8 +39,15 @@ import Chronos (Time)
 import Data.Aeson (
   FromJSON (..),
   ToJSON (..),
+  defaultOptions,
+  genericParseJSON,
+  genericToJSON,
   withText,
  )
+import Data.Aeson qualified as Aeson
+import Data.Char (toLower)
+import Data.OpenApi (ToSchema (..), genericDeclareNamedSchema)
+import Data.OpenApi.SchemaOptions (fromAesonOptions)
 import Web.HttpApiData (FromHttpApiData, ToHttpApiData)
 
 newtype PlayerId = PlayerId Text
@@ -63,8 +70,9 @@ data Player = EnginePlayerTag EnginePlayer | HumanPlayerTag HumanPlayer
   deriving (Show, Eq)
 
 newtype GameId = GameId Text
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
   deriving newtype (ToJSON, FromJSON, FromHttpApiData, ToHttpApiData, Hashable)
+  deriving anyclass (ToSchema)
 
 -- | Conditions under which Black wins
 data BlackWinCondition = KingCaptured | WhiteSurrounded | NoWhiteMoves
@@ -161,17 +169,19 @@ data MoveResult = MoveResult
   deriving anyclass (ToJSON, FromJSON)
 
 data PlayerColor = White | Black
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
-instance ToJSON PlayerColor where
-  toJSON White = toJSON ("white" :: Text)
-  toJSON Black = toJSON ("black" :: Text)
+playerColorOptions :: Aeson.Options
+playerColorOptions =
+  defaultOptions
+    { Aeson.constructorTagModifier = map toLower
+    , Aeson.allNullaryToStringTag = True
+    }
 
-instance FromJSON PlayerColor where
-  parseJSON = withText "PlayerColor" $ \case
-    "white" -> pure White
-    "black" -> pure Black
-    _ -> fail "expected \"white\" or \"black\""
+instance ToJSON PlayerColor where toJSON = genericToJSON playerColorOptions
+instance FromJSON PlayerColor where parseJSON = genericParseJSON playerColorOptions
+instance ToSchema PlayerColor where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions playerColorOptions)
 
 opponent :: PlayerColor -> PlayerColor
 opponent White = Black

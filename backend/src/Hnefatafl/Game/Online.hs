@@ -135,6 +135,7 @@ transition (State board moves (Active turn validMoves pending)) = \case
             [ Persist $ clearPending pending
             , Persist $ PersistOutcome outcome
             , NotifyOpponent $ OpponentResigned color
+            , NotifyActor $ GameEnded outcome
             ]
   Timeout color ->
     let outcome = TimedOut color
@@ -144,6 +145,7 @@ transition (State board moves (Active turn validMoves pending)) = \case
             [ Persist $ clearPending pending
             , Persist $ PersistOutcome outcome
             , NotifyOpponent $ OpponentTimedOut color
+            , NotifyActor $ GameEnded outcome
             ]
   OfferDraw color
     | isJust pending -> Left ActionAlreadyPending
@@ -172,6 +174,7 @@ transition (State board moves (Active turn validMoves pending)) = \case
         ]
   RequestUndo color
     | isJust pending -> Left ActionAlreadyPending
+    | not (any (\am -> am.side == color) moves) -> Left NoMovesToUndo
     | otherwise ->
         let pa = PendingAction UndoRequest color
          in Right $
