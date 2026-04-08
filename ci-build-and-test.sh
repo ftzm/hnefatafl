@@ -35,7 +35,7 @@ print_header "Frontend: install dependencies"
 (cd frontend && npm ci)
 
 print_header "Frontend: lint and format check"
-(cd frontend && npx biome check src)
+(cd frontend && biome check src)
 
 print_header "Generating API spec files"
 (cd backend && cabal run dump-specs)

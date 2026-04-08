@@ -18,6 +18,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     git-hooks.url = "github:cachix/git-hooks.nix";
     backend.url = "./backend";
+    frontend.url = "./frontend";
   };
 
   outputs = {
@@ -27,6 +28,7 @@
     flake-utils,
     git-hooks,
     backend,
+    frontend,
   }:
     flake-utils.lib.eachSystem ["x86_64-linux"] (
       system: let
@@ -60,6 +62,7 @@
               inputsFrom = [
                 libhnefatafl.devShell
                 backend.devShells.${system}.default
+                frontend.devShells.${system}.default
               ];
               buildInputs = [
                 pythonEnv

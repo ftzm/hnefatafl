@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
   "assist": {
     "enabled": true
   },
@@ -14,6 +14,9 @@
     "rules": {
       "recommended": true
     }
+  },
+  "files": {
+    "includes": ["**", "!**/src/api/generated/**"]
   },
   "javascript": {
     "formatter": {

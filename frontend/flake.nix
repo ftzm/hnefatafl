@@ -10,7 +10,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.nodejs
-            pkgs.nodePackages.npm
+            pkgs.biome
           ];
           shellHook = ''
             export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
