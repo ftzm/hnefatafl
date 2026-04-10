@@ -31,13 +31,19 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Hnefatafl.App.WebSocket (encodeAuthMsg)
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
+import Hnefatafl.Effect.Log (KatipE, runKatipE)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
+import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.WebSocket.IO (runWebSocketIO)
-import Network.WebSockets (DataMessage (..), Message (..), defaultConnectionOptions)
+import Network.WebSockets (
+  DataMessage (..),
+  Message (..),
+  defaultConnectionOptions,
+ )
 import Network.WebSockets.Connection (Connection (..))
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -74,7 +80,8 @@ mkTestConnPair = do
 -- | Send raw bytes from the client to the server.
 clientSend :: TestConnPair -> LByteString -> IO ()
 clientSend tc msg =
-  atomically $ writeTQueue tc.clientToServer (DataMessage False False False (Text msg Nothing))
+  atomically $
+    writeTQueue tc.clientToServer (DataMessage False False False (Text msg Nothing))
 
 -- | Send a typed message from the client to the server.
 clientSendMsg :: ToJSON a => TestConnPair -> a -> IO ()
@@ -103,8 +110,9 @@ clientRecvJSON tc = do
 -------------------------------------------------------------------------------
 -- Effect stack runners
 
--- | Run a hotseat test with Storage, Clock, and IdGen effects.
+-- | Run a hotseat test with Storage, Clock, IdGen, and KatipE effects.
 -- Uses withSharedDB for a fresh in-memory SQLite DB per test.
+-- Logs are silently dropped via withNoLogEnv.
 runHotseatTest ::
   MVar Database.SQLite.Simple.Connection ->
   ( forall es.
@@ -112,14 +120,16 @@ runHotseatTest ::
     , Storage :> es
     , Clock :> es
     , IdGen :> es
+    , KatipE :> es
     ) =>
     Eff es a
   ) ->
   IO a
 runHotseatTest connVar action = do
-  result <-
+  result <- withNoLogEnv "test" $ \logEnv ->
     runEff
       . runErrorNoCallStack @String
+      . runKatipE logEnv
       . runStorageSQLite connVar
       . runClockIO
       . runIdGenUUIDv7
@@ -128,7 +138,8 @@ runHotseatTest connVar action = do
     Left err -> error $ toText $ "runHotseatTest: " <> err
     Right a -> pure a
 
--- | Run an online/AI test with Storage, Clock, IdGen, Concurrent, and WebSocket effects.
+-- | Run an online/AI test with Storage, Clock, IdGen, Concurrent, WebSocket,
+-- and KatipE effects. Logs are silently dropped via withNoLogEnv.
 runOnlineTest ::
   MVar Database.SQLite.Simple.Connection ->
   ( forall es.
@@ -138,14 +149,16 @@ runOnlineTest ::
     , IdGen :> es
     , Concurrent :> es
     , WebSocket :> es
+    , KatipE :> es
     ) =>
     Eff es a
   ) ->
   IO a
 runOnlineTest connVar action = do
-  result <-
+  result <- withNoLogEnv "test" $ \logEnv ->
     runEff
       . runErrorNoCallStack @String
+      . runKatipE logEnv
       . runConcurrent
       . runStorageSQLite connVar
       . runClockIO

@@ -18,9 +18,11 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Effect.Clock
 import Hnefatafl.Effect.IdGen
 import Hnefatafl.Effect.Storage
+import Hnefatafl.Effect.Log (runKatipE)
 import Hnefatafl.Import (GameImport (..), importGame)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
+import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Storage.SQLite.Util
 import Test.Hspec (Spec, around, describe, it)
 import Test.Hspec.Expectations.Pretty
@@ -73,11 +75,13 @@ runImportTest ::
   ) ->
   IO (Either String a)
 runImportTest connectionVar action =
-  runEff $
-    runErrorNoCallStack @String $
-      runStorageSQLiteWithRollback connectionVar $
-        runClockIO $
-          runIdGenUUIDv7 action
+  withNoLogEnv "test" $ \logEnv ->
+    runEff $
+      runErrorNoCallStack @String $
+        runKatipE logEnv $
+          runStorageSQLiteWithRollback connectionVar $
+            runClockIO $
+              runIdGenUUIDv7 action
 
 spec_ImportGame :: Spec
 spec_ImportGame =

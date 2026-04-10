@@ -21,9 +21,10 @@ import Data.Typeable (cast)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catch, throwIO)
+import Hnefatafl.Effect.Log (KatipE, Severity (..), katipAddContext, katipAddNamespace, logTM, ls, sl)
 import Servant (ServerError, err500, errBody)
-import System.IO (hPutStrLn)
 import Text.Show (Show (showsPrec), showString)
+
 
 -- | Existential wrapper — the "base class" for all domain exceptions.
 -- catch @DomainException catches any domain exception.
@@ -146,7 +147,7 @@ instance IsDomainException GameInvariantException where
 -- exceptions, logs structured data for domain exceptions, and returns 500.
 -- Async exceptions are always re-thrown.
 guardExceptions ::
-  (IOE :> es, Error ServerError :> es) =>
+  (IOE :> es, Error ServerError :> es, KatipE :> es) =>
   Eff es a -> Eff es a
 guardExceptions action =
   action `catch` \(ex :: SomeException) ->
@@ -154,20 +155,19 @@ guardExceptions action =
       Just _ -> throwIO ex
       Nothing -> do
         let ctx = someExceptionContext ex
+            exCtx = toText (displayExceptionContext ctx)
         case fromException @DomainException ex of
           Just (DomainException e) ->
-            liftIO $
-              hPutStrLn stderr $
-                "Domain exception [" <> toString (domainErrorLabel e) <> "]: "
-                  <> displayException e
-                  <> "\n"
-                  <> toString (show (domainContext e) :: Text)
-                  <> "\n"
-                  <> displayExceptionContext ctx
+            let addCtx = foldr (\(k, v) m -> katipAddContext (sl k v) m)
+             in katipAddNamespace "exception" $
+                  katipAddContext (sl "label" (domainErrorLabel e)) $
+                    addCtx
+                      ( katipAddContext (sl "exceptionContext" exCtx) $
+                          $(logTM) ErrorS $ ls @Text (toText (displayException e))
+                      )
+                      (domainContext e)
           Nothing ->
-            liftIO $
-              hPutStrLn stderr $
-                "Unhandled exception: " <> displayException ex
-                  <> "\n"
-                  <> displayExceptionContext ctx
+            katipAddNamespace "exception" $
+              katipAddContext (sl "exceptionContext" exCtx) $
+                $(logTM) ErrorS $ ls @Text (toText (displayException ex))
         throwError err500{errBody = "internal server error"}

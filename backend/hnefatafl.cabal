@@ -43,6 +43,7 @@ library
       Hnefatafl.Core.Data
       Hnefatafl.Effect.Clock
       Hnefatafl.Effect.IdGen
+      Hnefatafl.Effect.Log
       Hnefatafl.Effect.Search
       Hnefatafl.Effect.Storage
       Hnefatafl.Effect.WebSocket
@@ -54,6 +55,7 @@ library
       Hnefatafl.Import
       Hnefatafl.Interpreter.Clock.IO
       Hnefatafl.Interpreter.IdGen.UUIDv7
+      Hnefatafl.Interpreter.Log.JSON
       Hnefatafl.Interpreter.Search.Local
       Hnefatafl.Interpreter.Search.Remote
       Hnefatafl.Interpreter.Search.Test
@@ -119,6 +121,8 @@ library
     , http-api-data
     , http-client
     , insert-ordered-containers
+    , katip
+    , katip-effectful
     , list-t
     , openapi3
     , optics
@@ -196,6 +200,8 @@ library hnefatafl-version
     , heptapod
     , http-api-data
     , http-client
+    , katip
+    , katip-effectful
     , list-t
     , openapi3
     , optics
@@ -273,6 +279,8 @@ executable cli
     , hnefatafl
     , http-api-data
     , http-client
+    , katip
+    , katip-effectful
     , list-t
     , openapi3
     , optics
@@ -350,6 +358,8 @@ executable dump-specs
     , hnefatafl
     , http-api-data
     , http-client
+    , katip
+    , katip-effectful
     , list-t
     , openapi3
     , optics
@@ -459,6 +469,8 @@ test-suite hnefatafl-test
     , hspec-expectations-pretty-diff
     , http-api-data
     , http-client
+    , katip
+    , katip-effectful
     , list-t
     , openapi3
     , optics
