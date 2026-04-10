@@ -44,9 +44,16 @@
           libhnefatafl-all = libhnefatafl.all;
           libhnefatafl = libhnefatafl.static;
           backend = backend.packages.${system};
+          inherit (frontend.packages.${system}) lint typecheck check-generated-types;
+          api-specs = backend.packages.${system}.api-specs;
         };
         apps = {
           test-libhnefatafl = libhnefatafl.test;
+          test-backend = {
+            type = "app";
+            program = backend.apps.${system}."hnefatafl:test:hnefatafl-test".program;
+          };
+          inherit (frontend.apps.${system}) generate-types;
           backend = backend.apps.${system};
         };
         devShells = {

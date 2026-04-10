@@ -10,10 +10,8 @@ print_header() {
 }
 
 build_target() {
-    local target_name="$1"
-    local nix_target="$2"
+    local nix_target="$1"
 
-    print_header "Building $target_name"
     if nix path-info .#"$nix_target" >/dev/null 2>&1; then
         echo "cached"
     else
@@ -21,31 +19,23 @@ build_target() {
     fi
 }
 
-build_target "libhnefatafl" "libhnefatafl-all"
+print_header "Building libhnefatafl"
+build_target "libhnefatafl-all"
 
 print_header "Running libhnefatafl tests"
 nix run .#test-libhnefatafl
 
-build_target "Haskell library" "backend.\"hnefatafl:lib:hnefatafl\""
+print_header "Building Haskell library"
+build_target "backend.\"hnefatafl:lib:hnefatafl\""
 
 print_header "Running Haskell tests"
-nix run .#backend.\"hnefatafl:test:hnefatafl-test\"
+nix run .#test-backend
 
-print_header "Frontend: install dependencies"
-(cd frontend && npm ci)
+print_header "Running frontend lint"
+build_target "lint"
 
-print_header "Frontend: lint and format check"
-(cd frontend && biome check src)
+print_header "Running frontend typecheck"
+build_target "typecheck"
 
-print_header "Generating API spec files"
-(cd backend && cabal run dump-specs)
-
-print_header "Frontend: check generated types are up to date"
-(cd frontend && npm run generate:types)
-if ! git diff --exit-code frontend/src/api/generated/; then
-    echo "ERROR: Generated types are out of date. Run 'cabal run dump-specs' in backend/ then 'npm run generate:types' in frontend/ and commit the result."
-    exit 1
-fi
-
-print_header "Frontend: typecheck"
-(cd frontend && npm run typecheck)
+print_header "Checking generated frontend types"
+build_target "check-generated-types"

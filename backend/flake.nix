@@ -56,6 +56,10 @@
                     # Don't depend on GHC in build artifacts.
                     dontStrip = false;
                   };
+                  packages.hnefatafl.components.exes.dump-specs = {
+                    libs = [libhnefatafl.static];
+                    dontStrip = false;
+                  };
                 }
               ];
               # This is used by `nix develop .` to open a shell for use with
@@ -98,6 +102,17 @@
         flake = pkgs.backend.flake {};
       in
         pkgs.lib.attrsets.recursiveUpdate flake rec {
+          packages.api-specs = pkgs.stdenv.mkDerivation {
+            name = "api-specs";
+            dontUnpack = true;
+            buildPhase = ''
+              ${flake.apps."hnefatafl:exe:dump-specs".program}
+            '';
+            installPhase = ''
+              mkdir -p $out
+              cp openapi.json asyncapi.json $out/
+            '';
+          };
           hooks = {
           };
           checks = {
