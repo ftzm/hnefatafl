@@ -1,16 +1,16 @@
 // This file was auto-generated from asyncapi.json. Do not edit.
 
-type AiServerMessage = AiGameState | AiEngineMoved | AiGameOver | AiUndoApplied | AiError;
-
-type AiClientMessage = AiMove | AiUndo | AiResign | AiOfferDraw | AiAcceptDraw | AiDeclineDraw;
+type AiServerMessage = AiGameState | AiEngineMoved | AiGameOver | AiUndoApplied;
 
 type AiMinusWs = AiMove | AiUndo | AiResign | AiOfferDraw | AiAcceptDraw | AiDeclineDraw | AuthMessage;
 
-type OnlineServerMessage = OnlineGameState | OnlineOpponentMoved | OnlineGameOver | OnlineDrawOffered | OnlineDrawDeclined | OnlineUndoRequested | OnlineUndoAccepted | OnlineUndoDeclined | OnlineError;
+type AiClientMessage = AiMove | AiUndo | AiResign | AiOfferDraw | AiAcceptDraw | AiDeclineDraw;
 
-type OnlineClientMessage = OnlineMove | OnlineResign | OnlineOfferDraw | OnlineAcceptDraw | OnlineDeclineDraw | OnlineRequestUndo | OnlineAcceptUndo | OnlineDeclineUndo;
+type OnlineServerMessage = OnlineGameState | OnlineOpponentMoved | OnlineGameOver | OnlineDrawOffered | OnlineDrawDeclined | OnlineUndoRequested | OnlineUndoAccepted | OnlineUndoDeclined;
 
 type OnlineMinusWs = OnlineMove | OnlineResign | OnlineOfferDraw | OnlineAcceptDraw | OnlineDeclineDraw | OnlineRequestUndo | OnlineAcceptUndo | OnlineDeclineUndo | AuthMessage;
+
+type OnlineClientMessage = OnlineMove | OnlineResign | OnlineOfferDraw | OnlineAcceptDraw | OnlineDeclineDraw | OnlineRequestUndo | OnlineAcceptUndo | OnlineDeclineUndo;
 
 interface AiGameState {
   board: ApiBoard;
@@ -20,7 +20,7 @@ interface AiGameState {
   pendingAction?: PendingActionPayload;
   reservedStatus: Ongoing | Finished;
   turn: string;
-  reservedType: AnonymousSchema_28;
+  reservedType: AnonymousSchema_30;
   validMoves: ApiMove[];
   additionalProperties?: Map<string, any>;
 }
@@ -54,24 +54,24 @@ interface PendingActionPayload {
 }
 
 interface Ongoing {
-  state: AnonymousSchema_24;
+  state: AnonymousSchema_26;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_24 = "ongoing";
+type AnonymousSchema_26 = "ongoing";
 
 interface Finished {
   reason: GameEndReason;
-  state: AnonymousSchema_26;
+  state: AnonymousSchema_28;
   winner?: PlayerColor;
   additionalProperties?: Map<string, any>;
 }
 
 type GameEndReason = "king_captured" | "white_surrounded" | "no_moves" | "king_escaped" | "exit_fort" | "resignation" | "timeout" | "draw" | "abandoned";
 
-type AnonymousSchema_26 = "finished";
+type AnonymousSchema_28 = "finished";
 
-type AnonymousSchema_28 = "game_state";
+type AnonymousSchema_30 = "game_state";
 
 interface AiEngineMoved {
   board: ApiBoard;
@@ -79,42 +79,42 @@ interface AiEngineMoved {
   side: PlayerColor;
   reservedStatus: Ongoing | Finished;
   turn: string;
-  reservedType: AnonymousSchema_32;
+  reservedType: AnonymousSchema_34;
   validMoves: ApiMove[];
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_32 = "engine_moved";
+type AnonymousSchema_34 = "engine_moved";
 
 interface AiGameOver {
   reservedStatus: Ongoing | Finished;
-  reservedType: AnonymousSchema_35;
+  reservedType: AnonymousSchema_37;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_35 = "game_over";
+type AnonymousSchema_37 = "game_over";
 
 interface AiUndoApplied {
   board: ApiBoard;
   reservedStatus: Ongoing | Finished;
   turn: string;
-  reservedType: AnonymousSchema_38;
+  reservedType: AnonymousSchema_40;
   validMoves: ApiMove[];
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_38 = "undo_applied";
+type AnonymousSchema_40 = "undo_applied";
 
-interface AiError {
+interface WsError {
   code: WsErrorCode;
   message: string;
-  reservedType: AnonymousSchema_42;
+  reservedType: AnonymousSchema_18;
   additionalProperties?: Map<string, any>;
 }
 
-type WsErrorCode = "invalid_message" | "invalid_auth" | "invalid_token" | "not_your_turn" | "game_already_finished" | "invalid_move" | "no_pending_offer" | "cannot_respond_to_own_offer" | "action_already_pending" | "no_moves_to_undo" | "engine_error" | "engine_search_failed";
+type WsErrorCode = "invalid_message" | "invalid_auth" | "invalid_token" | "not_your_turn" | "game_already_finished" | "invalid_move" | "no_pending_offer" | "cannot_respond_to_own_offer" | "action_already_pending" | "no_moves_to_undo" | "engine_error" | "engine_search_failed" | "internal_error";
 
-type AnonymousSchema_42 = "error";
+type AnonymousSchema_18 = "error";
 
 interface AiMove {
   dest: number;
@@ -175,12 +175,12 @@ interface OnlineGameState {
   pendingAction?: PendingActionPayload;
   reservedStatus: Ongoing | Finished;
   turn: PlayerColor;
-  reservedType: AnonymousSchema_63;
+  reservedType: AnonymousSchema_62;
   validMoves: ApiMove[];
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_63 = "game_state";
+type AnonymousSchema_62 = "game_state";
 
 interface OnlineOpponentMoved {
   board: ApiBoard;
@@ -188,126 +188,117 @@ interface OnlineOpponentMoved {
   side: PlayerColor;
   reservedStatus: Ongoing | Finished;
   turn: PlayerColor;
-  reservedType: AnonymousSchema_66;
+  reservedType: AnonymousSchema_65;
   validMoves: ApiMove[];
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_66 = "opponent_moved";
+type AnonymousSchema_65 = "opponent_moved";
 
 interface OnlineGameOver {
   reservedStatus: Ongoing | Finished;
-  reservedType: AnonymousSchema_69;
+  reservedType: AnonymousSchema_68;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_69 = "game_over";
+type AnonymousSchema_68 = "game_over";
 
 interface OnlineDrawOffered {
   by: PlayerColor;
-  reservedType: AnonymousSchema_71;
+  reservedType: AnonymousSchema_70;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_71 = "draw_offered";
+type AnonymousSchema_70 = "draw_offered";
 
 interface OnlineDrawDeclined {
-  reservedType: AnonymousSchema_73;
+  reservedType: AnonymousSchema_72;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_73 = "draw_declined";
+type AnonymousSchema_72 = "draw_declined";
 
 interface OnlineUndoRequested {
   by: PlayerColor;
-  reservedType: AnonymousSchema_75;
+  reservedType: AnonymousSchema_74;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_75 = "undo_requested";
+type AnonymousSchema_74 = "undo_requested";
 
 interface OnlineUndoAccepted {
   board: ApiBoard;
   reservedStatus: Ongoing | Finished;
   turn: PlayerColor;
-  reservedType: AnonymousSchema_77;
+  reservedType: AnonymousSchema_76;
   validMoves: ApiMove[];
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_77 = "undo_accepted";
+type AnonymousSchema_76 = "undo_accepted";
 
 interface OnlineUndoDeclined {
-  reservedType: AnonymousSchema_80;
+  reservedType: AnonymousSchema_79;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_80 = "undo_declined";
-
-interface OnlineError {
-  code: WsErrorCode;
-  message: string;
-  reservedType: AnonymousSchema_83;
-  additionalProperties?: Map<string, any>;
-}
-
-type AnonymousSchema_83 = "error";
+type AnonymousSchema_79 = "undo_declined";
 
 interface OnlineMove {
   dest: number;
   orig: number;
-  reservedType: AnonymousSchema_46;
+  reservedType: AnonymousSchema_45;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_46 = "move";
+type AnonymousSchema_45 = "move";
 
 interface OnlineResign {
-  reservedType: AnonymousSchema_48;
+  reservedType: AnonymousSchema_47;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_48 = "resign";
+type AnonymousSchema_47 = "resign";
 
 interface OnlineOfferDraw {
-  reservedType: AnonymousSchema_50;
+  reservedType: AnonymousSchema_49;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_50 = "offer_draw";
+type AnonymousSchema_49 = "offer_draw";
 
 interface OnlineAcceptDraw {
-  reservedType: AnonymousSchema_52;
+  reservedType: AnonymousSchema_51;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_52 = "accept_draw";
+type AnonymousSchema_51 = "accept_draw";
 
 interface OnlineDeclineDraw {
-  reservedType: AnonymousSchema_54;
+  reservedType: AnonymousSchema_53;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_54 = "decline_draw";
+type AnonymousSchema_53 = "decline_draw";
 
 interface OnlineRequestUndo {
-  reservedType: AnonymousSchema_56;
+  reservedType: AnonymousSchema_55;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_56 = "request_undo";
+type AnonymousSchema_55 = "request_undo";
 
 interface OnlineAcceptUndo {
-  reservedType: AnonymousSchema_58;
+  reservedType: AnonymousSchema_57;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_58 = "accept_undo";
+type AnonymousSchema_57 = "accept_undo";
 
 interface OnlineDeclineUndo {
-  reservedType: AnonymousSchema_60;
+  reservedType: AnonymousSchema_59;
   additionalProperties?: Map<string, any>;
 }
 
-type AnonymousSchema_60 = "decline_undo";
+type AnonymousSchema_59 = "decline_undo";
 

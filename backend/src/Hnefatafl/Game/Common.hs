@@ -31,6 +31,7 @@ module Hnefatafl.Game.Common (
 ) where
 
 import Chronos (Time)
+import Control.Exception (throw)
 import Hnefatafl.Bindings (
   EngineGameStatus (..),
   nextGameStateWithMovesTrusted,
@@ -50,6 +51,7 @@ import Hnefatafl.Core.Data (
   WhiteWinCondition (..),
   opponent,
  )
+import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.Util (pattern Snoc)
 
 data PendingActionType = DrawOffer | UndoRequest
@@ -179,9 +181,11 @@ validMovesForPosition moves = case nonEmpty moves of
      in case nextGameStateWithMovesTrusted board (lastM.side == Black) lastM.move hashes of
           Right (_, _, validMoves) -> validMoves
           Left err ->
-            error $
-              "validMovesForPosition: engine error replaying move history (data corruption?): "
-                <> show err
+            throw $
+              EngineReplayFailed
+                { context = "validMovesForPosition"
+                , detail = show err
+                }
 
 mkAppliedMove :: MoveResult -> Time -> AppliedMove
 mkAppliedMove m t =

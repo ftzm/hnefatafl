@@ -31,7 +31,6 @@ import Hnefatafl.Api.Types (
 import Hnefatafl.Api.Types.WS (
   AppliedMovePayload,
   PendingActionPayload,
-  WsErrorCode,
  )
 import Hnefatafl.Core.Data (
   GameId,
@@ -87,17 +86,15 @@ data OnlineServerMessage
       , _board :: ApiBoard
       }
   | OnlineUndoDeclined
-  | OnlineError
-      { _code :: WsErrorCode
-      , _message :: Text
-      }
   deriving (Show, Eq, Generic)
 
 instance ToJSON OnlineServerMessage where toJSON = genericToJSON onlineOptions
-instance FromJSON OnlineServerMessage where parseJSON = genericParseJSON onlineOptions
+instance FromJSON OnlineServerMessage where
+  parseJSON = genericParseJSON onlineOptions
 instance ToSchema OnlineServerMessage where
   declareNamedSchema proxy = do
-    NamedSchema name schema <- genericDeclareNamedSchema (fromAesonOptions onlineOptions) proxy
+    NamedSchema name schema <-
+      genericDeclareNamedSchema (fromAesonOptions onlineOptions) proxy
     pure $
       NamedSchema name $
         schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}
@@ -117,10 +114,12 @@ data OnlineClientMessage
   deriving (Show, Eq, Generic)
 
 instance ToJSON OnlineClientMessage where toJSON = genericToJSON onlineOptions
-instance FromJSON OnlineClientMessage where parseJSON = genericParseJSON onlineOptions
+instance FromJSON OnlineClientMessage where
+  parseJSON = genericParseJSON onlineOptions
 instance ToSchema OnlineClientMessage where
   declareNamedSchema proxy = do
-    NamedSchema name schema <- genericDeclareNamedSchema (fromAesonOptions onlineOptions) proxy
+    NamedSchema name schema <-
+      genericDeclareNamedSchema (fromAesonOptions onlineOptions) proxy
     pure $
       NamedSchema name $
         schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}

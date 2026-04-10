@@ -5,6 +5,9 @@ module Hnefatafl.Api.Types.WS (
   WsErrorCode (..),
   transitionErrorToCode,
 
+  -- * Error message
+  WsError (..),
+
   -- * Payload types
   AppliedMovePayload (..),
   PendingActionPayload (..),
@@ -30,11 +33,13 @@ import Data.Aeson (
   (.=),
  )
 import Data.Aeson qualified as Aeson
+import Data.Aeson.Types (Parser)
 import Data.OpenApi (
   NamedSchema (..),
   OpenApiType (..),
   Referenced (..),
   ToSchema (..),
+  declareSchemaRef,
   genericDeclareNamedSchema,
  )
 import Data.OpenApi qualified as OpenApi
@@ -72,6 +77,7 @@ data WsErrorCode
   | NoMovesToUndo
   | EngineError
   | EngineSearchFailed
+  | InternalError
   deriving (Show, Eq, Generic)
 
 wsErrorCodeOptions :: Aeson.Options
@@ -82,7 +88,8 @@ wsErrorCodeOptions =
     }
 
 instance ToJSON WsErrorCode where toJSON = genericToJSON wsErrorCodeOptions
-instance FromJSON WsErrorCode where parseJSON = genericParseJSON wsErrorCodeOptions
+instance FromJSON WsErrorCode where
+  parseJSON = genericParseJSON wsErrorCodeOptions
 instance ToSchema WsErrorCode where
   declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions wsErrorCodeOptions)
 
@@ -96,6 +103,52 @@ transitionErrorToCode = \case
   Common.ActionAlreadyPending -> ActionAlreadyPending
   Common.NoMovesToUndo -> NoMovesToUndo
   Common.EngineError -> EngineError
+
+-------------------------------------------------------------------------------
+-- Error message (shared across all WebSocket channels)
+
+-- | A WebSocket error message. Shared between AI and Online channels —
+-- the wire format is @{"type":"error","code":...,"message":...}@ regardless
+-- of which channel it is sent on, so one type covers both.
+data WsError = WsError
+  { code :: WsErrorCode
+  , message :: Text
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON WsError where
+  toJSON e =
+    object
+      [ "type" .= ("error" :: Text)
+      , "code" .= e.code
+      , "message" .= e.message
+      ]
+
+instance FromJSON WsError where
+  parseJSON = withObject "WsError" $ \o -> do
+    typ <- o .: "type" :: Parser Text
+    guard (typ == "error")
+    WsError <$> o .: "code" <*> o .: "message"
+
+instance ToSchema WsError where
+  declareNamedSchema _ = do
+    codeRef <- declareSchemaRef (Proxy @WsErrorCode)
+    let stringSchema = mempty{OpenApi._schemaType = Just OpenApiString}
+        constTypeField =
+          Inline $
+            stringSchema{OpenApi._schemaEnum = Just [toJSON ("error" :: Text)]}
+    pure $
+      NamedSchema (Just "WsError") $
+        mempty
+          { OpenApi._schemaType = Just OpenApiObject
+          , OpenApi._schemaRequired = ["type", "code", "message"]
+          , OpenApi._schemaProperties =
+              fromList
+                [ ("type", constTypeField)
+                , ("code", codeRef)
+                , ("message", Inline stringSchema)
+                ]
+          }
 
 -------------------------------------------------------------------------------
 -- Payload types

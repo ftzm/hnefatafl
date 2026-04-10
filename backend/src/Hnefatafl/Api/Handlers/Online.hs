@@ -2,7 +2,7 @@ module Hnefatafl.Api.Handlers.Online (
   onlineServer,
 ) where
 
-import Effectful (Eff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Error.Static (Error)
 import Hnefatafl.Api.Routes.Online (OnlineRoutes (..))
@@ -29,6 +29,7 @@ onlineServer ::
   , Concurrent :> es
   , WebSocket :> es
   , Error ServerError :> es
+  , IOE :> es
   ) =>
   Online.GameSessions ->
   OnlineRoutes (AsServerT (Eff es))
@@ -56,6 +57,7 @@ handleWebSocket ::
   , IdGen :> es
   , Concurrent :> es
   , WebSocket :> es
+  , IOE :> es
   ) =>
   Online.GameSessions ->
   Connection ->

@@ -8,13 +8,12 @@ import Chronos (now)
 import Control.Concurrent.MVar
 import Control.Exception qualified as CE
 import Data.Unique (hashUnique, newUnique)
-import Database.SQLite.Simple (Connection, Query (..), SQLError, execute_)
+import Database.SQLite.Simple (Connection, Query (..), execute_)
 import Effectful
 import Effectful.Dispatch.Dynamic
-import Effectful.Error.Static
-import Effectful.Exception
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
+import Hnefatafl.Exception (DatabaseException (..), DomainException)
 import Hnefatafl.Interpreter.Storage.SQLite.Game (
   createGame,
   deleteGameById,
@@ -47,15 +46,11 @@ withSavepoint conn txAction =
     pure result
 
 runStorageSQLite ::
-  (IOE :> es, Error String :> es) =>
+  (IOE :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLite connectionVar = interpret $ \_ -> \case
   RunTransaction txAction ->
-    liftIO
-      (withMVar connectionVar $ \conn -> withSavepoint conn txAction)
-      `catches` [ Handler $ \(e :: SQLError) -> throwError $ show @String e
-                , Handler $ \(e :: IOException) -> throwError $ show @String e
-                ]
+    liftIO (withMVar connectionVar $ \conn -> withSavepoint conn txAction)
 
 dispatch :: StorageCmd a -> Connection -> IO a
 dispatch = \case
@@ -119,5 +114,42 @@ dispatch = \case
 interpretTx :: Connection -> StorageTx a -> IO a
 interpretTx _ (PureTx a) = pure a
 interpretTx conn (BindTx cmd k) = do
-  result <- dispatch cmd conn
+  result <-
+    dispatch cmd conn
+      `CE.catch` \(ex :: CE.SomeException) ->
+        case fromException @DomainException ex of
+          Just _ -> CE.throwIO ex -- already a domain exception, don't wrap
+          Nothing ->
+            let (op, ent, eid) = describeCmd cmd
+             in CE.throwIO $ DatabaseException op ent eid ex
   interpretTx conn (k result)
+
+-- | Describe a storage command as (operation, entity, entityId).
+describeCmd :: StorageCmd a -> (Text, Text, Maybe Text)
+describeCmd = \case
+  InsertHumanPlayer p -> ("InsertHumanPlayer", "HumanPlayer", Just $ show p.playerId)
+  GetHumanPlayer pid -> ("GetHumanPlayer", "HumanPlayer", Just $ show pid)
+  HumanPlayerFromName name -> ("HumanPlayerFromName", "HumanPlayer", Just name)
+  InsertEnginePlayer p -> ("InsertEnginePlayer", "EnginePlayer", Just $ show p.playerId)
+  GetEnginePlayer pid -> ("GetEnginePlayer", "EnginePlayer", Just $ show pid)
+  GetPlayer pid -> ("GetPlayer", "Player", Just $ show pid)
+  DeletePlayer pid -> ("DeletePlayer", "Player", Just $ show pid)
+  InsertGame g -> ("InsertGame", "Game", Just $ show g.gameId)
+  GetGame gid -> ("GetGame", "Game", Just $ show gid)
+  ListGames -> ("ListGames", "Game", Nothing)
+  SetOutcome gid _ _ -> ("SetOutcome", "Game", Just $ show gid)
+  DeleteGame gid -> ("DeleteGame", "Game", Just $ show gid)
+  InsertMove gid _ -> ("InsertMove", "Move", Just $ show gid)
+  InsertMoves gid _ -> ("InsertMoves", "Move", Just $ show gid)
+  GetMove gid n -> ("GetMove", "Move", Just $ show gid <> "#" <> show n)
+  GetMovesForGame gid -> ("GetMovesForGame", "Move", Just $ show gid)
+  GetLatestMoveForGame gid -> ("GetLatestMoveForGame", "Move", Just $ show gid)
+  GetMoveCountForGame gid -> ("GetMoveCountForGame", "Move", Just $ show gid)
+  DeleteMove gid n -> ("DeleteMove", "Move", Just $ show gid <> "#" <> show n)
+  CreateGameParticipantToken t -> ("CreateGameParticipantToken", "Token", Just $ show t.gameId)
+  GetTokenByText tt -> ("GetTokenByText", "Token", Just tt)
+  GetActiveTokenByGameAndRole gid role -> ("GetActiveTokenByGameAndRole", "Token", Just $ show gid <> "/" <> show role)
+  InsertPendingAction gid _ _ -> ("InsertPendingAction", "PendingAction", Just $ show gid)
+  GetPendingAction gid -> ("GetPendingAction", "PendingAction", Just $ show gid)
+  DeletePendingAction gid -> ("DeletePendingAction", "PendingAction", Just $ show gid)
+  DeleteLastNMoves gid n -> ("DeleteLastNMoves", "Move", Just $ show gid <> " last " <> show n)

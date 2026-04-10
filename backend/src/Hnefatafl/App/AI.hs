@@ -21,15 +21,18 @@ import Data.Aeson (
   decode,
   encode,
  )
-import Effectful (Eff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (catch, finally)
+import Effectful.Exception (catch, finally, throwIO)
+import Hnefatafl.Api.Types.WS (
+  WsError (..),
+  WsErrorCode (..),
+  transitionErrorToCode,
+ )
 import Hnefatafl.App.AI.Serialization (gameStateMessage, notificationMessage)
-import Hnefatafl.Api.Types.WS (WsErrorCode (..), transitionErrorToCode)
-import Hnefatafl.Api.Types.WS.AI (AIServerMessage (..))
 import Hnefatafl.App.Session (
   SessionEntry (..),
   insertOrAcquire,
@@ -37,7 +40,7 @@ import Hnefatafl.App.Session (
   tryAcquire,
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, safeSend)
+import Hnefatafl.App.WebSocket (decodeAuthToken, guardWebSocket, safeSend)
 import Hnefatafl.Bindings (SearchTrustedResult (..))
 import Hnefatafl.Core.Data (
   Game (..),
@@ -63,6 +66,7 @@ import Hnefatafl.Effect.Storage (
   runTransaction,
  )
 import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
+import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.Game.AI qualified as AI
 import Hnefatafl.Game.Common (
   AppliedMove (..),
@@ -249,7 +253,7 @@ processEvent sessionVar gameId event = do
   MVar.modifyMVar_ sessionVar $ \session -> do
     case AI.transition session.humanColor session.gameState event of
       Left err -> do
-        sendToPlayer session (encode $ AIError{_code = transitionErrorToCode err, _message = show err})
+        sendToPlayer session (encode $ WsError (transitionErrorToCode err) (show err))
         pure session
       Right tr -> do
         let persistCmds = [cmd | AI.Persist cmd <- tr.commands]
@@ -283,8 +287,8 @@ handleEngineCommands sessionVar gameId session commands =
     [moves] -> Just <$> spawnEngineSearch sessionVar gameId session.humanColor moves
     [] -> pure Nothing
     _ ->
-      error
-        "handleEngineCommands: multiple TriggerEngineSearch commands in one transition"
+      throwIO $
+        InvariantViolation "multiple TriggerEngineSearch commands in one transition"
 
 -- | Spawn an async thread to run the engine search. When the search
 -- completes, it feeds an EngineMove event back through processEvent.
@@ -301,7 +305,9 @@ spawnEngineSearch sessionVar gameId humanColor moves =
       -- Don't report cancellation as an error — it's intentional (e.g. player undo)
       unless (isJust $ fromException @Async.AsyncCancelled ex) $
         MVar.withMVar sessionVar $ \session ->
-          sendToPlayer session (encode $ AIError{_code = EngineSearchFailed, _message = "Engine search failed: " <> show ex})
+          sendToPlayer
+            session
+            (encode $ WsError EngineSearchFailed ("Engine search failed: " <> show ex))
  where
   doSearch = do
     let board = currentBoard moves
@@ -341,6 +347,7 @@ handleWebSocket ::
   , Search :> es
   , Concurrent :> es
   , WebSocket :> es
+  , IOE :> es
   ) =>
   GameSessions ->
   Connection ->
@@ -348,12 +355,12 @@ handleWebSocket ::
 handleWebSocket sessions conn = do
   authMsg <- receiveData conn
   case decodeAuthToken authMsg of
-    Nothing -> sendData conn (encode $ AIError{_code = InvalidAuth, _message = "invalid auth message"})
+    Nothing -> sendData conn (encode $ WsError InvalidAuth "invalid auth message")
     Just tokenText -> do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
-        Nothing -> sendData conn (encode $ AIError{_code = InvalidToken, _message = "invalid token"})
-        Just tok -> do
+        Nothing -> sendData conn (encode $ WsError InvalidToken "invalid token")
+        Just tok -> guardWebSocket conn $ do
           let gameId = tok.gameId
               humanColor = tok.role
           uid <- generateId
@@ -378,7 +385,7 @@ receiveLoop sessionVar gameId humanColor connVar = do
   forever $ do
     msg <- receiveData conn
     case decode msg of
-      Nothing -> safeSend connVar (encode $ AIError{_code = InvalidMessage, _message = "invalid message"})
+      Nothing -> safeSend connVar (encode $ WsError InvalidMessage "invalid message")
       Just clientMsg -> do
         time <- now
         processEvent sessionVar gameId (toEvent humanColor time clientMsg)

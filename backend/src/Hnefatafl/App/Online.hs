@@ -22,13 +22,16 @@ import Data.Aeson (
   decode,
   encode,
  )
-import Effectful (Eff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (finally)
-import Hnefatafl.Api.Types.WS (WsErrorCode (..), transitionErrorToCode)
-import Hnefatafl.Api.Types.WS.Online (OnlineServerMessage (..))
+import Hnefatafl.Api.Types.WS (
+  WsError (..),
+  WsErrorCode (..),
+  transitionErrorToCode,
+ )
 import Hnefatafl.App.Online.Serialization (
   actorNotificationMessage,
   gameStateMessage,
@@ -41,7 +44,7 @@ import Hnefatafl.App.Session (
   tryAcquire,
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, safeSend)
+import Hnefatafl.App.WebSocket (decodeAuthToken, guardWebSocket, safeSend)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -273,7 +276,10 @@ processEvent sessionVar gameId color clientMsg = do
   MVar.modifyMVar_ sessionVar $ \session ->
     case Online.transition session.gameState event of
       Left err -> do
-        sendToPlayer session color (encode $ OnlineError{_code = transitionErrorToCode err, _message = show err})
+        sendToPlayer
+          session
+          color
+          (encode $ WsError (transitionErrorToCode err) (show err))
         pure session
       Right tr -> do
         let persistCmds = [cmd | Online.Persist cmd <- tr.commands]
@@ -299,19 +305,25 @@ sendToPlayer session color msg =
 -- WebSocket handler
 
 handleWebSocket ::
-  (Storage :> es, Clock :> es, IdGen :> es, Concurrent :> es, WebSocket :> es) =>
+  ( Storage :> es
+  , Clock :> es
+  , IdGen :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , IOE :> es
+  ) =>
   GameSessions ->
   Connection ->
   Eff es ()
 handleWebSocket sessions conn = do
   authMsg <- receiveData conn
   case decodeAuthToken authMsg of
-    Nothing -> sendData conn (encode $ OnlineError{_code = InvalidAuth, _message = "invalid auth message"})
+    Nothing -> sendData conn (encode $ WsError InvalidAuth "invalid auth message")
     Just tokenText -> do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
-        Nothing -> sendData conn (encode $ OnlineError{_code = InvalidToken, _message = "invalid token"})
-        Just tok -> do
+        Nothing -> sendData conn (encode $ WsError InvalidToken "invalid token")
+        Just tok -> guardWebSocket conn $ do
           let gameId = tok.gameId
               color = tok.role
           sessionVar <- getOrCreateSession sessions gameId
@@ -337,5 +349,5 @@ receiveLoop sessionVar gameId color connVar = do
   forever $ do
     msg <- receiveData conn
     case decode msg of
-      Nothing -> safeSend connVar (encode $ OnlineError{_code = InvalidMessage, _message = "invalid message"})
+      Nothing -> safeSend connVar (encode $ WsError InvalidMessage "invalid message")
       Just clientMsg -> processEvent sessionVar gameId color clientMsg

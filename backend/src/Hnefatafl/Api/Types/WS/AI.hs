@@ -31,7 +31,6 @@ import Hnefatafl.Api.Types (
 import Hnefatafl.Api.Types.WS (
   AppliedMovePayload,
   PendingActionPayload,
-  WsErrorCode,
  )
 import Hnefatafl.Core.Data (
   GameId,
@@ -80,17 +79,14 @@ data AIServerMessage
       , _validMoves :: [ApiMove]
       , _board :: ApiBoard
       }
-  | AIError
-      { _code :: WsErrorCode
-      , _message :: Text
-      }
   deriving (Show, Eq, Generic)
 
 instance ToJSON AIServerMessage where toJSON = genericToJSON aiOptions
 instance FromJSON AIServerMessage where parseJSON = genericParseJSON aiOptions
 instance ToSchema AIServerMessage where
   declareNamedSchema proxy = do
-    NamedSchema name schema <- genericDeclareNamedSchema (fromAesonOptions aiOptions) proxy
+    NamedSchema name schema <-
+      genericDeclareNamedSchema (fromAesonOptions aiOptions) proxy
     pure $
       NamedSchema name $
         schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}
@@ -111,7 +107,8 @@ instance ToJSON AIClientMessage where toJSON = genericToJSON aiOptions
 instance FromJSON AIClientMessage where parseJSON = genericParseJSON aiOptions
 instance ToSchema AIClientMessage where
   declareNamedSchema proxy = do
-    NamedSchema name schema <- genericDeclareNamedSchema (fromAesonOptions aiOptions) proxy
+    NamedSchema name schema <-
+      genericDeclareNamedSchema (fromAesonOptions aiOptions) proxy
     pure $
       NamedSchema name $
         schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}

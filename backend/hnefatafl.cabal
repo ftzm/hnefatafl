@@ -46,6 +46,7 @@ library
       Hnefatafl.Effect.Search
       Hnefatafl.Effect.Storage
       Hnefatafl.Effect.WebSocket
+      Hnefatafl.Exception
       Hnefatafl.Game.AI
       Hnefatafl.Game.Common
       Hnefatafl.Game.Hotseat
@@ -93,7 +94,7 @@ library
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -finfo-table-map -fdistinct-constructor-tables -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
     , aeson
@@ -172,7 +173,7 @@ library hnefatafl-version
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -finfo-table-map -fdistinct-constructor-tables -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
     , aeson
@@ -248,7 +249,7 @@ executable cli
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -finfo-table-map -fdistinct-constructor-tables -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
     , aeson
@@ -325,7 +326,7 @@ executable dump-specs
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -finfo-table-map -fdistinct-constructor-tables -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive"
   build-depends:
       
     , aeson
@@ -393,6 +394,7 @@ test-suite hnefatafl-test
       Hnefatafl.App.TestUtil
       Hnefatafl.BindingsTest
       Hnefatafl.ClientTest
+      Hnefatafl.ExceptionTest
       Hnefatafl.Game.AITest
       Hnefatafl.Game.HotseatTest
       Hnefatafl.Game.OnlineTest
@@ -426,7 +428,7 @@ test-suite hnefatafl-test
       DerivingVia
       ImportQualifiedPost
       MultilineStrings
-  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
+  ghc-options: -Wunused-imports -Wall -Werror -Wmissing-export-lists -Wno-missing-home-modules -Widentities -Wpartial-fields -Wcpp-undef -Wno-orphans -fprint-potential-instances -threaded -O2 -finfo-table-map -fdistinct-constructor-tables -pgml g++ "-optl-Wl,--allow-multiple-definition" "-optl-Wl,--whole-archive" "-optl-Wl,-Bstatic" "-optl-Wl,-lhnefatafl" "-optl-Wl,-Bdynamic" "-optl-Wl,--no-whole-archive" -Wno-missing-export-lists
   build-tool-depends:
       tasty-discover:tasty-discover
   build-depends:
