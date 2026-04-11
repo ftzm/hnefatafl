@@ -2,13 +2,13 @@ module Hnefatafl.App.WebSocket (
   safeSend,
   encodeAuthMsg,
   decodeAuthToken,
+  authenticateWebSocket,
   guardWebSocket,
   tryNonFatal,
   runMessageLoop,
   withGameContext,
 ) where
 
-import Control.Exception (SomeAsyncException (..))
 import Data.Aeson (
   FromJSON,
   decode,
@@ -22,10 +22,11 @@ import Data.Aeson.Types (Parser, parseMaybe)
 import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
-import Effectful.Exception (catch, throwIO)
+import Effectful.Exception (catch, catchSync, throwIO)
 import Effectful.Katip (KatipE, katipAddContext, katipAddNamespace)
 import Hnefatafl.Api.Types.WS (WsError (..), WsErrorCode (..))
-import Hnefatafl.Core.Data (GameId, PlayerColor)
+import Hnefatafl.Core.Data (GameId, GameParticipantToken, PlayerColor)
+import Hnefatafl.Effect.Storage (Storage, getTokenByText, runTransaction)
 import Hnefatafl.Effect.Trace (Trace, inSpan, recordSpanException)
 import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
 import Hnefatafl.Exception (
@@ -58,10 +59,34 @@ decodeAuthToken msg = do
     guard (typ == "auth")
     o .: "token"
 
--- | Catch-all exception guard for WebSocket handlers. Catches all synchronous
+-- | Run the WebSocket auth handshake: receive the first message from the
+-- client, decode it as an auth message, and look up the token in the
+-- database. Returns 'Just' the resolved 'GameParticipantToken' on success.
+-- On failure, sends an @InvalidAuth@ or @InvalidToken@ error to the
+-- client and returns 'Nothing'; the caller should stop in that case.
+authenticateWebSocket ::
+  (WebSocket :> es, Storage :> es) =>
+  Connection -> Eff es (Maybe GameParticipantToken)
+authenticateWebSocket conn = do
+  authMsg <- receiveData conn
+  case decodeAuthToken authMsg of
+    Nothing -> do
+      sendData conn (encode $ WsError InvalidAuth "invalid auth message")
+      pure Nothing
+    Just tokenText -> do
+      mToken <- runTransaction $ getTokenByText tokenText
+      case mToken of
+        Nothing -> do
+          sendData conn (encode $ WsError InvalidToken "invalid token")
+          pure Nothing
+        Just tok -> pure (Just tok)
+
+-- | Catch-all exception guard for WebSocket handlers. Catches synchronous
 -- exceptions, logs structured data for domain exceptions via Katip, and
 -- sends a final error message to the client before the handler exits.
--- Async and connection exceptions are always re-thrown.
+-- Async exceptions propagate naturally (via 'catchSync'). 'ConnectionException'
+-- is filtered and re-thrown so it can unwind to the handler entry point
+-- for session teardown.
 --
 -- This is the outer guard, run around the full handler. It catches
 -- anything that escapes 'tryNonFatal' inside the receive loop — either
@@ -71,16 +96,14 @@ guardWebSocket ::
   (WebSocket :> es, KatipE :> es, Trace :> es) =>
   Connection -> Eff es () -> Eff es ()
 guardWebSocket conn action =
-  action `catch` \(ex :: SomeException) ->
-    case () of
-      _
-        | isJust (fromException @SomeAsyncException ex) -> throwIO ex
-        | isJust (fromException @ConnectionException ex) -> throwIO ex
-        | otherwise -> do
-            logCaughtException ex
-            recordSpanException ex
-            sendData conn (encode $ WsError InternalError "internal error")
-              `catch` \(_ :: SomeException) -> pure ()
+  action `catchSync` \(ex :: SomeException) ->
+    if isJust (fromException @ConnectionException ex)
+      then throwIO ex
+      else do
+        logCaughtException ex
+        recordSpanException ex
+        sendData conn (encode $ WsError InternalError "internal error")
+          `catchSync` \(_ :: SomeException) -> pure ()
 
 -- | Run a single WebSocket receive-loop iteration, absorbing non-fatal
 -- domain exceptions so the session stays alive. The rule is:
@@ -98,7 +121,7 @@ tryNonFatal ::
   (WebSocket :> es, Concurrent :> es, KatipE :> es, Trace :> es) =>
   MVar Connection -> Eff es () -> Eff es ()
 tryNonFatal connVar action =
-  action `catch` \(ex :: SomeException) ->
+  action `catchSync` \(ex :: SomeException) ->
     case fromException @DomainException ex of
       Just (DomainException e) | not (domainFatal e) -> do
         logCaughtException ex

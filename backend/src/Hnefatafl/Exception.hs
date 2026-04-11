@@ -18,12 +18,12 @@ module Hnefatafl.Exception (
   guardExceptions,
 ) where
 
-import Control.Exception (SomeAsyncException (..), someExceptionContext)
+import Control.Exception (someExceptionContext)
 import Control.Exception.Context (displayExceptionContext)
 import Data.Typeable (cast)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
-import Effectful.Exception (catch, throwIO)
+import Effectful.Exception (catchSync)
 import Effectful.Katip (KatipE, katipAddContext, katipAddNamespace, logTM)
 import Hnefatafl.Effect.Trace (Trace, recordSpanException)
 import Katip (Severity (..), ls, sl)
@@ -195,16 +195,13 @@ logCaughtException ex = do
 
 -- | Catch-all exception guard for Servant handlers. Catches all synchronous
 -- exceptions, logs structured data for domain exceptions, records them on
--- the current trace span, and returns 500. Async exceptions are always
--- re-thrown.
+-- the current trace span, and returns 500. Async exceptions propagate
+-- naturally (via 'catchSync').
 guardExceptions ::
   (IOE :> es, Error ServerError :> es, KatipE :> es, Trace :> es) =>
   Eff es a -> Eff es a
 guardExceptions action =
-  action `catch` \(ex :: SomeException) ->
-    case fromException @SomeAsyncException ex of
-      Just _ -> throwIO ex
-      Nothing -> do
-        logCaughtException ex
-        recordSpanException ex
-        throwError err500{errBody = "internal server error"}
+  action `catchSync` \(ex :: SomeException) -> do
+    logCaughtException ex
+    recordSpanException ex
+    throwError err500{errBody = "internal server error"}

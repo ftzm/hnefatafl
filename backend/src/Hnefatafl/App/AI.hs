@@ -25,7 +25,7 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (catch, finally, throwIO)
+import Effectful.Exception (bracket, catch, catchSync, onException, throwIO)
 import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Types.WS (
   WsError (..),
@@ -41,7 +41,7 @@ import Hnefatafl.App.Session (
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
 import Hnefatafl.App.WebSocket (
-  decodeAuthToken,
+  authenticateWebSocket,
   guardWebSocket,
   runMessageLoop,
   safeSend,
@@ -67,12 +67,11 @@ import Hnefatafl.Effect.Storage (
   getGame,
   getMovesForGame,
   getPendingAction,
-  getTokenByText,
   insertGame,
   runTransaction,
  )
 import Hnefatafl.Effect.Trace (Trace)
-import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
+import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.Game.AI qualified as AI
 import Hnefatafl.Game.Common (
@@ -213,27 +212,43 @@ connectToGame ::
   Eff es (MVar GameSession, MVar Connection, AI.State)
 connectToGame sessions gameId humanColor uid conn = do
   connVar <- MVar.newMVar conn
+  -- After 'tryAcquire' / 'insertOrAcquire' commits a refcount+1, the
+  -- subsequent MVar mutation (and engine-search spawn, in the fresh path)
+  -- are not atomic with the STM transaction. If they fail, we must
+  -- explicitly release the refcount before rethrowing; otherwise the
+  -- session's entry in the map is leaked. The outer 'bracket' in
+  -- 'handleWebSocket' only handles cleanup when 'connectToGame' has
+  -- returned successfully, so this inner protection is required.
+  let releaseRefcount = STM.atomically $ release gameId sessions
   mVar <- STM.atomically $ tryAcquire gameId sessions
   case mVar of
-    Just var -> do
-      -- Existing session (e.g. quick reconnect before old finally ran)
-      gameState <- MVar.modifyMVar var $ \session ->
-        let session' = session{playerConn = (uid, connVar)}
-         in pure (session', session'.gameState)
-      pure (var, connVar, gameState)
+    Just var ->
+      ( do
+          -- Existing session (e.g. quick reconnect before old finally ran)
+          gameState <- MVar.modifyMVar var $ \session ->
+            let session' = session{playerConn = (uid, connVar)}
+             in pure (session', session'.gameState)
+          pure (var, connVar, gameState)
+      )
+        `onException` releaseRefcount
     Nothing -> do
       gameState <- runTransaction $ loadAIState humanColor gameId
       let session = GameSession gameState humanColor (uid, connVar) Nothing
       var <- MVar.newMVar session
       sessionVar <- STM.atomically $ insertOrAcquire var gameId sessions
-      -- If engine was thinking (e.g. server restart), re-trigger the search
-      when (sessionVar == var) $
-        case gameState of
-          AI.State _ moves (AI.EngineThinking _) -> do
-            searchAsync <- spawnEngineSearch sessionVar gameId humanColor moves
-            MVar.modifyMVar_ sessionVar $ \s -> pure s{engineAsync = Just searchAsync}
-          _ -> pure ()
-      pure (sessionVar, connVar, gameState)
+      ( do
+          -- If engine was thinking (e.g. server restart), re-trigger the search
+          when (sessionVar == var) $
+            case gameState of
+              AI.State _ moves (AI.EngineThinking _) -> do
+                searchAsync <-
+                  spawnEngineSearch sessionVar gameId humanColor moves
+                MVar.modifyMVar_ sessionVar $
+                  \s -> pure s{engineAsync = Just searchAsync}
+              _ -> pure ()
+          pure (sessionVar, connVar, gameState)
+        )
+        `onException` releaseRefcount
 
 -- | Disconnect from an AI game. If the uid matches the current connection,
 -- cancels any engine search. Stale disconnects (uid mismatch from a
@@ -349,9 +364,14 @@ spawnEngineSearch sessionVar gameId humanColor moves = do
   parentCtx <- liftIO ThreadLocal.getContext
   Async.async $ do
     _ <- liftIO $ ThreadLocal.attachContext parentCtx
-    doSearch `catch` \(ex :: SomeException) ->
-      -- Don't report cancellation as an error — it's intentional (e.g. player undo)
-      unless (isJust $ fromException @Async.AsyncCancelled ex) $ do
+    doSearch
+      -- Silently absorb cancellation — it's intentional (e.g. player undo).
+      `catch` (\(_ :: Async.AsyncCancelled) -> pure ())
+      -- Report any sync failure to the player without killing the session.
+      -- Other async exceptions (ThreadKilled, etc.) are not caught and
+      -- propagate out of the async, where Async's machinery stores them
+      -- as the async's result.
+      `catchSync` \(ex :: SomeException) -> do
         $(logTM) ErrorS $ ls @Text ("Engine search failed: " <> show ex)
         MVar.withMVar sessionVar $ \session ->
           sendToPlayer
@@ -403,31 +423,62 @@ handleWebSocket ::
   GameSessions ->
   Connection ->
   Eff es ()
-handleWebSocket sessions conn = katipAddNamespace "ai" $ do
-  authMsg <- receiveData conn
-  case decodeAuthToken authMsg of
-    Nothing -> sendData conn (encode $ WsError InvalidAuth "invalid auth message")
-    Just tokenText -> do
-      mToken <- runTransaction $ getTokenByText tokenText
-      case mToken of
-        Nothing -> sendData conn (encode $ WsError InvalidToken "invalid token")
-        Just tok -> do
-          let gameId = tok.gameId
-              humanColor = tok.role
-          -- Game context wraps guardWebSocket so that any exception the
-          -- outer guard catches is still logged with gameId/player context.
-          withGameContext gameId humanColor $
-            guardWebSocket conn $ do
-              uid <- generateId
-              $(logTM) InfoS "player connected"
-              (sessionVar, connVar, gameState) <-
-                connectToGame sessions gameId humanColor uid conn
-              safeSend connVar (encode $ gameStateMessage gameId humanColor gameState)
-              let handleMessage clientMsg = do
-                    time <- now
-                    processEvent sessionVar gameId (toEvent humanColor time clientMsg)
-              runMessageLoop connVar handleMessage
-                `finally` do
-                  $(logTM) InfoS "player disconnected"
-                  disconnectPlayer sessionVar uid
-                  STM.atomically $ release gameId sessions
+handleWebSocket sessions conn =
+  katipAddNamespace "ai" $
+    authenticateWebSocket conn
+      >>= traverse_ (handleAuthenticated sessions conn)
+
+-- | Run the AI game session for an already-authenticated player. Takes the
+-- resolved token, opens the session (incrementing the refcount), and runs
+-- the receive loop until the WebSocket exits or errors. 'bracket' ensures
+-- the refcount is released on any exit path, including failures during
+-- connection setup.
+handleAuthenticated ::
+  ( Storage :> es
+  , Clock :> es
+  , IdGen :> es
+  , Search :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , IOE :> es
+  ) =>
+  GameSessions ->
+  Connection ->
+  GameParticipantToken ->
+  Eff es ()
+-- Game context wraps guardWebSocket so that any exception the outer guard
+-- catches is still logged with gameId/player context. 'bracket' (not
+-- 'finally') is required so that a failure in the acquire path (e.g.
+-- safeSend throws after connectToGame has incremented the refcount) still
+-- releases the refcount. 'disconnectPlayer' is a no-op when the uid
+-- doesn't match the stored connection, so it is safe to call even when
+-- connectToGame never completed.
+handleAuthenticated sessions conn tok =
+  withGameContext gameId humanColor $
+    guardWebSocket conn $
+      bracket connect disconnect loop
+ where
+  gameId = tok.gameId
+  humanColor = tok.role
+  connect = do
+    uid <- generateId
+    (sessionVar, connVar, gameState) <-
+      connectToGame sessions gameId humanColor uid conn
+    safeSend
+      connVar
+      (encode $ gameStateMessage gameId humanColor gameState)
+    $(logTM) InfoS "player connected"
+    pure (sessionVar, uid, connVar)
+  disconnect (sessionVar, uid, _) = do
+    $(logTM) InfoS "player disconnected"
+    disconnectPlayer sessionVar uid
+    STM.atomically $ release gameId sessions
+  loop (sessionVar, _, connVar) =
+    runMessageLoop connVar $ \clientMsg -> do
+      time <- now
+      processEvent
+        sessionVar
+        gameId
+        (toEvent humanColor time clientMsg)

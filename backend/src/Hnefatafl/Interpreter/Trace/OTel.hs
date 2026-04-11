@@ -8,7 +8,7 @@ module Hnefatafl.Interpreter.Trace.OTel (
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, localSeqUnlift)
-import Effectful.Exception (bracket, catch, throwIO)
+import Effectful.Exception (bracket, withException)
 import Effectful.Katip (KatipE, katipAddContext)
 import Hnefatafl.Effect.Trace (Trace (..))
 import Katip (sl)
@@ -72,17 +72,17 @@ runTraceOTel tracer = interpret $ \env -> \case
       ctx <- getContext
       attachContext (insertSpan parentSp ctx)
   -- Run the unlifted inner action under a Katip context carrying trace_id.
-  -- Catch exceptions to mark the span as errored before rethrowing so the
-  -- bracket's release handler runs and the span ends with the right status.
+  -- 'withException' runs the handler for its side effects (marking the span
+  -- as errored) and rethrows the original exception unchanged, so the outer
+  -- bracket's release handler still runs and the span ends with the right
+  -- status.
   use unlift action (_, sp) = do
     spanCtx <- liftIO $ OT.getSpanContext sp
     let tid = traceIdBaseEncodedText Base16 (traceId spanCtx)
     katipAddContext (sl "trace_id" tid) (unlift action)
-      `catch` \(ex :: SomeException) -> do
-        liftIO $ do
-          setStatus sp (Error (T.pack (displayException ex)))
-          recordException sp mempty Nothing ex
-        throwIO ex
+      `withException` \(ex :: SomeException) -> liftIO $ do
+        setStatus sp (Error (T.pack (displayException ex)))
+        recordException sp mempty Nothing ex
 
 -- | Read the trace ID of the span currently active in OpenTelemetry's
 -- thread-local context (e.g. one set by the WAI middleware) and attach

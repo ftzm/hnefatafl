@@ -11,7 +11,7 @@ import Effectful
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Dispatch.Dynamic
-import Effectful.Exception (catch, onException, throwIO)
+import Effectful.Exception (catchSync, onException, throwIO)
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Effect.Trace (Trace, addSpanAttribute, inSpan)
@@ -40,7 +40,7 @@ withSavepoint ::
 withSavepoint conn txAction = do
   sp <- liftIO $ ("tx_" <>) . show . hashUnique <$> newUnique
   let wrap op io =
-        io `catch` \(ex :: SomeException) ->
+        io `catchSync` \(ex :: SomeException) ->
           case fromException @DomainException ex of
             Just _ -> throwIO ex
             Nothing -> throwIO $ DatabaseException op "Transaction" Nothing ex
@@ -134,7 +134,7 @@ interpretTx conn (BindTx cmd k) = do
       addSpanAttribute "db.entity" ent
       for_ mId $ addSpanAttribute "db.id"
       liftIO (dispatch cmd conn)
-        `catch` \(ex :: SomeException) ->
+        `catchSync` \(ex :: SomeException) ->
           case fromException @DomainException ex of
             Just _ -> throwIO ex -- already a domain exception, don't wrap
             Nothing -> throwIO $ DatabaseException op ent mId ex

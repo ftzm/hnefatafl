@@ -26,10 +26,9 @@ import Data.Aeson (
   (.=),
  )
 import Data.Either.Combinators (mapLeft)
-import Control.Exception (SomeAsyncException (..))
 import Effectful (Eff, (:>))
 import Effectful.Console.ByteString
-import Effectful.Exception (throwIO, try)
+import Effectful.Exception (trySync)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO.ByteString
 import Hnefatafl.Bindings (
@@ -167,7 +166,7 @@ importGame ::
   (Clock :> es, Storage :> es, IdGen :> es) =>
   GameImport -> Eff es (Either Text ())
 importGame input = do
-  result <- try @SomeException $ do
+  result <- trySync $ do
     case validStatus of
       Left err -> pure $ Left err
       Right engineStatus -> do
@@ -207,9 +206,7 @@ importGame input = do
           insertMoves gameId gameMoves
         pure $ Right ()
   case result of
-    Left ex
-      | isJust (fromException @SomeAsyncException ex) -> throwIO ex
-      | otherwise -> pure $ Left $ "Import failed: " <> toText (displayException ex)
+    Left ex -> pure $ Left $ "Import failed: " <> toText (displayException ex)
     Right eitherResult -> pure eitherResult
  where
   validStatus :: Either Text EngineGameStatus = mapLeft show $ nextGameState input.moves True

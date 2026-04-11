@@ -25,11 +25,10 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (finally)
+import Effectful.Exception (bracket)
 import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Types.WS (
   WsError (..),
-  WsErrorCode (..),
   transitionErrorToCode,
  )
 import Hnefatafl.App.Online.Serialization (
@@ -45,7 +44,7 @@ import Hnefatafl.App.Session (
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
 import Hnefatafl.App.WebSocket (
-  decodeAuthToken,
+  authenticateWebSocket,
   guardWebSocket,
   runMessageLoop,
   safeSend,
@@ -69,12 +68,11 @@ import Hnefatafl.Effect.Storage (
   getGame,
   getMovesForGame,
   getPendingAction,
-  getTokenByText,
   insertGame,
   runTransaction,
  )
 import Hnefatafl.Effect.Trace (Trace)
-import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
+import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Game.Common (
   currentBoard,
   opponent,
@@ -331,28 +329,59 @@ handleWebSocket ::
   GameSessions ->
   Connection ->
   Eff es ()
-handleWebSocket sessions conn = katipAddNamespace "online" $ do
-  authMsg <- receiveData conn
-  case decodeAuthToken authMsg of
-    Nothing -> sendData conn (encode $ WsError InvalidAuth "invalid auth message")
-    Just tokenText -> do
-      mToken <- runTransaction $ getTokenByText tokenText
-      case mToken of
-        Nothing -> sendData conn (encode $ WsError InvalidToken "invalid token")
-        Just tok -> do
-          let gameId = tok.gameId
-              color = tok.role
-          -- Game context wraps guardWebSocket so that any exception the
-          -- outer guard catches is still logged with gameId/player context.
-          withGameContext gameId color $
-            guardWebSocket conn $ do
-              sessionVar <- getOrCreateSession sessions gameId
-              uid <- generateId
-              $(logTM) InfoS "player connected"
-              (connVar, gameState) <- connectPlayer sessionVar color uid conn
-              safeSend connVar (encode $ gameStateMessage gameId gameState)
-              runMessageLoop connVar (processEvent sessionVar gameId color)
-                `finally` do
-                  $(logTM) InfoS "player disconnected"
-                  disconnectPlayer sessionVar color uid
-                  STM.atomically $ release gameId sessions
+handleWebSocket sessions conn =
+  katipAddNamespace "online" $
+    authenticateWebSocket conn
+      >>= traverse_ (handleAuthenticated sessions conn)
+
+-- | Run the online game session for an already-authenticated player. Takes
+-- the resolved token, opens the session (incrementing the refcount), and
+-- runs the receive loop until the WebSocket exits or errors. 'bracket'
+-- ensures the refcount is released on any exit path, including failures
+-- during connection setup.
+handleAuthenticated ::
+  ( Storage :> es
+  , Clock :> es
+  , IdGen :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , IOE :> es
+  ) =>
+  GameSessions ->
+  Connection ->
+  GameParticipantToken ->
+  Eff es ()
+-- Game context wraps guardWebSocket so that any exception the outer guard
+-- catches is still logged with gameId/player context. 'bracket' (not
+-- 'finally') is required so that a failure in the acquire path (e.g.
+-- connectPlayer throws after getOrCreateSession has incremented the
+-- refcount) still releases the refcount. 'disconnectPlayer' is a no-op
+-- when the uid doesn't match the stored connection, so it is safe to
+-- call even when connectPlayer never completed.
+handleAuthenticated sessions conn tok =
+  withGameContext gameId color $
+    guardWebSocket conn $
+      bracket connect disconnect loop
+ where
+  gameId = tok.gameId
+  color = tok.role
+  connect = do
+    sessionVar <- getOrCreateSession sessions gameId
+    uid <- generateId
+    (connVar, gameState) <-
+      connectPlayer sessionVar color uid conn
+    safeSend
+      connVar
+      (encode $ gameStateMessage gameId gameState)
+    $(logTM) InfoS "player connected"
+    pure (sessionVar, uid, connVar)
+  disconnect (sessionVar, uid, _) = do
+    $(logTM) InfoS "player disconnected"
+    disconnectPlayer sessionVar color uid
+    STM.atomically $ release gameId sessions
+  loop (sessionVar, _, connVar) =
+    runMessageLoop
+      connVar
+      (processEvent sessionVar gameId color)
