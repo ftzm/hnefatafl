@@ -5,6 +5,7 @@ module Hnefatafl.Api.Handlers.AI (
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Error.Static (Error)
+import Effectful.Katip (KatipE, katipAddNamespace)
 import Hnefatafl.Api.Routes.AI (AIRoutes (..))
 import Hnefatafl.Api.Types.AI (
   CreateGameRequest (..),
@@ -17,7 +18,6 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
-import Hnefatafl.Effect.Log (KatipE, katipAddNamespace)
 import Hnefatafl.Effect.Search (Search)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)

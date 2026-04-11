@@ -24,15 +24,8 @@ import Data.Typeable (cast)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catch, throwIO)
-import Hnefatafl.Effect.Log (
-  KatipE,
-  Severity (..),
-  katipAddContext,
-  katipAddNamespace,
-  logTM,
-  ls,
-  sl,
- )
+import Effectful.Katip (KatipE, katipAddContext, katipAddNamespace, logTM)
+import Katip (Severity (..), ls, sl)
 import Servant (ServerError, err500, errBody)
 import Text.Show (Show (showsPrec), showString)
 

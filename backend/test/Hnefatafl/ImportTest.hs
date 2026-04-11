@@ -8,6 +8,7 @@ import Data.Text (isInfixOf)
 import Database.SQLite.Simple (Connection)
 import Effectful
 import Effectful.Error.Static (Error, runErrorNoCallStack)
+import Effectful.Katip (runKatipE)
 import Hnefatafl.Core.Data (
   Game (..),
   GameMode (..),
@@ -18,12 +19,11 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Effect.Clock
 import Hnefatafl.Effect.IdGen
 import Hnefatafl.Effect.Storage
-import Hnefatafl.Effect.Log (runKatipE)
 import Hnefatafl.Import (GameImport (..), importGame)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
-import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Storage.SQLite.Util
+import Hnefatafl.Logging (withNoLogEnv)
 import Test.Hspec (Spec, around, describe, it)
 import Test.Hspec.Expectations.Pretty
 import TestUtil (realMoveResults)

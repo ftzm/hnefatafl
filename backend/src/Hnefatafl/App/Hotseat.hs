@@ -9,6 +9,7 @@ module Hnefatafl.App.Hotseat (
 
 import Chronos (Time)
 import Effectful (Eff, (:>))
+import Effectful.Katip (KatipE, logTM)
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
 import Hnefatafl.Core.Data (
   Game (..),
@@ -19,7 +20,6 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock, now)
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
-import Hnefatafl.Effect.Log (KatipE, Severity (..), logTM)
 import Hnefatafl.Effect.Storage (
   Storage,
   StorageTx,
@@ -33,6 +33,7 @@ import Hnefatafl.Game.Common (
   currentBoard,
  )
 import Hnefatafl.Game.Hotseat qualified as Hotseat
+import Katip (Severity (..))
 
 mkGame :: GameId -> Time -> Game
 mkGame gameId time =

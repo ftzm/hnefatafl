@@ -130,7 +130,7 @@ GHC2021 base with these default extensions: `TemplateHaskell`, `OverloadedString
 
 ## Logging
 
-Structured JSON logging via Katip (`Hnefatafl.Effect.Log`). Log at severity that reflects **operator concern**, not user outcome. A 400 to the user is not automatically an error; a 500 always is.
+Structured JSON logging via [Katip](https://hackage.haskell.org/package/katip) and [katip-effectful](https://hackage.haskell.org/package/katip-effectful). Import `KatipE` and operations directly from `Effectful.Katip`; import `Severity (..)`, `ls`, `sl` from `Katip`. The `LogEnv` builders (`withJsonLogEnv`, `withNoLogEnv`) live in `Hnefatafl.Logging`. Log at severity that reflects **operator concern**, not user outcome. A 400 to the user is not automatically an error; a 500 always is.
 
 | Level | Meaning | Examples |
 |---|---|---|

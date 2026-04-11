@@ -4,6 +4,7 @@ module Hnefatafl.Api.Handlers.Hotseat (
 
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
+import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Routes.Hotseat (HotseatRoutes (..))
 import Hnefatafl.Api.Types (
   ActionResponse (..),
@@ -25,16 +26,10 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
-import Hnefatafl.Effect.Log (
-  KatipE,
-  Severity (..),
-  katipAddNamespace,
-  logTM,
-  ls,
- )
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Game.Common qualified as Common
 import Hnefatafl.Game.Hotseat qualified as HotseatGame
+import Katip (Severity (..), ls)
 import Servant (ServerError (..), err400)
 import Servant.Server.Generic (AsServerT)
 

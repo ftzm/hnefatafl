@@ -28,17 +28,17 @@ import Database.SQLite.Simple (Connection)
 import Effectful
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
+import Effectful.Katip (KatipE, runKatipE)
 import Hnefatafl.App.WebSocket (encodeAuthMsg)
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
-import Hnefatafl.Effect.Log (KatipE, runKatipE)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
-import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.WebSocket.IO (runWebSocketIO)
+import Hnefatafl.Logging (withNoLogEnv)
 import Network.WebSockets (
   DataMessage (..),
   Message (..),

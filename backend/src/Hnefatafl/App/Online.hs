@@ -26,6 +26,7 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (finally)
+import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Types.WS (
   WsError (..),
   WsErrorCode (..),
@@ -61,12 +62,6 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Core.Data qualified as Data
 import Hnefatafl.Effect.Clock (Clock, now)
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
-import Hnefatafl.Effect.Log (
-  KatipE,
-  Severity (..),
-  katipAddNamespace,
-  logTM,
- )
 import Hnefatafl.Effect.Storage (
   Storage,
   StorageTx,
@@ -84,6 +79,7 @@ import Hnefatafl.Game.Common (
   opponent,
  )
 import Hnefatafl.Game.Online qualified as Online
+import Katip (Severity (..))
 import Network.WebSockets (Connection)
 import StmContainers.Map qualified as STMMap
 

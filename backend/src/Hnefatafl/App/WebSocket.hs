@@ -23,15 +23,16 @@ import Effectful (Eff, (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Exception (catch, throwIO)
+import Effectful.Katip (KatipE, katipAddContext, katipAddNamespace)
 import Hnefatafl.Api.Types.WS (WsError (..), WsErrorCode (..))
 import Hnefatafl.Core.Data (GameId, PlayerColor)
-import Hnefatafl.Effect.Log (KatipE, katipAddContext, katipAddNamespace, sl)
 import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
 import Hnefatafl.Exception (
   DomainException (..),
   IsDomainException (..),
   logCaughtException,
  )
+import Katip (sl)
 import Network.WebSockets (Connection, ConnectionException)
 
 -- | Send data on a connection held in an MVar. The MVar ensures only one

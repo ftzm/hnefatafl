@@ -10,15 +10,17 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.QSem (QSem, signalQSem, waitQSem)
 import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Exception (bracket_)
-import Hnefatafl.Effect.Log (KatipE, Severity (..), katipAddNamespace, logTM, ls)
+import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Search (searchWithTimeout)
+import Katip (Severity (..), ls)
 import System.Clock (Clock (Monotonic), diffTimeSpec, getTime, toNanoSecs)
 
 -- | the search function monopolizes a bound (OS) thread, so we guard it with
 -- a semaphore to limit simultaneous searches
 runSearchLocal ::
-  (IOE :> es, Concurrent :> es, KatipE :> es) => QSem -> Eff (Search : es) a -> Eff es a
+  (IOE :> es, Concurrent :> es, KatipE :> es) =>
+  QSem -> Eff (Search : es) a -> Eff es a
 runSearchLocal qsem = interpret $ \_ -> \case
   SearchTrusted board blackToMove hashes timeout enableAdminEndings ->
     katipAddNamespace "search" $ do

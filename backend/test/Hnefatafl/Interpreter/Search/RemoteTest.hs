@@ -10,11 +10,11 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Hnefatafl.Bindings (SearchTrustedResult (..), startBoard)
 import Hnefatafl.Client (HnefataflClient, createClient)
 import Hnefatafl.Core.Data (ExternBoard, Move (..))
-import Hnefatafl.Effect.Log (Severity (..))
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Interpreter.Search.Remote (runSearchRemote)
 import Hnefatafl.Search (SearchTimeout (..))
 import Hnefatafl.Server (runServer)
+import Katip (Severity (..))
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant.Client (
   ClientEnv,

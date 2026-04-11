@@ -6,7 +6,7 @@ module Hnefatafl.ExceptionTest where
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Exception (throwIO)
-import Hnefatafl.Effect.Log (runKatipE)
+import Effectful.Katip (runKatipE)
 import Hnefatafl.Exception (
   DataIntegrityException (..),
   DatabaseException (..),
@@ -15,7 +15,7 @@ import Hnefatafl.Exception (
   IsDomainException (..),
   guardExceptions,
  )
-import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
+import Hnefatafl.Logging (withNoLogEnv)
 import Servant (ServerError (..))
 import System.IO.Error (userError)
 import Test.Hspec (Spec, describe, it)

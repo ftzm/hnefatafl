@@ -11,9 +11,9 @@ import Hnefatafl.Api.Routes (
 import Hnefatafl.Bindings (SearchTrustedResult (..), startBoard)
 import Hnefatafl.Client (HnefataflClient, createClient)
 import Hnefatafl.Core.Data (Move (..))
-import Hnefatafl.Effect.Log (Severity (..))
 import Hnefatafl.Search (SearchTimeout (..))
 import Hnefatafl.Server (runServer)
+import Katip (Severity (..))
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Servant.Client (
   ClientEnv,

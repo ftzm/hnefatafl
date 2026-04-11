@@ -43,7 +43,6 @@ library
       Hnefatafl.Core.Data
       Hnefatafl.Effect.Clock
       Hnefatafl.Effect.IdGen
-      Hnefatafl.Effect.Log
       Hnefatafl.Effect.Search
       Hnefatafl.Effect.Storage
       Hnefatafl.Effect.WebSocket
@@ -55,7 +54,6 @@ library
       Hnefatafl.Import
       Hnefatafl.Interpreter.Clock.IO
       Hnefatafl.Interpreter.IdGen.UUIDv7
-      Hnefatafl.Interpreter.Log.JSON
       Hnefatafl.Interpreter.Search.Local
       Hnefatafl.Interpreter.Search.Remote
       Hnefatafl.Interpreter.Search.Test
@@ -68,6 +66,7 @@ library
       Hnefatafl.Interpreter.Storage.SQLite.Type
       Hnefatafl.Interpreter.Storage.SQLite.Util
       Hnefatafl.Interpreter.WebSocket.IO
+      Hnefatafl.Logging
       Hnefatafl.QQ.Move
       Hnefatafl.Search
       Hnefatafl.SelfPlay

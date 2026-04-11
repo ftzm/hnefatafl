@@ -10,11 +10,11 @@ import Data.Typeable (typeRep)
 import Database.SQLite.Simple hiding (Error)
 import Database.SQLite3 qualified as SQLite3
 import Effectful
+import Effectful.Katip (KatipE, runKatipE)
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Effect.Log (KatipE, runKatipE)
 import Hnefatafl.Effect.Storage
-import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
+import Hnefatafl.Logging (withNoLogEnv)
 import Paths_hnefatafl (getDataFileName)
 import Test.Hspec.Expectations.Pretty
 
@@ -116,7 +116,10 @@ shouldThrowException ::
   Expectation
 shouldThrowException action connectionVar = do
   result <- withNoLogEnv "test" $ \logEnv ->
-    tryAny $ runEff $ runKatipE logEnv $ runStorageSQLiteWithRollback connectionVar action
+    tryAny $
+      runEff $
+        runKatipE logEnv $
+          runStorageSQLiteWithRollback connectionVar action
   case result of
     Left exception -> case fromException @e exception of
       Just _ -> pure () -- Expected exception type

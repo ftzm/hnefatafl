@@ -20,6 +20,7 @@ import Effectful.Console.ByteString
 import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
+import Effectful.Katip (runKatipE)
 import Effectful.Labeled
 import Hnefatafl.Api.Routes (Routes (..), VersionResponse (..))
 import Hnefatafl.Bindings (
@@ -41,19 +42,19 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen
-import Hnefatafl.Effect.Log (Severity (..), runKatipE)
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Import (importGameFromFile)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
-import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Search.Local
 import Hnefatafl.Interpreter.Search.Remote
 import Hnefatafl.Interpreter.Storage.SQLite
+import Hnefatafl.Logging (withNoLogEnv)
 import Hnefatafl.SelfPlay (VersionId (..))
 import Hnefatafl.SelfPlay.Runner (runSelfPlayHeadless, runSelfPlayWithUI)
 import Hnefatafl.Serialization (moveToNotation, parseMoveList)
 import Hnefatafl.Server (runServer)
+import Katip (Severity (..))
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 import Options.Applicative
 import Servant.Client (ClientError, mkClientEnv, parseBaseUrl, runClientM)

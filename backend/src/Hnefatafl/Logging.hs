@@ -1,4 +1,4 @@
-module Hnefatafl.Interpreter.Log.JSON (
+module Hnefatafl.Logging (
   withJsonLogEnv,
   withNoLogEnv,
 ) where
