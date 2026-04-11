@@ -1,4 +1,10 @@
 module Hnefatafl.Logging (
+  -- * Allocation pairs for ResourceT 'allocate'
+  mkJsonLogEnv,
+  mkNoLogEnv,
+  closeLogEnv,
+
+  -- * CPS bracket variants for non-ResourceT callers
   withJsonLogEnv,
   withNoLogEnv,
 ) where
@@ -19,8 +25,10 @@ import Katip (
   registerScribe,
  )
 
-withJsonLogEnv :: Text -> Severity -> (LogEnv -> IO a) -> IO a
-withJsonLogEnv appName minSeverity action = do
+-- | Build a Katip 'LogEnv' that emits JSON log lines to stdout at the
+-- given minimum severity. Must be paired with 'closeLogEnv' on exit.
+mkJsonLogEnv :: Text -> Severity -> IO LogEnv
+mkJsonLogEnv appName minSeverity = do
   scribe <-
     mkHandleScribeWithFormatter
       jsonFormat
@@ -28,13 +36,22 @@ withJsonLogEnv appName minSeverity action = do
       stdout
       (permitItem minSeverity)
       V2
-  let mkEnv =
-        registerScribe "stdout" scribe defaultScribeSettings
-          =<< initLogEnv (Namespace [appName]) "production"
-  bracket mkEnv closeScribes action
-
--- | A LogEnv with no scribes — all log messages are silently dropped.
-withNoLogEnv :: Text -> (LogEnv -> IO a) -> IO a
-withNoLogEnv appName action = do
   env <- initLogEnv (Namespace [appName]) "production"
-  bracket (pure env) closeScribes action
+  registerScribe "stdout" scribe defaultScribeSettings env
+
+-- | Build a 'LogEnv' with no scribes — all log messages are silently
+-- dropped. Must be paired with 'closeLogEnv' on exit (no-op in practice,
+-- but keeps the API uniform with 'mkJsonLogEnv').
+mkNoLogEnv :: Text -> IO LogEnv
+mkNoLogEnv appName = initLogEnv (Namespace [appName]) "production"
+
+-- | Release a 'LogEnv', flushing and closing any registered scribes.
+closeLogEnv :: LogEnv -> IO ()
+closeLogEnv = void . closeScribes
+
+withJsonLogEnv :: Text -> Severity -> (LogEnv -> IO a) -> IO a
+withJsonLogEnv appName minSeverity =
+  bracket (mkJsonLogEnv appName minSeverity) closeLogEnv
+
+withNoLogEnv :: Text -> (LogEnv -> IO a) -> IO a
+withNoLogEnv appName = bracket (mkNoLogEnv appName) closeLogEnv

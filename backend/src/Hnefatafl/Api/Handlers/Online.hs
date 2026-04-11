@@ -18,6 +18,7 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
+import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Network.WebSockets (Connection)
 import Servant (ServerError)
@@ -30,6 +31,7 @@ onlineServer ::
   , Concurrent :> es
   , WebSocket :> es
   , KatipE :> es
+  , Trace :> es
   , Error ServerError :> es
   , IOE :> es
   ) =>
@@ -42,7 +44,7 @@ onlineServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es) =>
   Eff es CreateGameResponse
 createHandler = katipAddNamespace "online" $ do
   result <- Online.createGame
@@ -60,6 +62,7 @@ handleWebSocket ::
   , Concurrent :> es
   , WebSocket :> es
   , KatipE :> es
+  , Trace :> es
   , IOE :> es
   ) =>
   Online.GameSessions ->

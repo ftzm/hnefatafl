@@ -25,6 +25,7 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catch, throwIO)
 import Effectful.Katip (KatipE, katipAddContext, katipAddNamespace, logTM)
+import Hnefatafl.Effect.Trace (Trace, recordSpanException)
 import Katip (Severity (..), ls, sl)
 import Servant (ServerError, err500, errBody)
 import Text.Show (Show (showsPrec), showString)
@@ -193,10 +194,11 @@ logCaughtException ex = do
 -- Exception guards
 
 -- | Catch-all exception guard for Servant handlers. Catches all synchronous
--- exceptions, logs structured data for domain exceptions, and returns 500.
--- Async exceptions are always re-thrown.
+-- exceptions, logs structured data for domain exceptions, records them on
+-- the current trace span, and returns 500. Async exceptions are always
+-- re-thrown.
 guardExceptions ::
-  (IOE :> es, Error ServerError :> es, KatipE :> es) =>
+  (IOE :> es, Error ServerError :> es, KatipE :> es, Trace :> es) =>
   Eff es a -> Eff es a
 guardExceptions action =
   action `catch` \(ex :: SomeException) ->
@@ -204,4 +206,5 @@ guardExceptions action =
       Just _ -> throwIO ex
       Nothing -> do
         logCaughtException ex
+        recordSpanException ex
         throwError err500{errBody = "internal server error"}

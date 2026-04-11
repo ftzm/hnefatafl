@@ -49,6 +49,7 @@ import Hnefatafl.Interpreter.IdGen.UUIDv7
 import Hnefatafl.Interpreter.Search.Local
 import Hnefatafl.Interpreter.Search.Remote
 import Hnefatafl.Interpreter.Storage.SQLite
+import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Logging (withNoLogEnv)
 import Hnefatafl.SelfPlay (VersionId (..))
 import Hnefatafl.SelfPlay.Runner (runSelfPlayHeadless, runSelfPlayWithUI)
@@ -279,13 +280,16 @@ withStandardEffects dbPathOpt eff = do
   result <-
     tryAny $
       withNoLogEnv "hnefatafl-cli" $ \logEnv ->
-        runEff $
-          runConsole $
-            runFileSystem $
-              runKatipE logEnv $
-                runStorageSQLite connectionVar $
-                  runClockIO $
-                    runIdGenUUIDv7 eff
+        runEff
+          . runConsole
+          . runFileSystem
+          . runConcurrent
+          . runKatipE logEnv
+          . runTraceNoOp
+          . runStorageSQLite connectionVar
+          . runClockIO
+          . runIdGenUUIDv7
+          $ eff
   close conn
   pure $ first displayException result
 
@@ -370,17 +374,18 @@ runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlSt
       runErrorNoCallStack @Text $
         runErrorNoCallStack @ClientError $
           runConcurrent $
-            runKatipE logEnv $ do
-              qsem <- newQSem numActors
-              runFileSystem $
-                runLabeled @"new" (runSearchLocal qsem) $
-                  runLabeled @"old" (runSearchRemote clientEnv client) $
-                    runner
-                      numActors
-                      (VersionId Version.version)
-                      (VersionId oldVersionLabel)
-                      stateDir
-                      startPositionsFile
+            runKatipE logEnv $
+              runTraceNoOp $ do
+                qsem <- newQSem numActors
+                runFileSystem $
+                  runLabeled @"new" (runSearchLocal qsem) $
+                    runLabeled @"old" (runSearchRemote clientEnv client) $
+                      runner
+                        numActors
+                        (VersionId Version.version)
+                        (VersionId oldVersionLabel)
+                        stateDir
+                        startPositionsFile
 
   case result of
     Left err -> putTextLn ("Self-play failed: " <> err) >> pure (ExitFailure 1)

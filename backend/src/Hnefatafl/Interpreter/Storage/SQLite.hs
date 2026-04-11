@@ -5,14 +5,16 @@ module Hnefatafl.Interpreter.Storage.SQLite (
 ) where
 
 import Chronos (now)
-import Control.Concurrent.MVar
-import Control.Exception qualified as CE
 import Data.Unique (hashUnique, newUnique)
 import Database.SQLite.Simple (Connection, Query (..), execute_)
 import Effectful
+import Effectful.Concurrent (Concurrent)
+import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Dispatch.Dynamic
+import Effectful.Exception (catch, onException, throwIO)
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
+import Hnefatafl.Effect.Trace (Trace, addSpanAttribute, inSpan)
 import Hnefatafl.Exception (DatabaseException (..), DomainException)
 import Hnefatafl.Interpreter.Storage.SQLite.Game (
   createGame,
@@ -32,30 +34,35 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 --------------------------------------------------------------------------------
 -- SQLite effect implementation
 
-withSavepoint :: Connection -> StorageTx a -> IO a
-withSavepoint conn txAction =
-  do
-    sp <- ("tx_" <>) . show . hashUnique <$> newUnique
-    let
-      wrap op io =
-        io `CE.catch` \(ex :: CE.SomeException) ->
+withSavepoint ::
+  (IOE :> es, Trace :> es) =>
+  Connection -> StorageTx a -> Eff es a
+withSavepoint conn txAction = do
+  sp <- liftIO $ ("tx_" <>) . show . hashUnique <$> newUnique
+  let wrap op io =
+        io `catch` \(ex :: SomeException) ->
           case fromException @DomainException ex of
-            Just _ -> CE.throwIO ex
-            Nothing -> CE.throwIO $ DatabaseException op "Transaction" Nothing ex
-      savepoint = wrap "Savepoint" $ execute_ conn $ Query $ "SAVEPOINT " <> sp
-      rollback = wrap "Rollback" $ execute_ conn $ Query $ "ROLLBACK TO " <> sp
-      release = wrap "Release" $ execute_ conn $ Query $ "RELEASE " <> sp
-    savepoint
-    result <- interpretTx conn txAction `CE.onException` rollback
-    release
-    pure result
+            Just _ -> throwIO ex
+            Nothing -> throwIO $ DatabaseException op "Transaction" Nothing ex
+      savepoint =
+        wrap "Savepoint" . liftIO . execute_ conn $ Query $ "SAVEPOINT " <> sp
+      rollback =
+        wrap "Rollback" . liftIO . execute_ conn $ Query $ "ROLLBACK TO " <> sp
+      release =
+        wrap "Release" . liftIO . execute_ conn $ Query $ "RELEASE " <> sp
+  savepoint
+  result <- interpretTx conn txAction `onException` rollback
+  release
+  pure result
 
 runStorageSQLite ::
-  IOE :> es =>
+  (IOE :> es, Concurrent :> es, Trace :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLite connectionVar = interpret $ \_ -> \case
   RunTransaction txAction ->
-    liftIO (withMVar connectionVar $ \conn -> withSavepoint conn txAction)
+    inSpan "db.transaction" $
+      MVar.withMVar connectionVar $
+        \conn -> withSavepoint conn txAction
 
 dispatch :: StorageCmd a -> Connection -> IO a
 dispatch = \case
@@ -116,17 +123,21 @@ dispatch = \case
   DeleteLastNMoves gameId n ->
     MoveDb.deleteLastNMoves (fromDomain gameId) n
 
-interpretTx :: Connection -> StorageTx a -> IO a
+interpretTx ::
+  (IOE :> es, Trace :> es) =>
+  Connection -> StorageTx a -> Eff es a
 interpretTx _ (PureTx a) = pure a
 interpretTx conn (BindTx cmd k) = do
+  let (op, ent, mId) = describeCmd cmd
   result <-
-    dispatch cmd conn
-      `CE.catch` \(ex :: CE.SomeException) ->
-        case fromException @DomainException ex of
-          Just _ -> CE.throwIO ex -- already a domain exception, don't wrap
-          Nothing ->
-            let (op, ent, eid) = describeCmd cmd
-             in CE.throwIO $ DatabaseException op ent eid ex
+    inSpan op $ do
+      addSpanAttribute "db.entity" ent
+      for_ mId $ addSpanAttribute "db.id"
+      liftIO (dispatch cmd conn)
+        `catch` \(ex :: SomeException) ->
+          case fromException @DomainException ex of
+            Just _ -> throwIO ex -- already a domain exception, don't wrap
+            Nothing -> throwIO $ DatabaseException op ent mId ex
   interpretTx conn (k result)
 
 -- | Describe a storage command as (operation, entity, entityId).

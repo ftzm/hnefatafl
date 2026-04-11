@@ -28,6 +28,7 @@ import Hnefatafl.Effect.Storage (
   insertGame,
   runTransaction,
  )
+import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Game.Common (
   TransitionError (..),
   currentBoard,
@@ -57,7 +58,7 @@ loadHotseatState gameId = do
     Hotseat.reconstruct board appliedMoves game.outcome
 
 processEvent ::
-  (Storage :> es, Clock :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es) =>
   GameId ->
   Hotseat.Event ->
   Eff es (Either TransitionError Hotseat.State)
@@ -73,7 +74,7 @@ processEvent gameId event = do
         pure (Right result.newState)
 
 createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es) =>
   Eff es Game
 createGame = do
   game <- mkGame <$> generateId <*> now
@@ -82,33 +83,33 @@ createGame = do
   pure game
 
 loadGameState ::
-  Storage :> es =>
+  (Storage :> es, Trace :> es) =>
   GameId ->
   Eff es Hotseat.State
 loadGameState gameId =
   runTransaction $ loadHotseatState gameId
 
 undoMove ::
-  (Storage :> es, Clock :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es) =>
   GameId ->
   Eff es (Either TransitionError Hotseat.State)
 undoMove gameId = processEvent gameId Hotseat.Undo
 
 resign ::
-  (Storage :> es, Clock :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es) =>
   GameId ->
   PlayerColor ->
   Eff es (Either TransitionError Hotseat.State)
 resign gameId color = processEvent gameId (Hotseat.Resign color)
 
 agreeDraw ::
-  (Storage :> es, Clock :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es) =>
   GameId ->
   Eff es (Either TransitionError Hotseat.State)
 agreeDraw gameId = processEvent gameId Hotseat.AgreeDraw
 
 makeMove ::
-  (Storage :> es, Clock :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es) =>
   GameId ->
   Move ->
   Eff es (Either TransitionError Hotseat.State)

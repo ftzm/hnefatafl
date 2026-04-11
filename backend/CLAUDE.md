@@ -145,6 +145,28 @@ Key distinctions:
 - **User input errors are not warnings** *unless* the input came from a component we control (frontend). External-client garbage is Debug; frontend contract violations are Warning.
 - **Logs ≠ metrics.** Things you'd naturally count (rate of invalid moves, rate of undos) belong in metrics. Until metrics infra exists, prefer lower log levels over flooding higher ones.
 
+## Tracing
+
+OpenTelemetry tracing via our own `Trace` effect (`Hnefatafl.Effect.Trace`) on top of [hs-opentelemetry](https://github.com/iand675/hs-opentelemetry). The effect exposes three operations: `inSpan`, `addSpanAttribute`, `recordSpanException`. The real interpreter `runTraceOTel` lives in `Hnefatafl.Interpreter.Trace.OTel`; a no-op interpreter `runTraceNoOp` in `Hnefatafl.Interpreter.Trace.NoOp` is used in tests.
+
+Span structure:
+
+| Span | Where it's created | Parent |
+|---|---|---|
+| HTTP request root | WAI middleware (`newOpenTelemetryWaiMiddleware` in `Server.hs`) | Incoming `traceparent` header, else new root |
+| `ws.message` | `runMessageLoop` in `App/WebSocket.hs`, per iteration | None (WS has no middleware) |
+| `db.transaction` | `runStorageSQLite` in `Interpreter/Storage/SQLite.hs` | Whatever span is active at call site |
+| Per-command DB spans | `interpretTx` in `Interpreter/Storage/SQLite.hs`, named by `describeCmd` | `db.transaction` |
+| `engine.search` | `runSearchLocal` in `Interpreter/Search/Local.hs` | Whatever span is active |
+
+`trace_id` is attached to the Katip context by `runTraceOTel` around every span, so every log line emitted inside a span carries a structured `trace_id` field that matches the span's trace in the backend.
+
+Exceptions are recorded on the current span automatically by `inSpan`'s bracket. The three guard points (`guardExceptions`, `guardWebSocket`, `tryNonFatal`) also call `recordSpanException` for belt-and-suspenders coverage.
+
+Export is driven by `OTEL_*` environment variables read by the SDK at `initializeGlobalTracerProvider`. With no env vars set, spans are created but dropped (`trace_id` still appears in logs, useful for request-scoped log correlation even without a trace backend). Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` and point at Jaeger/Tempo/Honeycomb to actually export.
+
+**Forking gotcha**: hs-opentelemetry's thread-local context is a `ThreadId`-keyed map; it is **not** inherited across `forkIO` / `Async.async`. Any new thread we spawn must `OpenTelemetry.Context.ThreadLocal.attachContext` the captured parent context before calling `inSpan`, or the spans it creates become disconnected roots. See `spawnEngineSearch` in `App/AI.hs` for the established pattern.
+
 ## Database
 
 SQLite via `sqlite-simple`. Schema in `db/schema.sql`. Key tables:

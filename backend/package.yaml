@@ -102,6 +102,11 @@ dependencies:
   - servant-openapi3
   - katip
   - katip-effectful
+  - hs-opentelemetry-api
+  - hs-opentelemetry-sdk
+  - hs-opentelemetry-exporter-otlp
+  - hs-opentelemetry-instrumentation-wai
+  - hs-opentelemetry-propagator-w3c
 
 executables:
   cli:

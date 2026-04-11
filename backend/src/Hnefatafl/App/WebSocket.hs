@@ -26,6 +26,7 @@ import Effectful.Exception (catch, throwIO)
 import Effectful.Katip (KatipE, katipAddContext, katipAddNamespace)
 import Hnefatafl.Api.Types.WS (WsError (..), WsErrorCode (..))
 import Hnefatafl.Core.Data (GameId, PlayerColor)
+import Hnefatafl.Effect.Trace (Trace, inSpan, recordSpanException)
 import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
 import Hnefatafl.Exception (
   DomainException (..),
@@ -67,7 +68,7 @@ decodeAuthToken msg = do
 -- fatal exceptions (unmodeled or domain-marked fatal) or exceptions
 -- raised outside the loop (e.g. during connection setup).
 guardWebSocket ::
-  (WebSocket :> es, KatipE :> es) =>
+  (WebSocket :> es, KatipE :> es, Trace :> es) =>
   Connection -> Eff es () -> Eff es ()
 guardWebSocket conn action =
   action `catch` \(ex :: SomeException) ->
@@ -77,6 +78,7 @@ guardWebSocket conn action =
         | isJust (fromException @ConnectionException ex) -> throwIO ex
         | otherwise -> do
             logCaughtException ex
+            recordSpanException ex
             sendData conn (encode $ WsError InternalError "internal error")
               `catch` \(_ :: SomeException) -> pure ()
 
@@ -93,13 +95,14 @@ guardWebSocket conn action =
 -- I/O errors, library exceptions), and resuming would risk acting on
 -- unknown state.
 tryNonFatal ::
-  (WebSocket :> es, Concurrent :> es, KatipE :> es) =>
+  (WebSocket :> es, Concurrent :> es, KatipE :> es, Trace :> es) =>
   MVar Connection -> Eff es () -> Eff es ()
 tryNonFatal connVar action =
   action `catch` \(ex :: SomeException) ->
     case fromException @DomainException ex of
       Just (DomainException e) | not (domainFatal e) -> do
         logCaughtException ex
+        recordSpanException ex
         safeSend connVar (encode $ WsError InternalError "internal error")
       _ -> throwIO ex
 
@@ -117,6 +120,7 @@ runMessageLoop ::
   , WebSocket :> es
   , Concurrent :> es
   , KatipE :> es
+  , Trace :> es
   ) =>
   MVar Connection ->
   (msg -> Eff es ()) ->
@@ -127,7 +131,7 @@ runMessageLoop connVar handle = do
     raw <- receiveData conn
     case decode raw of
       Nothing -> safeSend connVar (encode $ WsError InvalidMessage "invalid message")
-      Just msg -> handle msg
+      Just msg -> inSpan "ws.message" $ handle msg
 
 -- | Add the @game@ namespace together with @gameId@ and @player@ context
 -- fields for the enclosed action.

@@ -10,10 +10,13 @@ import Data.Typeable (typeRep)
 import Database.SQLite.Simple hiding (Error)
 import Database.SQLite3 qualified as SQLite3
 import Effectful
+import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Katip (KatipE, runKatipE)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
+import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
+import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Logging (withNoLogEnv)
 import Paths_hnefatafl (getDataFileName)
 import Test.Hspec.Expectations.Pretty
@@ -32,7 +35,7 @@ withSharedDB action = do
 
 -- | Run storage effects with automatic rollback for test isolation
 runStorageSQLiteWithRollback ::
-  (IOE :> es, KatipE :> es) =>
+  (IOE :> es, KatipE :> es, Concurrent :> es, Trace :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLiteWithRollback connectionVar action = do
   -- Start transaction
@@ -53,9 +56,11 @@ runStorageTest ::
 runStorageTest connectionVar action =
   withNoLogEnv "test" $ \logEnv ->
     tryAny
-      ( runEff $
-          runKatipE logEnv $
-            runStorageSQLiteWithRollback connectionVar action
+      ( runEff
+          . runConcurrent
+          . runKatipE logEnv
+          . runTraceNoOp
+          $ runStorageSQLiteWithRollback connectionVar action
       )
       <&> first displayException
 
@@ -116,10 +121,12 @@ shouldThrowException ::
   Expectation
 shouldThrowException action connectionVar = do
   result <- withNoLogEnv "test" $ \logEnv ->
-    tryAny $
-      runEff $
-        runKatipE logEnv $
-          runStorageSQLiteWithRollback connectionVar action
+    tryAny
+      . runEff
+      . runConcurrent
+      . runKatipE logEnv
+      . runTraceNoOp
+      $ runStorageSQLiteWithRollback connectionVar action
   case result of
     Left exception -> case fromException @e exception of
       Just _ -> pure () -- Expected exception type

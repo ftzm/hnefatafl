@@ -45,6 +45,7 @@ library
       Hnefatafl.Effect.IdGen
       Hnefatafl.Effect.Search
       Hnefatafl.Effect.Storage
+      Hnefatafl.Effect.Trace
       Hnefatafl.Effect.WebSocket
       Hnefatafl.Exception
       Hnefatafl.Game.AI
@@ -65,6 +66,8 @@ library
       Hnefatafl.Interpreter.Storage.SQLite.Token
       Hnefatafl.Interpreter.Storage.SQLite.Type
       Hnefatafl.Interpreter.Storage.SQLite.Util
+      Hnefatafl.Interpreter.Trace.NoOp
+      Hnefatafl.Interpreter.Trace.OTel
       Hnefatafl.Interpreter.WebSocket.IO
       Hnefatafl.Logging
       Hnefatafl.QQ.Move
@@ -117,6 +120,11 @@ library
     , focus
     , heptapod
     , hnefatafl-version
+    , hs-opentelemetry-api
+    , hs-opentelemetry-exporter-otlp
+    , hs-opentelemetry-instrumentation-wai
+    , hs-opentelemetry-propagator-w3c
+    , hs-opentelemetry-sdk
     , http-api-data
     , http-client
     , insert-ordered-containers
@@ -197,6 +205,11 @@ library hnefatafl-version
     , filepath
     , focus
     , heptapod
+    , hs-opentelemetry-api
+    , hs-opentelemetry-exporter-otlp
+    , hs-opentelemetry-instrumentation-wai
+    , hs-opentelemetry-propagator-w3c
+    , hs-opentelemetry-sdk
     , http-api-data
     , http-client
     , katip
@@ -276,6 +289,11 @@ executable cli
     , focus
     , heptapod
     , hnefatafl
+    , hs-opentelemetry-api
+    , hs-opentelemetry-exporter-otlp
+    , hs-opentelemetry-instrumentation-wai
+    , hs-opentelemetry-propagator-w3c
+    , hs-opentelemetry-sdk
     , http-api-data
     , http-client
     , katip
@@ -355,6 +373,11 @@ executable dump-specs
     , focus
     , heptapod
     , hnefatafl
+    , hs-opentelemetry-api
+    , hs-opentelemetry-exporter-otlp
+    , hs-opentelemetry-instrumentation-wai
+    , hs-opentelemetry-propagator-w3c
+    , hs-opentelemetry-sdk
     , http-api-data
     , http-client
     , katip
@@ -464,6 +487,11 @@ test-suite hnefatafl-test
     , heptapod
     , hnefatafl
     , hnefatafl-version
+    , hs-opentelemetry-api
+    , hs-opentelemetry-exporter-otlp
+    , hs-opentelemetry-instrumentation-wai
+    , hs-opentelemetry-propagator-w3c
+    , hs-opentelemetry-sdk
     , hspec
     , hspec-expectations-pretty-diff
     , http-api-data

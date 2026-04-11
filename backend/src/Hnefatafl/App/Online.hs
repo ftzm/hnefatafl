@@ -73,6 +73,7 @@ import Hnefatafl.Effect.Storage (
   insertGame,
   runTransaction,
  )
+import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
 import Hnefatafl.Game.Common (
   currentBoard,
@@ -187,7 +188,7 @@ data CreateGameResult = CreateGameResult
 -- | Create a new online game in the database with tokens for both players.
 -- Does NOT create a session in the STMMap (lazy creation on WS connect).
 createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Trace :> es) =>
   Eff es CreateGameResult
 createGame = do
   game <- mkGame <$> generateId <*> now
@@ -223,7 +224,7 @@ createGame = do
 -- a full MVar, and inserts it. If two threads race on creation, one
 -- wins and the other's work is discarded (optimistic concurrency).
 getOrCreateSession ::
-  (Storage :> es, Concurrent :> es) =>
+  (Storage :> es, Concurrent :> es, Trace :> es) =>
   GameSessions ->
   GameId ->
   Eff es (MVar GameSession)
@@ -269,7 +270,13 @@ disconnectPlayer sessionVar color uid =
 -- Event processing
 
 processEvent ::
-  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, KatipE :> es) =>
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  ) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
@@ -318,6 +325,7 @@ handleWebSocket ::
   , Concurrent :> es
   , WebSocket :> es
   , KatipE :> es
+  , Trace :> es
   , IOE :> es
   ) =>
   GameSessions ->

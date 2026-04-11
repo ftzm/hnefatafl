@@ -26,6 +26,7 @@ import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Effect.Storage (Storage)
+import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
@@ -39,6 +40,7 @@ server ::
   , Concurrent :> es
   , WebSocket :> es
   , KatipE :> es
+  , Trace :> es
   , Error ServerError :> es
   , IOE :> es
   ) =>

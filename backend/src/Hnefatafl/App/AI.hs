@@ -71,6 +71,7 @@ import Hnefatafl.Effect.Storage (
   insertGame,
   runTransaction,
  )
+import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket, receiveData, sendData)
 import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.Game.AI qualified as AI
@@ -85,6 +86,7 @@ import Hnefatafl.Game.Common (
 import Hnefatafl.Search (SearchTimeout (..))
 import Katip (Severity (..), ls)
 import Network.WebSockets (Connection)
+import OpenTelemetry.Context.ThreadLocal qualified as ThreadLocal
 import StmContainers.Map qualified as STMMap
 
 -------------------------------------------------------------------------------
@@ -167,7 +169,7 @@ data CreateGameResult = CreateGameResult
 
 -- | Create a new AI game in the database with a token for the human player.
 createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Trace :> es) =>
   PlayerColor ->
   Eff es CreateGameResult
 createGame humanColor = do
@@ -198,8 +200,10 @@ connectToGame ::
   , Search :> es
   , Clock :> es
   , Concurrent :> es
+  , IOE :> es
   , WebSocket :> es
   , KatipE :> es
+  , Trace :> es
   ) =>
   GameSessions ->
   GameId ->
@@ -258,8 +262,10 @@ processEvent ::
   , Clock :> es
   , Search :> es
   , Concurrent :> es
+  , IOE :> es
   , WebSocket :> es
   , KatipE :> es
+  , Trace :> es
   ) =>
   MVar GameSession ->
   GameId ->
@@ -298,9 +304,11 @@ handleEngineCommands ::
   ( Search :> es
   , Clock :> es
   , Concurrent :> es
+  , IOE :> es
   , WebSocket :> es
   , Storage :> es
   , KatipE :> es
+  , Trace :> es
   ) =>
   MVar GameSession ->
   GameId ->
@@ -321,17 +329,26 @@ spawnEngineSearch ::
   ( Search :> es
   , Clock :> es
   , Concurrent :> es
+  , IOE :> es
   , WebSocket :> es
   , Storage :> es
   , KatipE :> es
+  , Trace :> es
   ) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
   [AppliedMove] ->
   Eff es (Async.Async ())
-spawnEngineSearch sessionVar gameId humanColor moves =
-  Async.async $
+spawnEngineSearch sessionVar gameId humanColor moves = do
+  -- hs-opentelemetry uses a thread-local IORef for span context, which is
+  -- not inherited when we fork. Capture the parent context here so we can
+  -- restore it inside the forked thread — otherwise the engine.search span
+  -- created by 'runSearchLocal' would be a disconnected root rather than a
+  -- child of the message span that triggered it.
+  parentCtx <- liftIO ThreadLocal.getContext
+  Async.async $ do
+    _ <- liftIO $ ThreadLocal.attachContext parentCtx
     doSearch `catch` \(ex :: SomeException) ->
       -- Don't report cancellation as an error — it's intentional (e.g. player undo)
       unless (isJust $ fromException @Async.AsyncCancelled ex) $ do
@@ -380,6 +397,7 @@ handleWebSocket ::
   , Concurrent :> es
   , WebSocket :> es
   , KatipE :> es
+  , Trace :> es
   , IOE :> es
   ) =>
   GameSessions ->

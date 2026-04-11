@@ -7,6 +7,7 @@ import Data.Aeson (decode, encode)
 import Data.Text (isInfixOf)
 import Database.SQLite.Simple (Connection)
 import Effectful
+import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Katip (runKatipE)
 import Hnefatafl.Core.Data (
@@ -23,6 +24,7 @@ import Hnefatafl.Import (GameImport (..), importGame)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
 import Hnefatafl.Interpreter.Storage.SQLite.Util
+import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Logging (withNoLogEnv)
 import Test.Hspec (Spec, around, describe, it)
 import Test.Hspec.Expectations.Pretty
@@ -76,12 +78,14 @@ runImportTest ::
   IO (Either String a)
 runImportTest connectionVar action =
   withNoLogEnv "test" $ \logEnv ->
-    runEff $
-      runErrorNoCallStack @String $
-        runKatipE logEnv $
-          runStorageSQLiteWithRollback connectionVar $
-            runClockIO $
-              runIdGenUUIDv7 action
+    runEff
+      . runErrorNoCallStack @String
+      . runConcurrent
+      . runKatipE logEnv
+      . runTraceNoOp
+      . runStorageSQLiteWithRollback connectionVar
+      . runClockIO
+      $ runIdGenUUIDv7 action
 
 spec_ImportGame :: Spec
 spec_ImportGame =
