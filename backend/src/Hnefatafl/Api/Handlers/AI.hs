@@ -17,7 +17,7 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
-import Hnefatafl.Effect.Log (KatipE)
+import Hnefatafl.Effect.Log (KatipE, katipAddNamespace)
 import Hnefatafl.Effect.Search (Search)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.WebSocket (WebSocket)
@@ -44,9 +44,9 @@ aiServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es) =>
   CreateGameRequest -> Eff es CreateGameResponse
-createHandler req = do
+createHandler req = katipAddNamespace "ai" $ do
   result <- AI.createGame req.humanColor
   pure
     CreateGameResponse

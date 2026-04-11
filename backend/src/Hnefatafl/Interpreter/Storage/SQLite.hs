@@ -37,16 +37,21 @@ withSavepoint conn txAction =
   do
     sp <- ("tx_" <>) . show . hashUnique <$> newUnique
     let
-      savepoint = execute_ conn $ Query $ "SAVEPOINT " <> sp
-      rollback = execute_ conn $ Query $ "ROLLBACK TO  " <> sp
-      release = execute_ conn $ Query $ "RELEASE " <> sp
+      wrap op io =
+        io `CE.catch` \(ex :: CE.SomeException) ->
+          case fromException @DomainException ex of
+            Just _ -> CE.throwIO ex
+            Nothing -> CE.throwIO $ DatabaseException op "Transaction" Nothing ex
+      savepoint = wrap "Savepoint" $ execute_ conn $ Query $ "SAVEPOINT " <> sp
+      rollback = wrap "Rollback" $ execute_ conn $ Query $ "ROLLBACK TO " <> sp
+      release = wrap "Release" $ execute_ conn $ Query $ "RELEASE " <> sp
     savepoint
     result <- interpretTx conn txAction `CE.onException` rollback
     release
     pure result
 
 runStorageSQLite ::
-  (IOE :> es) =>
+  IOE :> es =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLite connectionVar = interpret $ \_ -> \case
   RunTransaction txAction ->
@@ -148,7 +153,8 @@ describeCmd = \case
   DeleteMove gid n -> ("DeleteMove", "Move", Just $ show gid <> "#" <> show n)
   CreateGameParticipantToken t -> ("CreateGameParticipantToken", "Token", Just $ show t.gameId)
   GetTokenByText tt -> ("GetTokenByText", "Token", Just tt)
-  GetActiveTokenByGameAndRole gid role -> ("GetActiveTokenByGameAndRole", "Token", Just $ show gid <> "/" <> show role)
+  GetActiveTokenByGameAndRole gid role ->
+    ("GetActiveTokenByGameAndRole", "Token", Just $ show gid <> "/" <> show role)
   InsertPendingAction gid _ _ -> ("InsertPendingAction", "PendingAction", Just $ show gid)
   GetPendingAction gid -> ("GetPendingAction", "PendingAction", Just $ show gid)
   DeletePendingAction gid -> ("DeletePendingAction", "PendingAction", Just $ show gid)

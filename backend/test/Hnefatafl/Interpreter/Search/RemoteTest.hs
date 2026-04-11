@@ -10,6 +10,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Hnefatafl.Bindings (SearchTrustedResult (..), startBoard)
 import Hnefatafl.Client (HnefataflClient, createClient)
 import Hnefatafl.Core.Data (ExternBoard, Move (..))
+import Hnefatafl.Effect.Log (Severity (..))
 import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Interpreter.Search.Remote (runSearchRemote)
 import Hnefatafl.Search (SearchTimeout (..))
@@ -66,7 +67,7 @@ setupTestServer = do
   baseUrl <- parseBaseUrl $ "http://localhost:" ++ show testPort
   let clientEnv = mkClientEnv manager baseUrl
 
-  serverAsync <- async (runServer testPort)
+  serverAsync <- async (runServer testPort ErrorS)
   -- Wait a moment for server to start
   threadDelay 100000 -- 100ms
   pure ((clientEnv, createClient), serverAsync)

@@ -7,9 +7,12 @@ module Hnefatafl.Exception (
   IsDomainException (..),
 
   -- * Concrete exception types
-  StorageException (..),
+  DataIntegrityException (..),
   DatabaseException (..),
   GameInvariantException (..),
+
+  -- * Logging
+  logCaughtException,
 
   -- * Exception guards
   guardExceptions,
@@ -21,19 +24,33 @@ import Data.Typeable (cast)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catch, throwIO)
-import Hnefatafl.Effect.Log (KatipE, Severity (..), katipAddContext, katipAddNamespace, logTM, ls, sl)
+import Hnefatafl.Effect.Log (
+  KatipE,
+  Severity (..),
+  katipAddContext,
+  katipAddNamespace,
+  logTM,
+  ls,
+  sl,
+ )
 import Servant (ServerError, err500, errBody)
 import Text.Show (Show (showsPrec), showString)
 
-
 -- | Existential wrapper — the "base class" for all domain exceptions.
 -- catch @DomainException catches any domain exception.
-data DomainException = forall e. (IsDomainException e) => DomainException e
+data DomainException = forall e. IsDomainException e => DomainException e
 
 -- | Shared interface for all domain exceptions.
 class (Exception e, Typeable e) => IsDomainException e where
   domainErrorLabel :: e -> Text
   domainContext :: e -> [(Text, Text)]
+
+  -- | Whether this exception type should terminate the current session
+  -- instead of being caught, reported, and resumed. Defaults to False;
+  -- override only for truly unrecoverable cases (e.g. invariant
+  -- violations where continuing would risk acting on corrupt state).
+  domainFatal :: e -> Bool
+  domainFatal _ = False
 
 instance Show DomainException where
   showsPrec p (DomainException e) = showsPrec p e
@@ -45,25 +62,29 @@ instance Exception DomainException where
 -- Storage data exceptions
 
 -- | Data integrity violations detected in application code.
-data StorageException
+data DataIntegrityException
   = MissingRequiredField {entity :: Text, field :: Text, entityId :: Text}
   | EntityNotFound {entity :: Text, entityId :: Text}
   deriving (Show)
 
-instance Exception StorageException where
+instance Exception DataIntegrityException where
   toException = toException . DomainException
   fromException se = do
     DomainException e <- fromException se
     cast e
   displayException = \case
     MissingRequiredField{..} ->
-      "Missing required field " <> toString field
-        <> " on " <> toString entity
-        <> " (id: " <> toString entityId <> ")"
+      "Missing required field "
+        <> toString field
+        <> " on "
+        <> toString entity
+        <> " (id: "
+        <> toString entityId
+        <> ")"
     EntityNotFound{..} ->
       toString entity <> " not found (id: " <> toString entityId <> ")"
 
-instance IsDomainException StorageException where
+instance IsDomainException DataIntegrityException where
   domainErrorLabel = \case
     MissingRequiredField{} -> "missing_required_field"
     EntityNotFound{} -> "entity_not_found"
@@ -101,9 +122,12 @@ instance Exception DatabaseException where
     DomainException e <- fromException se
     cast e
   displayException DatabaseException{..} =
-    toString operation <> " on " <> toString dbEntity
+    toString operation
+      <> " on "
+      <> toString dbEntity
       <> maybe "" (\i -> " (id: " <> toString i <> ")") dbEntityId
-      <> ": " <> displayException cause
+      <> ": "
+      <> displayException cause
 
 instance IsDomainException DatabaseException where
   domainErrorLabel _ = "database_error"
@@ -140,6 +164,38 @@ instance IsDomainException GameInvariantException where
     EngineReplayFailed{..} -> [("context", context), ("detail", detail)]
     InvariantViolation msg -> [("message", msg)]
 
+  -- Invariant violations indicate a bug in our state machine or an
+  -- impossible state; continuing risks operating on corrupt assumptions.
+  domainFatal _ = True
+
+-------------------------------------------------------------------------------
+-- Structured exception logging
+
+-- | Log a caught exception via Katip with structured context. Domain
+-- exceptions contribute their 'domainErrorLabel' and 'domainContext' as
+-- log fields; non-domain exceptions are logged with the exception's
+-- provenance context only.
+logCaughtException ::
+  KatipE :> es => SomeException -> Eff es ()
+logCaughtException ex = do
+  let exCtx = toText (displayExceptionContext (someExceptionContext ex))
+  case fromException @DomainException ex of
+    Just (DomainException e) ->
+      let addCtx = foldr (\(k, v) m -> katipAddContext (sl k v) m)
+       in katipAddNamespace "exception" $
+            katipAddContext (sl "label" (domainErrorLabel e)) $
+              addCtx
+                ( katipAddContext (sl "exceptionContext" exCtx) $
+                    $(logTM) ErrorS $
+                      ls @Text (toText (displayException e))
+                )
+                (domainContext e)
+    Nothing ->
+      katipAddNamespace "exception" $
+        katipAddContext (sl "exceptionContext" exCtx) $
+          $(logTM) ErrorS $
+            ls @Text (toText (displayException ex))
+
 -------------------------------------------------------------------------------
 -- Exception guards
 
@@ -154,20 +210,5 @@ guardExceptions action =
     case fromException @SomeAsyncException ex of
       Just _ -> throwIO ex
       Nothing -> do
-        let ctx = someExceptionContext ex
-            exCtx = toText (displayExceptionContext ctx)
-        case fromException @DomainException ex of
-          Just (DomainException e) ->
-            let addCtx = foldr (\(k, v) m -> katipAddContext (sl k v) m)
-             in katipAddNamespace "exception" $
-                  katipAddContext (sl "label" (domainErrorLabel e)) $
-                    addCtx
-                      ( katipAddContext (sl "exceptionContext" exCtx) $
-                          $(logTM) ErrorS $ ls @Text (toText (displayException e))
-                      )
-                      (domainContext e)
-          Nothing ->
-            katipAddNamespace "exception" $
-              katipAddContext (sl "exceptionContext" exCtx) $
-                $(logTM) ErrorS $ ls @Text (toText (displayException ex))
+        logCaughtException ex
         throwError err500{errBody = "internal server error"}

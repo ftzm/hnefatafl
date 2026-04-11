@@ -8,11 +8,11 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Exception (throwIO)
 import Hnefatafl.Effect.Log (runKatipE)
 import Hnefatafl.Exception (
+  DataIntegrityException (..),
   DatabaseException (..),
   DomainException (..),
   GameInvariantException (..),
   IsDomainException (..),
-  StorageException (..),
   guardExceptions,
  )
 import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
@@ -28,7 +28,7 @@ spec_ExceptionHierarchy :: Spec
 spec_ExceptionHierarchy =
   describe "Exception hierarchy" $ do
     describe "DomainException routing" $ do
-      it "StorageException can be caught as DomainException" $ do
+      it "DataIntegrityException can be caught as DomainException" $ do
         let ex = toException $ EntityNotFound{entity = "Player", entityId = "123"}
         fromException @DomainException ex `shouldSatisfy` isJust
 
@@ -37,16 +37,20 @@ spec_ExceptionHierarchy =
         fromException @DomainException ex `shouldSatisfy` isJust
 
       it "DatabaseException can be caught as DomainException" $ do
-        let ex = toException $ DatabaseException "GetGame" "Game" (Just "abc") (toException $ userError "boom")
+        let ex =
+              toException $
+                DatabaseException "GetGame" "Game" (Just "abc") (toException $ userError "boom")
         fromException @DomainException ex `shouldSatisfy` isJust
 
-      it "StorageException is not caught as GameInvariantException" $ do
+      it "DataIntegrityException is not caught as GameInvariantException" $ do
         let ex = toException $ EntityNotFound{entity = "Player", entityId = "123"}
         fromException @GameInvariantException ex `shouldSatisfy` isNothing
 
-      it "DatabaseException is not caught as StorageException" $ do
-        let ex = toException $ DatabaseException "GetGame" "Game" Nothing (toException $ userError "boom")
-        fromException @StorageException ex `shouldSatisfy` isNothing
+      it "DatabaseException is not caught as DataIntegrityException" $ do
+        let ex =
+              toException $
+                DatabaseException "GetGame" "Game" Nothing (toException $ userError "boom")
+        fromException @DataIntegrityException ex `shouldSatisfy` isNothing
 
     describe "domainErrorLabel" $ do
       it "MissingRequiredField" $
@@ -61,18 +65,31 @@ spec_ExceptionHierarchy =
       it "InvariantViolation" $
         domainErrorLabel (InvariantViolation "x") `shouldBe` "invariant_violation"
       it "DatabaseException" $
-        domainErrorLabel (DatabaseException "op" "ent" Nothing (toException $ userError ""))
+        domainErrorLabel
+          (DatabaseException "op" "ent" Nothing (toException $ userError ""))
           `shouldBe` "database_error"
 
     describe "displayException" $ do
       it "MissingRequiredField includes entity, field, and id" $ do
-        let msg = displayException MissingRequiredField{entity = "ai_game", field = "player_color", entityId = "42"}
+        let msg =
+              displayException
+                MissingRequiredField
+                  { entity = "ai_game"
+                  , field = "player_color"
+                  , entityId = "42"
+                  }
         msg `shouldContain` "player_color"
         msg `shouldContain` "ai_game"
         msg `shouldContain` "42"
 
       it "DatabaseException includes operation, entity, id, and cause" $ do
-        let msg = displayException $ DatabaseException "GetGame" "Game" (Just "abc") (toException $ userError "row not found")
+        let msg =
+              displayException $
+                DatabaseException
+                  "GetGame"
+                  "Game"
+                  (Just "abc")
+                  (toException $ userError "row not found")
         msg `shouldContain` "GetGame"
         msg `shouldContain` "Game"
         msg `shouldContain` "abc"
@@ -111,7 +128,11 @@ spec_GuardExceptions =
             runKatipE logEnv $
               guardExceptions $
                 throwIO $
-                  DatabaseException "GetGame" "Game" (Just "xyz") (toException $ userError "SQL error")
+                  DatabaseException
+                    "GetGame"
+                    "Game"
+                    (Just "xyz")
+                    (toException $ userError "SQL error")
       case result of
         Left err -> errHTTPCode err `shouldBe` 500
         Right _ -> expectationFailure "Expected ServerError 500"

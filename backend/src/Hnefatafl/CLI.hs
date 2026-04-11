@@ -9,9 +9,10 @@ module Hnefatafl.CLI (
 ) where
 
 import Chronos (Time)
-import Data.Aeson (FromJSON, ToJSON)
-import Database.SQLite.Simple (close, open)
 import Control.Exception.Safe (tryAny)
+import Data.Aeson (FromJSON, ToJSON)
+import Data.Char (toLower)
+import Database.SQLite.Simple (close, open)
 import Effectful
 import Effectful.Concurrent
 import Effectful.Concurrent.QSem
@@ -20,8 +21,6 @@ import Effectful.Console.ByteString qualified as Console
 import Effectful.Error.Static
 import Effectful.FileSystem
 import Effectful.Labeled
-import Hnefatafl.Effect.Log (runKatipE)
-import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Api.Routes (Routes (..), VersionResponse (..))
 import Hnefatafl.Bindings (
   EngineGameStatus,
@@ -42,10 +41,12 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen
+import Hnefatafl.Effect.Log (Severity (..), runKatipE)
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Import (importGameFromFile)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
+import Hnefatafl.Interpreter.Log.JSON (withNoLogEnv)
 import Hnefatafl.Interpreter.Search.Local
 import Hnefatafl.Interpreter.Search.Remote
 import Hnefatafl.Interpreter.Storage.SQLite
@@ -78,6 +79,7 @@ data PrintGameOptions = PrintGameOptions
 
 data ServerOptions = ServerOptions
   { port :: Int
+  , logLevel :: Severity
   }
   deriving (Show)
 
@@ -130,10 +132,34 @@ printGameParser =
   PrintGame . PrintGameOptions
     <$> strArgument (metavar "GAME_ID" <> help "Game ID to print moves for")
 
+severityReader :: ReadM Severity
+severityReader = eitherReader $ \s -> case map toLower s of
+  "debug" -> Right DebugS
+  "info" -> Right InfoS
+  "warning" -> Right WarningS
+  "warn" -> Right WarningS
+  "error" -> Right ErrorS
+  "critical" -> Right CriticalS
+  _ ->
+    Left $
+      "unknown log level: "
+        <> s
+        <> " (expected: debug, info, warning, error, critical)"
+
 serverParser :: Parser Command
 serverParser =
-  Server . ServerOptions
-    <$> argument auto (metavar "PORT" <> help "Port number to run the server on")
+  Server
+    <$> ( ServerOptions
+            <$> argument auto (metavar "PORT" <> help "Port number to run the server on")
+            <*> option
+              severityReader
+              ( long "log-level"
+                  <> metavar "LEVEL"
+                  <> value InfoS
+                  <> help
+                    "Minimum log severity: debug, info, warning, error, critical (default: info)"
+              )
+        )
 
 selfPlayParser :: Parser Command
 selfPlayParser =
@@ -292,8 +318,8 @@ runOptions options = case options.cmd of
     case result of
       Left err -> putTextLn ("Error: " <> toText err) >> pure (ExitFailure 1)
       Right _ -> pure ExitSuccess
-  Server ServerOptions{port} -> do
-    runServer port
+  Server ServerOptions{port, logLevel} -> do
+    runServer port logLevel
     pure ExitSuccess
   SelfPlay
     SelfPlayOptions

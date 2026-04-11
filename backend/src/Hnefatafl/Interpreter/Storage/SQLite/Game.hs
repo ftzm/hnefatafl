@@ -8,10 +8,10 @@ module Hnefatafl.Interpreter.Storage.SQLite.Game (
 ) where
 
 import Chronos (Time)
-import Control.Exception (throw)
+import Control.Exception (throwIO)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
-import Hnefatafl.Exception (StorageException (..))
+import Hnefatafl.Exception (DataIntegrityException (..))
 import Hnefatafl.Interpreter.Storage.SQLite.Type
 import Hnefatafl.Interpreter.Storage.SQLite.Util
 
@@ -46,28 +46,50 @@ participantName :: Maybe Participant -> Maybe Text
 participantName (Just (AnonymousPlayer n)) = Just n
 participantName _ = Nothing
 
-gameJoinRowToDomain :: GameJoinRow -> Game
-gameJoinRowToDomain row =
-  Game
-    { gameId = toDomain row.gameId
-    , name = row.name
-    , mode = case row.gameType of
-        HotseatType ->
-          Hotseat (toDomain <$> row.hotseatOwnerId)
-        AIType ->
-          VsAI
-            (toDomain <$> row.aiPlayerId)
-            (toDomain (fromMaybe (throw MissingRequiredField{entity = "ai_game", field = "player_color", entityId = show row.gameId}) row.aiPlayerColor))
-            (toDomain (fromMaybe (throw MissingRequiredField{entity = "ai_game", field = "engine_id", entityId = show row.gameId}) row.aiEngineId))
-        OnlineType ->
-          Online
-            (toParticipant row.onlineWhitePlayerId row.onlineWhiteName)
-            (toParticipant row.onlineBlackPlayerId row.onlineBlackName)
-    , startTime = row.startTime
-    , endTime = row.endTime
-    , outcome = toDomain row.outcome
-    , createdAt = row.createdAt
-    }
+gameJoinRowToDomain :: GameJoinRow -> IO Game
+gameJoinRowToDomain row = do
+  mode <- case row.gameType of
+    HotseatType ->
+      pure $ Hotseat (toDomain <$> row.hotseatOwnerId)
+    AIType -> do
+      color <-
+        maybe
+          ( throwIO
+              MissingRequiredField
+                { entity = "ai_game"
+                , field = "player_color"
+                , entityId = show row.gameId
+                }
+          )
+          (pure . toDomain)
+          row.aiPlayerColor
+      engineId <-
+        maybe
+          ( throwIO
+              MissingRequiredField
+                { entity = "ai_game"
+                , field = "engine_id"
+                , entityId = show row.gameId
+                }
+          )
+          (pure . toDomain)
+          row.aiEngineId
+      pure $ VsAI (toDomain <$> row.aiPlayerId) color engineId
+    OnlineType ->
+      pure $
+        Online
+          (toParticipant row.onlineWhitePlayerId row.onlineWhiteName)
+          (toParticipant row.onlineBlackPlayerId row.onlineBlackName)
+  pure
+    Game
+      { gameId = toDomain row.gameId
+      , name = row.name
+      , mode = mode
+      , startTime = row.startTime
+      , endTime = row.endTime
+      , outcome = toDomain row.outcome
+      , createdAt = row.createdAt
+      }
 
 --------------------------------------------------------------------------------
 -- Game operations
@@ -106,9 +128,9 @@ createGame gameDb mode conn = do
         conn
 
 getGameById :: GameIdDb -> Connection -> IO Game
-getGameById gameId conn =
-  gameJoinRowToDomain
-    <$> selectSingle
+getGameById gameId conn = do
+  row <-
+    selectSingle
       """
       SELECT g.id, g.name, g.game_type, g.start_time, g.end_time, g.game_status, g.created_at,
              h.owner_id,
@@ -122,11 +144,12 @@ getGameById gameId conn =
       """
       (Only gameId)
       conn
+  gameJoinRowToDomain row
 
 listGamesDb :: Connection -> IO [Game]
-listGamesDb conn =
-  map gameJoinRowToDomain
-    <$> query'
+listGamesDb conn = do
+  rows <-
+    query'
       """
       SELECT g.id, g.name, g.game_type, g.start_time, g.end_time, g.game_status, g.created_at,
              h.owner_id,
@@ -140,6 +163,7 @@ listGamesDb conn =
       """
       ()
       conn
+  traverse gameJoinRowToDomain rows
 
 setOutcomeById ::
   GameIdDb -> OutcomeDb -> Maybe Time -> Connection -> IO ()

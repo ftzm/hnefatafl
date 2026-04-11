@@ -128,6 +128,23 @@ GHC2021 base with these default extensions: `TemplateHaskell`, `OverloadedString
 - Editing `hnefatafl.cabal` directly → changes overwritten by next `hpack` run
 - Not running `cabal clean` after C library rebuild → stale object files linked
 
+## Logging
+
+Structured JSON logging via Katip (`Hnefatafl.Effect.Log`). Log at severity that reflects **operator concern**, not user outcome. A 400 to the user is not automatically an error; a 500 always is.
+
+| Level | Meaning | Examples |
+|---|---|---|
+| `DebugS` | Developer diagnostics. Off in prod. Includes normal external client misbehavior we reject by design (unauth requests, garbage payloads from unknown clients). | Timings, parsed message dumps |
+| `InfoS` | Lifecycle and state changes an operator scanning the log would want to see. Rare enough to not be noise. | Server start, player connect/disconnect, game created |
+| `WarningS` | A contract inside **our own system** was violated but we handled it correctly. The "we handled it" is the handling; the "it happened at all" is the anomaly. Frontend is part of our system. | Frontend sent an illegal move (should have been filtered client-side), stale state, retries, fallback paths |
+| `ErrorS` | Something broke that we couldn't fully handle. A request failed; the system itself is still healthy. | Caught unexpected exception → 500, invariant violation, engine crash during search |
+| `CriticalS` | The system itself is at risk, not just one request. | DB unreachable after retries, server shutting down on fatal error, repeated background-task failures |
+
+Key distinctions:
+- **Warning vs Error** is "did we handle it?", not "is it bad?". A well-handled 400 can be a warning at most; a 500 is always at least an error.
+- **User input errors are not warnings** *unless* the input came from a component we control (frontend). External-client garbage is Debug; frontend contract violations are Warning.
+- **Logs ≠ metrics.** Things you'd naturally count (rate of invalid moves, rate of undos) belong in metrics. Until metrics infra exists, prefer lower log levels over flooding higher ones.
+
 ## Database
 
 SQLite via `sqlite-simple`. Schema in `db/schema.sql`. Key tables:

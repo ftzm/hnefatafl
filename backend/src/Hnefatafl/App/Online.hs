@@ -19,7 +19,6 @@ import Chronos (Time)
 import Data.Aeson (
   FromJSON,
   ToJSON,
-  decode,
   encode,
  )
 import Effectful (Eff, IOE, (:>))
@@ -44,7 +43,13 @@ import Hnefatafl.App.Session (
   tryAcquire,
  )
 import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
-import Hnefatafl.App.WebSocket (decodeAuthToken, guardWebSocket, safeSend)
+import Hnefatafl.App.WebSocket (
+  decodeAuthToken,
+  guardWebSocket,
+  runMessageLoop,
+  safeSend,
+  withGameContext,
+ )
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -59,10 +64,8 @@ import Hnefatafl.Effect.IdGen (IdGen, generateId)
 import Hnefatafl.Effect.Log (
   KatipE,
   Severity (..),
-  katipAddContext,
   katipAddNamespace,
   logTM,
-  sl,
  )
 import Hnefatafl.Effect.Storage (
   Storage,
@@ -332,36 +335,20 @@ handleWebSocket sessions conn = katipAddNamespace "online" $ do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
         Nothing -> sendData conn (encode $ WsError InvalidToken "invalid token")
-        Just tok -> guardWebSocket conn $ do
+        Just tok -> do
           let gameId = tok.gameId
               color = tok.role
-          katipAddNamespace "game" $
-            katipAddContext (sl "gameId" (show @Text gameId)) $
-              katipAddContext (sl "player" (show @Text color)) $ do
-                sessionVar <- getOrCreateSession sessions gameId
-                uid <- generateId
-                $(logTM) InfoS "player connected"
-                (connVar, gameState) <- connectPlayer sessionVar color uid conn
-                safeSend connVar (encode $ gameStateMessage gameId gameState)
-                -- Receive loop with disconnect cleanup
-                receiveLoop sessionVar gameId color connVar
-                  `finally` do
-                    $(logTM) InfoS "player disconnected"
-                    disconnectPlayer sessionVar color uid
-                    STM.atomically $ release gameId sessions
-
--- | Read messages from the WebSocket and process them.
-receiveLoop ::
-  (Storage :> es, Clock :> es, Concurrent :> es, WebSocket :> es, KatipE :> es) =>
-  MVar GameSession ->
-  GameId ->
-  PlayerColor ->
-  MVar Connection ->
-  Eff es ()
-receiveLoop sessionVar gameId color connVar = do
-  conn <- MVar.readMVar connVar
-  forever $ do
-    msg <- receiveData conn
-    case decode msg of
-      Nothing -> safeSend connVar (encode $ WsError InvalidMessage "invalid message")
-      Just clientMsg -> processEvent sessionVar gameId color clientMsg
+          -- Game context wraps guardWebSocket so that any exception the
+          -- outer guard catches is still logged with gameId/player context.
+          withGameContext gameId color $
+            guardWebSocket conn $ do
+              sessionVar <- getOrCreateSession sessions gameId
+              uid <- generateId
+              $(logTM) InfoS "player connected"
+              (connVar, gameState) <- connectPlayer sessionVar color uid conn
+              safeSend connVar (encode $ gameStateMessage gameId gameState)
+              runMessageLoop connVar (processEvent sessionVar gameId color)
+                `finally` do
+                  $(logTM) InfoS "player disconnected"
+                  disconnectPlayer sessionVar color uid
+                  STM.atomically $ release gameId sessions

@@ -11,6 +11,7 @@ import Hnefatafl.Api.Routes (
 import Hnefatafl.Bindings (SearchTrustedResult (..), startBoard)
 import Hnefatafl.Client (HnefataflClient, createClient)
 import Hnefatafl.Core.Data (Move (..))
+import Hnefatafl.Effect.Log (Severity (..))
 import Hnefatafl.Search (SearchTimeout (..))
 import Hnefatafl.Server (runServer)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
@@ -92,7 +93,7 @@ setupTestServer = do
   let client = createClient
 
   -- Start server in background
-  serverAsync <- async (runServer testPort)
+  serverAsync <- async (runServer testPort ErrorS)
   -- Wait a moment for server to start
   threadDelay 100000 -- 100ms
   pure ((clientEnv, client), serverAsync)

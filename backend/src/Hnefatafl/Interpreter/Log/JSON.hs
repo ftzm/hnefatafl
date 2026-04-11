@@ -8,7 +8,7 @@ import Katip (
   ColorStrategy (ColorIfTerminal),
   LogEnv,
   Namespace (..),
-  Severity (DebugS),
+  Severity,
   Verbosity (V2),
   closeScribes,
   defaultScribeSettings,
@@ -19,14 +19,14 @@ import Katip (
   registerScribe,
  )
 
-withJsonLogEnv :: Text -> (LogEnv -> IO a) -> IO a
-withJsonLogEnv appName action = do
+withJsonLogEnv :: Text -> Severity -> (LogEnv -> IO a) -> IO a
+withJsonLogEnv appName minSeverity action = do
   scribe <-
     mkHandleScribeWithFormatter
       jsonFormat
       ColorIfTerminal
       stdout
-      (permitItem DebugS)
+      (permitItem minSeverity)
       V2
   let mkEnv =
         registerScribe "stdout" scribe defaultScribeSettings
