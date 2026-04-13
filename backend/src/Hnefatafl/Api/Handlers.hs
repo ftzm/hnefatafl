@@ -28,6 +28,7 @@ import Hnefatafl.Effect.Search (Search (..))
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
+import Hnefatafl.Metrics (HMetrics)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
 import Version qualified
@@ -42,6 +43,7 @@ server ::
   , KatipE :> es
   , Trace :> es
   , Error ServerError :> es
+  , HMetrics :> es
   , IOE :> es
   ) =>
   Online.GameSessions ->

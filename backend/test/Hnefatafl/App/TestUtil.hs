@@ -33,11 +33,13 @@ import Hnefatafl.App.WebSocket (encodeAuthMsg)
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
+import Hnefatafl.Metrics (HMetrics)
 import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
+import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Interpreter.WebSocket.IO (runWebSocketIO)
 import Hnefatafl.Logging (withNoLogEnv)
@@ -124,6 +126,7 @@ runHotseatTest ::
     , IdGen :> es
     , KatipE :> es
     , Trace :> es
+    , HMetrics :> es
     ) =>
     Eff es a
   ) ->
@@ -135,8 +138,9 @@ runHotseatTest connVar action = do
       . runConcurrent
       . runKatipE logEnv
       . runTraceNoOp
-      . runStorageSQLite connVar
+      . runMetricsNoOp
       . runClockIO
+      . runStorageSQLite connVar
       . runIdGenUUIDv7
       $ action
   case result of
@@ -156,6 +160,7 @@ runOnlineTest ::
     , WebSocket :> es
     , KatipE :> es
     , Trace :> es
+    , HMetrics :> es
     ) =>
     Eff es a
   ) ->
@@ -166,9 +171,10 @@ runOnlineTest connVar action = do
       . runErrorNoCallStack @String
       . runKatipE logEnv
       . runTraceNoOp
+      . runMetricsNoOp
       . runConcurrent
-      . runStorageSQLite connVar
       . runClockIO
+      . runStorageSQLite connVar
       . runIdGenUUIDv7
       . runWebSocketIO
       $ action

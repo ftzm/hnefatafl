@@ -49,6 +49,7 @@ import Hnefatafl.Interpreter.IdGen.UUIDv7
 import Hnefatafl.Interpreter.Search.Local
 import Hnefatafl.Interpreter.Search.Remote
 import Hnefatafl.Interpreter.Storage.SQLite
+import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Logging (withNoLogEnv)
 import Hnefatafl.SelfPlay (VersionId (..))
@@ -286,8 +287,9 @@ withStandardEffects dbPathOpt eff = do
           . runConcurrent
           . runKatipE logEnv
           . runTraceNoOp
-          . runStorageSQLite connectionVar
+          . runMetricsNoOp
           . runClockIO
+          . runStorageSQLite connectionVar
           . runIdGenUUIDv7
           $ eff
   close conn
@@ -375,7 +377,9 @@ runSelfPlayWithInterpreters numActors stateDir startPositionsFile oldServerUrlSt
         runErrorNoCallStack @ClientError $
           runConcurrent $
             runKatipE logEnv $
-              runTraceNoOp $ do
+              runTraceNoOp $
+              runMetricsNoOp $
+              runClockIO $ do
                 qsem <- newQSem numActors
                 runFileSystem $
                   runLabeled @"new" (runSearchLocal qsem) $

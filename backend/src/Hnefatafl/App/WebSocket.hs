@@ -24,6 +24,7 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Exception (catch, catchSync, throwIO)
 import Effectful.Katip (KatipE, katipAddContext, katipAddNamespace)
+import Hnefatafl.Metrics (HMetrics, Hs (..), increaseLabelledCounter)
 import Hnefatafl.Api.Types.WS (WsError (..), WsErrorCode (..))
 import Hnefatafl.Core.Data (GameId, GameParticipantToken, PlayerColor)
 import Hnefatafl.Effect.Storage (Storage, getTokenByText, runTransaction)
@@ -144,6 +145,7 @@ runMessageLoop ::
   , Concurrent :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   ) =>
   MVar Connection ->
   (msg -> Eff es ()) ->
@@ -153,8 +155,12 @@ runMessageLoop connVar handle = do
   forever $ tryNonFatal connVar $ do
     raw <- receiveData conn
     case decode raw of
-      Nothing -> safeSend connVar (encode $ WsError InvalidMessage "invalid message")
-      Just msg -> inSpan "ws.message" $ handle msg
+      Nothing -> do
+        increaseLabelledCounter wsMessagesTotal "invalid"
+        safeSend connVar (encode $ WsError InvalidMessage "invalid message")
+      Just msg -> do
+        increaseLabelledCounter wsMessagesTotal "received"
+        inSpan "ws.message" $ handle msg
 
 -- | Add the @game@ namespace together with @gameId@ and @player@ context
 -- fields for the enclosed action.

@@ -5,7 +5,6 @@ import Hnefatafl.Bindings (startBlackMoves, startBoard)
 import Hnefatafl.Core.Data (MoveWithCaptures (..), PlayerColor (..))
 import Hnefatafl.Game.Common (currentBoard)
 import Hnefatafl.Game.Hotseat (
-  Command (..),
   Event (..),
   Phase (..),
   State (..),
@@ -15,17 +14,14 @@ import Hnefatafl.Game.Hotseat (
  )
 import Hnefatafl.Game.TestUtil (
   PersistenceStore (..),
+  applyEvents,
   emptyStore,
-  executePersistence,
  )
 import Test.QuickCheck (Gen, elements, frequency, (===))
 import Test.QuickCheck qualified as QC
 import Test.Tasty (TestTree)
 import Test.Tasty.QuickCheck (testProperty)
 import Prelude hiding (State)
-
-executeCommands :: [Command] -> PersistenceStore -> PersistenceStore
-executeCommands cmds store = foldl' (\s (Persist c) -> executePersistence c s) store cmds
 
 fromStore :: PersistenceStore -> State
 fromStore store =
@@ -79,5 +75,5 @@ test_hotseatRoundTrip =
       let s = case steps of
             [] -> State startBoard [] (Awaiting Black (toList startBlackMoves))
             _ -> (snd (fromMaybe (error "empty") (viaNonEmpty last steps))).newState
-          store = foldl' (\acc (_, tr) -> executeCommands tr.commands acc) emptyStore steps
+          store = foldl' (\acc (_, tr) -> applyEvents tr.events acc) emptyStore steps
        in fromStore store === s

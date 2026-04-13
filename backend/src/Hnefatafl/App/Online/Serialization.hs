@@ -1,6 +1,5 @@
 module Hnefatafl.App.Online.Serialization (
-  notificationMessage,
-  actorNotificationMessage,
+  notificationsFor,
   gameStateMessage,
 ) where
 
@@ -21,15 +20,35 @@ import Hnefatafl.Core.Data (
   GameId,
   MoveWithCaptures (..),
   PlayerColor (..),
+  opponent,
  )
-import Hnefatafl.Core.Data qualified as Core
-import Hnefatafl.Game.Common (AppliedMove (..))
+import Hnefatafl.Game.Common (AppliedMove (..), DomainEvent (..))
 import Hnefatafl.Game.Online qualified as Online
 
--- | Serialize a notification for the opponent.
-notificationMessage :: Online.State -> Online.Notification -> OnlineServerMessage
-notificationMessage newState = \case
-  Online.OpponentMoved am ->
+-- | Derive notifications from domain events. Returns (target, message) pairs.
+notificationsFor ::
+  PlayerColor -> Online.State -> [DomainEvent] -> [(PlayerColor, OnlineServerMessage)]
+notificationsFor actor newState = concatMap $ \case
+  MovePlayed am ->
+    [(opponent actor, opponentMovedMsg am)]
+  GameEnded outcome ->
+    let msg = OnlineGameOver{_status = gameStatusFromDomain (Just outcome)}
+     in [(opponent actor, msg), (actor, msg)]
+  MovesUndone _ ->
+    let msg = undoMsg
+     in [(opponent actor, msg), (actor, msg)]
+  DrawOffered color ->
+    [(opponent actor, OnlineDrawOffered{_by = color})]
+  DrawDeclined ->
+    [(opponent actor, OnlineDrawDeclined)]
+  UndoRequested color ->
+    [(opponent actor, OnlineUndoRequested{_by = color})]
+  UndoDeclined ->
+    [(opponent actor, OnlineUndoDeclined)]
+  OfferCancelled ->
+    []
+ where
+  opponentMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields newState
      in OnlineOpponentMoved
           { _move = moveFromDomain (MoveWithCaptures am.move am.captures)
@@ -39,35 +58,7 @@ notificationMessage newState = \case
           , _validMoves = validMoves'
           , _board = board'
           }
-  Online.OpponentResigned color ->
-    OnlineGameOver{_status = gameStatusFromDomain (Just (Core.ResignedBy color))}
-  Online.OpponentTimedOut color ->
-    OnlineGameOver{_status = gameStatusFromDomain (Just (Core.TimedOut color))}
-  Online.DrawOffered color ->
-    OnlineDrawOffered{_by = color}
-  Online.DrawAccepted ->
-    OnlineGameOver{_status = gameStatusFromDomain (Just Core.Draw)}
-  Online.DrawDeclined ->
-    OnlineDrawDeclined
-  Online.UndoRequested color ->
-    OnlineUndoRequested{_by = color}
-  Online.UndoAccepted ->
-    let (turn', status', validMoves', board') = activeStateFields newState
-     in OnlineUndoAccepted
-          { _turn = turn'
-          , _status = status'
-          , _validMoves = validMoves'
-          , _board = board'
-          }
-  Online.UndoDeclined ->
-    OnlineUndoDeclined
-
--- | Serialize an actor notification.
-actorNotificationMessage :: Online.State -> Online.ActorNotification -> OnlineServerMessage
-actorNotificationMessage newState = \case
-  Online.GameEnded outcome ->
-    OnlineGameOver{_status = gameStatusFromDomain (Just outcome)}
-  Online.UndoApplied ->
+  undoMsg =
     let (turn', status', validMoves', board') = activeStateFields newState
      in OnlineUndoAccepted
           { _turn = turn'
@@ -97,8 +88,7 @@ gameStateMessage gId (Online.State board moves phase) =
       , fmap pendingActionFromDomain pending
       )
     Online.Finished outcome ->
-      ( -- Turn is irrelevant when finished; use Black as default
-        Black
+      ( Black
       , gameStatusFromDomain (Just outcome)
       , []
       , Nothing

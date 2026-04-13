@@ -14,6 +14,9 @@ import Effectful.Dispatch.Dynamic
 import Effectful.Exception (catchSync, onException, throwIO)
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
+import Chronos (getTimespan)
+import Hnefatafl.Effect.Clock (Clock, stopwatch)
+import Hnefatafl.Metrics (HMetrics, Hs (..), observe)
 import Hnefatafl.Effect.Trace (Trace, addSpanAttribute, inSpan)
 import Hnefatafl.Exception (DatabaseException (..), DomainException)
 import Hnefatafl.Interpreter.Storage.SQLite.Game (
@@ -56,13 +59,18 @@ withSavepoint conn txAction = do
   pure result
 
 runStorageSQLite ::
-  (IOE :> es, Concurrent :> es, Trace :> es) =>
+  (IOE :> es, Concurrent :> es, Trace :> es, HMetrics :> es, Clock :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLite connectionVar = interpret $ \_ -> \case
   RunTransaction txAction ->
-    inSpan "db.transaction" $
-      MVar.withMVar connectionVar $
-        \conn -> withSavepoint conn txAction
+    inSpan "db.transaction" $ do
+      (elapsed, result) <-
+        stopwatch $
+          MVar.withMVar connectionVar $
+            \conn -> withSavepoint conn txAction
+      let durationSec = fromIntegral (getTimespan elapsed) / 1_000_000_000
+      observe dbTransaction durationSec
+      pure result
 
 dispatch :: StorageCmd a -> Connection -> IO a
 dispatch = \case

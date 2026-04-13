@@ -12,6 +12,7 @@ data-files:
 
 library
   exposed-modules:
+      Effectful.Prometheus
       Hnefatafl.Api.AsyncApi
       Hnefatafl.Api.Handlers
       Hnefatafl.Api.Handlers.AI
@@ -55,6 +56,7 @@ library
       Hnefatafl.Import
       Hnefatafl.Interpreter.Clock.IO
       Hnefatafl.Interpreter.IdGen.UUIDv7
+      Hnefatafl.Interpreter.Metrics.NoOp
       Hnefatafl.Interpreter.Search.Local
       Hnefatafl.Interpreter.Search.Remote
       Hnefatafl.Interpreter.Search.Test
@@ -70,6 +72,7 @@ library
       Hnefatafl.Interpreter.Trace.OTel
       Hnefatafl.Interpreter.WebSocket.IO
       Hnefatafl.Logging
+      Hnefatafl.Metrics
       Hnefatafl.QQ.Move
       Hnefatafl.Search
       Hnefatafl.SelfPlay
@@ -127,6 +130,7 @@ library
     , hs-opentelemetry-sdk
     , http-api-data
     , http-client
+    , http-types
     , insert-ordered-containers
     , katip
     , katip-effectful
@@ -134,6 +138,8 @@ library
     , openapi3
     , optics
     , optparse-applicative
+    , prometheus-client
+    , prometheus-metrics-ghc
     , relude
     , resourcet
     , safe-exceptions
@@ -156,6 +162,7 @@ library
     , vty
     , vty-unix
     , wai
+    , wai-middleware-prometheus
     , wai-websockets
     , warp
     , websockets
@@ -212,12 +219,15 @@ library hnefatafl-version
     , hs-opentelemetry-sdk
     , http-api-data
     , http-client
+    , http-types
     , katip
     , katip-effectful
     , list-t
     , openapi3
     , optics
     , optparse-applicative
+    , prometheus-client
+    , prometheus-metrics-ghc
     , relude
     , resourcet
     , safe-exceptions
@@ -240,6 +250,7 @@ library hnefatafl-version
     , vty
     , vty-unix
     , wai
+    , wai-middleware-prometheus
     , wai-websockets
     , warp
     , websockets
@@ -296,12 +307,15 @@ executable cli
     , hs-opentelemetry-sdk
     , http-api-data
     , http-client
+    , http-types
     , katip
     , katip-effectful
     , list-t
     , openapi3
     , optics
     , optparse-applicative
+    , prometheus-client
+    , prometheus-metrics-ghc
     , relude
     , resourcet
     , safe-exceptions
@@ -324,6 +338,7 @@ executable cli
     , vty
     , vty-unix
     , wai
+    , wai-middleware-prometheus
     , wai-websockets
     , warp
     , websockets
@@ -380,12 +395,15 @@ executable dump-specs
     , hs-opentelemetry-sdk
     , http-api-data
     , http-client
+    , http-types
     , katip
     , katip-effectful
     , list-t
     , openapi3
     , optics
     , optparse-applicative
+    , prometheus-client
+    , prometheus-metrics-ghc
     , relude
     , resourcet
     , safe-exceptions
@@ -408,6 +426,7 @@ executable dump-specs
     , vty
     , vty-unix
     , wai
+    , wai-middleware-prometheus
     , wai-websockets
     , warp
     , websockets
@@ -496,6 +515,7 @@ test-suite hnefatafl-test
     , hspec-expectations-pretty-diff
     , http-api-data
     , http-client
+    , http-types
     , katip
     , katip-effectful
     , list-t
@@ -503,6 +523,8 @@ test-suite hnefatafl-test
     , optics
     , optparse-applicative
     , process
+    , prometheus-client
+    , prometheus-metrics-ghc
     , relude
     , resourcet
     , safe-exceptions
@@ -530,6 +552,7 @@ test-suite hnefatafl-test
     , vty
     , vty-unix
     , wai
+    , wai-middleware-prometheus
     , wai-websockets
     , warp
     , websockets

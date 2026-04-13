@@ -20,6 +20,7 @@ import Hnefatafl.Api.Handlers (server)
 import Hnefatafl.Api.Routes (HnefataflAPI)
 import Hnefatafl.Exception (guardExceptions)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
+import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
 import Hnefatafl.Interpreter.Search.Local (runSearchLocal)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
@@ -66,8 +67,9 @@ runServer port logLevel = runResourceT $ do
       . runConcurrent
       . runKatipE logEnv
       . runTraceOTel tracer
-      . runStorageSQLite connectionVar
+      . runMetricsNoOp
       . runClockIO
+      . runStorageSQLite connectionVar
       . runIdGenUUIDv7
       . runSearchLocal qsem
       . runWebSocketIO

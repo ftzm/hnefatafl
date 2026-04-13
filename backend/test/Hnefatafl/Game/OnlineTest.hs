@@ -5,6 +5,7 @@ import Hnefatafl.Bindings (startBlackMoves, startBoard)
 import Hnefatafl.Core.Data (MoveWithCaptures (..), Outcome (..), PlayerColor (..))
 import Hnefatafl.Game.Common (
   AppliedMove (..),
+  DomainEvent (..),
   PendingAction (..),
   PendingActionType (..),
   currentBoard,
@@ -12,10 +13,7 @@ import Hnefatafl.Game.Common (
   validMovesForPosition,
  )
 import Hnefatafl.Game.Online (
-  ActorNotification (..),
-  Command (..),
   Event (..),
-  Notification (..),
   Phase (..),
   State (..),
   TransitionResult (..),
@@ -24,8 +22,8 @@ import Hnefatafl.Game.Online (
  )
 import Hnefatafl.Game.TestUtil (
   PersistenceStore (..),
+  applyEvents,
   emptyStore,
-  executePersistence,
  )
 import Test.QuickCheck (Gen, elements, frequency, (===))
 import Test.QuickCheck qualified as QC
@@ -33,12 +31,6 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
 import Test.Tasty.QuickCheck (testProperty)
 import Prelude hiding (State, state)
-
-executeCommands :: [Command] -> PersistenceStore -> PersistenceStore
-executeCommands cmds store = foldl' go store cmds
- where
-  go s (Persist c) = executePersistence c s
-  go s _ = s
 
 fromStore :: PersistenceStore -> State
 fromStore store =
@@ -121,7 +113,7 @@ test_onlineRoundTrip =
       let s = case steps of
             [] -> initialState
             _ -> (snd (fromMaybe (error "empty") (viaNonEmpty last steps))).newState
-          store = foldl' (\acc (_, tr) -> executeCommands tr.commands acc) emptyStore steps
+          store = foldl' (\acc (_, tr) -> applyEvents tr.events acc) emptyStore steps
        in fromStore store === s
 
 test_onlineCancellation :: TestTree
@@ -167,7 +159,6 @@ test_onlineUndoCount =
   testGroup
     "Online undo move count"
     [ testCase "Undo 1 move when requester just moved (opponent's turn)" $ do
-        -- Black moves, it's White's turn, Black requested undo, White accepts
         let move = (head startBlackMoves).move
         case transition initialState (MakeMove Black move (Time 0)) of
           Right tr -> do
@@ -190,7 +181,6 @@ test_onlineUndoCount =
               Left e -> fail $ "Expected Right, got Left " <> show e
           Left e -> fail $ "Setup move failed: " <> show e
     , testCase "Undo 2 moves when opponent responded (requester's turn)" $ do
-        -- Black moves, White moves, it's Black's turn, Black requests undo, White accepts
         let blackMove = (head startBlackMoves).move
         case transition initialState (MakeMove Black blackMove (Time 0)) of
           Right tr1 -> case tr1.newState of
@@ -226,20 +216,14 @@ assertRight :: Show e => Either e a -> IO a
 assertRight (Right a) = pure a
 assertRight (Left e) = fail $ "Transition failed: " <> show e
 
-test_onlineActorNotifications :: TestTree
-test_onlineActorNotifications =
+test_onlineGameEndEvents :: TestTree
+test_onlineGameEndEvents =
   testGroup
-    "Online actor notifications"
-    [ testCase "Resign notifies both opponent and actor" $ do
+    "Online game end domain events"
+    [ testCase "Resign emits GameEnded" $ do
         tr <- assertRight $ transition initialState (Resign Black)
-        let opponentNotifs = [n | NotifyOpponent n <- tr.commands]
-            actorNotifs = [n | NotifyActor n <- tr.commands]
-        opponentNotifs @?= [OpponentResigned Black]
-        actorNotifs @?= [GameEnded (ResignedBy Black)]
-    , testCase "Timeout notifies both opponent and actor" $ do
+        tr.events @?= [GameEnded (ResignedBy Black)]
+    , testCase "Timeout emits GameEnded" $ do
         tr <- assertRight $ transition initialState (Timeout Black)
-        let opponentNotifs = [n | NotifyOpponent n <- tr.commands]
-            actorNotifs = [n | NotifyActor n <- tr.commands]
-        opponentNotifs @?= [OpponentTimedOut Black]
-        actorNotifs @?= [GameEnded (TimedOut Black)]
+        tr.events @?= [GameEnded (TimedOut Black)]
     ]

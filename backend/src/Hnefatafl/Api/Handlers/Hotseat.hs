@@ -28,6 +28,7 @@ import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.Trace (Trace)
+import Hnefatafl.Metrics (HMetrics)
 import Hnefatafl.Game.Common qualified as Common
 import Hnefatafl.Game.Hotseat qualified as HotseatGame
 import Katip (Severity (..), ls)
@@ -40,6 +41,7 @@ hotseatServer ::
   , IdGen :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   , Error ServerError :> es
   , IOE :> es
   ) =>
@@ -101,7 +103,7 @@ badRequest msg = throwError err400{errBody = encodeUtf8 msg}
 -- Handlers
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es, HMetrics :> es) =>
   Eff es ApiGameState
 createHandler = katipAddNamespace "hotseat" $ do
   game <- Hotseat.createGame
@@ -116,7 +118,7 @@ getHandler gameId = katipAddNamespace "hotseat" $ do
   pure $ toApiGameState gameId gameState
 
 moveHandler ::
-  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, Error ServerError :> es) =>
+  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, HMetrics :> es, Error ServerError :> es) =>
   GameId -> ApiMove -> Eff es ActionResponse
 moveHandler gameId apiMove = katipAddNamespace "hotseat" $ do
   result <- Hotseat.makeMove gameId (moveToDomain apiMove)
@@ -127,7 +129,7 @@ moveHandler gameId apiMove = katipAddNamespace "hotseat" $ do
     Right gu -> pure $ toActionResponse gu
 
 undoHandler ::
-  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, Error ServerError :> es) =>
+  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, HMetrics :> es, Error ServerError :> es) =>
   GameId -> Eff es ActionResponse
 undoHandler gameId = katipAddNamespace "hotseat" $ do
   result <- Hotseat.undoMove gameId
@@ -138,7 +140,7 @@ undoHandler gameId = katipAddNamespace "hotseat" $ do
     Right gu -> pure $ toActionResponse gu
 
 resignHandler ::
-  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, Error ServerError :> es) =>
+  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, HMetrics :> es, Error ServerError :> es) =>
   GameId -> PlayerColor -> Eff es ActionResponse
 resignHandler gameId color = katipAddNamespace "hotseat" $ do
   result <- Hotseat.resign gameId color
@@ -149,7 +151,7 @@ resignHandler gameId color = katipAddNamespace "hotseat" $ do
     Right gu -> pure $ toActionResponse gu
 
 drawHandler ::
-  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, Error ServerError :> es) =>
+  (Storage :> es, Clock :> es, KatipE :> es, Trace :> es, HMetrics :> es, Error ServerError :> es) =>
   GameId -> Eff es ActionResponse
 drawHandler gameId = katipAddNamespace "hotseat" $ do
   result <- Hotseat.agreeDraw gameId

@@ -1,5 +1,5 @@
 module Hnefatafl.App.AI.Serialization (
-  notificationMessage,
+  notificationsFor,
   gameStateMessage,
 ) where
 
@@ -22,12 +22,26 @@ import Hnefatafl.Core.Data (
   PlayerColor,
  )
 import Hnefatafl.Game.AI qualified as AI
-import Hnefatafl.Game.Common (AppliedMove (..))
+import Hnefatafl.Game.Common (AppliedMove (..), DomainEvent (..))
 
--- | Convert a player notification to an AIServerMessage.
-notificationMessage :: AI.State -> AI.PlayerNotification -> AIServerMessage
-notificationMessage newState = \case
-  AI.EngineMoved am ->
+-- | Derive notifications for the human player from domain events.
+-- The human only needs to hear about things they didn't initiate.
+notificationsFor ::
+  PlayerColor -> AI.State -> [DomainEvent] -> [AIServerMessage]
+notificationsFor humanColor newState = concatMap $ \case
+  MovePlayed am
+    | am.side /= humanColor -> [engineMovedMsg am]
+    | otherwise -> []
+  GameEnded outcome ->
+    [AIGameOver{_status = gameStatusFromDomain (Just outcome)}]
+  MovesUndone _ -> [undoMsg]
+  DrawOffered _ -> []
+  DrawDeclined -> []
+  UndoRequested _ -> []
+  UndoDeclined -> []
+  OfferCancelled -> []
+ where
+  engineMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields newState
      in AIEngineMoved
           { _move = moveFromDomain (MoveWithCaptures am.move am.captures)
@@ -37,9 +51,7 @@ notificationMessage newState = \case
           , _validMoves = validMoves'
           , _board = board'
           }
-  AI.GameEnded outcome ->
-    AIGameOver{_status = gameStatusFromDomain (Just outcome)}
-  AI.UndoApplied ->
+  undoMsg =
     let (turn', status', validMoves', board') = activeStateFields newState
      in AIUndoApplied
           { _turn = turn'

@@ -15,6 +15,7 @@ import Hnefatafl.Core.Data (
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.Trace (Trace)
+import Hnefatafl.Metrics (HMetrics)
 import Hnefatafl.Game.Hotseat (Phase (..), State (..))
 import Hnefatafl.Interpreter.Storage.SQLite.Util (withSharedDB)
 import Test.Hspec (Spec, around, describe, it, shouldBe, shouldSatisfy)
@@ -112,7 +113,7 @@ spec_hotseat_integration = around withSharedDB $ do
 
 -- | Play moves until the game ends or we run out of moves.
 playAllMoves ::
-  (Storage :> es, Clock :> es, IOE :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, IOE :> es, Trace :> es, HMetrics :> es) =>
   GameId ->
   [Move] ->
   Eff es ()

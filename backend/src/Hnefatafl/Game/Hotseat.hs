@@ -2,7 +2,6 @@ module Hnefatafl.Game.Hotseat (
   Phase (..),
   State (..),
   Event (..),
-  Command (..),
   TransitionResult (..),
   transition,
   reconstruct,
@@ -19,7 +18,7 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  PersistenceCommand (..),
+  DomainEvent (..),
   TransitionError (..),
   currentBoard,
   currentTurn,
@@ -48,12 +47,9 @@ data Event
   | Timeout PlayerColor
   deriving (Show, Eq)
 
-newtype Command = Persist PersistenceCommand
-  deriving (Show, Eq)
-
 data TransitionResult = TransitionResult
   { newState :: State
-  , commands :: [Command]
+  , events :: [DomainEvent]
   }
   deriving (Show, Eq)
 
@@ -78,13 +74,11 @@ transition (State board moves (Awaiting turn validMoves)) = \case
           Just outcome ->
             TransitionResult
               (State applied.boardAfter moves' (Finished outcome))
-              [ Persist $ PersistMove applied
-              , Persist $ PersistOutcome outcome
-              ]
+              [MovePlayed applied, GameEnded outcome]
           Nothing ->
             TransitionResult
               (State applied.boardAfter moves' (Awaiting (opponent turn) nextValidMoves))
-              [Persist $ PersistMove applied]
+              [MovePlayed applied]
   Undo ->
     case undoMoves 1 moves of
       Nothing -> Left NoMovesToUndo
@@ -92,24 +86,24 @@ transition (State board moves (Awaiting turn validMoves)) = \case
         Right $
           TransitionResult
             (mkAwaiting (currentBoard moves') moves')
-            [Persist $ DeleteMoves 1]
+            [MovesUndone 1]
   Resign color ->
     let outcome = ResignedBy color
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            [Persist $ PersistOutcome outcome]
+            [GameEnded outcome]
   AgreeDraw ->
     Right $
       TransitionResult
         (State board moves (Finished Draw))
-        [Persist $ PersistOutcome Draw]
+        [GameEnded Draw]
   Timeout color ->
     let outcome = TimedOut color
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            [Persist $ PersistOutcome outcome]
+            [GameEnded outcome]
 
 -- | Reconstruct state from persisted data
 reconstruct :: ExternBoard -> [AppliedMove] -> Maybe Outcome -> State

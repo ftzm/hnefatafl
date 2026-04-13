@@ -14,7 +14,11 @@ import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Katip (KatipE, runKatipE)
 import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
+import Hnefatafl.Effect.Clock (Clock)
+import Hnefatafl.Interpreter.Clock.IO (runClockIO)
+import Hnefatafl.Metrics (HMetrics)
 import Hnefatafl.Effect.Trace (Trace)
+import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Logging (withNoLogEnv)
@@ -35,7 +39,7 @@ withSharedDB action = do
 
 -- | Run storage effects with automatic rollback for test isolation
 runStorageSQLiteWithRollback ::
-  (IOE :> es, KatipE :> es, Concurrent :> es, Trace :> es) =>
+  (IOE :> es, KatipE :> es, Concurrent :> es, Trace :> es, HMetrics :> es, Clock :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLiteWithRollback connectionVar action = do
   -- Start transaction
@@ -60,6 +64,8 @@ runStorageTest connectionVar action =
           . runConcurrent
           . runKatipE logEnv
           . runTraceNoOp
+          . runMetricsNoOp
+          . runClockIO
           $ runStorageSQLiteWithRollback connectionVar action
       )
       <&> first displayException
@@ -126,6 +132,8 @@ shouldThrowException action connectionVar = do
       . runConcurrent
       . runKatipE logEnv
       . runTraceNoOp
+      . runMetricsNoOp
+      . runClockIO
       $ runStorageSQLiteWithRollback connectionVar action
   case result of
     Left exception -> case fromException @e exception of

@@ -22,6 +22,7 @@ import Hnefatafl.Effect.Search (Search)
 import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
+import Hnefatafl.Metrics (HMetrics)
 import Servant (ServerError)
 import Servant.Server.Generic (AsServerT)
 
@@ -35,6 +36,7 @@ aiServer ::
   , KatipE :> es
   , Trace :> es
   , Error ServerError :> es
+  , HMetrics :> es
   , IOE :> es
   ) =>
   AI.GameSessions ->
@@ -46,7 +48,7 @@ aiServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es, HMetrics :> es) =>
   CreateGameRequest -> Eff es CreateGameResponse
 createHandler req = katipAddNamespace "ai" $ do
   result <- AI.createGame req.humanColor

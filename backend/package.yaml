@@ -107,6 +107,10 @@ dependencies:
   - hs-opentelemetry-exporter-otlp
   - hs-opentelemetry-instrumentation-wai
   - hs-opentelemetry-propagator-w3c
+  - prometheus-client
+  - wai-middleware-prometheus
+  - prometheus-metrics-ghc
+  - http-types
 
 executables:
   cli:

@@ -1,5 +1,5 @@
 module Hnefatafl.App.Storage (
-  persistenceCommandsToTx,
+  persistEvents,
   gameMoveToAppliedMoves,
 ) where
 
@@ -20,21 +20,22 @@ import Hnefatafl.Effect.Storage (
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
-  PersistenceCommand (..),
+  DomainEvent (..),
+  PendingAction (..),
+  PendingActionType (..),
   toGameMove,
  )
 
-persistenceCommandsToTx ::
-  GameId -> Time -> [PersistenceCommand] -> StorageTx ()
-persistenceCommandsToTx gameId time = traverse_ go
- where
-  go = \case
-    PersistMove am -> insertMove gameId (toGameMove am)
-    DeleteMoves n -> deleteLastNMoves gameId n
-    PersistOutcome o -> setOutcome gameId o (Just time)
-    PersistPendingAction pa -> insertPendingAction gameId pa time
-    ClearPendingAction -> deletePendingAction gameId
-    NoOp -> pure ()
+persistEvents :: GameId -> Time -> [DomainEvent] -> StorageTx ()
+persistEvents gameId time = traverse_ $ \case
+  MovePlayed am -> insertMove gameId (toGameMove am)
+  GameEnded outcome -> setOutcome gameId outcome (Just time)
+  MovesUndone n -> deleteLastNMoves gameId n
+  DrawOffered color -> insertPendingAction gameId (PendingAction DrawOffer color) time
+  UndoRequested color -> insertPendingAction gameId (PendingAction UndoRequest color) time
+  DrawDeclined -> deletePendingAction gameId
+  UndoDeclined -> deletePendingAction gameId
+  OfferCancelled -> deletePendingAction gameId
 
 -- | Recover AppliedMoves (with zobrist hashes) from stored GameMoves
 -- by replaying the move sequence through the C engine.

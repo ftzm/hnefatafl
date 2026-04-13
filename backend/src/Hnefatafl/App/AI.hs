@@ -25,21 +25,21 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (bracket, catch, catchSync, onException, throwIO)
+import Effectful.Exception (bracket, catch, catchSync, onException)
 import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Types.WS (
   WsError (..),
   WsErrorCode (..),
   transitionErrorToCode,
  )
-import Hnefatafl.App.AI.Serialization (gameStateMessage, notificationMessage)
+import Hnefatafl.App.AI.Serialization (gameStateMessage, notificationsFor)
 import Hnefatafl.App.Session (
   SessionEntry (..),
   insertOrAcquire,
   release,
   tryAcquire,
  )
-import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
+import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistEvents)
 import Hnefatafl.App.WebSocket (
   authenticateWebSocket,
   guardWebSocket,
@@ -58,6 +58,7 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Core.Data qualified as Data
 import Hnefatafl.Effect.Clock (Clock, now)
+import Hnefatafl.Metrics (HMetrics, Hs (..), decGauge, incGauge, increaseLabelledCounter, recordMetrics)
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
 import Hnefatafl.Effect.Search (Search, searchTrusted)
 import Hnefatafl.Effect.Storage (
@@ -72,7 +73,6 @@ import Hnefatafl.Effect.Storage (
  )
 import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
-import Hnefatafl.Exception (GameInvariantException (..))
 import Hnefatafl.Game.AI qualified as AI
 import Hnefatafl.Game.Common (
   AppliedMove (..),
@@ -168,7 +168,7 @@ data CreateGameResult = CreateGameResult
 
 -- | Create a new AI game in the database with a token for the human player.
 createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Trace :> es, HMetrics :> es) =>
   PlayerColor ->
   Eff es CreateGameResult
 createGame humanColor = do
@@ -185,6 +185,7 @@ createGame humanColor = do
   runTransaction $ do
     insertGame game
     createGameParticipantToken token
+  increaseLabelledCounter gamesCreated "ai"
   pure CreateGameResult{game, token}
 
 -------------------------------------------------------------------------------
@@ -203,6 +204,7 @@ connectToGame ::
   , WebSocket :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   ) =>
   GameSessions ->
   GameId ->
@@ -240,9 +242,9 @@ connectToGame sessions gameId humanColor uid conn = do
           -- If engine was thinking (e.g. server restart), re-trigger the search
           when (sessionVar == var) $
             case gameState of
-              AI.State _ moves (AI.EngineThinking _) -> do
+              AI.State _ _ (AI.EngineThinking _) -> do
                 searchAsync <-
-                  spawnEngineSearch sessionVar gameId humanColor moves
+                  spawnEngineSearch sessionVar gameId humanColor
                 MVar.modifyMVar_ sessionVar $
                   \s -> pure s{engineAsync = Just searchAsync}
               _ -> pure ()
@@ -281,6 +283,7 @@ processEvent ::
   , WebSocket :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   ) =>
   MVar GameSession ->
   GameId ->
@@ -293,50 +296,28 @@ processEvent sessionVar gameId event = do
   MVar.modifyMVar_ sessionVar $ \session -> do
     case AI.transition session.humanColor session.gameState event of
       Left err -> do
+        sequence_ [increaseLabelledCounter invalidMovesTotal "ai" | AI.MakeMove _ _ <- [event]]
         sendToPlayer session (encode $ WsError (transitionErrorToCode err) (show err))
         pure session
       Right tr -> do
-        let persistCmds = [cmd | AI.Persist cmd <- tr.commands]
-        runTransaction $ persistenceCommandsToTx gameId currentTime persistCmds
-        -- Send player notifications
-        for_ [n | AI.NotifyPlayer n <- tr.commands] $
-          sendToPlayer session . encode . notificationMessage tr.newState
-        -- Handle engine search commands
-        engineAsync' <- handleEngineCommands sessionVar gameId session tr.commands
-        -- Cancel previous engine search if a new one was triggered or cancelled
-        let shouldCancel = any isCancelOrTrigger tr.commands
-        when shouldCancel $
+        runTransaction $ persistEvents gameId currentTime tr.events
+        for_ (notificationsFor session.humanColor tr.newState tr.events) $
+          sendToPlayer session . encode
+        recordMetrics "ai" tr.events
+        -- Engine control via phase diff
+        let wasThinking = isEngineThinking session.gameState
+            nowThinking = isEngineThinking tr.newState
+        when (wasThinking && not nowThinking) $
           for_ session.engineAsync Async.cancel
+        engineAsync' <-
+          if not wasThinking && nowThinking
+            then Just <$> spawnEngineSearch sessionVar gameId session.humanColor
+            else pure Nothing
         pure session{gameState = tr.newState, engineAsync = engineAsync'}
- where
-  isCancelOrTrigger AI.CancelEngineSearch = True
-  isCancelOrTrigger (AI.TriggerEngineSearch _) = True
-  isCancelOrTrigger _ = False
 
--- | Handle engine-related commands from a transition result.
--- Returns the new engine async handle (if a search was triggered).
-handleEngineCommands ::
-  ( Search :> es
-  , Clock :> es
-  , Concurrent :> es
-  , IOE :> es
-  , WebSocket :> es
-  , Storage :> es
-  , KatipE :> es
-  , Trace :> es
-  ) =>
-  MVar GameSession ->
-  GameId ->
-  GameSession ->
-  [AI.Command] ->
-  Eff es (Maybe (Async.Async ()))
-handleEngineCommands sessionVar gameId session commands =
-  case [moves | AI.TriggerEngineSearch moves <- commands] of
-    [moves] -> Just <$> spawnEngineSearch sessionVar gameId session.humanColor moves
-    [] -> pure Nothing
-    _ ->
-      throwIO $
-        InvariantViolation "multiple TriggerEngineSearch commands in one transition"
+isEngineThinking :: AI.State -> Bool
+isEngineThinking (AI.State _ _ (AI.EngineThinking _)) = True
+isEngineThinking _ = False
 
 -- | Spawn an async thread to run the engine search. When the search
 -- completes, it feeds an EngineMove event back through processEvent.
@@ -349,13 +330,15 @@ spawnEngineSearch ::
   , Storage :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   ) =>
   MVar GameSession ->
   GameId ->
   PlayerColor ->
-  [AppliedMove] ->
   Eff es (Async.Async ())
-spawnEngineSearch sessionVar gameId humanColor moves = do
+spawnEngineSearch sessionVar gameId humanColor = do
+  moves <- MVar.withMVar sessionVar $ \s ->
+    let (AI.State _ ms _) = s.gameState in pure ms
   -- hs-opentelemetry uses a thread-local IORef for span context, which is
   -- not inherited when we fork. Capture the parent context here so we can
   -- restore it inside the forked thread — otherwise the engine.search span
@@ -364,7 +347,7 @@ spawnEngineSearch sessionVar gameId humanColor moves = do
   parentCtx <- liftIO ThreadLocal.getContext
   Async.async $ do
     _ <- liftIO $ ThreadLocal.attachContext parentCtx
-    doSearch
+    doSearch moves
       -- Silently absorb cancellation — it's intentional (e.g. player undo).
       `catch` (\(_ :: Async.AsyncCancelled) -> pure ())
       -- Report any sync failure to the player without killing the session.
@@ -378,7 +361,7 @@ spawnEngineSearch sessionVar gameId humanColor moves = do
             session
             (encode $ WsError EngineSearchFailed ("Engine search failed: " <> show ex))
  where
-  doSearch = do
+  doSearch moves = do
     let board = currentBoard moves
         engineColor = opponent humanColor
         blackToMove = currentTurn moves == Black
@@ -418,6 +401,7 @@ handleWebSocket ::
   , WebSocket :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   , IOE :> es
   ) =>
   GameSessions ->
@@ -442,6 +426,7 @@ handleAuthenticated ::
   , WebSocket :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   , IOE :> es
   ) =>
   GameSessions ->
@@ -469,9 +454,11 @@ handleAuthenticated sessions conn tok =
     safeSend
       connVar
       (encode $ gameStateMessage gameId humanColor gameState)
+    incGauge aiSessions
     $(logTM) InfoS "player connected"
     pure (sessionVar, uid, connVar)
   disconnect (sessionVar, uid, _) = do
+    decGauge aiSessions
     $(logTM) InfoS "player disconnected"
     disconnectPlayer sessionVar uid
     STM.atomically $ release gameId sessions

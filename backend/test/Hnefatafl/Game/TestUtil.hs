@@ -12,9 +12,9 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
+  DomainEvent (..),
   PendingAction (..),
   PendingActionType (..),
-  PersistenceCommand (..),
  )
 import Test.QuickCheck (Arbitrary (..), elements, oneof)
 
@@ -72,12 +72,17 @@ data PersistenceStore = PersistenceStore
 emptyStore :: PersistenceStore
 emptyStore = PersistenceStore [] Nothing Nothing
 
--- | Execute a PersistenceCommand against the in-memory store
-executePersistence :: PersistenceCommand -> PersistenceStore -> PersistenceStore
-executePersistence cmd store = case cmd of
-  PersistMove am -> store{storedMoves = store.storedMoves <> [am]}
-  DeleteMoves n -> store{storedMoves = take (length store.storedMoves - n) store.storedMoves}
-  PersistOutcome o -> store{storedOutcome = Just o}
-  PersistPendingAction pa -> store{storedPendingAction = Just pa}
-  ClearPendingAction -> store{storedPendingAction = Nothing}
-  NoOp -> store
+-- | Execute a DomainEvent against the in-memory store
+applyEvent :: DomainEvent -> PersistenceStore -> PersistenceStore
+applyEvent evt store = case evt of
+  MovePlayed am -> store{storedMoves = store.storedMoves <> [am]}
+  GameEnded o -> store{storedOutcome = Just o}
+  MovesUndone n -> store{storedMoves = take (length store.storedMoves - n) store.storedMoves}
+  DrawOffered color -> store{storedPendingAction = Just (PendingAction DrawOffer color)}
+  UndoRequested color -> store{storedPendingAction = Just (PendingAction UndoRequest color)}
+  DrawDeclined -> store{storedPendingAction = Nothing}
+  UndoDeclined -> store{storedPendingAction = Nothing}
+  OfferCancelled -> store{storedPendingAction = Nothing}
+
+applyEvents :: [DomainEvent] -> PersistenceStore -> PersistenceStore
+applyEvents evts store = foldl' (flip applyEvent) store evts

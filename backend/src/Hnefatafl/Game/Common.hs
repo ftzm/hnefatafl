@@ -11,8 +11,8 @@ module Hnefatafl.Game.Common (
   -- * Errors
   TransitionError (..),
 
-  -- * Commands
-  PersistenceCommand (..),
+  -- * Domain events
+  DomainEvent (..),
 
   -- * Helpers (re-exports)
   opponent,
@@ -84,15 +84,18 @@ data TransitionError
   | EngineError
   deriving (Show, Eq)
 
-data PersistenceCommand
-  = PersistMove AppliedMove
-  | DeleteMoves Int
-  | PersistOutcome Outcome
-  | PersistPendingAction PendingAction
-  | ClearPendingAction
-  | -- a convenience to support conditional persistence actions
-    -- without wrapping everything in Maybe
-    NoOp
+-- | Facts about what happened during a transition. Used for
+-- persistence, notifications, metrics, and other cross-cutting
+-- concerns.
+data DomainEvent
+  = MovePlayed AppliedMove
+  | GameEnded Outcome
+  | MovesUndone Int
+  | DrawOffered PlayerColor
+  | DrawDeclined
+  | UndoRequested PlayerColor
+  | UndoDeclined
+  | OfferCancelled
   deriving (Show, Eq)
 
 winner :: Outcome -> Maybe PlayerColor
@@ -119,20 +122,20 @@ undoMoves n moves
   | otherwise = Just $ take (length moves - n) moves
 
 -- | Conditionally cancel a pending action if it was offered by the given color.
--- Returns the new pending state and any persistence command needed.
+-- Returns the new pending state and any domain events.
 cancelPending ::
   PlayerColor ->
   Maybe PendingAction ->
-  (Maybe PendingAction, PersistenceCommand)
-cancelPending _ Nothing = (Nothing, NoOp)
+  (Maybe PendingAction, [DomainEvent])
+cancelPending _ Nothing = (Nothing, [])
 cancelPending byColor (Just pa)
-  | pa.offeredBy == byColor = (Nothing, ClearPendingAction)
-  | otherwise = (Just pa, NoOp)
+  | pa.offeredBy == byColor = (Nothing, [OfferCancelled])
+  | otherwise = (Just pa, [])
 
--- | Unconditionally clear a pending action, returning any persistence command needed.
-clearPending :: Maybe PendingAction -> PersistenceCommand
-clearPending Nothing = NoOp
-clearPending (Just _) = ClearPendingAction
+-- | Unconditionally clear a pending action, returning any domain events.
+clearPending :: Maybe PendingAction -> [DomainEvent]
+clearPending Nothing = []
+clearPending (Just _) = [OfferCancelled]
 
 -- | Validate that a player can respond to a pending offer.
 respondToOffer ::

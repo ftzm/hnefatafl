@@ -2,8 +2,6 @@ module Hnefatafl.Game.AI (
   Phase (..),
   State (..),
   Event (..),
-  Command (..),
-  PlayerNotification (..),
   TransitionResult (..),
   transition,
   reconstruct,
@@ -20,9 +18,9 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
+  DomainEvent (..),
   PendingAction (..),
   PendingActionType (..),
-  PersistenceCommand (..),
   TransitionError (..),
   cancelPending,
   clearPending,
@@ -63,22 +61,9 @@ data Event
   | Timeout
   deriving (Show, Eq)
 
-data PlayerNotification
-  = EngineMoved AppliedMove
-  | GameEnded Outcome
-  | UndoApplied
-  deriving (Show, Eq)
-
-data Command
-  = Persist PersistenceCommand
-  | TriggerEngineSearch [AppliedMove]
-  | CancelEngineSearch
-  | NotifyPlayer PlayerNotification
-  deriving (Show, Eq)
-
 data TransitionResult = TransitionResult
   { newState :: State
-  , commands :: [Command]
+  , events :: [DomainEvent]
   }
   deriving (Show, Eq)
 
@@ -102,23 +87,16 @@ transition humanColor (State board moves (PlayerTurn validMoves pending)) = \cas
             nextGameStateWithMovesTrusted board (currentTurn moves == Black) move hashes
         let applied = mkAppliedMove moveResult time
             moves' = moves <> [applied]
-            (pending', cancelCmd) = cancelPending engineColor pending
+            (pending', cancelEvts) = cancelPending engineColor pending
         Right $ case outcomeFromEngine engineStatus of
           Just outcome ->
             TransitionResult
               (State applied.boardAfter moves' (Finished outcome))
-              [ Persist $ PersistMove applied
-              , Persist cancelCmd
-              , Persist $ PersistOutcome outcome
-              , NotifyPlayer $ GameEnded outcome
-              ]
+              (MovePlayed applied : cancelEvts <> [GameEnded outcome])
           Nothing ->
             TransitionResult
               (State applied.boardAfter moves' (EngineThinking pending'))
-              [ Persist $ PersistMove applied
-              , Persist cancelCmd
-              , TriggerEngineSearch moves'
-              ]
+              (MovePlayed applied : cancelEvts)
   EngineMove{} -> Left NotYourTurn
   Undo ->
     case undoMoves 2 moves of
@@ -127,65 +105,49 @@ transition humanColor (State board moves (PlayerTurn validMoves pending)) = \cas
         Right $
           TransitionResult
             (mkPlayerTurn (currentBoard moves') moves' Nothing)
-            [ Persist $ DeleteMoves 2
-            , Persist $ clearPending pending
-            , NotifyPlayer UndoApplied
-            ]
+            (clearPending pending <> [MovesUndone 2])
   Resign color ->
     let outcome = ResignedBy color
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            [ Persist (clearPending pending)
-            , Persist $ PersistOutcome outcome
-            ]
+            (clearPending pending <> [GameEnded outcome])
   OfferDraw color
     | isJust pending -> Left ActionAlreadyPending
     | otherwise ->
-        let pa = PendingAction DrawOffer color
-         in Right $
-              TransitionResult
-                (State board moves (PlayerTurn validMoves (Just pa)))
-                [Persist $ PersistPendingAction pa]
+        Right $
+          TransitionResult
+            (State board moves (PlayerTurn validMoves (Just (PendingAction DrawOffer color))))
+            [DrawOffered color]
   AcceptDraw color ->
     respondToOffer color pending $
       TransitionResult
         (State board moves (Finished Draw))
-        [Persist ClearPendingAction, Persist $ PersistOutcome Draw]
+        [OfferCancelled, GameEnded Draw]
   DeclineDraw color ->
     respondToOffer color pending $
       TransitionResult
         (State board moves (PlayerTurn validMoves Nothing))
-        [Persist ClearPendingAction]
+        [DrawDeclined]
   Timeout ->
     let outcome = TimedOut humanColor
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            [ Persist $ clearPending pending
-            , Persist $ PersistOutcome outcome
-            ]
+            (clearPending pending <> [GameEnded outcome])
 transition humanColor (State board moves (EngineThinking pending)) = \case
   EngineMove applied maybeOutcome ->
     let moves' = moves <> [applied]
-        (pending', cancelCmd) = cancelPending humanColor pending
+        (pending', cancelEvts) = cancelPending humanColor pending
      in Right $ case maybeOutcome of
           Just outcome ->
             TransitionResult
               (State applied.boardAfter moves' (Finished outcome))
-              [ Persist $ PersistMove applied
-              , Persist cancelCmd
-              , Persist $ PersistOutcome outcome
-              , NotifyPlayer $ EngineMoved applied
-              , NotifyPlayer $ GameEnded outcome
-              ]
+              (MovePlayed applied : cancelEvts <> [GameEnded outcome])
           Nothing ->
             TransitionResult
               (mkPlayerTurn applied.boardAfter moves' pending')
-              [ Persist $ PersistMove applied
-              , Persist cancelCmd
-              , NotifyPlayer $ EngineMoved applied
-              ]
+              (MovePlayed applied : cancelEvts)
   MakeMove{} -> Left NotYourTurn
   Undo ->
     case undoMoves 1 moves of
@@ -194,45 +156,36 @@ transition humanColor (State board moves (EngineThinking pending)) = \case
         Right $
           TransitionResult
             (mkPlayerTurn (currentBoard moves') moves' Nothing)
-            [ CancelEngineSearch
-            , Persist $ DeleteMoves 1
-            , Persist $ clearPending pending
-            , NotifyPlayer UndoApplied
-            ]
+            (clearPending pending <> [MovesUndone 1])
   Resign color ->
     let outcome = ResignedBy color
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            [ Persist $ clearPending pending
-            , Persist $ PersistOutcome outcome
-            ]
+            (clearPending pending <> [GameEnded outcome])
   OfferDraw color
     | isJust pending -> Left ActionAlreadyPending
     | otherwise ->
-        let pa = PendingAction DrawOffer color
-         in Right $
-              TransitionResult
-                (State board moves (EngineThinking (Just pa)))
-                [Persist $ PersistPendingAction pa]
+        Right $
+          TransitionResult
+            (State board moves (EngineThinking (Just (PendingAction DrawOffer color))))
+            [DrawOffered color]
   AcceptDraw color ->
     respondToOffer color pending $
       TransitionResult
         (State board moves (Finished Draw))
-        [Persist ClearPendingAction, Persist $ PersistOutcome Draw]
+        [OfferCancelled, GameEnded Draw]
   DeclineDraw color ->
     respondToOffer color pending $
       TransitionResult
         (State board moves (EngineThinking Nothing))
-        [Persist ClearPendingAction]
+        [DrawDeclined]
   Timeout ->
     let outcome = TimedOut humanColor
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            [ Persist $ clearPending pending
-            , Persist $ PersistOutcome outcome
-            ]
+            (clearPending pending <> [GameEnded outcome])
 
 -- | Reconstruct state from persisted data.
 -- If it's the engine's turn, returns EngineThinking — the effectful layer

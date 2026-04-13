@@ -32,9 +32,8 @@ import Hnefatafl.Api.Types.WS (
   transitionErrorToCode,
  )
 import Hnefatafl.App.Online.Serialization (
-  actorNotificationMessage,
   gameStateMessage,
-  notificationMessage,
+  notificationsFor,
  )
 import Hnefatafl.App.Session (
   SessionEntry (..),
@@ -42,7 +41,7 @@ import Hnefatafl.App.Session (
   release,
   tryAcquire,
  )
-import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
+import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistEvents)
 import Hnefatafl.App.WebSocket (
   authenticateWebSocket,
   guardWebSocket,
@@ -75,9 +74,9 @@ import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Game.Common (
   currentBoard,
-  opponent,
  )
 import Hnefatafl.Game.Online qualified as Online
+import Hnefatafl.Metrics (HMetrics, Hs (..), decGauge, incGauge, increaseLabelledCounter, recordMetrics)
 import Katip (Severity (..))
 import Network.WebSockets (Connection)
 import StmContainers.Map qualified as STMMap
@@ -186,7 +185,7 @@ data CreateGameResult = CreateGameResult
 -- | Create a new online game in the database with tokens for both players.
 -- Does NOT create a session in the STMMap (lazy creation on WS connect).
 createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, IdGen :> es, Trace :> es, HMetrics :> es) =>
   Eff es CreateGameResult
 createGame = do
   game <- mkGame <$> generateId <*> now
@@ -212,6 +211,7 @@ createGame = do
     insertGame game
     createGameParticipantToken whiteToken
     createGameParticipantToken blackToken
+  increaseLabelledCounter gamesCreated "online"
   pure CreateGameResult{game, whiteToken, blackToken}
 
 -------------------------------------------------------------------------------
@@ -274,6 +274,7 @@ processEvent ::
   , WebSocket :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   ) =>
   MVar GameSession ->
   GameId ->
@@ -288,21 +289,18 @@ processEvent sessionVar gameId color clientMsg = do
   MVar.modifyMVar_ sessionVar $ \session ->
     case Online.transition session.gameState event of
       Left err -> do
+        sequence_
+          [increaseLabelledCounter invalidMovesTotal "online" | Move _ <- [clientMsg]]
         sendToPlayer
           session
           color
           (encode $ WsError (transitionErrorToCode err) (show err))
         pure session
       Right tr -> do
-        let persistCmds = [cmd | Online.Persist cmd <- tr.commands]
-        runTransaction $ persistenceCommandsToTx gameId currentTime persistCmds
-        -- Send notifications to opponent
-        let opponentColor = opponent color
-        for_ [n | Online.NotifyOpponent n <- tr.commands] $
-          sendToPlayer session opponentColor . encode . notificationMessage tr.newState
-        -- Send actor notifications
-        for_ [n | Online.NotifyActor n <- tr.commands] $
-          sendToPlayer session color . encode . actorNotificationMessage tr.newState
+        runTransaction $ persistEvents gameId currentTime tr.events
+        for_ (notificationsFor color tr.newState tr.events) $ \(target, msg) ->
+          sendToPlayer session target (encode msg)
+        recordMetrics "online" tr.events
         pure session{gameState = tr.newState}
 
 -- | Send a message to a player's WebSocket connection, if connected.
@@ -324,6 +322,7 @@ handleWebSocket ::
   , WebSocket :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   , IOE :> es
   ) =>
   GameSessions ->
@@ -347,6 +346,7 @@ handleAuthenticated ::
   , WebSocket :> es
   , KatipE :> es
   , Trace :> es
+  , HMetrics :> es
   , IOE :> es
   ) =>
   GameSessions ->
@@ -375,9 +375,11 @@ handleAuthenticated sessions conn tok =
     safeSend
       connVar
       (encode $ gameStateMessage gameId gameState)
+    incGauge onlineSessions
     $(logTM) InfoS "player connected"
     pure (sessionVar, uid, connVar)
   disconnect (sessionVar, uid, _) = do
+    decGauge onlineSessions
     $(logTM) InfoS "player disconnected"
     disconnectPlayer sessionVar color uid
     STM.atomically $ release gameId sessions

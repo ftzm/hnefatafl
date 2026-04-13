@@ -13,7 +13,6 @@ import Hnefatafl.Core.Data (
   PlayerColor (..),
  )
 import Hnefatafl.Game.AI (
-  Command (..),
   Event (..),
   Phase (..),
   State (..),
@@ -33,8 +32,8 @@ import Hnefatafl.Game.Common (
  )
 import Hnefatafl.Game.TestUtil (
   PersistenceStore (..),
+  applyEvents,
   emptyStore,
-  executePersistence,
  )
 import Test.QuickCheck (Gen, elements, frequency, (===))
 import Test.QuickCheck qualified as QC
@@ -48,12 +47,6 @@ humanColor = Black
 
 engineColor :: PlayerColor
 engineColor = White
-
-executeCommands :: [Command] -> PersistenceStore -> PersistenceStore
-executeCommands cmds store = foldl' go store cmds
- where
-  go s (Persist c) = executePersistence c s
-  go s _ = s
 
 fromStore :: PersistenceStore -> State
 fromStore store =
@@ -149,7 +142,7 @@ test_aiRoundTrip =
       let s = case steps of
             [] -> initialState
             _ -> (snd (fromMaybe (error "empty") (viaNonEmpty last steps))).newState
-          store = foldl' (\acc (_, tr) -> executeCommands tr.commands acc) emptyStore steps
+          store = foldl' (\acc (_, tr) -> applyEvents tr.events acc) emptyStore steps
        in fromStore store === s
 
 -- | Make the first black move from starting position, returning the resulting applied move

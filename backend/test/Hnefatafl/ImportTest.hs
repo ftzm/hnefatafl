@@ -24,6 +24,7 @@ import Hnefatafl.Import (GameImport (..), importGame)
 import Hnefatafl.Interpreter.Clock.IO
 import Hnefatafl.Interpreter.IdGen.UUIDv7
 import Hnefatafl.Interpreter.Storage.SQLite.Util
+import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Logging (withNoLogEnv)
 import Test.Hspec (Spec, around, describe, it)
@@ -83,8 +84,9 @@ runImportTest connectionVar action =
       . runConcurrent
       . runKatipE logEnv
       . runTraceNoOp
-      . runStorageSQLiteWithRollback connectionVar
+      . runMetricsNoOp
       . runClockIO
+      . runStorageSQLiteWithRollback connectionVar
       $ runIdGenUUIDv7 action
 
 spec_ImportGame :: Spec

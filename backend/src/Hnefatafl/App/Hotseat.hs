@@ -10,7 +10,7 @@ module Hnefatafl.App.Hotseat (
 import Chronos (Time)
 import Effectful (Eff, (:>))
 import Effectful.Katip (KatipE, logTM)
-import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistenceCommandsToTx)
+import Hnefatafl.App.Storage (gameMoveToAppliedMoves, persistEvents)
 import Hnefatafl.Core.Data (
   Game (..),
   GameId (..),
@@ -34,6 +34,7 @@ import Hnefatafl.Game.Common (
   currentBoard,
  )
 import Hnefatafl.Game.Hotseat qualified as Hotseat
+import Hnefatafl.Metrics (HMetrics, Hs (..), increaseLabelledCounter, recordMetrics)
 import Katip (Severity (..))
 
 mkGame :: GameId -> Time -> Game
@@ -58,27 +59,35 @@ loadHotseatState gameId = do
     Hotseat.reconstruct board appliedMoves game.outcome
 
 processEvent ::
-  (Storage :> es, Clock :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es, HMetrics :> es) =>
   GameId ->
   Hotseat.Event ->
   Eff es (Either TransitionError Hotseat.State)
 processEvent gameId event = do
   currentTime <- now
-  runTransaction $ do
-    gameState <- loadHotseatState gameId
-    case Hotseat.transition gameState event of
-      Left err -> pure (Left err)
-      Right result -> do
-        let cmds = [cmd | Hotseat.Persist cmd <- result.commands]
-        persistenceCommandsToTx gameId currentTime cmds
-        pure (Right result.newState)
+  gameState <- runTransaction $ loadHotseatState gameId
+  case Hotseat.transition gameState event of
+    Left err -> do
+      sequence_ [increaseLabelledCounter invalidMovesTotal "hotseat" | Hotseat.MakeMove _ _ <- [event]]
+      pure (Left err)
+    Right tr -> do
+      runTransaction $ persistEvents gameId currentTime tr.events
+      recordMetrics "hotseat" tr.events
+      pure (Right tr.newState)
 
 createGame ::
-  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es) =>
+  ( Storage :> es
+  , Clock :> es
+  , IdGen :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
   Eff es Game
 createGame = do
   game <- mkGame <$> generateId <*> now
   runTransaction $ insertGame game
+  increaseLabelledCounter gamesCreated "hotseat"
   $(logTM) InfoS "game created"
   pure game
 
@@ -90,26 +99,26 @@ loadGameState gameId =
   runTransaction $ loadHotseatState gameId
 
 undoMove ::
-  (Storage :> es, Clock :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es, HMetrics :> es) =>
   GameId ->
   Eff es (Either TransitionError Hotseat.State)
 undoMove gameId = processEvent gameId Hotseat.Undo
 
 resign ::
-  (Storage :> es, Clock :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es, HMetrics :> es) =>
   GameId ->
   PlayerColor ->
   Eff es (Either TransitionError Hotseat.State)
 resign gameId color = processEvent gameId (Hotseat.Resign color)
 
 agreeDraw ::
-  (Storage :> es, Clock :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es, HMetrics :> es) =>
   GameId ->
   Eff es (Either TransitionError Hotseat.State)
 agreeDraw gameId = processEvent gameId Hotseat.AgreeDraw
 
 makeMove ::
-  (Storage :> es, Clock :> es, Trace :> es) =>
+  (Storage :> es, Clock :> es, Trace :> es, HMetrics :> es) =>
   GameId ->
   Move ->
   Eff es (Either TransitionError Hotseat.State)
