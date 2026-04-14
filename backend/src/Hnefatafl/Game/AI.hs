@@ -1,8 +1,13 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NoFieldSelectors #-}
+{-# OPTIONS_GHC -Wno-partial-fields #-}
+
 module Hnefatafl.Game.AI (
   Phase (..),
   State (..),
   Event (..),
   TransitionResult (..),
+  pending,
   transition,
   reconstruct,
 ) where
@@ -34,16 +39,27 @@ import Hnefatafl.Game.Common (
   validMovesForPosition,
   zobristHashes,
  )
-import Prelude hiding (State)
+import Optics (AffineTraversal', (.~), (?~), (%), gafield)
+import Prelude hiding (State, state)
 
 data Phase
-  = PlayerTurn [MoveWithCaptures] (Maybe PendingAction)
-  | EngineThinking (Maybe PendingAction)
-  | Finished Outcome
-  deriving (Show, Eq)
+  = PlayerTurn
+      { validMoves :: [MoveWithCaptures]
+      , pending :: Maybe PendingAction
+      }
+  | EngineThinking {pending :: Maybe PendingAction}
+  | Finished {outcome :: Outcome}
+  deriving (Show, Eq, Generic)
 
-data State = State ExternBoard [AppliedMove] Phase
-  deriving (Show, Eq)
+data State = State
+  { board :: ExternBoard
+  , moves :: [AppliedMove]
+  , phase :: Phase
+  }
+  deriving (Show, Eq, Generic)
+
+pending :: AffineTraversal' Phase (Maybe PendingAction)
+pending = gafield @"pending"
 
 -- NOTE: Draw/undo offers involving the engine are not yet fully implemented.
 -- Currently, pending actions from one side are silently cancelled when the
@@ -69,14 +85,14 @@ data TransitionResult = TransitionResult
 
 -- | Construct a PlayerTurn state, computing valid moves from the position.
 mkPlayerTurn :: ExternBoard -> [AppliedMove] -> Maybe PendingAction -> State
-mkPlayerTurn board moves pending =
-  State board moves (PlayerTurn (validMovesForPosition moves) pending)
+mkPlayerTurn board moves pa =
+  State board moves (PlayerTurn (validMovesForPosition moves) pa)
 
 -- | First argument is the human player's color.
 transition ::
   PlayerColor -> State -> Event -> Either TransitionError TransitionResult
 transition _ (State _ _ (Finished _)) = const $ Left GameAlreadyFinished
-transition humanColor (State board moves (PlayerTurn validMoves pending)) = \case
+transition humanColor s@(State board moves (PlayerTurn validMoves pend)) = \case
   MakeMove move time
     | move `notElem` map (.move) validMoves -> Left InvalidMove
     | otherwise -> do
@@ -87,7 +103,7 @@ transition humanColor (State board moves (PlayerTurn validMoves pending)) = \cas
             nextGameStateWithMovesTrusted board (currentTurn moves == Black) move hashes
         let applied = mkAppliedMove moveResult time
             moves' = moves <> [applied]
-            (pending', cancelEvts) = cancelPending engineColor pending
+            (pending', cancelEvts) = cancelPending engineColor pend
         Right $ case outcomeFromEngine engineStatus of
           Just outcome ->
             TransitionResult
@@ -105,40 +121,40 @@ transition humanColor (State board moves (PlayerTurn validMoves pending)) = \cas
         Right $
           TransitionResult
             (mkPlayerTurn (currentBoard moves') moves' Nothing)
-            (clearPending pending <> [MovesUndone 2])
+            (clearPending pend <> [MovesUndone 2])
   Resign color ->
     let outcome = ResignedBy color
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            (clearPending pending <> [GameEnded outcome])
+            (clearPending pend <> [GameEnded outcome])
   OfferDraw color
-    | isJust pending -> Left ActionAlreadyPending
+    | isJust pend -> Left ActionAlreadyPending
     | otherwise ->
         Right $
           TransitionResult
-            (State board moves (PlayerTurn validMoves (Just (PendingAction DrawOffer color))))
+            (s & #phase % pending ?~ PendingAction DrawOffer color)
             [DrawOffered color]
   AcceptDraw color ->
-    respondToOffer color pending $
+    respondToOffer color pend $
       TransitionResult
         (State board moves (Finished Draw))
         [OfferCancelled, GameEnded Draw]
   DeclineDraw color ->
-    respondToOffer color pending $
+    respondToOffer color pend $
       TransitionResult
-        (State board moves (PlayerTurn validMoves Nothing))
+        (s & #phase % pending .~ Nothing)
         [DrawDeclined]
   Timeout ->
     let outcome = TimedOut humanColor
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            (clearPending pending <> [GameEnded outcome])
-transition humanColor (State board moves (EngineThinking pending)) = \case
+            (clearPending pend <> [GameEnded outcome])
+transition humanColor s@(State board moves (EngineThinking pend)) = \case
   EngineMove applied maybeOutcome ->
     let moves' = moves <> [applied]
-        (pending', cancelEvts) = cancelPending humanColor pending
+        (pending', cancelEvts) = cancelPending humanColor pend
      in Right $ case maybeOutcome of
           Just outcome ->
             TransitionResult
@@ -156,36 +172,36 @@ transition humanColor (State board moves (EngineThinking pending)) = \case
         Right $
           TransitionResult
             (mkPlayerTurn (currentBoard moves') moves' Nothing)
-            (clearPending pending <> [MovesUndone 1])
+            (clearPending pend <> [MovesUndone 1])
   Resign color ->
     let outcome = ResignedBy color
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            (clearPending pending <> [GameEnded outcome])
+            (clearPending pend <> [GameEnded outcome])
   OfferDraw color
-    | isJust pending -> Left ActionAlreadyPending
+    | isJust pend -> Left ActionAlreadyPending
     | otherwise ->
         Right $
           TransitionResult
-            (State board moves (EngineThinking (Just (PendingAction DrawOffer color))))
+            (s & #phase % pending ?~ PendingAction DrawOffer color)
             [DrawOffered color]
   AcceptDraw color ->
-    respondToOffer color pending $
+    respondToOffer color pend $
       TransitionResult
         (State board moves (Finished Draw))
         [OfferCancelled, GameEnded Draw]
   DeclineDraw color ->
-    respondToOffer color pending $
+    respondToOffer color pend $
       TransitionResult
-        (State board moves (EngineThinking Nothing))
+        (s & #phase % pending .~ Nothing)
         [DrawDeclined]
   Timeout ->
     let outcome = TimedOut humanColor
      in Right $
           TransitionResult
             (State board moves (Finished outcome))
-            (clearPending pending <> [GameEnded outcome])
+            (clearPending pend <> [GameEnded outcome])
 
 -- | Reconstruct state from persisted data.
 -- If it's the engine's turn, returns EngineThinking — the effectful layer
@@ -198,8 +214,8 @@ reconstruct ::
   Maybe PendingAction ->
   State
 reconstruct _ board moves (Just outcome) _ = State board moves (Finished outcome)
-reconstruct humanColor board moves Nothing pending =
+reconstruct humanColor board moves Nothing pa =
   let turn = currentTurn moves
    in if turn == humanColor
-        then mkPlayerTurn board moves pending
-        else State board moves (EngineThinking pending)
+        then mkPlayerTurn board moves pa
+        else State board moves (EngineThinking pa)

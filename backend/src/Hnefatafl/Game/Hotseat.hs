@@ -36,7 +36,11 @@ data Phase
   | Finished Outcome
   deriving (Show, Eq)
 
-data State = State ExternBoard [AppliedMove] Phase
+data State = State
+  { board :: ExternBoard
+  , moves :: [AppliedMove]
+  , phase :: Phase
+  }
   deriving (Show, Eq)
 
 data Event
