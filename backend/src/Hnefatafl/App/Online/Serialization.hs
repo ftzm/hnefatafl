@@ -6,13 +6,14 @@ module Hnefatafl.App.Online.Serialization (
 import Hnefatafl.Api.Types (
   ApiBoard,
   ApiGameStatus,
-  ApiMove,
+  ValidMovesMap,
   boardFromExtern,
   gameStatusFromDomain,
+  historyEntryFromDomain,
   moveFromDomain,
+  validMovesMapFromDomain,
  )
 import Hnefatafl.Api.Types.WS (
-  appliedMoveFromDomain,
   pendingActionFromDomain,
  )
 import Hnefatafl.Api.Types.WS.Online (OnlineServerMessage (..))
@@ -34,8 +35,8 @@ notificationsFor actor newState = concatMap $ \case
   GameEnded outcome ->
     let msg = OnlineGameOver{_status = gameStatusFromDomain (Just outcome)}
      in [(opponent actor, msg), (actor, msg)]
-  MovesUndone _ ->
-    let msg = undoMsg
+  MovesUndone n ->
+    let msg = undoMsg n
      in [(opponent actor, msg), (actor, msg)]
   DrawOffered color ->
     [(opponent actor, OnlineDrawOffered{_by = color})]
@@ -50,7 +51,7 @@ notificationsFor actor newState = concatMap $ \case
  where
   opponentMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields newState
-     in OnlineOpponentMoved
+     in OnlineMoveMade
           { _move = moveFromDomain (MoveWithCaptures am.move am.captures)
           , _side = am.side
           , _turn = turn'
@@ -58,22 +59,24 @@ notificationsFor actor newState = concatMap $ \case
           , _validMoves = validMoves'
           , _board = board'
           }
-  undoMsg =
+  undoMsg n =
     let (turn', status', validMoves', board') = activeStateFields newState
      in OnlineUndoAccepted
-          { _turn = turn'
+          { _moveCount = n
+          , _turn = turn'
           , _status = status'
           , _validMoves = validMoves'
           , _board = board'
           }
 
 -- | Serialize the full game state for initial sync on connect.
-gameStateMessage :: GameId -> Online.State -> OnlineServerMessage
-gameStateMessage gId (Online.State board moves phase) =
+gameStateMessage :: GameId -> PlayerColor -> Online.State -> OnlineServerMessage
+gameStateMessage gId playerColor (Online.State board moves phase) =
   OnlineGameState
     { _gameId = gId
+    , _playerColor = playerColor
     , _board = boardFromExtern board
-    , _history = map appliedMoveFromDomain moves
+    , _history = map (\am -> historyEntryFromDomain (MoveWithCaptures am.move am.captures) am.side) moves
     , _turn = turn'
     , _status = status'
     , _validMoves = validMoves'
@@ -84,29 +87,29 @@ gameStateMessage gId (Online.State board moves phase) =
     Online.Active turn validMoves pending ->
       ( turn
       , gameStatusFromDomain Nothing
-      , map moveFromDomain validMoves
+      , validMovesMapFromDomain validMoves
       , fmap pendingActionFromDomain pending
       )
     Online.Finished outcome ->
       ( Black
       , gameStatusFromDomain (Just outcome)
-      , []
+      , validMovesMapFromDomain []
       , Nothing
       )
 
 -- | Extract common state fields from an Online state.
-activeStateFields :: Online.State -> (PlayerColor, ApiGameStatus, [ApiMove], ApiBoard)
+activeStateFields :: Online.State -> (PlayerColor, ApiGameStatus, ValidMovesMap, ApiBoard)
 activeStateFields (Online.State board _moves phase) =
   case phase of
     Online.Active turn validMoves _pending ->
       ( turn
       , gameStatusFromDomain Nothing
-      , map moveFromDomain validMoves
+      , validMovesMapFromDomain validMoves
       , boardFromExtern board
       )
     Online.Finished outcome ->
       ( Black
       , gameStatusFromDomain (Just outcome)
-      , []
+      , validMovesMapFromDomain []
       , boardFromExtern board
       )

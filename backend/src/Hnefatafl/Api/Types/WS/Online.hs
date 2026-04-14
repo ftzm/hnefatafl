@@ -15,21 +15,20 @@ import Data.Aeson (
  )
 import Data.Aeson qualified as Aeson
 import Data.OpenApi (
-  Discriminator (..),
-  NamedSchema (..),
   ToSchema (..),
   genericDeclareNamedSchema,
  )
-import Data.OpenApi qualified as OpenApi
 import Data.OpenApi.SchemaOptions (fromAesonOptions)
 import Hnefatafl.Api.Types (
   ApiBoard,
   ApiGameStatus,
   ApiMove,
-  camelToSnake,
+  HistoryEntry,
+  Position,
+  ValidMovesMap,
+  lcFirst,
  )
 import Hnefatafl.Api.Types.WS (
-  AppliedMovePayload,
   PendingActionPayload,
  )
 import Hnefatafl.Core.Data (
@@ -44,7 +43,7 @@ onlineOptions :: Aeson.Options
 onlineOptions =
   defaultOptions
     { Aeson.sumEncoding = Aeson.TaggedObject "type" "contents"
-    , Aeson.constructorTagModifier = camelToSnake . drop 6
+    , Aeson.constructorTagModifier = lcFirst . drop 6
     , Aeson.fieldLabelModifier = drop 1
     }
 
@@ -54,19 +53,20 @@ onlineOptions =
 data OnlineServerMessage
   = OnlineGameState
       { _gameId :: GameId
+      , _playerColor :: PlayerColor
       , _board :: ApiBoard
-      , _history :: [AppliedMovePayload]
+      , _history :: [HistoryEntry]
       , _turn :: PlayerColor
       , _status :: ApiGameStatus
-      , _validMoves :: [ApiMove]
+      , _validMoves :: ValidMovesMap
       , _pendingAction :: Maybe PendingActionPayload
       }
-  | OnlineOpponentMoved
+  | OnlineMoveMade
       { _move :: ApiMove
       , _side :: PlayerColor
       , _turn :: PlayerColor
       , _status :: ApiGameStatus
-      , _validMoves :: [ApiMove]
+      , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
       }
   | OnlineGameOver
@@ -80,30 +80,29 @@ data OnlineServerMessage
       { _by :: PlayerColor
       }
   | OnlineUndoAccepted
-      { _turn :: PlayerColor
+      { _moveCount :: Int
+      , _turn :: PlayerColor
       , _status :: ApiGameStatus
-      , _validMoves :: [ApiMove]
+      , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
       }
   | OnlineUndoDeclined
+  | OnlineOpponentJoined
+  | OnlineOpponentLeft
   deriving (Show, Eq, Generic)
 
 instance ToJSON OnlineServerMessage where toJSON = genericToJSON onlineOptions
 instance FromJSON OnlineServerMessage where
   parseJSON = genericParseJSON onlineOptions
 instance ToSchema OnlineServerMessage where
-  declareNamedSchema proxy = do
-    NamedSchema name schema <-
-      genericDeclareNamedSchema (fromAesonOptions onlineOptions) proxy
-    pure $
-      NamedSchema name $
-        schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}
+  declareNamedSchema =
+    genericDeclareNamedSchema (fromAesonOptions onlineOptions)
 
 -------------------------------------------------------------------------------
 -- Client → Server
 
 data OnlineClientMessage
-  = OnlineMove {_orig :: Word8, _dest :: Word8}
+  = OnlineMove {_from :: Position, _to :: Position}
   | OnlineResign
   | OnlineOfferDraw
   | OnlineAcceptDraw
@@ -117,9 +116,5 @@ instance ToJSON OnlineClientMessage where toJSON = genericToJSON onlineOptions
 instance FromJSON OnlineClientMessage where
   parseJSON = genericParseJSON onlineOptions
 instance ToSchema OnlineClientMessage where
-  declareNamedSchema proxy = do
-    NamedSchema name schema <-
-      genericDeclareNamedSchema (fromAesonOptions onlineOptions) proxy
-    pure $
-      NamedSchema name $
-        schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}
+  declareNamedSchema =
+    genericDeclareNamedSchema (fromAesonOptions onlineOptions)

@@ -13,9 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "generate:rest-types": "openapi-typescript ../backend/openapi.json -o src/api/generated/rest.ts",
-    "generate:ws-types": "node scripts/generate-ws-types.mjs",
-    "generate:types": "npm run generate:rest-types && npm run generate:ws-types"
+    "generate:types": "openapi-typescript ../backend/openapi.json -o src/api/generated/rest.ts"
   },
   "dependencies": {
     "@kobalte/core": "^0.13.11",
@@ -24,7 +22,6 @@
     "solid-js": "^1.9.0"
   },
   "devDependencies": {
-    "@asyncapi/modelina": "^5.10.1",
     "@biomejs/biome": "2.4.8",
     "@playwright/test": "^1.58.2",
     "@solidjs/testing-library": "^0.8.10",

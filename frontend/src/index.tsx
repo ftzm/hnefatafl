@@ -32,5 +32,6 @@ render(
       </MockAiGameProvider>
     </MockHotseatApiProvider>
   ),
+  // biome-ignore lint/style/noNonNullAssertion: root element guaranteed by index.html
   document.getElementById("root")!,
 );

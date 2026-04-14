@@ -539,28 +539,77 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AIClientMessage: {
+            from: components["schemas"]["Position"];
+            to: components["schemas"]["Position"];
+            /** @enum {string} */
+            type: "move";
+        } | {
+            /** @enum {string} */
+            type: "undo";
+        } | {
+            /** @enum {string} */
+            type: "resign";
+        } | {
+            /** @enum {string} */
+            type: "offerDraw";
+        } | {
+            /** @enum {string} */
+            type: "acceptDraw";
+        } | {
+            /** @enum {string} */
+            type: "declineDraw";
+        };
+        AIServerMessage: {
+            board: components["schemas"]["ApiBoard"];
+            gameId: components["schemas"]["GameId"];
+            history: components["schemas"]["HistoryEntry"][];
+            pendingAction?: components["schemas"]["PendingActionPayload"];
+            playerColor: components["schemas"]["PlayerColor"];
+            status: components["schemas"]["ApiGameStatus"];
+            turn: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "gameState";
+            validMoves: components["schemas"]["ValidMovesMap"];
+        } | {
+            board: components["schemas"]["ApiBoard"];
+            move: components["schemas"]["ApiMove"];
+            side: components["schemas"]["PlayerColor"];
+            status: components["schemas"]["ApiGameStatus"];
+            turn: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "moveMade";
+            validMoves: components["schemas"]["ValidMovesMap"];
+        } | {
+            status: components["schemas"]["ApiGameStatus"];
+            /** @enum {string} */
+            type: "gameOver";
+        } | {
+            board: components["schemas"]["ApiBoard"];
+            moveCount: number;
+            status: components["schemas"]["ApiGameStatus"];
+            turn: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "undoAccepted";
+            validMoves: components["schemas"]["ValidMovesMap"];
+        };
         ActionResponse: {
             status: components["schemas"]["ApiGameStatus"];
             turn: components["schemas"]["PlayerColor"];
-            validMoves: components["schemas"]["ApiMove"][];
+            validMoves: components["schemas"]["ValidMovesMap"];
         };
         ApiBoard: {
             black: components["schemas"]["Position"][];
             king: components["schemas"]["Position"];
             white: components["schemas"]["Position"][];
         };
-        ApiGameMove: {
-            captures: components["schemas"]["Position"][];
-            move: components["schemas"]["ApiMove"];
-            playerColor: components["schemas"]["PlayerColor"];
-        };
         ApiGameState: {
             board: components["schemas"]["ApiBoard"];
             gameId: components["schemas"]["GameId"];
-            history: components["schemas"]["ApiGameMove"][];
+            history: components["schemas"]["HistoryEntry"][];
             status: components["schemas"]["ApiGameStatus"];
             turn: components["schemas"]["PlayerColor"];
-            validMoves: components["schemas"]["ApiMove"][];
+            validMoves: components["schemas"]["ValidMovesMap"];
         };
         ApiGameStatus: {
             /** @enum {string} */
@@ -569,15 +618,20 @@ export interface components {
             reason: components["schemas"]["GameEndReason"];
             /** @enum {string} */
             state: "finished";
-            winner?: components["schemas"]["PlayerColor"];
+            winner: components["schemas"]["GameWinner"];
         };
         ApiMove: {
             captures: components["schemas"]["Position"][];
-            dest: components["schemas"]["Position"];
-            orig: components["schemas"]["Position"];
+            from: components["schemas"]["Position"];
+            to: components["schemas"]["Position"];
+        };
+        AuthMessage: {
+            token: string;
+            /** @enum {string} */
+            type: "auth";
         };
         CreateGameRequest: {
-            humanColor: components["schemas"]["PlayerColor"];
+            playerColor: components["schemas"]["PlayerColor"];
         };
         CreateGameResponse: {
             gameId: components["schemas"]["GameId"];
@@ -593,15 +647,109 @@ export interface components {
         /** @enum {string} */
         GameEndReason: "king_captured" | "white_surrounded" | "no_moves" | "king_escaped" | "exit_fort" | "resignation" | "timeout" | "draw" | "abandoned";
         GameId: string;
+        /** @enum {string} */
+        GameWinner: "white" | "black" | "draw";
         HealthResponse: {
             status: string;
             timestamp: string;
+        };
+        HistoryEntry: {
+            color: components["schemas"]["PlayerColor"];
+            move: components["schemas"]["ApiMove"];
         };
         /** @description Two space-separated Word64 values (lower upper) */
         Layer: string;
         Move: {
             dest: number;
             orig: number;
+        };
+        MoveDestination: {
+            captures: components["schemas"]["Position"][];
+            to: components["schemas"]["Position"];
+        };
+        OnlineClientMessage: {
+            from: components["schemas"]["Position"];
+            to: components["schemas"]["Position"];
+            /** @enum {string} */
+            type: "move";
+        } | {
+            /** @enum {string} */
+            type: "resign";
+        } | {
+            /** @enum {string} */
+            type: "offerDraw";
+        } | {
+            /** @enum {string} */
+            type: "acceptDraw";
+        } | {
+            /** @enum {string} */
+            type: "declineDraw";
+        } | {
+            /** @enum {string} */
+            type: "requestUndo";
+        } | {
+            /** @enum {string} */
+            type: "acceptUndo";
+        } | {
+            /** @enum {string} */
+            type: "declineUndo";
+        };
+        OnlineServerMessage: {
+            board: components["schemas"]["ApiBoard"];
+            gameId: components["schemas"]["GameId"];
+            history: components["schemas"]["HistoryEntry"][];
+            pendingAction?: components["schemas"]["PendingActionPayload"];
+            playerColor: components["schemas"]["PlayerColor"];
+            status: components["schemas"]["ApiGameStatus"];
+            turn: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "gameState";
+            validMoves: components["schemas"]["ValidMovesMap"];
+        } | {
+            board: components["schemas"]["ApiBoard"];
+            move: components["schemas"]["ApiMove"];
+            side: components["schemas"]["PlayerColor"];
+            status: components["schemas"]["ApiGameStatus"];
+            turn: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "moveMade";
+            validMoves: components["schemas"]["ValidMovesMap"];
+        } | {
+            status: components["schemas"]["ApiGameStatus"];
+            /** @enum {string} */
+            type: "gameOver";
+        } | {
+            by: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "drawOffered";
+        } | {
+            /** @enum {string} */
+            type: "drawDeclined";
+        } | {
+            by: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "undoRequested";
+        } | {
+            board: components["schemas"]["ApiBoard"];
+            moveCount: number;
+            status: components["schemas"]["ApiGameStatus"];
+            turn: components["schemas"]["PlayerColor"];
+            /** @enum {string} */
+            type: "undoAccepted";
+            validMoves: components["schemas"]["ValidMovesMap"];
+        } | {
+            /** @enum {string} */
+            type: "undoDeclined";
+        } | {
+            /** @enum {string} */
+            type: "opponentJoined";
+        } | {
+            /** @enum {string} */
+            type: "opponentLeft";
+        };
+        PendingActionPayload: {
+            actionType: string;
+            offeredBy: components["schemas"]["PlayerColor"];
         };
         /** @enum {string} */
         PlayerColor: "white" | "black";
@@ -622,10 +770,22 @@ export interface components {
             /** Format: int64 */
             updatedZobristHash: number;
         };
+        /** @description Valid moves keyed by origin position */
+        ValidMovesMap: {
+            [key: string]: components["schemas"]["MoveDestination"][];
+        };
         VersionResponse: {
             buildDate: string;
             versionNumber: string;
         };
+        WsError: {
+            code: components["schemas"]["WsErrorCode"];
+            message: string;
+            /** @enum {string} */
+            type: "error";
+        };
+        /** @enum {string} */
+        WsErrorCode: "invalid_message" | "invalid_auth" | "invalid_token" | "not_your_turn" | "game_already_finished" | "invalid_move" | "no_pending_offer" | "cannot_respond_to_own_offer" | "action_already_pending" | "no_moves_to_undo" | "engine_error" | "engine_search_failed" | "internal_error";
     };
     responses: never;
     parameters: never;

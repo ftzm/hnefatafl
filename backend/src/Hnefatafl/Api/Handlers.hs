@@ -8,7 +8,6 @@ import Effectful.Concurrent (Concurrent)
 import Effectful.Dispatch.Dynamic (send)
 import Effectful.Error.Static (Error)
 import Effectful.Katip (KatipE)
-import Hnefatafl.Api.AsyncApi (asyncApiSpec)
 import Hnefatafl.Api.Handlers.AI (aiServer)
 import Hnefatafl.Api.Handlers.Hotseat (hotseatServer)
 import Hnefatafl.Api.Handlers.Online (onlineServer)
@@ -54,7 +53,6 @@ server onlineSessions aiSessions =
     { version = versionHandler
     , health = healthHandler
     , openapi = pure openApiSpec
-    , asyncapi = pure asyncApiSpec
     , searchTrusted = searchTrustedHandler
     , hotseat = hotseatServer
     , online = onlineServer onlineSessions

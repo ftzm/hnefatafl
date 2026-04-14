@@ -64,7 +64,12 @@ describe("Board", () => {
   it("clicking a piece with legal moves highlights exactly its destinations", () => {
     const { container, ctx } = renderBoard();
     // Give piece at index 3 some legal moves
-    ctx.setMoves({ 3: [[2], [14]] });
+    ctx.setMoves({
+      3: [
+        { to: 2, captures: [] },
+        { to: 14, captures: [] },
+      ],
+    });
     const square3 = container.querySelector('[data-index="3"]') as HTMLElement;
     square3.click();
     const highlighted = container.querySelectorAll(".valid-move");
@@ -76,7 +81,10 @@ describe("Board", () => {
 
   it("clicking a different piece updates highlights to the new piece's destinations", () => {
     const { container, ctx } = renderBoard();
-    ctx.setMoves({ 3: [[2]], 4: [[15]] });
+    ctx.setMoves({
+      3: [{ to: 2, captures: [] }],
+      4: [{ to: 15, captures: [] }],
+    });
     (container.querySelector('[data-index="3"]') as HTMLElement).click();
     expect(
       container
@@ -98,7 +106,7 @@ describe("Board", () => {
 
   it("clicking an empty non-highlighted square clears all highlights", () => {
     const { container, ctx } = renderBoard();
-    ctx.setMoves({ 3: [[2]] });
+    ctx.setMoves({ 3: [{ to: 2, captures: [] }] });
     (container.querySelector('[data-index="3"]') as HTMLElement).click();
     expect(container.querySelectorAll(".valid-move").length).toBe(1);
     // Click an empty square that is not a legal destination
@@ -108,7 +116,7 @@ describe("Board", () => {
 
   it("when movesDisabled, clicking a piece does not produce highlights", async () => {
     const { container, ctx } = renderBoard();
-    ctx.setMoves({ 3: [[2]] });
+    ctx.setMoves({ 3: [{ to: 2, captures: [] }] });
     ctx.applyMove(blackMove);
     ctx.applyMove({ from: 59, to: 57 });
     // Navigate back so movesDisabled is true

@@ -8,14 +8,14 @@ import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Routes.Hotseat (HotseatRoutes (..))
 import Hnefatafl.Api.Types (
   ActionResponse (..),
-  ApiGameMove (..),
   ApiGameState (..),
   ApiMove,
+  HistoryEntry (..),
   boardFromExtern,
   gameStatusFromDomain,
   moveFromDomain,
   moveToDomain,
-  positionsFromLayer,
+  validMovesMapFromDomain,
  )
 import Hnefatafl.App.Hotseat qualified as Hotseat
 import Hnefatafl.Core.Data (
@@ -58,12 +58,11 @@ hotseatServer =
 
 -- Conversion helpers
 
-toApiGameMove :: Common.AppliedMove -> ApiGameMove
-toApiGameMove am =
-  ApiGameMove
-    { playerColor = am.side
+toHistoryEntry :: Common.AppliedMove -> HistoryEntry
+toHistoryEntry am =
+  HistoryEntry
+    { color = am.side
     , move = moveFromDomain (MoveWithCaptures am.move am.captures)
-    , captures = positionsFromLayer am.captures
     }
 
 toApiGameState :: GameId -> HotseatGame.State -> ApiGameState
@@ -77,10 +76,10 @@ toApiGameState gId (HotseatGame.State board moves phase) =
     , status = case phase of
         HotseatGame.Awaiting _ _ -> gameStatusFromDomain Nothing
         HotseatGame.Finished outcome -> gameStatusFromDomain (Just outcome)
-    , history = map toApiGameMove moves
+    , history = map toHistoryEntry moves
     , validMoves = case phase of
-        HotseatGame.Awaiting _ vm -> map moveFromDomain vm
-        HotseatGame.Finished _ -> []
+        HotseatGame.Awaiting _ vm -> validMovesMapFromDomain vm
+        HotseatGame.Finished _ -> validMovesMapFromDomain []
     }
 
 toActionResponse :: HotseatGame.State -> ActionResponse
@@ -93,8 +92,8 @@ toActionResponse (HotseatGame.State _ _ phase) =
         HotseatGame.Awaiting _ _ -> gameStatusFromDomain Nothing
         HotseatGame.Finished outcome -> gameStatusFromDomain (Just outcome)
     , validMoves = case phase of
-        HotseatGame.Awaiting _ vm -> map moveFromDomain vm
-        HotseatGame.Finished _ -> []
+        HotseatGame.Awaiting _ vm -> validMovesMapFromDomain vm
+        HotseatGame.Finished _ -> validMovesMapFromDomain []
     }
 
 badRequest :: Error ServerError :> es => Text -> Eff es a

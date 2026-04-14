@@ -15,21 +15,20 @@ import Data.Aeson (
  )
 import Data.Aeson qualified as Aeson
 import Data.OpenApi (
-  Discriminator (..),
-  NamedSchema (..),
   ToSchema (..),
   genericDeclareNamedSchema,
  )
-import Data.OpenApi qualified as OpenApi
 import Data.OpenApi.SchemaOptions (fromAesonOptions)
 import Hnefatafl.Api.Types (
   ApiBoard,
   ApiGameStatus,
   ApiMove,
-  camelToSnake,
+  HistoryEntry,
+  Position,
+  ValidMovesMap,
+  lcFirst,
  )
 import Hnefatafl.Api.Types.WS (
-  AppliedMovePayload,
   PendingActionPayload,
  )
 import Hnefatafl.Core.Data (
@@ -44,7 +43,7 @@ aiOptions :: Aeson.Options
 aiOptions =
   defaultOptions
     { Aeson.sumEncoding = Aeson.TaggedObject "type" "contents"
-    , Aeson.constructorTagModifier = camelToSnake . drop 2
+    , Aeson.constructorTagModifier = lcFirst . drop 2
     , Aeson.fieldLabelModifier = drop 1
     }
 
@@ -54,29 +53,30 @@ aiOptions =
 data AIServerMessage
   = AIGameState
       { _gameId :: GameId
-      , _humanColor :: PlayerColor
+      , _playerColor :: PlayerColor
       , _board :: ApiBoard
-      , _history :: [AppliedMovePayload]
-      , _turn :: Text
+      , _history :: [HistoryEntry]
+      , _turn :: PlayerColor
       , _status :: ApiGameStatus
-      , _validMoves :: [ApiMove]
+      , _validMoves :: ValidMovesMap
       , _pendingAction :: Maybe PendingActionPayload
       }
-  | AIEngineMoved
+  | AIMoveMade
       { _move :: ApiMove
       , _side :: PlayerColor
-      , _turn :: Text
+      , _turn :: PlayerColor
       , _status :: ApiGameStatus
-      , _validMoves :: [ApiMove]
+      , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
       }
   | AIGameOver
       { _status :: ApiGameStatus
       }
-  | AIUndoApplied
-      { _turn :: Text
+  | AIUndoAccepted
+      { _moveCount :: Int
+      , _turn :: PlayerColor
       , _status :: ApiGameStatus
-      , _validMoves :: [ApiMove]
+      , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
       }
   deriving (Show, Eq, Generic)
@@ -84,18 +84,14 @@ data AIServerMessage
 instance ToJSON AIServerMessage where toJSON = genericToJSON aiOptions
 instance FromJSON AIServerMessage where parseJSON = genericParseJSON aiOptions
 instance ToSchema AIServerMessage where
-  declareNamedSchema proxy = do
-    NamedSchema name schema <-
-      genericDeclareNamedSchema (fromAesonOptions aiOptions) proxy
-    pure $
-      NamedSchema name $
-        schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}
+  declareNamedSchema =
+    genericDeclareNamedSchema (fromAesonOptions aiOptions)
 
 -------------------------------------------------------------------------------
 -- Client → Server
 
 data AIClientMessage
-  = AIMove {_orig :: Word8, _dest :: Word8}
+  = AIMove {_from :: Position, _to :: Position}
   | AIUndo
   | AIResign
   | AIOfferDraw
@@ -106,9 +102,5 @@ data AIClientMessage
 instance ToJSON AIClientMessage where toJSON = genericToJSON aiOptions
 instance FromJSON AIClientMessage where parseJSON = genericParseJSON aiOptions
 instance ToSchema AIClientMessage where
-  declareNamedSchema proxy = do
-    NamedSchema name schema <-
-      genericDeclareNamedSchema (fromAesonOptions aiOptions) proxy
-    pure $
-      NamedSchema name $
-        schema{OpenApi._schemaDiscriminator = Just (Discriminator "type" mempty)}
+  declareNamedSchema =
+    genericDeclareNamedSchema (fromAesonOptions aiOptions)

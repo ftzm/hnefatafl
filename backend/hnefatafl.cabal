@@ -13,7 +13,6 @@ data-files:
 library
   exposed-modules:
       Effectful.Prometheus
-      Hnefatafl.Api.AsyncApi
       Hnefatafl.Api.Handlers
       Hnefatafl.Api.Handlers.AI
       Hnefatafl.Api.Handlers.Hotseat

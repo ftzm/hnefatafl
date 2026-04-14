@@ -6,20 +6,22 @@ module Hnefatafl.App.AI.Serialization (
 import Hnefatafl.Api.Types (
   ApiBoard,
   ApiGameStatus,
-  ApiMove,
+  ValidMovesMap,
   boardFromExtern,
   gameStatusFromDomain,
+  historyEntryFromDomain,
   moveFromDomain,
+  validMovesMapFromDomain,
  )
 import Hnefatafl.Api.Types.WS (
-  appliedMoveFromDomain,
   pendingActionFromDomain,
  )
 import Hnefatafl.Api.Types.WS.AI (AIServerMessage (..))
 import Hnefatafl.Core.Data (
   GameId,
   MoveWithCaptures (..),
-  PlayerColor,
+  PlayerColor (..),
+  opponent,
  )
 import Hnefatafl.Game.AI qualified as AI
 import Hnefatafl.Game.Common (AppliedMove (..), DomainEvent (..))
@@ -34,7 +36,7 @@ notificationsFor humanColor newState = concatMap $ \case
     | otherwise -> []
   GameEnded outcome ->
     [AIGameOver{_status = gameStatusFromDomain (Just outcome)}]
-  MovesUndone _ -> [undoMsg]
+  MovesUndone n -> [undoMsg n]
   DrawOffered _ -> []
   DrawDeclined -> []
   UndoRequested _ -> []
@@ -42,8 +44,8 @@ notificationsFor humanColor newState = concatMap $ \case
   OfferCancelled -> []
  where
   engineMovedMsg am =
-    let (turn', status', validMoves', board') = activeStateFields newState
-     in AIEngineMoved
+    let (turn', status', validMoves', board') = activeStateFields humanColor newState
+     in AIMoveMade
           { _move = moveFromDomain (MoveWithCaptures am.move am.captures)
           , _side = am.side
           , _turn = turn'
@@ -51,10 +53,11 @@ notificationsFor humanColor newState = concatMap $ \case
           , _validMoves = validMoves'
           , _board = board'
           }
-  undoMsg =
-    let (turn', status', validMoves', board') = activeStateFields newState
-     in AIUndoApplied
-          { _turn = turn'
+  undoMsg n =
+    let (turn', status', validMoves', board') = activeStateFields humanColor newState
+     in AIUndoAccepted
+          { _moveCount = n
+          , _turn = turn'
           , _status = status'
           , _validMoves = validMoves'
           , _board = board'
@@ -65,54 +68,56 @@ gameStateMessage :: GameId -> PlayerColor -> AI.State -> AIServerMessage
 gameStateMessage gId humanColor (AI.State board moves phase) =
   AIGameState
     { _gameId = gId
-    , _humanColor = humanColor
+    , _playerColor = humanColor
     , _board = boardFromExtern board
-    , _history = map appliedMoveFromDomain moves
-    , _turn = turnText
+    , _history = map (\am -> historyEntryFromDomain (MoveWithCaptures am.move am.captures) am.side) moves
+    , _turn = turn'
     , _status = status'
     , _validMoves = validMoves'
     , _pendingAction = pending'
     }
  where
-  (turnText, status', validMoves', pending') = case phase of
+  engineColor = opponent humanColor
+  (turn', status', validMoves', pending') = case phase of
     AI.PlayerTurn validMoves pending ->
-      ( "player"
+      ( humanColor
       , gameStatusFromDomain Nothing
-      , map moveFromDomain validMoves
+      , validMovesMapFromDomain validMoves
       , fmap pendingActionFromDomain pending
       )
     AI.EngineThinking pending ->
-      ( "engine"
+      ( engineColor
       , gameStatusFromDomain Nothing
-      , []
+      , validMovesMapFromDomain []
       , fmap pendingActionFromDomain pending
       )
     AI.Finished outcome ->
-      ( "player"
+      ( humanColor
       , gameStatusFromDomain (Just outcome)
-      , []
+      , validMovesMapFromDomain []
       , Nothing
       )
 
 -- | Extract common state fields from an AI state.
-activeStateFields :: AI.State -> (Text, ApiGameStatus, [ApiMove], ApiBoard)
-activeStateFields (AI.State board _moves phase) =
-  case phase of
-    AI.PlayerTurn validMoves _pending ->
-      ( "player"
-      , gameStatusFromDomain Nothing
-      , map moveFromDomain validMoves
-      , boardFromExtern board
-      )
-    AI.EngineThinking _pending ->
-      ( "engine"
-      , gameStatusFromDomain Nothing
-      , []
-      , boardFromExtern board
-      )
-    AI.Finished outcome ->
-      ( "player"
-      , gameStatusFromDomain (Just outcome)
-      , []
-      , boardFromExtern board
-      )
+activeStateFields :: PlayerColor -> AI.State -> (PlayerColor, ApiGameStatus, ValidMovesMap, ApiBoard)
+activeStateFields humanColor (AI.State board _moves phase) =
+  let engineColor = opponent humanColor
+   in case phase of
+        AI.PlayerTurn validMoves _pending ->
+          ( humanColor
+          , gameStatusFromDomain Nothing
+          , validMovesMapFromDomain validMoves
+          , boardFromExtern board
+          )
+        AI.EngineThinking _pending ->
+          ( engineColor
+          , gameStatusFromDomain Nothing
+          , validMovesMapFromDomain []
+          , boardFromExtern board
+          )
+        AI.Finished outcome ->
+          ( humanColor
+          , gameStatusFromDomain (Just outcome)
+          , validMovesMapFromDomain []
+          , boardFromExtern board
+          )

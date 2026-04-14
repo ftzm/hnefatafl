@@ -11,7 +11,7 @@ function board(black: number[], white: number[], king: number): BoardRep {
 }
 
 function destinations(moves: MovesMap, piece: number): number[] {
-  return (moves[piece] || []).map(([to]) => to);
+  return (moves[piece] || []).map((m) => m.to);
 }
 
 describe("generateLegalMoves", () => {
@@ -178,13 +178,17 @@ describe("king capture via computeCaptures", () => {
 describe("checkGameOver", () => {
   it("king on a corner — white wins", () => {
     const b = board([27], [], 0);
-    const result = checkGameOver(b, "black", { 27: [[28]] });
+    const result = checkGameOver(b, "black", {
+      27: [{ to: 28, captures: [] }],
+    });
     expect(result).toEqual({ winner: "white", reason: "King escaped" });
   });
 
   it("king captured (position -1) — black wins", () => {
     const b = board([27], [], -1);
-    const result = checkGameOver(b, "white", { 27: [[28]] });
+    const result = checkGameOver(b, "white", {
+      27: [{ to: 28, captures: [] }],
+    });
     expect(result).toEqual({ winner: "black", reason: "King captured" });
   });
 
@@ -196,7 +200,9 @@ describe("checkGameOver", () => {
 
   it("returns null when game is still in progress", () => {
     const b = board([27], [50], 60);
-    const result = checkGameOver(b, "black", { 27: [[28]] });
+    const result = checkGameOver(b, "black", {
+      27: [{ to: 28, captures: [] }],
+    });
     expect(result).toBeNull();
   });
 });

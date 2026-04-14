@@ -149,8 +149,7 @@ export default function Board(props: BoardProps) {
     if (!movesData) return new Set<number>();
     const destinations = new Set<number>();
     movesData.forEach((move) => {
-      const [dest] = Array.isArray(move) ? move : [move];
-      destinations.add(dest);
+      destinations.add(move.to);
     });
     return destinations;
   });
@@ -165,12 +164,9 @@ export default function Board(props: BoardProps) {
   const getCaptures = (origin: number, destination: number): number[] => {
     const movesData = store.game.moves[origin];
     if (!movesData) return [];
-    const move = movesData.find((m) => {
-      const [dest] = Array.isArray(m) ? m : [m];
-      return dest === destination;
-    });
+    const move = movesData.find((m) => m.to === destination);
     if (!move) return [];
-    return Array.isArray(move) ? move.slice(1) : [];
+    return move.captures;
   };
 
   const executeMove = (move: Move, { animate = true } = {}) => {
@@ -313,7 +309,9 @@ export default function Board(props: BoardProps) {
 
     const x = e.clientX - drag.width / 2;
     const y = e.clientY - drag.height / 2;
-    dragClone!.style.transform = `translate(${x}px, ${y}px) scale(1.05)`;
+    if (dragClone) {
+      dragClone.style.transform = `translate(${x}px, ${y}px) scale(1.05)`;
+    }
   };
 
   const cleanupDrag = () => {
@@ -387,7 +385,7 @@ export default function Board(props: BoardProps) {
     boardRef?.addEventListener("pointerup", handlePointerUp);
     updateLineWidth();
     const ro = new ResizeObserver(() => updateLineWidth());
-    ro.observe(boardRef!);
+    if (boardRef) ro.observe(boardRef);
     onCleanup(() => {
       boardRef?.removeEventListener("pointermove", handlePointerMove);
       boardRef?.removeEventListener("pointerup", handlePointerUp);
@@ -519,21 +517,22 @@ export default function Board(props: BoardProps) {
                       />
                     </svg>
                   )}
-                  {isLastMoveFrom() && (
-                    <svg
-                      class="move-arrow"
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                    >
-                      <polygon
-                        points={getArrowPoints(
-                          lastMove()!.from,
-                          lastMove()!.to,
-                        )}
-                        fill="rgba(0,0,0,0.15)"
-                      />
-                    </svg>
-                  )}
+                  {(() => {
+                    const lm = isLastMoveFrom() ? lastMove() : null;
+                    if (!lm) return null;
+                    return (
+                      <svg
+                        class="move-arrow"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                      >
+                        <polygon
+                          points={getArrowPoints(lm.from, lm.to)}
+                          fill="rgba(0,0,0,0.15)"
+                        />
+                      </svg>
+                    );
+                  })()}
                 </div>
                 {piece() && (
                   <div class={pieceClass()}>

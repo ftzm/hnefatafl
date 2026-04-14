@@ -13,7 +13,7 @@ import Hnefatafl.Core.Data (
  )
 
 data CreateGameRequest = CreateGameRequest
-  { humanColor :: PlayerColor
+  { playerColor :: PlayerColor
   }
   deriving stock (Generic, Show)
   deriving anyclass (ToJSON, FromJSON, ToSchema)

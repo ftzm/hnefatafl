@@ -12,7 +12,7 @@ export interface Move {
   captures?: number[];
 }
 
-export type MovesMap = Record<number, number[][]>;
+export type MovesMap = Record<number, { to: number; captures: number[] }[]>;
 
 export interface GameOverState {
   winner: PlayerColor | "draw";

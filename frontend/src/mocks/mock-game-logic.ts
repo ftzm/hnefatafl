@@ -153,7 +153,7 @@ export function generateLegalMoves(
 
   for (const piece of pieces) {
     const isKing = piece === board.king;
-    const pieceMoves: number[][] = [];
+    const pieceMoves: { to: number; captures: number[] }[] = [];
 
     for (const dir of DIRECTIONS) {
       let current = piece;
@@ -164,7 +164,7 @@ export function generateLegalMoves(
 
         if (CORNERS.has(next)) {
           if (isKing) {
-            pieceMoves.push([next]);
+            pieceMoves.push({ to: next, captures: [] });
           }
           break;
         }
@@ -175,7 +175,7 @@ export function generateLegalMoves(
         }
 
         const captures = computeCaptures(board, piece, next, color);
-        pieceMoves.push([next, ...captures]);
+        pieceMoves.push({ to: next, captures });
         current = next;
       }
     }
@@ -225,10 +225,9 @@ export function pickRandomMove(moves: MovesMap): Move | null {
   const piece = pieces[Math.floor(Math.random() * pieces.length)];
   const dests = moves[piece];
   const dest = dests[Math.floor(Math.random() * dests.length)];
-  const [to, ...captures] = dest;
   return {
     from: piece,
-    to,
-    captures: captures.length > 0 ? captures : undefined,
+    to: dest.to,
+    captures: dest.captures.length > 0 ? dest.captures : undefined,
   };
 }

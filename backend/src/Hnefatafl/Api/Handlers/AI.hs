@@ -51,7 +51,7 @@ createHandler ::
   (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es, HMetrics :> es) =>
   CreateGameRequest -> Eff es CreateGameResponse
 createHandler req = katipAddNamespace "ai" $ do
-  result <- AI.createGame req.humanColor
+  result <- AI.createGame req.playerColor
   pure
     CreateGameResponse
       { gameId = result.game.gameId

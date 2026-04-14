@@ -5,7 +5,6 @@ module Hnefatafl.App.AI (
   GameSession (..),
   GameSessions,
   CreateGameResult (..),
-  ClientMessage (..),
   toEvent,
   createGame,
   connectToGame,
@@ -16,8 +15,6 @@ module Hnefatafl.App.AI (
 
 import Chronos (Time)
 import Data.Aeson (
-  FromJSON,
-  ToJSON,
   encode,
  )
 import Effectful (Eff, IOE, (:>))
@@ -27,11 +24,13 @@ import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (bracket, catch, catchSync, onException)
 import Effectful.Katip (KatipE, katipAddNamespace, logTM)
+import Hnefatafl.Api.Types (Position (..))
 import Hnefatafl.Api.Types.WS (
   WsError (..),
   WsErrorCode (..),
   transitionErrorToCode,
  )
+import Hnefatafl.Api.Types.WS.AI (AIClientMessage (..))
 import Hnefatafl.App.AI.Serialization (gameStateMessage, notificationsFor)
 import Hnefatafl.App.Session (
   SessionEntry (..),
@@ -107,28 +106,19 @@ data GameSession = GameSession
 type GameSessions = STMMap.Map GameId (SessionEntry GameSession)
 
 -------------------------------------------------------------------------------
--- Messages from the client
+-- Client message conversion
 
-data ClientMessage
-  = Move Data.Move
-  | Undo
-  | Resign
-  | OfferDraw
-  | AcceptDraw
-  | DeclineDraw
-  deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
-
--- | Convert a client message to an AI event, adding the current time
+-- | Convert an API client message to an AI event, adding the current time
 -- and player color where needed.
-toEvent :: PlayerColor -> Time -> ClientMessage -> AI.Event
+toEvent :: PlayerColor -> Time -> AIClientMessage -> AI.Event
 toEvent humanColor time = \case
-  Move move -> AI.MakeMove move time
-  Undo -> AI.Undo
-  Resign -> AI.Resign humanColor
-  OfferDraw -> AI.OfferDraw humanColor
-  AcceptDraw -> AI.AcceptDraw humanColor
-  DeclineDraw -> AI.DeclineDraw humanColor
+  AIMove (Position from) (Position to) ->
+    AI.MakeMove (Data.Move (fromIntegral from) (fromIntegral to)) time
+  AIUndo -> AI.Undo
+  AIResign -> AI.Resign humanColor
+  AIOfferDraw -> AI.OfferDraw humanColor
+  AIAcceptDraw -> AI.AcceptDraw humanColor
+  AIDeclineDraw -> AI.DeclineDraw humanColor
 
 -------------------------------------------------------------------------------
 -- Storage

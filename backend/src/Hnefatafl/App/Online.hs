@@ -5,7 +5,6 @@ module Hnefatafl.App.Online (
   GameSession (..),
   GameSessions,
   CreateGameResult (..),
-  ClientMessage (..),
   toEvent,
   createGame,
   getOrCreateSession,
@@ -17,8 +16,6 @@ module Hnefatafl.App.Online (
 
 import Chronos (Time)
 import Data.Aeson (
-  FromJSON,
-  ToJSON,
   encode,
  )
 import Effectful (Eff, IOE, (:>))
@@ -27,9 +24,14 @@ import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
 import Effectful.Exception (bracket)
 import Effectful.Katip (KatipE, katipAddNamespace, logTM)
+import Hnefatafl.Api.Types (Position (..))
 import Hnefatafl.Api.Types.WS (
   WsError (..),
   transitionErrorToCode,
+ )
+import Hnefatafl.Api.Types.WS.Online (
+  OnlineClientMessage (..),
+  OnlineServerMessage (..),
  )
 import Hnefatafl.App.Online.Serialization (
   gameStateMessage,
@@ -56,6 +58,7 @@ import Hnefatafl.Core.Data (
   GameParticipantToken (..),
   GameParticipantTokenId (..),
   PlayerColor (..),
+  opponent,
  )
 import Hnefatafl.Core.Data qualified as Data
 import Hnefatafl.Effect.Clock (Clock, now)
@@ -119,32 +122,21 @@ getConn White session = session.whiteConn
 getConn Black session = session.blackConn
 
 -------------------------------------------------------------------------------
--- Messages from the client
+-- Client message conversion
 
-data ClientMessage
-  = Move Data.Move
-  | Resign
-  | OfferDraw
-  | AcceptDraw
-  | DeclineDraw
-  | RequestUndo
-  | AcceptUndo
-  | DeclineUndo
-  deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
-
--- | Convert a client message to an Online event, adding the player's
+-- | Convert an API client message to an Online event, adding the player's
 -- color and the current time.
-toEvent :: PlayerColor -> Time -> ClientMessage -> Online.Event
+toEvent :: PlayerColor -> Time -> OnlineClientMessage -> Online.Event
 toEvent color time = \case
-  Move move -> Online.MakeMove color move time
-  Resign -> Online.Resign color
-  OfferDraw -> Online.OfferDraw color
-  AcceptDraw -> Online.AcceptDraw color
-  DeclineDraw -> Online.DeclineDraw color
-  RequestUndo -> Online.RequestUndo color
-  AcceptUndo -> Online.AcceptUndo color
-  DeclineUndo -> Online.DeclineUndo color
+  OnlineMove (Position from) (Position to) ->
+    Online.MakeMove color (Data.Move (fromIntegral from) (fromIntegral to)) time
+  OnlineResign -> Online.Resign color
+  OnlineOfferDraw -> Online.OfferDraw color
+  OnlineAcceptDraw -> Online.AcceptDraw color
+  OnlineDeclineDraw -> Online.DeclineDraw color
+  OnlineRequestUndo -> Online.RequestUndo color
+  OnlineAcceptUndo -> Online.AcceptUndo color
+  OnlineDeclineUndo -> Online.DeclineUndo color
 
 -------------------------------------------------------------------------------
 -- Storage
@@ -279,7 +271,7 @@ processEvent ::
   MVar GameSession ->
   GameId ->
   PlayerColor ->
-  ClientMessage ->
+  OnlineClientMessage ->
   Eff es ()
 processEvent sessionVar gameId color clientMsg = do
   currentTime <- now
@@ -290,7 +282,7 @@ processEvent sessionVar gameId color clientMsg = do
     case Online.transition session.gameState event of
       Left err -> do
         sequence_
-          [increaseLabelledCounter invalidMovesTotal "online" | Move _ <- [clientMsg]]
+          [increaseLabelledCounter invalidMovesTotal "online" | OnlineMove _ _ <- [clientMsg]]
         sendToPlayer
           session
           color
@@ -374,7 +366,10 @@ handleAuthenticated sessions conn tok =
       connectPlayer sessionVar color uid conn
     safeSend
       connVar
-      (encode $ gameStateMessage gameId gameState)
+      (encode $ gameStateMessage gameId color gameState)
+    -- Notify the opponent that this player has joined
+    MVar.withMVar sessionVar $ \session ->
+      sendToPlayer session (opponent color) (encode OnlineOpponentJoined)
     incGauge onlineSessions
     $(logTM) InfoS "player connected"
     pure (sessionVar, uid, connVar)
@@ -382,6 +377,9 @@ handleAuthenticated sessions conn tok =
     decGauge onlineSessions
     $(logTM) InfoS "player disconnected"
     disconnectPlayer sessionVar color uid
+    -- Notify the opponent that this player has left
+    MVar.withMVar sessionVar $ \session ->
+      sendToPlayer session (opponent color) (encode OnlineOpponentLeft)
     STM.atomically $ release gameId sessions
   loop (sessionVar, _, connVar) =
     runMessageLoop

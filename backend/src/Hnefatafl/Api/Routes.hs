@@ -11,7 +11,7 @@ module Hnefatafl.Api.Routes (
   SearchTrustedInput (..),
 ) where
 
-import Data.Aeson (FromJSON, ToJSON, Value)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.OpenApi (OpenApi, ToSchema)
 import Hnefatafl.Api.Routes.AI (AIRoutes)
 import Hnefatafl.Api.Routes.Hotseat (HotseatRoutes)
@@ -58,7 +58,6 @@ data Routes mode = Routes
   { version :: mode :- "version" :> Get '[JSON] VersionResponse
   , health :: mode :- "health" :> Get '[JSON] HealthResponse
   , openapi :: mode :- "openapi.json" :> Get '[JSON] OpenApi
-  , asyncapi :: mode :- "asyncapi.json" :> Get '[JSON] Value
   , searchTrusted ::
       mode
         :- "searchTrusted"

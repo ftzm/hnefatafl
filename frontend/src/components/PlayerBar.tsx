@@ -30,11 +30,9 @@ export default function PlayerBar(props: PlayerBarProps) {
       <Show
         when={props.timeControl}
         fallback={<span class="clock">--:--</span>}
+        keyed
       >
-        <Clock
-          initialSeconds={props.timeControl!.initial}
-          active={props.active}
-        />
+        {(tc) => <Clock initialSeconds={tc.initial} active={props.active} />}
       </Show>
     </div>
   );

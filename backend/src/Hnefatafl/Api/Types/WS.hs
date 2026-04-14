@@ -9,9 +9,7 @@ module Hnefatafl.Api.Types.WS (
   WsError (..),
 
   -- * Payload types
-  AppliedMovePayload (..),
   PendingActionPayload (..),
-  appliedMoveFromDomain,
   pendingActionFromDomain,
 
   -- * Auth
@@ -45,16 +43,12 @@ import Data.OpenApi (
 import Data.OpenApi qualified as OpenApi
 import Data.OpenApi.SchemaOptions (fromAesonOptions)
 import Hnefatafl.Api.Types (
-  ApiMove,
   camelToSnake,
-  moveFromDomain,
  )
 import Hnefatafl.Core.Data (
-  MoveWithCaptures (..),
   PlayerColor,
  )
 import Hnefatafl.Game.Common (
-  AppliedMove (..),
   PendingAction (..),
   PendingActionType (..),
   TransitionError,
@@ -152,20 +146,6 @@ instance ToSchema WsError where
 
 -------------------------------------------------------------------------------
 -- Payload types
-
-data AppliedMovePayload = AppliedMovePayload
-  { move :: ApiMove
-  , side :: PlayerColor
-  }
-  deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON, ToSchema)
-
-appliedMoveFromDomain :: AppliedMove -> AppliedMovePayload
-appliedMoveFromDomain am =
-  AppliedMovePayload
-    { move = moveFromDomain (MoveWithCaptures am.move am.captures)
-    , side = am.side
-    }
 
 data PendingActionPayload = PendingActionPayload
   { actionType :: Text
