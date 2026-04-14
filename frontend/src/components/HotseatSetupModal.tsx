@@ -1,5 +1,6 @@
 import { useNavigate } from "@solidjs/router";
 import { createSignal, type Setter } from "solid-js";
+import { useHotseatApi } from "../api/contexts";
 import { timeOptions } from "../gameOptions";
 import Button from "./ui/Button";
 import ChipGrid from "./ui/ChipGrid";
@@ -13,12 +14,13 @@ interface HotseatSetupModalProps {
 
 export default function HotseatSetupModal(props: HotseatSetupModalProps) {
   const navigate = useNavigate();
+  const hotseat = useHotseatApi();
   const [timeControl, setTimeControl] = createSignal("none");
 
-  const startGame = () => {
-    const id = crypto.randomUUID();
+  const startGame = async () => {
+    const gameId = await hotseat.createGame();
     props.onOpenChange(false);
-    navigate(`/game/hotseat/${id}`);
+    navigate(`/game/hotseat/${gameId}`);
   };
 
   return (

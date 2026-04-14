@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.Api.Types.Online (
-  CreateGameResponse (..),
+  CreateOnlineGameResponse (..),
 ) where
 
 import Data.Aeson (FromJSON, ToJSON)
@@ -10,7 +10,7 @@ import Hnefatafl.Core.Data (
   GameId,
  )
 
-data CreateGameResponse = CreateGameResponse
+data CreateOnlineGameResponse = CreateOnlineGameResponse
   { gameId :: GameId
   , whiteToken :: Text
   , blackToken :: Text

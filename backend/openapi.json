@@ -411,18 +411,7 @@
                 ],
                 "type": "object"
             },
-            "CreateGameRequest": {
-                "properties": {
-                    "playerColor": {
-                        "$ref": "#/components/schemas/PlayerColor"
-                    }
-                },
-                "required": [
-                    "playerColor"
-                ],
-                "type": "object"
-            },
-            "CreateGameResponse": {
+            "CreateAiGameResponse": {
                 "properties": {
                     "gameId": {
                         "$ref": "#/components/schemas/GameId"
@@ -434,6 +423,36 @@
                 "required": [
                     "gameId",
                     "token"
+                ],
+                "type": "object"
+            },
+            "CreateGameRequest": {
+                "properties": {
+                    "playerColor": {
+                        "$ref": "#/components/schemas/PlayerColor"
+                    }
+                },
+                "required": [
+                    "playerColor"
+                ],
+                "type": "object"
+            },
+            "CreateOnlineGameResponse": {
+                "properties": {
+                    "blackToken": {
+                        "type": "string"
+                    },
+                    "gameId": {
+                        "$ref": "#/components/schemas/GameId"
+                    },
+                    "whiteToken": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "gameId",
+                    "whiteToken",
+                    "blackToken"
                 ],
                 "type": "object"
             },
@@ -1131,7 +1150,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/CreateGameResponse"
+                                    "$ref": "#/components/schemas/CreateAiGameResponse"
                                 }
                             }
                         },
@@ -1361,7 +1380,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/CreateGameResponse"
+                                    "$ref": "#/components/schemas/CreateOnlineGameResponse"
                                 }
                             }
                         },

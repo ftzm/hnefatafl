@@ -5,7 +5,7 @@ module Hnefatafl.Api.Routes.AI (
   AIRoutes (..),
 ) where
 
-import Hnefatafl.Api.Types.AI (CreateGameRequest, CreateGameResponse)
+import Hnefatafl.Api.Types.AI (CreateAiGameResponse, CreateGameRequest)
 import Hnefatafl.Servant.WebSocket (WebSocket)
 import Servant (
   GenericMode (type (:-)),
@@ -17,7 +17,7 @@ import Servant.API ((:>))
 
 data AIRoutes mode = AIRoutes
   { create ::
-      mode :- ReqBody '[JSON] CreateGameRequest :> Post '[JSON] CreateGameResponse
+      mode :- ReqBody '[JSON] CreateGameRequest :> Post '[JSON] CreateAiGameResponse
   , ws :: mode :- "ws" :> WebSocket
   }
   deriving stock (Generic)

@@ -8,8 +8,8 @@ import Effectful.Error.Static (Error)
 import Effectful.Katip (KatipE, katipAddNamespace)
 import Hnefatafl.Api.Routes.AI (AIRoutes (..))
 import Hnefatafl.Api.Types.AI (
+  CreateAiGameResponse (..),
   CreateGameRequest (..),
-  CreateGameResponse (..),
  )
 import Hnefatafl.App.AI qualified as AI
 import Hnefatafl.Core.Data (
@@ -49,11 +49,11 @@ aiServer sessions =
 
 createHandler ::
   (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es, HMetrics :> es) =>
-  CreateGameRequest -> Eff es CreateGameResponse
+  CreateGameRequest -> Eff es CreateAiGameResponse
 createHandler req = katipAddNamespace "ai" $ do
   result <- AI.createGame req.playerColor
   pure
-    CreateGameResponse
+    CreateAiGameResponse
       { gameId = result.game.gameId
       , token = result.token.token
       }

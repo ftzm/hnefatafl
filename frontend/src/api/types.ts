@@ -6,9 +6,15 @@ import type {
   PlayerColor,
 } from "../board-logic";
 
-export interface HotseatResponse {
+export interface HotseatState {
   boardRep: BoardRep;
   currentPlayer: PlayerColor;
+  moves: MovesMap;
+  moveHistory: Move[];
+  gameOver: GameOverState | null;
+}
+
+export interface HotseatActionResult {
   moves: MovesMap;
   gameOver: GameOverState | null;
 }

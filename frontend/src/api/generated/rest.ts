@@ -31,7 +31,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json;charset=utf-8": components["schemas"]["CreateGameResponse"];
+                        "application/json;charset=utf-8": components["schemas"]["CreateAiGameResponse"];
                     };
                 };
                 /** @description Invalid `body` */
@@ -411,7 +411,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json;charset=utf-8": components["schemas"]["CreateGameResponse"];
+                        "application/json;charset=utf-8": components["schemas"]["CreateOnlineGameResponse"];
                     };
                 };
             };
@@ -630,12 +630,17 @@ export interface components {
             /** @enum {string} */
             type: "auth";
         };
+        CreateAiGameResponse: {
+            gameId: components["schemas"]["GameId"];
+            token: string;
+        };
         CreateGameRequest: {
             playerColor: components["schemas"]["PlayerColor"];
         };
-        CreateGameResponse: {
+        CreateOnlineGameResponse: {
+            blackToken: string;
             gameId: components["schemas"]["GameId"];
-            token: string;
+            whiteToken: string;
         };
         /** @enum {string} */
         EngineGameStatus: "EngineOngoing" | "EngineKingCaptured" | "EngineWhiteSurrounded" | "EngineNoWhiteMoves" | "EngineKingEscaped" | "EngineExitFort" | "EngineNoBlackMoves" | "EngineDrawOffered" | "EngineWhiteResigned" | "EngineBlackResigned";

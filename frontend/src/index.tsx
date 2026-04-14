@@ -2,15 +2,15 @@
 
 import { Route, Router } from "@solidjs/router";
 import { render } from "solid-js/web";
+import {
+  AiGameProvider,
+  HotseatApiProvider,
+  OnlineGameProvider,
+} from "./api/providers";
 import AiGame from "./controllers/AiController";
 import HotseatGame from "./controllers/HotseatController";
 import OnlineGame from "./controllers/OnlineController";
 import Layout from "./Layout";
-import {
-  MockAiGameProvider,
-  MockHotseatApiProvider,
-  MockOnlineGameProvider,
-} from "./mocks/providers";
 import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import "./tokens.css";
@@ -18,9 +18,9 @@ import "./styles.css";
 
 render(
   () => (
-    <MockHotseatApiProvider>
-      <MockAiGameProvider>
-        <MockOnlineGameProvider>
+    <HotseatApiProvider>
+      <AiGameProvider>
+        <OnlineGameProvider>
           <Router root={Layout}>
             <Route path="/" component={Home} />
             <Route path="/game/hotseat/:id" component={HotseatGame} />
@@ -28,9 +28,9 @@ render(
             <Route path="/game/online/:id" component={OnlineGame} />
             <Route path="/settings" component={Settings} />
           </Router>
-        </MockOnlineGameProvider>
-      </MockAiGameProvider>
-    </MockHotseatApiProvider>
+        </OnlineGameProvider>
+      </AiGameProvider>
+    </HotseatApiProvider>
   ),
   // biome-ignore lint/style/noNonNullAssertion: root element guaranteed by index.html
   document.getElementById("root")!,

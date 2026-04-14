@@ -2,7 +2,7 @@
 
 module Hnefatafl.Api.Types.AI (
   CreateGameRequest (..),
-  CreateGameResponse (..),
+  CreateAiGameResponse (..),
 ) where
 
 import Data.Aeson (FromJSON, ToJSON)
@@ -18,7 +18,7 @@ data CreateGameRequest = CreateGameRequest
   deriving stock (Generic, Show)
   deriving anyclass (ToJSON, FromJSON, ToSchema)
 
-data CreateGameResponse = CreateGameResponse
+data CreateAiGameResponse = CreateAiGameResponse
   { gameId :: GameId
   , token :: Text
   }

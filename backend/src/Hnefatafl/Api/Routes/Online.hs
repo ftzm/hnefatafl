@@ -5,7 +5,7 @@ module Hnefatafl.Api.Routes.Online (
   OnlineRoutes (..),
 ) where
 
-import Hnefatafl.Api.Types.Online (CreateGameResponse)
+import Hnefatafl.Api.Types.Online (CreateOnlineGameResponse)
 import Hnefatafl.Servant.WebSocket (WebSocket)
 import Servant (
   GenericMode (type (:-)),
@@ -15,7 +15,7 @@ import Servant (
 import Servant.API ((:>))
 
 data OnlineRoutes mode = OnlineRoutes
-  { create :: mode :- Post '[JSON] CreateGameResponse
+  { create :: mode :- Post '[JSON] CreateOnlineGameResponse
   , ws :: mode :- "ws" :> WebSocket
   }
   deriving stock (Generic)
