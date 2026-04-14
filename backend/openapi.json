@@ -1145,7 +1145,7 @@
         },
         "/ai/ws": {
             "get": {
-                "description": "WebSocket endpoint — see AsyncAPI spec for message schemas",
+                "description": "WebSocket endpoint",
                 "responses": {
                     "101": {
                         "description": "WebSocket connection established"
@@ -1372,7 +1372,7 @@
         },
         "/online/ws": {
             "get": {
-                "description": "WebSocket endpoint — see AsyncAPI spec for message schemas",
+                "description": "WebSocket endpoint",
                 "responses": {
                     "101": {
                         "description": "WebSocket connection established"

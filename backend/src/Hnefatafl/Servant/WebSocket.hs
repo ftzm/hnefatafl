@@ -42,7 +42,7 @@ instance HasOpenApi WebSocket where
                   { OpenApi._pathItemGet =
                       Just $
                         mempty
-                          { OpenApi._operationDescription = Just "WebSocket endpoint — see AsyncAPI spec for message schemas"
+                          { OpenApi._operationDescription = Just "WebSocket endpoint"
                           , OpenApi._operationResponses =
                               mempty
                                 { OpenApi._responsesResponses =

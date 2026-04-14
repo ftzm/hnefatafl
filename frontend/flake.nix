@@ -33,7 +33,7 @@
             runtimeInputs = [nodejs];
             text = ''
               ${dumpSpecsProgram}
-              mv openapi.json asyncapi.json ../backend/
+              mv openapi.json ../backend/
               cd ../frontend
               npm run generate:types
             '';
@@ -71,11 +71,9 @@
               # Set up expected directory structure for spec references
               mkdir -p ../backend
               cp ${apiSpecs}/openapi.json ../backend/
-              cp ${apiSpecs}/asyncapi.json ../backend/
 
               # Generate types
               npx openapi-typescript ../backend/openapi.json -o src/api/generated/rest.ts
-              node scripts/generate-ws-types.mjs
 
               # Diff against committed versions
               diff -r src/api/generated/ committed-generated/ || {

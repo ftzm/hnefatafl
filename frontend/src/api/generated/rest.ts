@@ -56,7 +56,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description WebSocket endpoint — see AsyncAPI spec for message schemas */
+        /** @description WebSocket endpoint */
         get: {
             parameters: {
                 query?: never;
@@ -429,7 +429,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description WebSocket endpoint — see AsyncAPI spec for message schemas */
+        /** @description WebSocket endpoint */
         get: {
             parameters: {
                 query?: never;

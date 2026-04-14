@@ -110,7 +110,7 @@
             '';
             installPhase = ''
               mkdir -p $out
-              cp openapi.json asyncapi.json $out/
+              cp openapi.json $out/
             '';
           };
           hooks = {
