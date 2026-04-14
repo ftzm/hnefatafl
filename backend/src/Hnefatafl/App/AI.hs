@@ -28,7 +28,7 @@ import Hnefatafl.Api.Types (Position (..))
 import Hnefatafl.Api.Types.WS (
   WsError (..),
   WsErrorCode (..),
-  transitionErrorToCode,
+  transitionErrorToWsError,
  )
 import Hnefatafl.Api.Types.WS.AI (AIClientMessage (..))
 import Hnefatafl.App.AI.Serialization (gameStateMessage, notificationsFor)
@@ -57,7 +57,6 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Core.Data qualified as Data
 import Hnefatafl.Effect.Clock (Clock, now)
-import Hnefatafl.Metrics (HMetrics, Hs (..), decGauge, incGauge, increaseLabelledCounter, recordMetrics)
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
 import Hnefatafl.Effect.Search (Search, searchTrusted)
 import Hnefatafl.Effect.Storage (
@@ -81,6 +80,15 @@ import Hnefatafl.Game.Common (
   outcomeFromEngine,
   zobristHashes,
  )
+import Hnefatafl.Game.Common qualified as Common
+import Hnefatafl.Metrics (
+  HMetrics,
+  Hs (..),
+  decGauge,
+  incGauge,
+  increaseLabelledCounter,
+  recordMetrics,
+ )
 import Hnefatafl.Search (SearchTimeout (..))
 import Katip (Severity (..), ls)
 import Network.WebSockets (Connection)
@@ -102,6 +110,7 @@ data GameSession = GameSession
   , playerConn :: (ConnectionId, MVar Connection)
   , engineAsync :: Maybe (Async.Async ())
   }
+  deriving (Generic)
 
 type GameSessions = STMMap.Map GameId (SessionEntry GameSession)
 
@@ -286,24 +295,24 @@ processEvent sessionVar gameId event = do
   MVar.modifyMVar_ sessionVar $ \session -> do
     case AI.transition session.humanColor session.gameState event of
       Left err -> do
-        sequence_ [increaseLabelledCounter invalidMovesTotal "ai" | AI.MakeMove _ _ <- [event]]
-        sendToPlayer session (encode $ WsError (transitionErrorToCode err) (show err))
+        when (err == Common.InvalidMove) $
+          increaseLabelledCounter invalidMovesTotal "ai"
+        sendToPlayer session (encode $ transitionErrorToWsError err)
         pure session
-      Right tr -> do
-        runTransaction $ persistEvents gameId currentTime tr.events
-        for_ (notificationsFor session.humanColor tr.newState tr.events) $
-          sendToPlayer session . encode
-        recordMetrics "ai" tr.events
+      Right (AI.TransitionResult newState events) -> do
+        runTransaction $ persistEvents gameId currentTime events
+        sendNotifications session.humanColor newState events session
+        recordMetrics "ai" events
         -- Engine control via phase diff
         let wasThinking = isEngineThinking session.gameState
-            nowThinking = isEngineThinking tr.newState
+            nowThinking = isEngineThinking newState
         when (wasThinking && not nowThinking) $
           for_ session.engineAsync Async.cancel
         engineAsync' <-
           if not wasThinking && nowThinking
             then Just <$> spawnEngineSearch sessionVar gameId session.humanColor
             else pure Nothing
-        pure session{gameState = tr.newState, engineAsync = engineAsync'}
+        pure session{gameState = newState, engineAsync = engineAsync'}
 
 isEngineThinking :: AI.State -> Bool
 isEngineThinking (AI.State _ _ (AI.EngineThinking _)) = True
@@ -370,6 +379,14 @@ spawnEngineSearch sessionVar gameId humanColor = do
             }
         maybeOutcome = outcomeFromEngine result.gameStatus
     processEvent sessionVar gameId (AI.EngineMove applied maybeOutcome)
+
+-- | Send all notifications derived from domain events to the player.
+sendNotifications ::
+  (Concurrent :> es, WebSocket :> es) =>
+  PlayerColor -> AI.State -> [Common.DomainEvent] -> GameSession -> Eff es ()
+sendNotifications humanColor newState events session =
+  for_ (notificationsFor humanColor newState events) $
+    sendToPlayer session . encode
 
 -- | Send a message to the player's WebSocket connection.
 sendToPlayer ::

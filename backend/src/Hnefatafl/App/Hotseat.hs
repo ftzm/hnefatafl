@@ -68,12 +68,13 @@ processEvent gameId event = do
   gameState <- runTransaction $ loadHotseatState gameId
   case Hotseat.transition gameState event of
     Left err -> do
-      sequence_ [increaseLabelledCounter invalidMovesTotal "hotseat" | Hotseat.MakeMove _ _ <- [event]]
+      when (err == InvalidMove) $
+        increaseLabelledCounter invalidMovesTotal "hotseat"
       pure (Left err)
-    Right tr -> do
-      runTransaction $ persistEvents gameId currentTime tr.events
-      recordMetrics "hotseat" tr.events
-      pure (Right tr.newState)
+    Right (Hotseat.TransitionResult newState events) -> do
+      runTransaction $ persistEvents gameId currentTime events
+      recordMetrics "hotseat" events
+      pure (Right newState)
 
 createGame ::
   ( Storage :> es

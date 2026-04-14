@@ -7,6 +7,7 @@ module Hnefatafl.Api.Types.WS (
 
   -- * Error message
   WsError (..),
+  transitionErrorToWsError,
 
   -- * Payload types
   PendingActionPayload (..),
@@ -97,6 +98,10 @@ transitionErrorToCode = \case
   Common.ActionAlreadyPending -> ActionAlreadyPending
   Common.NoMovesToUndo -> NoMovesToUndo
   Common.EngineError -> EngineError
+
+transitionErrorToWsError :: TransitionError -> WsError
+transitionErrorToWsError err =
+  WsError (transitionErrorToCode err) (show err)
 
 -------------------------------------------------------------------------------
 -- Error message (shared across all WebSocket channels)

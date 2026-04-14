@@ -26,8 +26,7 @@ import Effectful.Exception (bracket)
 import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Types (Position (..))
 import Hnefatafl.Api.Types.WS (
-  WsError (..),
-  transitionErrorToCode,
+  transitionErrorToWsError,
  )
 import Hnefatafl.Api.Types.WS.Online (
   OnlineClientMessage (..),
@@ -78,10 +77,20 @@ import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Game.Common (
   currentBoard,
  )
+import Hnefatafl.Game.Common qualified as Common
+import Hnefatafl.Game.Online (TransitionResult (..))
 import Hnefatafl.Game.Online qualified as Online
-import Hnefatafl.Metrics (HMetrics, Hs (..), decGauge, incGauge, increaseLabelledCounter, recordMetrics)
+import Hnefatafl.Metrics (
+  HMetrics,
+  Hs (..),
+  decGauge,
+  incGauge,
+  increaseLabelledCounter,
+  recordMetrics,
+ )
 import Katip (Severity (..))
 import Network.WebSockets (Connection)
+import Optics ((.~))
 import StmContainers.Map qualified as STMMap
 
 -------------------------------------------------------------------------------
@@ -98,6 +107,7 @@ data GameSession = GameSession
   , whiteConn :: Maybe (ConnectionId, MVar Connection)
   , blackConn :: Maybe (ConnectionId, MVar Connection)
   }
+  deriving (Generic)
 
 type GameSessions = STMMap.Map GameId (SessionEntry GameSession)
 
@@ -281,25 +291,32 @@ processEvent sessionVar gameId color clientMsg = do
   MVar.modifyMVar_ sessionVar $ \session ->
     case Online.transition session.gameState event of
       Left err -> do
-        sequence_
-          [increaseLabelledCounter invalidMovesTotal "online" | OnlineMove _ _ <- [clientMsg]]
+        when (err == Common.InvalidMove) $
+          increaseLabelledCounter invalidMovesTotal "online"
         sendToPlayer
-          session
           color
-          (encode $ WsError (transitionErrorToCode err) (show err))
+          (encode $ transitionErrorToWsError err)
+          session
         pure session
-      Right tr -> do
-        runTransaction $ persistEvents gameId currentTime tr.events
-        for_ (notificationsFor color tr.newState tr.events) $ \(target, msg) ->
-          sendToPlayer session target (encode msg)
-        recordMetrics "online" tr.events
-        pure session{gameState = tr.newState}
+      Right (TransitionResult newState events) -> do
+        runTransaction $ persistEvents gameId currentTime events
+        sendNotifications color newState events session
+        recordMetrics "online" events
+        pure $ session & #gameState .~ newState
+
+-- | Send all notifications derived from domain events to the appropriate players.
+sendNotifications ::
+  (Concurrent :> es, WebSocket :> es) =>
+  PlayerColor -> Online.State -> [Common.DomainEvent] -> GameSession -> Eff es ()
+sendNotifications actor newState events session =
+  for_ (notificationsFor actor newState events) $ \(target, msg) ->
+    sendToPlayer target (encode msg) session
 
 -- | Send a message to a player's WebSocket connection, if connected.
 sendToPlayer ::
   (Concurrent :> es, WebSocket :> es) =>
-  GameSession -> PlayerColor -> LByteString -> Eff es ()
-sendToPlayer session color msg =
+  PlayerColor -> LByteString -> GameSession -> Eff es ()
+sendToPlayer color msg session =
   for_ (getConn color session) $ \(_, connVar) ->
     safeSend connVar msg
 
@@ -368,8 +385,8 @@ handleAuthenticated sessions conn tok =
       connVar
       (encode $ gameStateMessage gameId color gameState)
     -- Notify the opponent that this player has joined
-    MVar.withMVar sessionVar $ \session ->
-      sendToPlayer session (opponent color) (encode OnlineOpponentJoined)
+    MVar.withMVar sessionVar $
+      sendToPlayer (opponent color) (encode OnlineOpponentJoined)
     incGauge onlineSessions
     $(logTM) InfoS "player connected"
     pure (sessionVar, uid, connVar)
@@ -378,8 +395,8 @@ handleAuthenticated sessions conn tok =
     $(logTM) InfoS "player disconnected"
     disconnectPlayer sessionVar color uid
     -- Notify the opponent that this player has left
-    MVar.withMVar sessionVar $ \session ->
-      sendToPlayer session (opponent color) (encode OnlineOpponentLeft)
+    MVar.withMVar sessionVar $
+      sendToPlayer (opponent color) (encode OnlineOpponentLeft)
     STM.atomically $ release gameId sessions
   loop (sessionVar, _, connVar) =
     runMessageLoop
