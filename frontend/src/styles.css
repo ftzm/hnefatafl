@@ -478,7 +478,6 @@ body {
   width: var(--board-fit);
   height: var(--board-fit);
   box-sizing: border-box;
-  gap: var(--line-w);
   background: var(--board-grid);
   border: calc(var(--line-w) * 2) solid var(--board-grid);
   position: relative;
@@ -491,6 +490,16 @@ body {
   justify-content: center;
   align-items: center;
   position: relative;
+  border-right: var(--line-w) solid var(--board-grid);
+  border-bottom: var(--line-w) solid var(--board-grid);
+}
+
+.square:nth-child(11n) {
+  border-right: none;
+}
+
+.square:nth-child(n + 111) {
+  border-bottom: none;
 }
 
 .square .inner {

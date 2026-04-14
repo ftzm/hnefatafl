@@ -426,13 +426,10 @@ void search_trusted(
 #endif
 
   // Extract the best move from result
-#ifndef NDEBUG
   if (result.pv.length == 0 || result.pv.moves == NULL) {
-    printf("null move encountered (no moves in PV)\n");
-    print_search_stats(&result.statistics);
-    exit(1);
+    fprintf(stderr, "fatal: search returned empty PV\n");
+    abort();
   }
-#endif
 
   move best_move = result.pv.moves[0];
 

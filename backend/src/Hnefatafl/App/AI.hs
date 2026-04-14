@@ -241,9 +241,9 @@ connectToGame sessions gameId humanColor uid conn = do
           -- If engine was thinking (e.g. server restart), re-trigger the search
           when (sessionVar == var) $
             case gameState of
-              AI.State _ _ (AI.EngineThinking _) -> do
+              AI.State _ ms (AI.EngineThinking _) -> do
                 searchAsync <-
-                  spawnEngineSearch sessionVar gameId humanColor
+                  spawnEngineSearch sessionVar gameId humanColor ms
                 MVar.modifyMVar_ sessionVar $
                   \s -> pure s{engineAsync = Just searchAsync}
               _ -> pure ()
@@ -297,7 +297,7 @@ processEvent sessionVar gameId event = do
       Left err -> do
         when (err == Common.InvalidMove) $
           increaseLabelledCounter invalidMovesTotal "ai"
-        sendToPlayer session (encode $ transitionErrorToWsError err)
+        sendToPlayer (encode $ transitionErrorToWsError err) session
         pure session
       Right (AI.TransitionResult newState events) -> do
         runTransaction $ persistEvents gameId currentTime events
@@ -306,17 +306,25 @@ processEvent sessionVar gameId event = do
         -- Engine control via phase diff
         let wasThinking = isEngineThinking session.gameState
             nowThinking = isEngineThinking newState
-        when (wasThinking && not nowThinking) $
+        -- Cancel the engine async when an external event (e.g. Undo)
+        -- causes the transition out of EngineThinking. Skip for
+        -- EngineMove — that's the engine's own thread completing.
+        when (wasThinking && not nowThinking && not (isEngineMove event)) $
           for_ session.engineAsync Async.cancel
         engineAsync' <-
           if not wasThinking && nowThinking
-            then Just <$> spawnEngineSearch sessionVar gameId session.humanColor
+            then
+              Just <$> spawnEngineSearch sessionVar gameId session.humanColor newState.moves
             else pure Nothing
         pure session{gameState = newState, engineAsync = engineAsync'}
 
 isEngineThinking :: AI.State -> Bool
 isEngineThinking (AI.State _ _ (AI.EngineThinking _)) = True
 isEngineThinking _ = False
+
+isEngineMove :: AI.Event -> Bool
+isEngineMove (AI.EngineMove _ _) = True
+isEngineMove _ = False
 
 -- | Spawn an async thread to run the engine search. When the search
 -- completes, it feeds an EngineMove event back through processEvent.
@@ -334,10 +342,9 @@ spawnEngineSearch ::
   MVar GameSession ->
   GameId ->
   PlayerColor ->
+  [AppliedMove] ->
   Eff es (Async.Async ())
-spawnEngineSearch sessionVar gameId humanColor = do
-  moves <- MVar.withMVar sessionVar $ \s ->
-    let (AI.State _ ms _) = s.gameState in pure ms
+spawnEngineSearch sessionVar gameId humanColor moves = do
   -- hs-opentelemetry uses a thread-local IORef for span context, which is
   -- not inherited when we fork. Capture the parent context here so we can
   -- restore it inside the forked thread — otherwise the engine.search span
@@ -346,7 +353,7 @@ spawnEngineSearch sessionVar gameId humanColor = do
   parentCtx <- liftIO ThreadLocal.getContext
   Async.async $ do
     _ <- liftIO $ ThreadLocal.attachContext parentCtx
-    doSearch moves
+    doSearch
       -- Silently absorb cancellation — it's intentional (e.g. player undo).
       `catch` (\(_ :: Async.AsyncCancelled) -> pure ())
       -- Report any sync failure to the player without killing the session.
@@ -355,12 +362,11 @@ spawnEngineSearch sessionVar gameId humanColor = do
       -- as the async's result.
       `catchSync` \(ex :: SomeException) -> do
         $(logTM) ErrorS $ ls @Text ("Engine search failed: " <> show ex)
-        MVar.withMVar sessionVar $ \session ->
+        MVar.withMVar sessionVar $
           sendToPlayer
-            session
             (encode $ WsError EngineSearchFailed ("Engine search failed: " <> show ex))
  where
-  doSearch moves = do
+  doSearch = do
     let board = currentBoard moves
         engineColor = opponent humanColor
         blackToMove = currentTurn moves == Black
@@ -385,13 +391,13 @@ sendNotifications ::
   (Concurrent :> es, WebSocket :> es) =>
   PlayerColor -> AI.State -> [Common.DomainEvent] -> GameSession -> Eff es ()
 sendNotifications humanColor newState events session =
-  for_ (notificationsFor humanColor newState events) $
-    sendToPlayer session . encode
+  for_ (notificationsFor humanColor newState events) $ \msg ->
+    sendToPlayer (encode msg) session
 
 -- | Send a message to the player's WebSocket connection.
 sendToPlayer ::
-  (Concurrent :> es, WebSocket :> es) => GameSession -> LByteString -> Eff es ()
-sendToPlayer session msg =
+  (Concurrent :> es, WebSocket :> es) => LByteString -> GameSession -> Eff es ()
+sendToPlayer msg session =
   let (_, connVar) = session.playerConn
    in safeSend connVar msg
 

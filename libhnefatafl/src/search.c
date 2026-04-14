@@ -1760,8 +1760,11 @@ search_result search_runner_iterative_generic(
   pv pv_data = {0};
 
   u64 position_hash = hash_for_board(b, is_black);
+  // Exclude the last hash — it represents the current position, which
+  // the search itself inserts at ply 0.
+  int history_count = hash_count > 0 ? hash_count - 1 : 0;
   position_set *positions =
-      create_position_set_with_hashes(zobrist_hashes, hash_count);
+      create_position_set_with_hashes(zobrist_hashes, history_count);
 
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
@@ -1845,7 +1848,7 @@ search_result search_runner_iterative_generic(
 
     // Reset position set for each iteration (TT persists across iterations)
     destroy_position_set(positions);
-    positions = create_position_set_with_hashes(zobrist_hashes, hash_count);
+    positions = create_position_set_with_hashes(zobrist_hashes, history_count);
 
 #ifndef NDEBUG
     validate_pv_sequence(
