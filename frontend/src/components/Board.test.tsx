@@ -14,6 +14,13 @@ function renderBoard(opts?: { onMove?: (m: Move) => void; init?: () => void }) {
     <GameProvider>
       {(() => {
         ctx = useGame();
+        ctx.initGame({
+          boardRep: {
+            black: new Set(startBoard.black),
+            white: new Set(startBoard.white),
+            king: startBoard.king,
+          },
+        });
         opts?.init?.call(null);
         return null;
       })()}

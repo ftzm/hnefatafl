@@ -32,6 +32,7 @@ export interface GameState {
   playerColor: PlayerColor | null;
   players: { black: string; white: string };
   historyCursor: number;
+  loading: boolean;
 }
 
 export interface PendingAnimation {
@@ -75,9 +76,15 @@ interface GameContextValue {
 
 const GameContext = createContext<GameContextValue>();
 
+const emptyBoard: BoardRep = {
+  black: new Set(),
+  white: new Set(),
+  king: -1,
+};
+
 function initialGameState(): GameState {
   return {
-    boardRep: cloneBoardRep(startBoard),
+    boardRep: emptyBoard,
     moveHistory: [],
     currentPlayer: "black",
     moves: {},
@@ -86,6 +93,7 @@ function initialGameState(): GameState {
     playerColor: null,
     players: { black: "Black", white: "White" },
     historyCursor: 0,
+    loading: true,
   };
 }
 
@@ -189,19 +197,18 @@ export const GameProvider: ParentComponent = (props) => {
           newCaptured.white++;
       }
     }
+    setStore("game", {
+      moveHistory: [...store.game.moveHistory, move],
+      historyCursor: 0,
+      currentPlayer: event.currentPlayer,
+      boardRep: event.boardRep,
+      moves: event.moves,
+      capturedPieces: newCaptured,
+    });
     setPendingAnimation({
       from: move.from,
       to: move.to,
       captures: move.captures || [],
-      applyState: () =>
-        setStore("game", {
-          moveHistory: [...store.game.moveHistory, move],
-          historyCursor: 0,
-          currentPlayer: event.currentPlayer,
-          boardRep: event.boardRep,
-          moves: event.moves,
-          capturedPieces: newCaptured,
-        }),
     });
   }
 
@@ -244,7 +251,7 @@ export const GameProvider: ParentComponent = (props) => {
   }
 
   function initGame(config: Partial<GameState>): void {
-    setStore("game", { ...initialGameState(), ...config });
+    setStore("game", { ...initialGameState(), ...config, loading: false });
   }
 
   async function viewPrev(): Promise<void> {

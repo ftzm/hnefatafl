@@ -25,6 +25,7 @@ export function createMockAiGameService(): AiGameService {
 
   const [events, setEvents] = createSignal<AiGameEvent | undefined>();
   const [connected, setConnected] = createSignal(false);
+  const [connecting] = createSignal(false);
 
   function emitIfActive(event: AiGameEvent) {
     if (active) setEvents(event);
@@ -138,6 +139,26 @@ export function createMockAiGameService(): AiGameService {
       setTimeout(() => aiTurn(), 500);
     },
 
+    undo() {
+      if (!active || moveHistory.length < 2) return;
+      moveHistory = moveHistory.slice(0, -2);
+      board = cloneBoardRep(startBoard);
+      currentPlayer = "black";
+      for (const m of moveHistory) {
+        board = applyMoveToBoardRep(board, m);
+        currentPlayer = currentPlayer === "black" ? "white" : "black";
+      }
+      const moves = generateLegalMoves(board, currentPlayer);
+      emitIfActive({
+        type: "undoAccepted",
+        moveCount: 2,
+        boardRep: cloneBoardRep(board),
+        currentPlayer,
+        moves,
+        gameOver: checkGameOver(board, currentPlayer, moves),
+      });
+    },
+
     resign() {
       if (!active || !gameConfig) return;
       const winner = gameConfig.playerColor === "black" ? "white" : "black";
@@ -146,5 +167,6 @@ export function createMockAiGameService(): AiGameService {
 
     events,
     connected,
+    connecting,
   };
 }

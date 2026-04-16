@@ -15,6 +15,13 @@ function setupContext() {
     <GameProvider>
       {(() => {
         ctx = useGame();
+        ctx.initGame({
+          boardRep: {
+            black: new Set(startBoard.black),
+            white: new Set(startBoard.white),
+            king: startBoard.king,
+          },
+        });
         return null;
       })()}
     </GameProvider>

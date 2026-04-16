@@ -23,6 +23,7 @@ export class FakeWebSocket {
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   onclose: (() => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
 
   constructor(url: string) {
     this.url = url;
@@ -47,6 +48,10 @@ export class FakeWebSocket {
 
   simulateClose() {
     this.onclose?.();
+  }
+
+  simulateError() {
+    this.onerror?.(new Event("error"));
   }
 }
 

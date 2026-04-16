@@ -8,7 +8,6 @@ module Hnefatafl.App.AI (
   toEvent,
   createGame,
   connectToGame,
-  processEvent,
   disconnectPlayer,
   handleWebSocket,
 ) where
@@ -53,6 +52,7 @@ import Hnefatafl.Core.Data (
   GameMode (..),
   GameParticipantToken (..),
   GameParticipantTokenId (..),
+  Outcome,
   PlayerColor (..),
  )
 import Hnefatafl.Core.Data qualified as Data
@@ -273,6 +273,40 @@ disconnectPlayer sessionVar uid =
 
 -- | Process a game event. Transitions state, persists to DB, sends
 -- notifications to the player, and handles engine search commands.
+-- | Shared transition logic: take MVar, run state machine, handle
+-- errors, persist, notify, record metrics. On success, delegate
+-- session update to the caller-provided callback.
+withTransition ::
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  MVar GameSession ->
+  GameId ->
+  AI.Event ->
+  (GameSession -> AI.State -> Eff es GameSession) ->
+  Eff es ()
+withTransition sessionVar gameId event onSuccess = do
+  currentTime <- now
+  MVar.modifyMVar_ sessionVar $ \session ->
+    case AI.transition session.humanColor session.gameState event of
+      Left err -> do
+        when (err == Common.InvalidMove) $
+          increaseLabelledCounter invalidMovesTotal "ai"
+        sendToPlayer (encode $ transitionErrorToWsError err) session
+        pure session
+      Right (AI.TransitionResult newState events) -> do
+        runTransaction $ persistEvents gameId currentTime events
+        sendNotifications session.humanColor newState events session
+        recordMetrics "ai" events
+        onSuccess session newState
+
+-- | Process a player event. Manages engine lifecycle: cancels the
+-- engine search when leaving EngineThinking, spawns one when entering.
 processEvent ::
   ( Storage :> es
   , Clock :> es
@@ -288,46 +322,44 @@ processEvent ::
   GameId ->
   AI.Event ->
   Eff es ()
-processEvent sessionVar gameId event = do
-  currentTime <- now
-  -- All effects (DB writes, notifications) run under the MVar lock so that
-  -- no concurrent event can observe or act on intermediate state.
-  MVar.modifyMVar_ sessionVar $ \session -> do
-    case AI.transition session.humanColor session.gameState event of
-      Left err -> do
-        when (err == Common.InvalidMove) $
-          increaseLabelledCounter invalidMovesTotal "ai"
-        sendToPlayer (encode $ transitionErrorToWsError err) session
-        pure session
-      Right (AI.TransitionResult newState events) -> do
-        runTransaction $ persistEvents gameId currentTime events
-        sendNotifications session.humanColor newState events session
-        recordMetrics "ai" events
-        -- Engine control via phase diff
-        let wasThinking = isEngineThinking session.gameState
-            nowThinking = isEngineThinking newState
-        -- Cancel the engine async when an external event (e.g. Undo)
-        -- causes the transition out of EngineThinking. Skip for
-        -- EngineMove — that's the engine's own thread completing.
-        when (wasThinking && not nowThinking && not (isEngineMove event)) $
-          for_ session.engineAsync Async.cancel
-        engineAsync' <-
-          if not wasThinking && nowThinking
-            then
-              Just <$> spawnEngineSearch sessionVar gameId session.humanColor newState.moves
-            else pure Nothing
-        pure session{gameState = newState, engineAsync = engineAsync'}
+processEvent sessionVar gameId event =
+  withTransition sessionVar gameId event $ \session newState -> do
+    let wasThinking = isEngineThinking session.gameState
+        nowThinking = isEngineThinking newState
+    when (wasThinking && not nowThinking) $
+      for_ session.engineAsync Async.cancel
+    engineAsync' <-
+      if not wasThinking && nowThinking
+        then Just <$> spawnEngineSearch sessionVar gameId session.humanColor newState.moves
+        else pure Nothing
+    pure session{gameState = newState, engineAsync = engineAsync'}
+
+-- | Commit the engine's search result. The engine thread is already
+-- finishing, so no lifecycle management is needed.
+deliverEngineResult ::
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  MVar GameSession ->
+  GameId ->
+  AppliedMove ->
+  Maybe Outcome ->
+  Eff es ()
+deliverEngineResult sessionVar gameId applied maybeOutcome =
+  withTransition sessionVar gameId (AI.EngineMove applied maybeOutcome) $ \_session newState ->
+    pure _session{gameState = newState, engineAsync = Nothing}
 
 isEngineThinking :: AI.State -> Bool
 isEngineThinking (AI.State _ _ (AI.EngineThinking _)) = True
 isEngineThinking _ = False
 
-isEngineMove :: AI.Event -> Bool
-isEngineMove (AI.EngineMove _ _) = True
-isEngineMove _ = False
-
 -- | Spawn an async thread to run the engine search. When the search
--- completes, it feeds an EngineMove event back through processEvent.
+-- completes, it delivers the result via 'deliverEngineResult'.
 spawnEngineSearch ::
   ( Search :> es
   , Clock :> es
@@ -384,7 +416,7 @@ spawnEngineSearch sessionVar gameId humanColor moves = do
             , timestamp = time
             }
         maybeOutcome = outcomeFromEngine result.gameStatus
-    processEvent sessionVar gameId (AI.EngineMove applied maybeOutcome)
+    deliverEngineResult sessionVar gameId applied maybeOutcome
 
 -- | Send all notifications derived from domain events to the player.
 sendNotifications ::

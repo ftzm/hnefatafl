@@ -11,7 +11,7 @@ import {
   mapMoves,
 } from "./mappers";
 import type { OnlineGameEvent } from "./types";
-import { createGameWebSocket } from "./ws-utils";
+import { createGameWebSocket, type ServerError } from "./ws-utils";
 
 type OnlineServerMessage = components["schemas"]["OnlineServerMessage"];
 
@@ -32,6 +32,7 @@ export interface OnlineGameService {
   sendChat(message: string): void;
   events: Accessor<OnlineGameEvent | undefined>;
   connected: Accessor<boolean>;
+  connecting: Accessor<boolean>;
 }
 
 function mapServerMessage(msg: OnlineServerMessage): OnlineGameEvent {
@@ -68,11 +69,11 @@ function mapServerMessage(msg: OnlineServerMessage): OnlineGameEvent {
         reason: "unknown",
       };
     case "drawOffered":
-      return { type: "drawOffer" };
+      return { type: "drawOffer", by: msg.by };
     case "drawDeclined":
       return { type: "drawDeclined" };
     case "undoRequested":
-      return { type: "undoRequest" };
+      return { type: "undoRequest", by: msg.by };
     case "undoAccepted":
       return { type: "undoAccepted", moveCount: msg.moveCount };
     case "undoDeclined":
@@ -84,15 +85,23 @@ function mapServerMessage(msg: OnlineServerMessage): OnlineGameEvent {
   }
 }
 
-export function createOnlineGameService(): OnlineGameService {
+export function createOnlineGameService(opts?: {
+  onError?: (error: ServerError) => void;
+}): OnlineGameService {
   const [events, setEvents] = createSignal<OnlineGameEvent | undefined>();
   const [connected, setConnected] = createSignal(false);
+  const [connecting, setConnecting] = createSignal(false);
 
   const ws = createGameWebSocket<OnlineServerMessage>({
     url: "/online/ws",
     onMessage: (msg) => setEvents(mapServerMessage(msg)),
-    onConnected: () => setConnected(true),
+    onConnected: () => {
+      setConnected(true);
+      setConnecting(false);
+    },
     onDisconnected: () => setConnected(false),
+    onConnecting: () => setConnecting(true),
+    onError: opts?.onError,
   });
 
   return {
@@ -152,5 +161,6 @@ export function createOnlineGameService(): OnlineGameService {
 
     events,
     connected,
+    connecting,
   };
 }

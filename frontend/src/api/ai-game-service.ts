@@ -11,7 +11,7 @@ import {
   mapMoves,
 } from "./mappers";
 import type { AiGameEvent } from "./types";
-import { createGameWebSocket } from "./ws-utils";
+import { createGameWebSocket, type ServerError } from "./ws-utils";
 
 type AIServerMessage = components["schemas"]["AIServerMessage"];
 
@@ -20,9 +20,11 @@ export interface AiGameService {
   connect(token: string): void;
   disconnect(): void;
   sendMove(move: Move): void;
+  undo(): void;
   resign(): void;
   events: Accessor<AiGameEvent | undefined>;
   connected: Accessor<boolean>;
+  connecting: Accessor<boolean>;
 }
 
 function mapServerMessage(msg: AIServerMessage): AiGameEvent {
@@ -60,26 +62,33 @@ function mapServerMessage(msg: AIServerMessage): AiGameEvent {
       };
     case "undoAccepted":
       return {
-        type: "initialState",
-        playerColor: "black",
+        type: "undoAccepted",
+        moveCount: msg.moveCount,
         boardRep: mapBoard(msg.board),
         currentPlayer: msg.turn,
         moves: mapMoves(msg.validMoves),
-        moveHistory: [],
         gameOver: mapGameOver(msg.status),
       };
   }
 }
 
-export function createAiGameService(): AiGameService {
+export function createAiGameService(opts?: {
+  onError?: (error: ServerError) => void;
+}): AiGameService {
   const [events, setEvents] = createSignal<AiGameEvent | undefined>();
   const [connected, setConnected] = createSignal(false);
+  const [connecting, setConnecting] = createSignal(false);
 
   const ws = createGameWebSocket<AIServerMessage>({
     url: "/ai/ws",
     onMessage: (msg) => setEvents(mapServerMessage(msg)),
-    onConnected: () => setConnected(true),
+    onConnected: () => {
+      setConnected(true);
+      setConnecting(false);
+    },
     onDisconnected: () => setConnected(false),
+    onConnecting: () => setConnecting(true),
+    onError: opts?.onError,
   });
 
   return {
@@ -103,11 +112,16 @@ export function createAiGameService(): AiGameService {
       ws.send({ type: "move", from: move.from, to: move.to });
     },
 
+    undo() {
+      ws.send({ type: "undo" });
+    },
+
     resign() {
       ws.send({ type: "resign" });
     },
 
     events,
     connected,
+    connecting,
   };
 }

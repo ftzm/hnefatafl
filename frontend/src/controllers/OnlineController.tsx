@@ -86,6 +86,7 @@ function OnlineController() {
       onResign={onResign}
       onDraw={onDraw}
       onUndo={onUndo}
+      connecting={online.connecting()}
     />
   );
 }

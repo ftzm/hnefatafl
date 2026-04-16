@@ -1,7 +1,8 @@
 import { useNavigate } from "@solidjs/router";
-import { createSignal, For, type JSX, Match, Switch } from "solid-js";
+import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import type { Move } from "../board-logic";
 import { type GameMode, useGame } from "../game-context";
+import { useToasts } from "../toast-context";
 import AiInfoPanel from "./AiInfoPanel";
 import Board from "./Board";
 import Chat from "./Chat";
@@ -43,11 +44,13 @@ interface GameLayoutProps {
   onResign?: () => void;
   onUndo?: () => void;
   onDraw?: () => void;
+  connecting?: boolean;
 }
 
 export default function GameLayout(props: GameLayoutProps) {
   const navigate = useNavigate();
   const game = useGame();
+  const { toasts, dismiss } = useToasts();
 
   const [movesSheetOpen, setMovesSheetOpen] = createSignal(false);
   const [chatSheetOpen, setChatSheetOpen] = createSignal(false);
@@ -95,6 +98,32 @@ export default function GameLayout(props: GameLayoutProps) {
 
   return (
     <div class="main-layout">
+      <Show when={props.connecting}>
+        <div class="connecting-overlay">
+          <div class="connecting-overlay__content">
+            <span class="connecting-overlay__spinner" />
+            <span>Connecting...</span>
+          </div>
+        </div>
+      </Show>
+
+      <div class="toast-stack">
+        <For each={toasts()}>
+          {(toast) => (
+            <div class="error-toast">
+              <span class="error-toast__message">{toast.error.message}</span>
+              <button
+                type="button"
+                class="error-toast__close"
+                onClick={() => dismiss(toast.id)}
+              >
+                &times;
+              </button>
+            </div>
+          )}
+        </For>
+      </div>
+
       <div class="mobile-only mobile-status">
         <GameStatus />
       </div>

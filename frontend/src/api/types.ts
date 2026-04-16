@@ -36,7 +36,15 @@ export type AiGameEvent =
       currentPlayer: PlayerColor;
       moves: MovesMap;
     }
-  | { type: "gameOver"; winner: PlayerColor | "draw"; reason: string };
+  | { type: "gameOver"; winner: PlayerColor | "draw"; reason: string }
+  | {
+      type: "undoAccepted";
+      moveCount: number;
+      boardRep: BoardRep;
+      currentPlayer: PlayerColor;
+      moves: MovesMap;
+      gameOver: GameOverState | null;
+    };
 
 export type OnlineGameEvent =
   | {
@@ -58,9 +66,9 @@ export type OnlineGameEvent =
   | { type: "gameOver"; winner: PlayerColor | "draw"; reason: string }
   | { type: "opponentJoined" }
   | { type: "opponentLeft" }
-  | { type: "drawOffer" }
+  | { type: "drawOffer"; by: PlayerColor }
   | { type: "drawDeclined" }
-  | { type: "undoRequest" }
+  | { type: "undoRequest"; by: PlayerColor }
   | { type: "undoAccepted"; moveCount: number }
   | { type: "undoDeclined" }
   | { type: "chat"; message: string };

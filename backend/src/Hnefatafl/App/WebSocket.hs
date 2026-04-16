@@ -36,7 +36,7 @@ import Hnefatafl.Exception (
   logCaughtException,
  )
 import Katip (sl)
-import Network.WebSockets (Connection, ConnectionException)
+import Network.WebSockets (Connection, ConnectionException (..))
 
 -- | Send data on a connection held in an MVar. The MVar ensures only one
 -- thread writes to the connection at a time. Silently catches connection
@@ -98,9 +98,12 @@ guardWebSocket ::
   Connection -> Eff es () -> Eff es ()
 guardWebSocket conn action =
   action `catchSync` \(ex :: SomeException) ->
-    if isJust (fromException @ConnectionException ex)
-      then throwIO ex
-      else do
+    case fromException @ConnectionException ex of
+      Just (ParseException _) -> do
+        logCaughtException ex
+        recordSpanException ex
+      Just _ -> pure ()
+      Nothing -> do
         logCaughtException ex
         recordSpanException ex
         sendData conn (encode $ WsError InternalError "internal error")

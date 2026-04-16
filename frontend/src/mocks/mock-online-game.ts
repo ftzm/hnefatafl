@@ -34,6 +34,7 @@ export function createMockOnlineGameService(): OnlineGameService {
 
   const [events, setEvents] = createSignal<OnlineGameEvent | undefined>();
   const [connected, setConnected] = createSignal(false);
+  const [connecting] = createSignal(false);
 
   function emitIfActive(event: OnlineGameEvent) {
     if (active) setEvents(event);
@@ -232,5 +233,6 @@ export function createMockOnlineGameService(): OnlineGameService {
 
     events,
     connected,
+    connecting,
   };
 }

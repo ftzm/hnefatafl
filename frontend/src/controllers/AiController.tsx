@@ -42,6 +42,12 @@ function AiController() {
             game.applyExternalMove(event);
           }
           break;
+        case "undoAccepted":
+          for (let i = 0; i < event.moveCount; i++) {
+            game.undoLastMove();
+          }
+          game.reconcile({ moves: event.moves, gameOver: event.gameOver });
+          break;
         case "gameOver":
           game.setGameOver({ winner: event.winner, reason: event.reason });
           break;
@@ -59,12 +65,18 @@ function AiController() {
   }
 
   function onUndo() {
-    game.undoLastMove();
-    game.undoLastMove();
+    game.setMoves({});
+    ai.undo();
   }
 
   return (
-    <GameLayout mode="ai" onMove={onMove} onResign={onResign} onUndo={onUndo} />
+    <GameLayout
+      mode="ai"
+      onMove={onMove}
+      onResign={onResign}
+      onUndo={onUndo}
+      connecting={ai.connecting()}
+    />
   );
 }
 
