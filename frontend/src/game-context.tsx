@@ -27,7 +27,6 @@ export interface GameState {
   moveHistory: Move[];
   currentPlayer: PlayerColor;
   moves: MovesMap;
-  capturedPieces: { black: number; white: number };
   gameOver: GameOverState | null;
   playerColor: PlayerColor | null;
   players: { black: string; white: string };
@@ -45,6 +44,7 @@ export interface PendingAnimation {
 
 interface GameContextValue {
   store: { game: GameState };
+  capturedPieces: Accessor<{ black: number; white: number }>;
   pendingAnimation: Accessor<PendingAnimation | null>;
   setPendingAnimation: (anim: PendingAnimation | null) => void;
   canViewPrev: Accessor<boolean>;
@@ -88,7 +88,6 @@ function initialGameState(): GameState {
     moveHistory: [],
     currentPlayer: "black",
     moves: {},
-    capturedPieces: { black: 0, white: 0 },
     gameOver: null,
     playerColor: null,
     players: { black: "Black", white: "White" },
@@ -151,21 +150,16 @@ export const GameProvider: ParentComponent = (props) => {
     }
     return null;
   });
+  const capturedPieces = createMemo(() =>
+    computeCapturesAtCursor(
+      store.game.moveHistory,
+      store.game.historyCursor,
+    ),
+  );
 
   function applyMove(move: Move): void {
     const newHistory = [...store.game.moveHistory, move];
     const newBoard = applyMoveToBoardRep(store.game.boardRep, move);
-    const newCaptured = { ...store.game.capturedPieces };
-    if (move.captures) {
-      for (const cap of move.captures) {
-        if (store.game.boardRep.black.has(cap)) newCaptured.black++;
-        else if (
-          store.game.boardRep.white.has(cap) ||
-          store.game.boardRep.king === cap
-        )
-          newCaptured.white++;
-      }
-    }
     const nextPlayer: PlayerColor =
       store.game.currentPlayer === "black" ? "white" : "black";
     setStore("game", {
@@ -174,7 +168,6 @@ export const GameProvider: ParentComponent = (props) => {
       currentPlayer: nextPlayer,
       boardRep: newBoard,
       moves: {},
-      capturedPieces: newCaptured,
       gameOver: null,
     });
   }
@@ -186,24 +179,12 @@ export const GameProvider: ParentComponent = (props) => {
     moves: MovesMap;
   }): void {
     const move = event.move;
-    const newCaptured = { ...store.game.capturedPieces };
-    if (move.captures) {
-      for (const cap of move.captures) {
-        if (store.game.boardRep.black.has(cap)) newCaptured.black++;
-        else if (
-          store.game.boardRep.white.has(cap) ||
-          store.game.boardRep.king === cap
-        )
-          newCaptured.white++;
-      }
-    }
     setStore("game", {
       moveHistory: [...store.game.moveHistory, move],
       historyCursor: 0,
       currentPlayer: event.currentPlayer,
       boardRep: event.boardRep,
       moves: event.moves,
-      capturedPieces: newCaptured,
     });
     setPendingAnimation({
       from: move.from,
@@ -237,7 +218,6 @@ export const GameProvider: ParentComponent = (props) => {
       newHistory.length > 0
         ? boardAtCursor(newHistory, 0)
         : cloneBoardRep(startBoard);
-    const newCaptured = computeCapturesAtCursor(newHistory, 0);
     const prevPlayer: PlayerColor =
       store.game.currentPlayer === "black" ? "white" : "black";
     setStore("game", {
@@ -246,7 +226,6 @@ export const GameProvider: ParentComponent = (props) => {
       currentPlayer: prevPlayer,
       boardRep: newBoard,
       moves: {},
-      capturedPieces: newCaptured,
     });
   }
 
@@ -262,14 +241,9 @@ export const GameProvider: ParentComponent = (props) => {
         store.game.moveHistory.length - store.game.historyCursor - 1;
       const move = store.game.moveHistory[moveIndex];
       const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
-      const newCaptured = computeCapturesAtCursor(
-        store.game.moveHistory,
-        newCursor,
-      );
       setStore("game", {
         historyCursor: newCursor,
         boardRep: newBoard,
-        capturedPieces: newCaptured,
       });
       setPendingAnimation({
         from: move.to,
@@ -286,14 +260,9 @@ export const GameProvider: ParentComponent = (props) => {
       const moveIndex = store.game.moveHistory.length - newCursor - 1;
       const move = store.game.moveHistory[moveIndex];
       const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
-      const newCaptured = computeCapturesAtCursor(
-        store.game.moveHistory,
-        newCursor,
-      );
       setStore("game", {
         historyCursor: newCursor,
         boardRep: newBoard,
-        capturedPieces: newCaptured,
       });
       setPendingAnimation({
         from: move.from,
@@ -309,7 +278,6 @@ export const GameProvider: ParentComponent = (props) => {
       setStore("game", {
         historyCursor: store.game.moveHistory.length,
         boardRep: cloneBoardRep(startBoard),
-        capturedPieces: { black: 0, white: 0 },
       });
     });
   }
@@ -318,11 +286,9 @@ export const GameProvider: ParentComponent = (props) => {
     return navigationLock.withLock(async () => {
       if (store.game.historyCursor <= 0) return;
       const newBoard = boardAtCursor(store.game.moveHistory, 0);
-      const newCaptured = computeCapturesAtCursor(store.game.moveHistory, 0);
       setStore("game", {
         historyCursor: 0,
         boardRep: newBoard,
-        capturedPieces: newCaptured,
       });
     });
   }
@@ -332,20 +298,16 @@ export const GameProvider: ParentComponent = (props) => {
       const newCursor = store.game.moveHistory.length - moveIndex - 1;
       if (newCursor === store.game.historyCursor) return;
       const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
-      const newCaptured = computeCapturesAtCursor(
-        store.game.moveHistory,
-        newCursor,
-      );
       setStore("game", {
         historyCursor: newCursor,
         boardRep: newBoard,
-        capturedPieces: newCaptured,
       });
     });
   }
 
   const value: GameContextValue = {
     store,
+    capturedPieces,
     pendingAnimation,
     setPendingAnimation,
     canViewPrev,

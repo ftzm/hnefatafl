@@ -51,11 +51,11 @@ describe("game context — state transitions", () => {
 
   it("applyMove with captures increments the correct capturedPieces count", () => {
     const ctx = setupContext();
-    expect(ctx.store.game.capturedPieces).toEqual({ black: 0, white: 0 });
+    expect(ctx.capturedPieces()).toEqual({ black: 0, white: 0 });
     // Black captures a white piece. White piece at 59 is in the starting position.
     ctx.applyMove({ from: 44, to: 58, captures: [59] });
-    expect(ctx.store.game.capturedPieces.white).toBe(1);
-    expect(ctx.store.game.capturedPieces.black).toBe(0);
+    expect(ctx.capturedPieces().white).toBe(1);
+    expect(ctx.capturedPieces().black).toBe(0);
   });
 
   it("undoLastMove on empty history is a no-op", () => {
@@ -83,9 +83,9 @@ describe("game context — state transitions", () => {
   it("undoLastMove after a capture restores the capturedPieces count", () => {
     const ctx = setupContext();
     ctx.applyMove({ from: 44, to: 58, captures: [59] });
-    expect(ctx.store.game.capturedPieces.white).toBe(1);
+    expect(ctx.capturedPieces().white).toBe(1);
     ctx.undoLastMove();
-    expect(ctx.store.game.capturedPieces.white).toBe(0);
+    expect(ctx.capturedPieces().white).toBe(0);
   });
 
   it("two undos restore the board to two moves ago", () => {
@@ -111,7 +111,7 @@ function snapshotBoard(ctx: ReturnType<typeof useGame>) {
     black: new Set(ctx.store.game.boardRep.black),
     white: new Set(ctx.store.game.boardRep.white),
     king: ctx.store.game.boardRep.king,
-    captures: { ...ctx.store.game.capturedPieces },
+    captures: { ...ctx.capturedPieces() },
     cursor: ctx.store.game.historyCursor,
   };
 }
@@ -123,7 +123,7 @@ function expectBoardEqual(
   expect(ctx.store.game.boardRep.black).toEqual(snapshot.black);
   expect(ctx.store.game.boardRep.white).toEqual(snapshot.white);
   expect(ctx.store.game.boardRep.king).toBe(snapshot.king);
-  expect(ctx.store.game.capturedPieces).toEqual(snapshot.captures);
+  expect(ctx.capturedPieces()).toEqual(snapshot.captures);
   expect(ctx.store.game.historyCursor).toBe(snapshot.cursor);
 }
 
@@ -176,7 +176,7 @@ describe("game context — history navigation boundaries", () => {
     expect(ctx.store.game.boardRep.black).toEqual(startBoard.black);
     expect(ctx.store.game.boardRep.white).toEqual(startBoard.white);
     expect(ctx.store.game.boardRep.king).toBe(startBoard.king);
-    expect(ctx.store.game.capturedPieces).toEqual({ black: 0, white: 0 });
+    expect(ctx.capturedPieces()).toEqual({ black: 0, white: 0 });
   });
 });
 
@@ -198,12 +198,12 @@ describe("game context — history navigation correctness", () => {
     const ctx = setupContext();
     // Move 1: black captures a white piece
     ctx.applyMove({ from: 44, to: 58, captures: [59] });
-    expect(ctx.store.game.capturedPieces.white).toBe(1);
+    expect(ctx.capturedPieces().white).toBe(1);
     // Move 2: some white move
     ctx.applyMove({ from: 61, to: 63 });
     // Navigate to before the capture
     await ctx.viewStart();
-    expect(ctx.store.game.capturedPieces.white).toBe(0);
+    expect(ctx.capturedPieces().white).toBe(0);
   });
 
   it("jumpToMove(0) shows the board after only the first move", async () => {
@@ -230,10 +230,10 @@ describe("game context — history navigation correctness", () => {
     ctx.applyMove({ from: 61, to: 63 });
     // Move 3: black captures another
     ctx.applyMove({ from: 55, to: 62, captures: [63] });
-    expect(ctx.store.game.capturedPieces.white).toBe(2);
+    expect(ctx.capturedPieces().white).toBe(2);
     // Jump back to after move 1: only 1 capture so far
     await ctx.jumpToMove(0);
-    expect(ctx.store.game.capturedPieces.white).toBe(1);
+    expect(ctx.capturedPieces().white).toBe(1);
   });
 });
 

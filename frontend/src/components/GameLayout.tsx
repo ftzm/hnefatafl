@@ -132,14 +132,14 @@ export default function GameLayout(props: GameLayoutProps) {
         <PlayerBar
           color="black"
           name={game.store.game.players?.black}
-          capturedCount={game.store.game.capturedPieces.white}
+          capturedCount={game.capturedPieces().white}
           active={isBlackActive()}
         />
         <Board onMove={props.onMove} />
         <PlayerBar
           color="white"
           name={game.store.game.players?.white}
-          capturedCount={game.store.game.capturedPieces.black}
+          capturedCount={game.capturedPieces().black}
           active={isWhiteActive()}
         />
       </div>
