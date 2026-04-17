@@ -371,7 +371,7 @@ void print_search_stats(const stats *s) {
   printf("===================\n");
 }
 
-void search_trusted(
+int search_trusted(
     compact_board *trusted_board,
     bool is_black_turn,
     u64 *zobrist_hashes,
@@ -397,7 +397,7 @@ void search_trusted(
       *captures_out = EMPTY_LAYER;
       *hash_out = 0;
       *status_out = admin_status;
-      return;
+      return 0;
     }
   }
 
@@ -425,10 +425,17 @@ void search_trusted(
   }
 #endif
 
-  // Extract the best move from result
+  // Extract the best move from result. An empty PV means the engine
+  // could not find a legal move for the side to move. Normally
+  // victory check on the board from the previous move would have
+  // caught this as a terminal state before the engine was called;
+  // reaching this point means an invariant was violated upstream
+  // (i.e. don't attempt search for a move on a terminal
+  // board). Return non-zero so the caller can surface a structured
+  // exception instead of crashing the process.
   if (result.pv.length == 0 || result.pv.moves == NULL) {
-    fprintf(stderr, "fatal: search returned empty PV\n");
-    abort();
+    destroy_pv_line(&result.pv);
+    return 1;
   }
 
   move best_move = result.pv.moves[0];
@@ -471,39 +478,38 @@ void search_trusted(
   }
 
 #ifndef NDEBUG
-  // Check if new position hash already exists in the zobrist hashes
-  // We need to create a temporary position set to check this
-  position_set *temp_positions = create_position_set(hash_count + 100);
-  for (int i = 0; i < hash_count; i++) {
-    if (i == 0 && zobrist_hashes[i] == position_hash) {
-      continue;
-    }
-    int deletion_index;
-    insert_position(temp_positions, zobrist_hashes[i], &deletion_index);
-  }
-
-  if (check_position(temp_positions, new_hash)) {
-    printf("ERROR: Position repetition detected after move!\n");
-    print_board(new_board_state);
-
-    // Find which index in zobrist_hashes matches new_hash
-    int matching_index = -1;
+  // Assert the search didn't return a move that would create a 3-fold
+  // repetition. Build a set of hashes that already appear at least twice in
+  // history; if the new hash is in that set, this move would be the 3rd
+  // occurrence, which is illegal. Reaching this branch means
+  // either a bug in the search's repetition handling or the rare case where
+  // every legal move from this position is 3-fold (the side has no legal
+  // move and the state should have been flagged terminal before we were
+  // called).
+  {
+    position_set *first_ps = create_position_set(hash_count + 1);
+    position_set *dup_ps = create_position_set(hash_count + 1);
     for (int i = 0; i < hash_count; i++) {
-      if (zobrist_hashes[i] == new_hash) {
-        matching_index = i;
-        break;
+      int deletion_index;
+      if (insert_position(first_ps, zobrist_hashes[i], &deletion_index) != 0) {
+        insert_position(dup_ps, zobrist_hashes[i], &deletion_index);
       }
     }
 
-    printf(
-        "Matching hash found at index %d out of %d total hashes\n",
-        matching_index,
-        hash_count);
-    destroy_position_set(temp_positions);
-    exit(1);
-  }
+    if (check_position(dup_ps, new_hash)) {
+      printf(
+          "ERROR: search returned a move that would create a 3-fold "
+          "repetition!\n");
+      print_board(new_board_state);
+      printf("new_hash=%lu\n", new_hash);
+      destroy_position_set(first_ps);
+      destroy_position_set(dup_ps);
+      exit(1);
+    }
 
-  destroy_position_set(temp_positions);
+    destroy_position_set(first_ps);
+    destroy_position_set(dup_ps);
+  }
 #endif
 
   // Check game status on the updated board
@@ -525,4 +531,5 @@ void search_trusted(
   *captures_out = captures;
   *hash_out = new_hash;
   *status_out = status;
+  return 0;
 }

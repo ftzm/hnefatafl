@@ -1680,21 +1680,31 @@ search_result search_black_with_timeout(
   return search_with_timeout(search_black_runner, b, depth, time_limit, tt);
 }
 
+// Build the search's initial position set: the subset of the given
+// history hashes that appear two or more times. The search's
+// repetition handling functions such that a position encountered
+// twice is treated as an illegal reptition; this is for efficiency in
+// the search algorithm. If we seeded the position set with positions
+// encountered once in move history we'd erroneously error on/avoid
+// those positions: by providing only positions encountered twice we
+// correctly avoid threefold repetition only.
 static position_set *
-create_position_set_with_hashes(u64 *zobrist_hashes, int hash_count) {
-  position_set *positions;
-
-  if (hash_count > 0) {
-    positions = create_position_set(hash_count + 100);
-    for (int i = 0; i < hash_count; i++) {
-      int deletion_index;
-      insert_position(positions, zobrist_hashes[i], &deletion_index);
-    }
-  } else {
-    positions = create_position_set(100);
+create_position_set_with_duplicates(u64 *zobrist_hashes, int hash_count) {
+  if (hash_count <= 0) {
+    return create_position_set(100);
   }
 
-  return positions;
+  position_set *first_ps = create_position_set(hash_count + 100);
+  position_set *duplicates = create_position_set(hash_count + 100);
+  for (int i = 0; i < hash_count; i++) {
+    int deletion_index;
+    if (insert_position(first_ps, zobrist_hashes[i], &deletion_index) != 0) {
+      insert_position(duplicates, zobrist_hashes[i], &deletion_index);
+    }
+  }
+  destroy_position_set(first_ps);
+
+  return duplicates;
 }
 
 #ifndef NDEBUG
@@ -1764,7 +1774,7 @@ search_result search_runner_iterative_generic(
   // the search itself inserts at ply 0.
   int history_count = hash_count > 0 ? hash_count - 1 : 0;
   position_set *positions =
-      create_position_set_with_hashes(zobrist_hashes, history_count);
+      create_position_set_with_duplicates(zobrist_hashes, history_count);
 
   score_weights weights = init_default_weights();
   score_state s = init_score_state(&weights, &b);
@@ -1848,7 +1858,8 @@ search_result search_runner_iterative_generic(
 
     // Reset position set for each iteration (TT persists across iterations)
     destroy_position_set(positions);
-    positions = create_position_set_with_hashes(zobrist_hashes, history_count);
+    positions =
+        create_position_set_with_duplicates(zobrist_hashes, history_count);
 
 #ifndef NDEBUG
     validate_pv_sequence(

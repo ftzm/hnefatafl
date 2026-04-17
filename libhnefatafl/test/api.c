@@ -121,7 +121,7 @@ TEST test_search_trusted_black_move() {
   game_status result_status;
 
   transposition_table *tt = tt_create(1);
-  search_trusted(
+  int rc = search_trusted(
       &start,
       true,
       empty_hashes,
@@ -137,6 +137,8 @@ TEST test_search_trusted_black_move() {
   tt_destroy(tt);
 
   pthread_join(timer, NULL);
+
+  ASSERT_EQ(0, rc);
 
   // Verify the move is a valid black move from the starting position
   bool found_move = false;
@@ -204,7 +206,7 @@ TEST test_search_trusted_white_move() {
   game_status result_status;
 
   transposition_table *tt = tt_create(1);
-  search_trusted(
+  int rc = search_trusted(
       &white_turn_board,
       false,
       position_history,
@@ -220,6 +222,8 @@ TEST test_search_trusted_white_move() {
   tt_destroy(tt);
 
   pthread_join(timer, NULL);
+
+  ASSERT_EQ(0, rc);
 
   // Apply the move manually to verify board and hash
   u64 original_hash_white = hash_for_board(after_black, false);

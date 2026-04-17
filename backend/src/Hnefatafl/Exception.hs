@@ -136,6 +136,7 @@ instance IsDomainException DatabaseException where
 -- | Game logic invariant violations.
 data GameInvariantException
   = EngineReplayFailed {context :: Text, detail :: Text}
+  | EngineReturnedNoMove
   | InvariantViolation Text
   deriving (Show)
 
@@ -147,15 +148,19 @@ instance Exception GameInvariantException where
   displayException = \case
     EngineReplayFailed{..} ->
       "Engine replay failed in " <> toString context <> ": " <> toString detail
+    EngineReturnedNoMove ->
+      "Engine returned no legal move"
     InvariantViolation msg ->
       "Invariant violation: " <> toString msg
 
 instance IsDomainException GameInvariantException where
   domainErrorLabel = \case
     EngineReplayFailed{} -> "engine_replay_failed"
+    EngineReturnedNoMove -> "engine_no_move"
     InvariantViolation{} -> "invariant_violation"
   domainContext = \case
     EngineReplayFailed{..} -> [("context", context), ("detail", detail)]
+    EngineReturnedNoMove -> []
     InvariantViolation msg -> [("message", msg)]
 
   -- Invariant violations indicate a bug in our state machine or an

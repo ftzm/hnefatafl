@@ -23,6 +23,7 @@ module Hnefatafl.Bindings (
   SearchTrustedResult (..),
 ) where
 
+import Control.Exception (throwIO)
 import Control.Monad.Trans.Cont
 import Data.Aeson (FromJSON, ToJSON)
 import Foreign (
@@ -47,6 +48,7 @@ import Hnefatafl.Core.Data (
   MoveResult (..),
   MoveWithCaptures (..),
  )
+import Hnefatafl.Exception (GameInvariantException (..))
 import System.IO.Unsafe (unsafePerformIO)
 
 -- | Game status from the engine's perspective
@@ -471,7 +473,7 @@ foreign import ccall safe "search_trusted"
     Ptr Word64 ->
     Ptr StorableGameStatus ->
     CBool ->
-    IO ()
+    IO CInt
 
 searchTrusted ::
   ExternBoard ->
@@ -493,20 +495,22 @@ searchTrusted trustedBoard isBlackTurn zobristHashes shouldStopPtr ttPtr enableA
   hashPtr <- ContT (alloca @Word64)
   statusPtr <- ContT (alloca @StorableGameStatus)
 
-  liftIO $
-    c_search_trusted
-      boardPtr
-      (if isBlackTurn then 1 else 0)
-      hashArrayPtr
-      hashCount
-      shouldStopPtr
-      ttPtr
-      movePtr
-      outBoardPtr
-      capturesPtr
-      hashPtr
-      statusPtr
-      (if enableAdminEndings then 1 else 0)
+  rc <-
+    liftIO $
+      c_search_trusted
+        boardPtr
+        (if isBlackTurn then 1 else 0)
+        hashArrayPtr
+        hashCount
+        shouldStopPtr
+        ttPtr
+        movePtr
+        outBoardPtr
+        capturesPtr
+        hashPtr
+        statusPtr
+        (if enableAdminEndings then 1 else 0)
+  when (rc /= 0) $ liftIO $ throwIO EngineReturnedNoMove
 
   storableMove <- liftIO $ peek movePtr
   storableOutBoard <- liftIO $ peek outBoardPtr

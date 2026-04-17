@@ -88,8 +88,12 @@ move_result *apply_move_sequence(
  * be set by external code to cancel the search.
  * If enable_administrative_endings is true, checks for draw/resign conditions
  * before searching and may resign or offer a draw.
+ * Returns 0 on success, non-zero if the search produced no legal move
+ * (output parameters are undefined in that case). A non-zero return is an
+ * invariant violation in normal play: either the board was already terminal
+ * or the caller built a malformed history.
  */
-void search_trusted(
+int search_trusted(
     compact_board *trusted_board,
     bool is_black_turn,
     u64 *zobrist_hashes,
