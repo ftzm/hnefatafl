@@ -53,7 +53,7 @@ is_valid_destination(board b, u8 position, piece_type moving_piece) {
     layer occupied = king_board_occ(b);
     return !CHECK_INDEX(occupied, position);
   } else {
-    layer occupied = board_occ(b);
+    layer occupied = LAYER_OR(throne, board_occ(b));
     return !CHECK_INDEX(occupied, position);
   }
 }

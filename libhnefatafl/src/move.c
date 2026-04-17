@@ -1650,8 +1650,8 @@ move *all_black_moves(board b, position_set *ps, int *total) {
   moves_to_t results = {0};
   layer occ = board_occ(b);
   layer occ_r = board_occ_r(b);
-  layer targets = LAYER_NOT(occ);
-  layer targets_r = LAYER_NOT(occ_r);
+  layer targets = pawn_destinations(b);
+  layer targets_r = pawn_destinations_r(b);
   results.total = 0;
   moves_to(
       targets,
@@ -1688,8 +1688,8 @@ move *all_white_moves(board b, position_set *ps, int *total) {
   moves_to_t results = {0};
   layer occ = board_occ(b);
   layer occ_r = board_occ_r(b);
-  layer targets = LAYER_NOT(occ);
-  layer targets_r = LAYER_NOT(occ_r);
+  layer targets = pawn_destinations(b);
+  layer targets_r = pawn_destinations_r(b);
   results.total = 0;
   moves_to(
       targets,
