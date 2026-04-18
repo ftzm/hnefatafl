@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Hnefatafl — Aesthetic system, applied</title>
+<link rel="stylesheet" href="../colors_and_type.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   Aesthetic system applied — Home, three New-Game modals, Game view.
+
+   Middle ground between the prior app and the "Of the Book" Variant D:
+   • Existing home shape preserved (centered hero, action row, recent list).
+   • Typography-centric: Garamond hero/body, Inter for UI labels.
+   • Hairline rules instead of filled panels; no heavy borders or cards.
+   • No small-caps cosplay on nav/buttons — buttons read as buttons.
+   ========================================================================= */
+
+html, body { background: #2a2623; margin:0; padding:32px; font-family: var(--font-sans); color: var(--text-primary); }
+
+.page-head { max-width: 1760px; margin: 0 auto 28px; font-family: var(--font-sans); }
+.page-head .eyebrow { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-muted); }
+.page-head h1 { font-family: 'EB Garamond', var(--font-serif); font-weight: 500; font-size: 34px; margin: 6px 0 8px; letter-spacing: -0.01em; color: var(--color-warm-100); }
+.page-head p { max-width: 720px; color: var(--text-secondary); line-height: 1.55; font-size: 13.5px; }
+
+.grid { max-width: 1760px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.grid.three { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+.specimen { display:flex; flex-direction:column; gap: 10px; }
+.specimen .tag { font-family: var(--font-sans); color: var(--text-secondary); font-size: 12px; letter-spacing: 0.02em; display:flex; align-items: baseline; gap: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.specimen .tag .v { font-family: 'EB Garamond', var(--font-serif); font-style: italic; color: var(--color-warm-200); font-size: 15px; }
+.specimen .tag .sub { color: var(--text-muted); font-size: 11.5px; }
+.specimen .frame { background: #0a0a0a; border-radius: 3px; padding: 1px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+.specimen .win { aspect-ratio: 16 / 10; overflow: hidden; border-radius: 2px; position: relative; }
+.specimen .stage { position: absolute; top: 0; left: 0; width: 1200px; height: 750px; transform-origin: top left; display:flex; flex-direction:column; }
+
+.section-label { max-width: 1760px; margin: 36px auto 16px; font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-muted); padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.section-label b { color: var(--color-warm-100); font-weight: 600; letter-spacing: 0.22em; margin-right: 12px; }
+
+/* =========================================================================
+   SHARED SHELL — paper/dark surface, top bar, hairline language
+   ========================================================================= */
+.book { flex:1; display:flex; flex-direction:column; min-height:0;
+  background: var(--color-warm-100); color: var(--color-gray-900); font-family: var(--font-sans);
+  --bk-ink: var(--color-gray-900);
+  --bk-rule: rgba(60,50,40,0.18);
+  --bk-rule-strong: rgba(60,50,40,0.4);
+  --bk-ink-soft: rgba(60,50,40,0.72);
+  --bk-ink-mute: rgba(60,50,40,0.55);
+  --bk-ink-faint: rgba(60,50,40,0.38);
+  --bk-wash: rgba(60,50,40,0.05);
+  --bk-accent: #8c6f42;
+}
+.book.dark { background: #1a1a1a; color: #e8e0d0;
+  --bk-ink: #e8e0d0;
+  --bk-rule: rgba(232,224,208,0.16);
+  --bk-rule-strong: rgba(232,224,208,0.36);
+  --bk-ink-soft: rgba(232,224,208,0.72);
+  --bk-ink-mute: rgba(232,224,208,0.5);
+  --bk-ink-faint: rgba(232,224,208,0.32);
+  --bk-wash: rgba(232,224,208,0.05);
+  --bk-accent: #c8a368;
+}
+
+/* Top bar — compact, typographic. Logo is Garamond italic wordmark, nav is plain Inter. */
+.book .top {
+  display:grid; grid-template-columns: 1fr auto 1fr; align-items:center;
+  padding: 14px 32px; border-bottom: 1px solid var(--bk-rule);
+  flex-shrink: 0;
+}
+.book .top .wm {
+  font-family: 'EB Garamond', var(--font-serif); font-style: italic;
+  font-size: 20px; color: var(--bk-ink); letter-spacing: 0.005em; line-height: 1; cursor: pointer;
+}
+.book .top .wm em { font-style: normal; font-weight: 500; }
+.book .top nav { justify-self: center; display:flex; gap: 28px; font-family: var(--font-sans); font-size: 13px; color: var(--bk-ink-mute); }
+.book .top nav a { cursor:pointer; padding: 4px 0; position: relative; }
+.book .top nav a.active { color: var(--bk-ink); }
+.book .top nav a.active::after { content:""; position:absolute; left:0; right:0; bottom: -1px; height: 1px; background: var(--bk-ink); }
+.book .top .tools { justify-self: end; display:flex; gap: 18px; font-family: var(--font-sans); font-size: 13px; color: var(--bk-ink-mute); }
+.book .top .tools a { cursor:pointer; }
+.book .top .tools a:hover { color: var(--bk-ink); }
+
+/* =========================================================================
+   HOME — existing layout, refreshed language
+   Centered hero · 3 action cards in a row · Recent games list
+   ========================================================================= */
+.book .home { flex:1; display:flex; flex-direction:column; align-items:center;
+  padding: 56px 64px 48px; gap: 44px; min-height:0; overflow: hidden; }
+
+.book .hero { text-align: center; display:flex; flex-direction:column; align-items:center; gap: 12px; }
+.book .hero .eyebrow { font-family: var(--font-sans); letter-spacing: 0.22em; text-transform: uppercase; font-size: 10px; color: var(--bk-ink-mute); }
+.book .hero h1 {
+  font-family: 'EB Garamond', var(--font-serif); font-weight: 500;
+  font-size: 72px; line-height: 0.95; letter-spacing: -0.015em;
+  color: var(--bk-ink); margin: 0;
+}
+.book .hero h1 em { font-style: italic; font-weight: 400; color: var(--bk-accent); }
+.book .hero .rule { display:flex; align-items:center; gap: 10px; width: 120px; margin: 2px 0 2px; }
+.book .hero .rule .h { flex:1; height: 1px; background: var(--bk-rule-strong); }
+.book .hero .rule .d { width: 3px; height: 3px; border-radius: 50%; background: var(--bk-accent); }
+.book .hero .lede { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 19px; color: var(--bk-ink-soft); margin: 0; }
+
+/* Three entry points — plain rectangles, hairline border, Garamond label */
+/* Entry cards — bordered card with ink-filled action row at bottom (clearly interactive) */
+.book .entries { display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 100%; max-width: 780px; }
+.book .entries a {
+  display:flex; flex-direction:column; text-decoration:none; color: var(--bk-ink);
+  border: 1px solid var(--bk-rule-strong); background: var(--color-warm-100);
+  cursor: pointer; transition: transform .15s, box-shadow .15s, border-color .15s;
+  font-family: var(--font-sans); overflow: hidden;
+}
+.book.dark .entries a { background: rgba(255,255,255,0.02); }
+.book .entries a:hover { border-color: var(--bk-ink); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.book.dark .entries a:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+.book .entries a .body { flex:1; padding: 22px 20px 18px; display:flex; flex-direction:column; gap: 6px; }
+.book .entries a .lbl { font-family: 'EB Garamond', var(--font-serif); font-size: 24px; font-weight: 500; line-height: 1.1; color: var(--bk-ink); }
+.book .entries a .sub { font-family: var(--font-sans); font-size: 11.5px; color: var(--bk-ink-mute); letter-spacing: 0.01em; line-height: 1.45; }
+.book .entries a .foot {
+  display:flex; align-items:center; justify-content: space-between;
+  padding: 10px 20px; border-top: 1px solid var(--bk-rule);
+  font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--bk-ink); font-weight: 500; background: var(--bk-wash);
+  transition: color .15s;
+}
+.book .entries a .foot .arr { font-family: 'EB Garamond', var(--font-serif); font-style: italic; text-transform: none; letter-spacing: 0; font-size: 18px; font-weight: 400; }
+
+/* Recent games — two sections with distinct weight.
+   "In Progress" is prominent: ink-filled Resume button + right-side status.
+   "Recent" is quieter: result + date, no button. */
+.book .recent { width: 100%; max-width: 780px; display:flex; flex-direction:column; gap: 24px; }
+.book .recent section { display:flex; flex-direction:column; }
+.book .recent .sh { display:flex; align-items: baseline; justify-content: space-between; padding-bottom: 8px; border-bottom: 1.5px solid var(--bk-ink); }
+.book .recent section.quiet .sh { border-bottom: 1px solid var(--bk-rule-strong); }
+.book .recent .sh .ey { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--bk-ink); font-weight: 600; }
+.book .recent section.quiet .sh .ey { color: var(--bk-ink-mute); font-weight: 500; }
+.book .recent .sh .ct { font-family: var(--font-sans); font-size: 11px; color: var(--bk-ink-mute); }
+
+/* In-progress row: identity · metadata · status badge · Resume button */
+.book .recent .ip-row {
+  display:grid; grid-template-columns: 14px minmax(0,1fr) auto auto; column-gap: 18px;
+  align-items: center; padding: 14px 0; border-bottom: 1px solid var(--bk-rule);
+}
+.book .recent .ip-row:last-child { border-bottom: none; }
+.book .recent .ip-row .dot { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--piece-border); box-shadow: 1px 1px 1.5px rgba(0,0,0,0.12); }
+.book .recent .ip-row .dot.black { background: radial-gradient(circle at 40% 38%, var(--piece-black-start), var(--piece-black-end)); border-color: var(--border-strong); }
+.book .recent .ip-row .dot.white { background: radial-gradient(circle at 40% 38%, var(--piece-white-start), var(--piece-white-end)); }
+.book .recent .ip-row .who { display:flex; flex-direction:column; gap: 2px; min-width: 0; }
+.book .recent .ip-row .who .opp { font-family: 'EB Garamond', var(--font-serif); font-size: 18px; color: var(--bk-ink); line-height: 1.1; }
+.book .recent .ip-row .who .opp em { font-style: italic; color: var(--bk-ink-mute); }
+.book .recent .ip-row .who .meta { font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bk-ink-mute); }
+.book .recent .ip-row .badge {
+  font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--bk-ink-mute); white-space: nowrap;
+}
+.book .recent .ip-row .badge.turn { color: var(--bk-accent); font-weight: 600; }
+.book .recent .ip-row .resume {
+  font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 8px 16px; background: transparent; color: var(--bk-ink); font-weight: 500;
+  cursor: pointer; border: 1px solid var(--bk-ink); transition: all .15s;
+}
+.book .recent .ip-row .resume:hover { background: var(--bk-ink); color: var(--color-warm-100); }
+.book.dark .recent .ip-row .resume:hover { color: #1a1a1a; }
+
+/* Recent (finished) row: small dot · opp · result · date · hover chevron */
+.book .recent .done-row {
+  display:grid; grid-template-columns: 12px minmax(0,1fr) auto auto 14px; column-gap: 16px;
+  align-items: center; padding: 10px 0; border-bottom: 1px solid var(--bk-rule); cursor: pointer;
+}
+.book .recent .done-row:last-child { border-bottom: none; }
+.book .recent .done-row:hover { background: var(--bk-wash); }
+.book .recent .done-row .dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--piece-border); }
+.book .recent .done-row .dot.black { background: radial-gradient(circle at 40% 38%, var(--piece-black-start), var(--piece-black-end)); border-color: var(--border-strong); }
+.book .recent .done-row .dot.white { background: radial-gradient(circle at 40% 38%, var(--piece-white-start), var(--piece-white-end)); }
+.book .recent .done-row .opp { font-family: 'EB Garamond', var(--font-serif); font-size: 15px; color: var(--bk-ink-soft); }
+.book .recent .done-row .res { font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bk-ink-mute); }
+.book .recent .done-row .res.win { color: var(--bk-ink); font-weight: 600; }
+.book .recent .done-row .date { font-family: var(--font-sans); font-size: 10.5px; color: var(--bk-ink-faint); white-space: nowrap; }
+.book .recent .done-row .chev { font-family: 'EB Garamond', var(--font-serif); font-size: 16px; color: var(--bk-ink-faint); opacity: 0; transition: opacity .15s; text-align:right; }
+.book .recent .done-row:hover .chev { opacity: 1; }
+
+/* =========================================================================
+   MODAL — base shell, shared across all three new-game modals
+   Conventions:
+   · Outer border on the card + inner rule beneath title
+   · Every field is a labeled row with dividers between (clear hierarchy)
+   · Chips are ink-fill when selected (same language as primary button)
+   · Actions row has a real primary + secondary button
+   ========================================================================= */
+.book.modalview { position: relative; overflow: hidden; }
+.book.modalview .behind { position: absolute; inset: 0; display: flex; flex-direction: column; pointer-events: none; filter: blur(1px); opacity: 0.7; }
+.book.modalview .scrim { position: absolute; inset: 0; background: var(--color-warm-100); opacity: 0.6; }
+.book.dark.modalview .scrim { background: #1a1a1a; opacity: 0.72; }
+
+.modal {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 480px; background: var(--color-warm-100); color: var(--bk-ink);
+  border: 1px solid var(--bk-rule-strong);
+  font-family: var(--font-sans);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+}
+.book.dark .modal { background: #1a1a1a; border-color: var(--bk-rule-strong); }
+.modal .close { position: absolute; top: 14px; right: 18px; font-family: var(--font-sans); color: var(--bk-ink-mute); cursor: pointer; font-size: 16px; line-height: 1; }
+.modal .close:hover { color: var(--bk-ink); }
+
+/* Header block — sits above a hairline rule. Eyebrow + display title + lede */
+.modal .hd { padding: 26px 30px 18px; border-bottom: 1px solid var(--bk-rule); }
+.modal .hd .ey { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--bk-ink-mute); margin-bottom: 6px; }
+.modal .hd h2 {
+  font-family: 'EB Garamond', var(--font-serif); font-weight: 500; font-size: 30px;
+  letter-spacing: -0.01em; margin: 0 0 4px; color: var(--bk-ink); line-height: 1.05;
+}
+.modal .hd h2 em { font-style: italic; color: var(--bk-accent); font-weight: 400; }
+.modal .hd .sub {
+  font-family: 'EB Garamond', var(--font-serif); font-style: italic;
+  font-size: 14px; color: var(--bk-ink-mute); line-height: 1.35;
+}
+
+/* Body block — field rows, each with divider, with inner padding */
+.modal .bd { padding: 4px 30px 6px; }
+.modal .field {
+  display:grid; grid-template-columns: 92px 1fr; align-items: baseline; column-gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid var(--bk-rule-strong);
+}
+.modal .field:last-child { border-bottom: none; }
+.modal .field .k { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--bk-ink-mute); padding-top: 5px; font-weight: 500; }
+
+/* Chip group — each chip is a bordered pill; selected = ink fill (button-language) */
+.modal .opts { display:flex; flex-wrap: wrap; gap: 6px; }
+.modal .opts a {
+  font-family: var(--font-sans); font-size: 12px; color: var(--bk-ink-mute);
+  padding: 6px 12px; border: 1px solid var(--bk-rule-strong); cursor:pointer;
+  white-space: nowrap; letter-spacing: 0.02em; transition: all .15s;
+  background: transparent;
+}
+.modal .opts a:hover:not(.sel) { color: var(--bk-ink); border-color: var(--bk-ink); }
+.modal .opts a.sel {
+  color: var(--bk-ink); border-color: var(--bk-ink); font-weight: 600;
+}
+
+.modal .input {
+  width: 100%; font-family: 'EB Garamond', var(--font-serif); font-size: 17px;
+  color: var(--bk-ink); background: transparent;
+  border: none; border-bottom: 1px solid var(--bk-rule-strong); padding: 4px 0 6px;
+  outline: none;
+}
+.modal .input:focus { border-bottom-color: var(--bk-ink); }
+.modal .input::placeholder { color: var(--bk-ink-faint); font-style: italic; }
+
+.modal .hint {
+  font-family: 'EB Garamond', var(--font-serif); font-style: italic;
+  font-size: 13px; color: var(--bk-ink-mute); padding: 14px 0 2px;
+  border-top: 1px solid var(--bk-rule); margin-top: 4px; line-height: 1.4;
+}
+
+/* Action row — real buttons, aligned right, hairline top rule */
+.modal .actions {
+  display:flex; justify-content: flex-end; gap: 10px; align-items: center;
+  padding: 16px 30px; border-top: 1px solid var(--bk-rule);
+}
+.modal .btn {
+  font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  font-weight: 600; padding: 10px 18px; cursor:pointer;
+  border: 1px solid var(--bk-ink); background: transparent; color: var(--bk-ink);
+  transition: all .15s;
+}
+.modal .btn:hover { background: var(--bk-ink); color: var(--color-warm-100); }
+.book.dark .modal .btn:hover { color: #1a1a1a; }
+
+.modal .code-row {
+  display:flex; align-items: center; gap: 14px;
+  padding: 4px 0 6px; border-bottom: 1px solid var(--bk-rule-strong);
+}
+.modal .code-row .code { font-family: 'EB Garamond', var(--font-serif); font-size: 22px; letter-spacing: 0.25em; color: var(--bk-ink); font-variant-numeric: tabular-nums; flex:1; }
+.modal .code-row .copy {
+  margin-left: auto; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--bk-ink); cursor:pointer; font-weight: 600;
+  padding: 5px 10px; border: 1px solid var(--bk-ink); transition: all .15s;
+}
+.modal .code-row .copy:hover { background: var(--bk-ink); color: var(--color-warm-100); }
+.book.dark .modal .code-row .copy:hover { color: #1a1a1a; }
+
+/* =========================================================================
+   VARIANT D — copied verbatim from preview/game-variants.html
+   Additions below:
+     1. top bar included outside .vd (matches Home)
+     2. captures right-aligned (justify-content: flex-end)
+     3. .vd.narrow — overrides for the constrained-column specimen
+   ========================================================================= */
+.vd { flex:1; display:grid; grid-template-columns: 220px 1fr 220px; grid-template-rows: 1fr; gap: 0; padding: 22px 30px 18px; min-height: 0; background: var(--color-warm-100); color: var(--color-gray-900); font-family: var(--font-serif); }
+.vd .col { display:flex; flex-direction:column; min-height:0; }
+.vd .col.l { padding: 6px 22px 6px 0; }
+.vd .col.r { padding: 6px 0 6px 22px; }
+
+.vd .ply { display:grid; grid-template-columns: 18px 1fr auto; column-gap: 10px; align-items: center; padding: 0; position:relative; }
+.vd .ply::before { content:""; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--piece-border); align-self: center; }
+.vd .ply.black::before { background: radial-gradient(circle at 40% 38%, var(--piece-black-start), var(--piece-black-end)); border-color: var(--border-strong); box-shadow: 1px 1px 1.5px rgba(0,0,0,0.18); }
+.vd .ply.white::before { background: radial-gradient(circle at 40% 38%, var(--piece-white-start), var(--piece-white-end)); box-shadow: 1px 1px 1.5px rgba(0,0,0,0.12); }
+.vd .ply .nm { font-size: 18px; font-weight: 400; letter-spacing: 0.01em; line-height: 1.1; font-family: 'EB Garamond', var(--font-serif); font-style: normal; }
+.vd .ply.active .nm { font-weight: 700; }
+.vd .ply.opp .nm { color: rgba(60,50,40,0.55); font-style: normal; }
+.vd .ply .ck { font-family: 'EB Garamond', var(--font-serif); font-feature-settings: 'tnum' 1, 'lnum' 1; font-variant-numeric: tabular-nums lining-nums; font-size: 22px; line-height: 1; letter-spacing: 0.02em; color: var(--color-gray-900); }
+.vd .ply.opp .ck { color: rgba(60,50,40,0.5); font-size: 20px; }
+
+/* ADDED: captures right-aligned (was padding-left: 28px) */
+.vd .caps-row { display:flex; gap: 3px; align-items:center; justify-content: flex-end; min-height: 11px; }
+.vd .caps-row.top { margin-top: 8px; }
+.vd .caps-row.bot { margin-bottom: 8px; }
+.vd .caps-row .d { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--piece-border); }
+.vd .caps-row.w .d { background: radial-gradient(circle at 40% 38%, var(--piece-white-start), var(--piece-white-end)); }
+.vd .caps-row.b .d { background: radial-gradient(circle at 40% 38%, var(--piece-black-start), var(--piece-black-end)); border-color: var(--border-strong); }
+.vd .ply-gap { flex:1; min-height: 18px; }
+
+.vd .side-acts { display:flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(60,50,40,0.2); }
+.vd .side-acts a { font-family: 'EB Garamond', var(--font-serif); font-size: 13px; letter-spacing: 0.02em; font-weight: 600; color: rgba(60,50,40,0.75); padding: 5px 12px; border: 1px solid rgba(60,50,40,0.35); border-radius: 0; cursor:pointer; text-decoration: none; transition: all 0.15s; background: transparent; }
+.vd .side-acts a:hover { border-color: rgba(60,50,40,0.75); color: var(--color-gray-900); }
+
+.vd .mv-head { display:flex; justify-content:space-between; align-items:baseline; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(60,50,40,0.75); font-weight: 700; padding-bottom: 6px; mang-bottom: 6px; margin-bottom: 8px; border-bottom: 1px solid rgba(60,50,40,0.2); }
+.vd .mv-head .ct { font-family: var(--font-mono); letter-spacing: 0.04em; }
+.vd .mvlist { flex:1; overflow:hidden; font-family: 'EB Garamond', var(--font-serif); font-feature-settings: 'tnum' 1, 'lnum' 1; font-size: 15px; line-height: 1.7; color: var(--color-gray-900); font-variant-numeric: tabular-nums lining-nums; }
+.vd .mvlist .row { display:grid; grid-template-columns: 24px 1fr 1fr; column-gap: 10px; align-items: baseline; }
+.vd .mvlist .row .n { color: rgba(60,50,40,0.45); font-size: 12px; font-style: italic; }
+.vd .mvlist .row:not(.cur) .b { color: rgba(60,50,40,0.72); }
+.vd .mvlist .row.cur .b { color: rgba(60,50,40,0.95); font-weight: 700; font-style: normal; text-decoration: none; }
+.vd .mv-nav { display:flex; justify-content:space-between; gap: 4px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(60,50,40,0.2); }
+.vd .mv-nav a { font-size: 15px; font-weight: 600; color: rgba(60,50,40,0.75); padding: 4px 0; cursor:pointer; text-decoration: none; border: 1px solid rgba(60,50,40,0.35); border-radius: 0; flex: 1; text-align: center; transition: all 0.15s; line-height: 1.2; font-weight: 600; font-family: var(--font-sans); background: transparent; }
+.vd .mv-nav a:hover { border-color: rgba(60,50,40,0.75); color: var(--color-gray-900); }
+
+.vd .board-col { display:flex; align-items:center; justify-content:center; min-width:0; padding: 0 22px; }
+.vd .board-col .mini-board { height: 100%; width: auto; aspect-ratio: 1; max-height: 100%; --board-grid: #8a7757; --board-square: #c9b993; --board-square-inner: #b8a67c; --board-corner-bg: #b8a67c; --board-corner-border: #7a6847; }
+
+/* Variant D — dark mode */
+.vd.dark { background: #1a1a1a; color: #e8e0d0; }
+.vd.dark .ply .nm { color: #e8e0d0; }
+.vd.dark .ply.opp .nm { color: rgba(232,224,208,0.5); }
+.vd.dark .ply::before { border-color: rgba(232,224,208,0.5); }
+.vd.dark .ply .ck { color: #e8e0d0; }
+.vd.dark .ply.opp .ck { color: rgba(232,224,208,0.5); }
+.vd.dark .side-acts { border-top-color: rgba(232,224,208,0.2); }
+.vd.dark .side-acts a { color: rgba(232,224,208,0.75); border-color: rgba(232,224,208,0.35); }
+.vd.dark .side-acts a:hover { border-color: rgba(232,224,208,0.75); color: #e8e0d0; background: transparent; }
+.vd.dark .mv-head { color: rgba(232,224,208,0.75); border-bottom-color: rgba(232,224,208,0.2); }
+.vd.dark .mvlist { color: #e8e0d0; }
+.vd.dark .mvlist .row .n { color: rgba(232,224,208,0.45); }
+.vd.dark .mvlist .row:not(.cur) .b { color: rgba(232,224,208,0.7); }
+.vd.dark .mvlist .row.cur .b { color: #fff; font-weight: 700; }
+.vd.dark .mv-nav { border-top-color: rgba(232,224,208,0.2); }
+.vd.dark .mv-nav a { color: rgba(232,224,208,0.75); border-color: rgba(232,224,208,0.35); }
+.vd.dark .mv-nav a:hover { border-color: rgba(232,224,208,0.75); color: #e8e0d0; background: transparent; }
+.vd.dark .board-col .mini-board { --board-grid: #3d3526; --board-square: #5c4f3a; --board-square-inner: #4a3f2f; --board-corner-bg: #554833; --board-corner-border: #3a3020; }
+
+/* ADDED: narrow-column test overrides */
+.vd.narrow { grid-template-columns: 170px 1fr 170px; padding: 18px 20px 14px; }
+.vd.narrow .col.l { padding: 6px 16px 6px 0; }
+.vd.narrow .col.r { padding: 6px 0 6px 16px; }
+.vd.narrow .board-col { padding: 0 16px; }
+.vd.narrow .mvlist { font-size: 13.5px; line-height: 1.6; }
+.vd.narrow .mvlist .row { grid-template-columns: 20px 1fr 1fr; column-gap: 8px; }
+.vd.narrow .ply .nm { font-size: 16px; }
+.vd.narrow .ply .ck { font-size: 19px; }
+.vd.narrow .ply.opp .ck { font-size: 17px; }
+
+/* =========================================================================
+   BOARD — copied verbatim from game-variants.html
+   ========================================================================= */
+.mini-board { --lw: 1.5px; display:grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); aspect-ratio:1; gap: var(--lw); background: var(--board-grid); border: 3px solid var(--board-grid); }
+.mini-board .sq { background: var(--board-square); position:relative; display:flex; align-items:center; justify-content:center; }
+.mini-board .sq .in { position:absolute; inset: 12%; border: 1px solid var(--board-square-inner); }
+.mini-board .sq.c .in { background: var(--board-corner-bg); border-color: var(--board-corner-border); }
+.mini-board .pc { width: 62%; aspect-ratio: 1; border-radius: 50%; position:absolute; z-index:1; border: 1.5px solid var(--piece-border); box-shadow: 1.5px 1.5px 2px rgba(0,0,0,0.25); }
+.mini-board .pc.b { background: radial-gradient(circle at 40% 38%, var(--piece-black-start), var(--piece-black-end)); }
+.mini-board .pc.w { background: radial-gradient(circle at 40% 38%, var(--piece-white-start), var(--piece-white-end)); }
+.mini-board .pc.k { width: 82%; background: transparent; overflow:hidden; }
+.mini-board .pc.k::before { content:""; position:absolute; inset:-3px; background: conic-gradient(from 315deg at 50% 50%, var(--color-warm-100) 0deg, var(--color-warm-300) 90deg, var(--color-warm-500) 180deg, var(--color-warm-300) 270deg, var(--color-warm-100) 360deg); filter: blur(2px); z-index: -1; }
+.mini-board .pc.k svg { width:100%; height:100%; }
+
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <span class="eyebrow">Aesthetic System · Proposal v3</span>
+  <h1>Hnefatafl — applied</h1>
+  <p>Typography-centered, minimal — but not costume. Garamond stays for display and body; Inter carries UI labels, buttons, and metadata. Hairline rules replace panels; italic + hairline mark selection. The existing home layout is preserved (centered hero, action row, recent list) with three entry points and a modal specific to each.</p>
+</div>
+
+<div class="section-label"><b>01</b> Home · same layout as current app, refreshed language</div>
+
+<div class="grid">
+  <div class="specimen">
+    <div class="tag"><span class="v">1a</span><span>Home — paper</span><span class="sub">centered hero · 3 entries · recent ledger</span></div>
+    <div class="frame"><div class="win"><div class="stage"><div class="book" id="home-l"></div></div></div></div>
+  </div>
+  <div class="specimen">
+    <div class="tag"><span class="v">1b</span><span>Home — dark</span><span class="sub"></span></div>
+    <div class="frame"><div class="win"><div class="stage"><div class="book dark" id="home-d"></div></div></div></div>
+  </div>
+</div>
+
+<div class="section-label"><b>02</b> New-game modals · one per entry point</div>
+
+<div class="grid three">
+  <div class="specimen">
+    <div class="tag"><span class="v">2a</span><span>Against AI</span><span class="sub">difficulty + side + time</span></div>
+    <div class="frame"><div class="win"><div class="stage"><div class="book modalview" id="mod-ai"></div></div></div></div>
+  </div>
+  <div class="specimen">
+    <div class="tag"><span class="v">2b</span><span>Hotseat</span><span class="sub">two names, one device</span></div>
+    <div class="frame"><div class="win"><div class="stage"><div class="book modalview" id="mod-hs"></div></div></div></div>
+  </div>
+  <div class="specimen">
+    <div class="tag"><span class="v">2c</span><span>Online</span><span class="sub">invite or join a code</span></div>
+    <div class="frame"><div class="win"><div class="stage"><div class="book modalview" id="mod-on"></div></div></div></div>
+  </div>
+</div>
+
+<div class="section-label"><b>03</b> Game view · top bar added, captures right-aligned, tested in a narrow column</div>
+
+<div class="grid">
+  <div class="specimen">
+    <div class="tag"><span class="v">3a</span><span>Game — paper</span><span class="sub">top bar now matches Home; 220px side columns</span></div>
+    <div class="frame"><div class="win"><div class="stage"><div class="book" id="game-l"></div></div></div></div>
+  </div>
+  <div class="specimen">
+    <div class="tag"><span class="v">3b</span><span>Game — dark</span><span class="sub"></span></div>
+    <div class="frame"><div class="win"><div class="stage"><div class="book dark" id="game-d"></div></div></div></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="specimen">
+    <div class="tag"><span class="v">3c</span><span>Narrow viewport test</span><span class="sub">900px wide · 170px sides · tighter list</span></div>
+    <div class="frame"><div class="win" style="aspect-ratio: 3/2;"><div class="stage narrow-stage"><div class="book narrow" id="game-narrow"></div></div></div></div>
+  </div>
+  <div class="specimen">
+    <div class="tag"><span class="v">3d</span><span>Narrow, dark</span><span class="sub"></span></div>
+    <div class="frame"><div class="win" style="aspect-ratio: 3/2;"><div class="stage narrow-stage"><div class="book dark narrow" id="game-narrow-d"></div></div></div></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   Top bar
+   ========================================================================= */
+function topbar(active) {
+  return `
+    <div class="top">
+      <div class="wm">Hnefa<em>tafl</em></div>
+      <nav>
+        <a class="${active==='home'?'active':''}">Home</a>
+        <a class="${active==='play'?'active':''}">Play</a>
+        <a class="${active==='learn'?'active':''}">Learn</a>
+      </nav>
+      <div class="tools"><a>Settings</a></div>
+    </div>`;
+}
+
+/* =========================================================================
+   Home
+   ========================================================================= */
+function homeBody() {
+  return `
+    <div class="home">
+      <div class="hero">
+        <span class="eyebrow">The Viking board game of strategy</span>
+        <h1>Hnefa<em>tafl</em></h1>
+        <div class="rule"><span class="h"></span><span class="d"></span><span class="h"></span></div>
+        <p class="lede">King and kin against the siege.</p>
+      </div>
+
+      <div class="entries">
+        <a>
+          <div class="body">
+            <span class="lbl">Against AI</span>
+            <span class="sub">Choose side and difficulty. Play untimed or against a clock.</span>
+          </div>
+          <div class="foot">Begin <span class="arr">→</span></div>
+        </a>
+        <a>
+          <div class="body">
+            <span class="lbl">Hotseat</span>
+            <span class="sub">Two players, one device. Name each and pass the screen.</span>
+          </div>
+          <div class="foot">Begin <span class="arr">→</span></div>
+        </a>
+        <a>
+          <div class="body">
+            <span class="lbl">Online</span>
+            <span class="sub">Invite a friend with a code, or join with one they've sent.</span>
+          </div>
+          <div class="foot">Begin <span class="arr">→</span></div>
+        </a>
+      </div>
+
+      <div class="recent">
+        <section>
+          <div class="sh"><span class="ey">In progress</span><span class="ct">2 games</span></div>
+          <div class="ip-row">
+            <span class="dot black"></span>
+            <div class="who">
+              <span class="opp">vs Guest</span>
+              <span class="meta">14 moves · 2 min ago</span>
+            </div>
+            <span class="badge turn">Your move</span>
+            <a class="resume">Resume</a>
+          </div>
+          <div class="ip-row">
+            <span class="dot white"></span>
+            <div class="who">
+              <span class="opp">vs AI <em>medium</em></span>
+              <span class="meta">8 moves · 1 hr ago</span>
+            </div>
+            <span class="badge">Waiting</span>
+            <a class="resume">Resume</a>
+          </div>
+        </section>
+
+        <section class="quiet">
+          <div class="sh"><span class="ey">Recent</span><span class="ct">last 30 days</span></div>
+          <div class="done-row">
+            <span class="dot white"></span>
+            <span class="opp">vs Guest</span>
+            <span class="res win">White wins</span>
+            <span class="date">Yesterday</span>
+            <span class="chev">›</span>
+          </div>
+          <div class="done-row">
+            <span class="dot black"></span>
+            <span class="opp">vs AI <em>hard</em></span>
+            <span class="res">Black wins</span>
+            <span class="date">3 days ago</span>
+            <span class="chev">›</span>
+          </div>
+          <div class="done-row">
+            <span class="dot white"></span>
+            <span class="opp">vs Sigrún</span>
+            <span class="res win">White wins</span>
+            <span class="date">Last week</span>
+            <span class="chev">›</span>
+          </div>
+        </section>
+      </div>
+    </div>`;
+}
+
+function home() { return topbar('home') + homeBody(); }
+
+/* =========================================================================
+   Three modals
+   ========================================================================= */
+function modalShell(inner) {
+  return `
+    <div class="behind">${home()}</div>
+    <div class="scrim"></div>
+    ${inner}`;
+}
+
+function modalAI() {
+  return modalShell(`
+    <div class="modal">
+      <span class="close">×</span>
+      <div class="hd">
+        <div class="ey">New game</div>
+        <h2>Against <em>AI</em></h2>
+        <div class="sub">Pick your side and the depth of the search.</div>
+      </div>
+      <div class="bd">
+        <div class="field">
+          <span class="k">Side</span>
+          <div class="opts">
+            <a class="sel">Attackers</a>
+            <a>Defenders</a>
+            <a>Random</a>
+          </div>
+        </div>
+        <div class="field">
+          <span class="k">Difficulty</span>
+          <div class="opts">
+            <a>Easy</a>
+            <a class="sel">Medium</a>
+            <a>Hard</a>
+          </div>
+        </div>
+        <div class="field">
+          <span class="k">Time</span>
+          <div class="opts">
+            <a class="sel">Untimed</a>
+            <a>5 min</a>
+            <a>10 min</a>
+            <a>15 min</a>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn">Cancel</button>
+        <button class="btn primary">Begin game</button>
+      </div>
+    </div>`);
+}
+
+function modalHotseat() {
+  return modalShell(`
+    <div class="modal">
+      <span class="close">×</span>
+      <div class="hd">
+        <div class="ey">New game</div>
+        <h2><em>Hotseat</em></h2>
+        <div class="sub">Two players, one device. Name each and pass the screen.</div>
+      </div>
+      <div class="bd">
+        <div class="field">
+          <span class="k">Attackers</span>
+          <input class="input" value="Olaf" placeholder="Name"/>
+        </div>
+        <div class="field">
+          <span class="k">Defenders</span>
+          <input class="input" value="Inga" placeholder="Name"/>
+        </div>
+        <div class="field">
+          <span class="k">Time</span>
+          <div class="opts">
+            <a class="sel">Untimed</a>
+            <a>5 min</a>
+            <a>10 min</a>
+            <a>15 min</a>
+          </div>
+        </div>
+        <div class="hint">Attackers move first. Defenders win by escaping the king to a corner.</div>
+      </div>
+      <div class="actions">
+        <button class="btn">Cancel</button>
+        <button class="btn primary">Begin game</button>
+      </div>
+    </div>`);
+}
+
+function modalOnline() {
+  return modalShell(`
+    <div class="modal">
+      <span class="close">×</span>
+      <div class="hd">
+        <div class="ey">New game</div>
+        <h2><em>Online</em></h2>
+        <div class="sub">Send this code to a friend, or join one they've sent you.</div>
+      </div>
+      <div class="bd">
+        <div class="field">
+          <span class="k">Your code</span>
+          <div class="code-row">
+            <span class="code">K4N-2BR</span>
+            <span class="copy">Copy</span>
+          </div>
+        </div>
+        <div class="field">
+          <span class="k">Side</span>
+          <div class="opts">
+            <a class="sel">Attackers</a>
+            <a>Defenders</a>
+            <a>Random</a>
+          </div>
+        </div>
+        <div class="field">
+          <span class="k">Join code</span>
+          <input class="input" placeholder="6-letter invite from a friend"/>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn">Cancel</button>
+        <button class="btn primary">Open invite</button>
+      </div>
+    </div>`);
+}
+
+/* =========================================================================
+   Game — Variant D wrapped in the Home top bar
+   ========================================================================= */
+function gameBody(extraClass) {
+  return `
+    <div class="vd${extraClass ? ' ' + extraClass : ''}">
+      <div class="col l">
+        <div class="ply opp white">
+          <span class="nm">Inga</span>
+          <span class="ck">05:07</span>
+        </div>
+        <div class="caps-row top b"><span class="d"></span></div>
+        <div class="ply-gap"></div>
+        <div class="caps-row bot w"><span class="d"></span><span class="d"></span></div>
+        <div class="ply active black">
+          <span class="nm">Olaf</span>
+          <span class="ck">04:12</span>
+        </div>
+        <div class="side-acts">
+          <a>Undo</a>
+          <a>Resign</a>
+          <a>Draw</a>
+        </div>
+      </div>
+      <div class="board-col"><div class="mini-board" data-board></div></div>
+      <div class="col r">
+        <div class="mv-head"><span>Moves</span><span class="ct">11</span></div>
+        <div class="mvlist">
+          <div class="row"><span class="n">1</span><span class="b">d1-d4</span><span class="b">f5-f3</span></div>
+          <div class="row"><span class="n">2</span><span class="b">a4-c4</span><span class="b">e5-e2</span></div>
+          <div class="row"><span class="n">3</span><span class="b">f1-f4</span><span class="b">e4-e8</span></div>
+          <div class="row"><span class="n">4</span><span class="b">e1-e3</span><span class="b">d5-d8</span></div>
+          <div class="row"><span class="n">5</span><span class="b">g1-g4</span><span class="b">f5-f7</span></div>
+          <div class="row cur"><span class="n">6</span><span class="b">i1-i4</span><span class="b"></span></div>
+        </div>
+        <div class="mv-nav">
+          <a title="first">«</a>
+          <a title="prev">‹</a>
+          <a title="next">›</a>
+          <a title="last">»</a>
+        </div>
+      </div>
+    </div>`;
+}
+function game(opts) {
+  opts = opts || {};
+  const cls = [opts.dark && 'dark', opts.narrow && 'narrow'].filter(Boolean).join(' ');
+  return topbar('play') + gameBody(cls);
+}
+
+/* =========================================================================
+   Board builder
+   ========================================================================= */
+const CORNERS = [[0,0],[0,10],[10,0],[10,10]];
+const blacks = [[0,3],[0,4],[0,5],[0,6],[0,7],[1,5],[10,3],[10,4],[10,5],[10,6],[10,7],[9,5],[3,0],[4,0],[5,0],[6,0],[7,0],[5,1],[3,10],[4,10],[5,10],[6,10],[7,10],[5,9]];
+const whites = [[3,5],[4,5],[4,4],[4,6],[5,3],[5,4],[5,6],[5,7],[6,5],[6,4],[6,6],[7,5]];
+function buildBoardEl(b) {
+  if (!b) return;
+  const grid = Array.from({length:11}, () => Array(11).fill(null));
+  blacks.forEach(([r,c]) => grid[r][c] = 'b');
+  whites.forEach(([r,c]) => grid[r][c] = 'w');
+  grid[5][5] = 'k';
+  for (let r=0; r<11; r++) for (let c=0; c<11; c++) {
+    const sq = document.createElement('div');
+    const isCorner = CORNERS.some(([cr,cc]) => cr===r && cc===c);
+    sq.className = 'sq' + (isCorner ? ' c' : '');
+    sq.innerHTML = '<div class="in"></div>';
+    const k = grid[r][c];
+    if (k === 'k') sq.innerHTML += '<div class="pc k"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="36.9" fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="3"/><circle cx="50" cy="50" r="23.8" fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="3"/><circle cx="50" cy="50" r="10.6" fill="rgba(0,0,0,0.55)"/></svg></div>';
+    else if (k) sq.innerHTML += '<div class="pc ' + k + '"></div>';
+    b.appendChild(sq);
+  }
+}
+
+/* Mount */
+document.getElementById('home-l').innerHTML = home();
+document.getElementById('home-d').innerHTML = home();
+document.getElementById('mod-ai').innerHTML = modalAI();
+document.getElementById('mod-hs').innerHTML = modalHotseat();
+document.getElementById('mod-on').innerHTML = modalOnline();
+document.getElementById('game-l').innerHTML = game();
+document.getElementById('game-d').innerHTML = game({dark:true});
+document.getElementById('game-narrow').innerHTML = game({narrow:true});
+document.getElementById('game-narrow-d').innerHTML = game({dark:true, narrow:true});
+
+document.querySelectorAll('[data-board]').forEach(buildBoardEl);
+
+/* Scale stage to fit the .win */
+function rescale() {
+  document.querySelectorAll('.specimen .win').forEach(win => {
+    const stage = win.querySelector('.stage');
+    if (!stage) return;
+    const narrow = stage.classList.contains('narrow-stage');
+    const stageW = narrow ? 900 : 1200;
+    const stageH = narrow ? 600 : 750;
+    stage.style.width = stageW + 'px';
+    stage.style.height = stageH + 'px';
+    const w = win.clientWidth;
+    const h = win.clientHeight;
+    const s = Math.min(w / stageW, h / stageH);
+    stage.style.transform = `scale(${s})`;
+  });
+}
+rescale();
+window.addEventListener('resize', rescale);
+new ResizeObserver(rescale).observe(document.body);
+</script>
+</body>
+</html>
