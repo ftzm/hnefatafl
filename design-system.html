@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Hnefatafl — Design System</title>
+<link rel="stylesheet" href="colors_and_type.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   Hnefatafl Design System — single-document spec
+   Visual language lifted directly from preview/aesthetic-system.html:
+   hairline rules, Garamond display, Inter UI, paper + dark duality.
+   ========================================================================= */
+
+:root {
+  --ds-bg: #2a2623;
+  --ds-paper: #f2ead8;
+  --ds-dark: #1a1a1a;
+  --ds-ink: #3c3228;
+  --ds-ink-soft: rgba(60,50,40,0.72);
+  --ds-ink-mute: rgba(60,50,40,0.55);
+  --ds-ink-faint: rgba(60,50,40,0.38);
+  --ds-rule: rgba(60,50,40,0.18);
+  --ds-rule-strong: rgba(60,50,40,0.4);
+  --ds-accent: #8c6f42;
+  --ds-capture: #6b1a12;
+}
+
+html, body { background: var(--ds-bg); margin: 0; padding: 0; font-family: var(--font-sans); color: var(--color-warm-200); }
+
+/* ========== Masthead ========== */
+.mast {
+  max-width: 1200px; margin: 0 auto; padding: 64px 48px 48px;
+  border-bottom: 1px solid rgba(232,224,208,0.15);
+}
+.mast .sup { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(232,224,208,0.55); }
+.mast h1 {
+  font-family: 'EB Garamond', var(--font-serif); font-weight: 500;
+  font-size: 72px; line-height: 0.95; letter-spacing: -0.015em;
+  margin: 12px 0 10px; color: var(--color-warm-100);
+}
+.mast h1 em { font-style: italic; color: #c8a368; font-weight: 400; }
+.mast .lede {
+  font-family: 'EB Garamond', var(--font-serif); font-style: italic;
+  font-size: 22px; color: rgba(232,224,208,0.72); max-width: 720px; margin: 0 0 16px; line-height: 1.4;
+}
+.mast .meta-row {
+  display: flex; gap: 24px; margin-top: 28px;
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(232,224,208,0.45);
+}
+.mast .meta-row .k { color: rgba(232,224,208,0.75); font-weight: 600; }
+.mast .meta-row span + span::before { content: ""; display: inline-block; width: 1px; height: 10px; background: rgba(232,224,208,0.2); margin-right: 24px; vertical-align: middle; }
+
+/* ========== TOC ========== */
+.toc {
+  max-width: 1200px; margin: 0 auto; padding: 28px 48px 0;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  border-bottom: 1px solid rgba(232,224,208,0.08);
+}
+.toc a {
+  display: flex; flex-direction: column; gap: 4px; padding: 18px 0 22px;
+  text-decoration: none; color: rgba(232,224,208,0.72);
+  font-family: var(--font-sans); font-size: 13px; cursor: pointer;
+  border-right: 1px solid rgba(232,224,208,0.08);
+  padding-left: 18px;
+}
+.toc a:first-child { padding-left: 0; }
+.toc a:last-child { border-right: none; }
+.toc a .n { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 12px; color: rgba(232,224,208,0.4); }
+.toc a .t { font-size: 14px; color: var(--color-warm-100); font-weight: 500; }
+.toc a:hover .t { color: #fff; }
+.toc a .c { font-size: 11px; color: rgba(232,224,208,0.4); letter-spacing: 0.01em; }
+
+/* ========== Section ========== */
+section {
+  max-width: 1200px; margin: 0 auto; padding: 72px 48px;
+  border-bottom: 1px solid rgba(232,224,208,0.08);
+}
+.sec-head { display: grid; grid-template-columns: 120px 1fr; gap: 32px; margin-bottom: 40px; align-items: baseline; }
+.sec-head .num { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 56px; color: rgba(232,224,208,0.28); font-weight: 400; line-height: 1; }
+.sec-head .ttl h2 {
+  font-family: 'EB Garamond', var(--font-serif); font-weight: 500;
+  font-size: 44px; line-height: 1.05; letter-spacing: -0.01em;
+  color: var(--color-warm-100); margin: 0 0 10px;
+}
+.sec-head .ttl h2 em { font-style: italic; color: #c8a368; font-weight: 400; }
+.sec-head .ttl .eybr { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(232,224,208,0.5); font-weight: 600; margin-bottom: 8px; display: block; }
+.sec-head .ttl .prose { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 17px; color: rgba(232,224,208,0.7); max-width: 640px; line-height: 1.5; margin: 0; }
+
+/* ========== Spec card (the atomic unit) ========== */
+.card {
+  background: var(--ds-paper); color: var(--ds-ink);
+  border: 1px solid rgba(232,224,208,0.12);
+  display: grid; grid-template-columns: 280px 1fr;
+  font-family: var(--font-sans); overflow: hidden;
+}
+.card.dark { background: var(--ds-dark); color: #e8e0d0; border-color: rgba(232,224,208,0.18); }
+.card + .card { margin-top: 20px; }
+.card .lbl {
+  padding: 22px 24px; border-right: 1px solid var(--ds-rule);
+  display: flex; flex-direction: column; gap: 8px;
+  background: rgba(60,50,40,0.03);
+}
+.card.dark .lbl { border-right-color: rgba(232,224,208,0.12); background: rgba(232,224,208,0.02); }
+.card .lbl .ey { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink-mute); font-weight: 600; }
+.card.dark .lbl .ey { color: rgba(232,224,208,0.55); }
+.card .lbl h3 {
+  font-family: 'EB Garamond', var(--font-serif); font-weight: 500;
+  font-size: 26px; letter-spacing: -0.005em; line-height: 1.1;
+  margin: 0; color: var(--ds-ink);
+}
+.card.dark .lbl h3 { color: #e8e0d0; }
+.card .lbl h3 em { font-style: italic; color: var(--ds-accent); }
+.card.dark .lbl h3 em { color: #c8a368; }
+.card .lbl .desc { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 14px; color: var(--ds-ink-soft); line-height: 1.45; margin-top: 4px; }
+.card.dark .lbl .desc { color: rgba(232,224,208,0.7); }
+.card .lbl .rules { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ds-rule); }
+.card.dark .lbl .rules { border-top-color: rgba(232,224,208,0.12); }
+.card .lbl .rules li { font-size: 11.5px; color: var(--ds-ink-soft); line-height: 1.55; list-style: none; padding-left: 12px; position: relative; }
+.card.dark .lbl .rules li { color: rgba(232,224,208,0.68); }
+.card .lbl .rules li::before { content: "—"; position: absolute; left: 0; color: var(--ds-ink-faint); }
+.card.dark .lbl .rules li::before { color: rgba(232,224,208,0.35); }
+.card .lbl .rules li + li { margin-top: 4px; }
+.card .body { padding: 28px 32px; min-width: 0; }
+
+/* ========== Color ========== */
+.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.sw {
+  border: 1px solid var(--ds-rule); background: var(--ds-paper);
+  font-family: var(--font-sans); display: flex; flex-direction: column;
+}
+.card.dark .sw { border-color: rgba(232,224,208,0.18); background: var(--ds-dark); }
+.sw .chip { height: 72px; border-bottom: 1px solid var(--ds-rule); }
+.card.dark .sw .chip { border-bottom-color: rgba(232,224,208,0.14); }
+.sw .info { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.sw .nm { font-size: 11px; letter-spacing: 0.06em; color: var(--ds-ink); font-weight: 600; text-transform: uppercase; }
+.card.dark .sw .nm { color: #e8e0d0; }
+.sw .hex { font-family: var(--font-mono); font-size: 11px; color: var(--ds-ink-mute); letter-spacing: 0; }
+.card.dark .sw .hex { color: rgba(232,224,208,0.55); }
+.sw .tok { font-family: var(--font-mono); font-size: 10px; color: var(--ds-ink-faint); letter-spacing: 0; word-break: break-all; }
+.card.dark .sw .tok { color: rgba(232,224,208,0.4); }
+
+.semantic-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; border: 1px solid var(--ds-rule-strong); }
+.card.dark .semantic-grid { border-color: rgba(232,224,208,0.2); }
+.semrow {
+  display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 14px;
+  padding: 12px 16px; border-bottom: 1px solid var(--ds-rule);
+}
+.card.dark .semrow { border-bottom-color: rgba(232,224,208,0.12); }
+.semrow:nth-last-child(-n+2) { border-bottom: none; }
+.semrow .dot { width: 18px; height: 18px; border-radius: 2px; border: 1px solid var(--ds-rule-strong); }
+.card.dark .semrow .dot { border-color: rgba(232,224,208,0.2); }
+.semrow .lab { font-family: var(--font-mono); font-size: 11.5px; color: var(--ds-ink); }
+.card.dark .semrow .lab { color: #e8e0d0; }
+.semrow .use { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 13px; color: var(--ds-ink-mute); }
+.card.dark .semrow .use { color: rgba(232,224,208,0.55); }
+
+/* ========== Type ========== */
+.type-spec { display: grid; grid-template-columns: 1fr; gap: 0; }
+.type-row {
+  display: grid; grid-template-columns: 180px 1fr; gap: 24px; align-items: baseline;
+  padding: 18px 0; border-bottom: 1px solid var(--ds-rule);
+}
+.card.dark .type-row { border-bottom-color: rgba(232,224,208,0.12); }
+.type-row:last-child { border-bottom: none; padding-bottom: 0; }
+.type-row .meta { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ds-ink-mute); font-weight: 500; line-height: 1.6; }
+.card.dark .type-row .meta { color: rgba(232,224,208,0.55); }
+.type-row .meta .k { display: block; color: var(--ds-ink); font-weight: 600; margin-bottom: 4px; }
+.card.dark .type-row .meta .k { color: #e8e0d0; }
+.type-row .meta .m { display: block; letter-spacing: 0.04em; text-transform: none; font-family: var(--font-mono); font-size: 10.5px; color: var(--ds-ink-faint); margin-top: 2px; }
+.card.dark .type-row .meta .m { color: rgba(232,224,208,0.4); }
+.type-row .spec { color: var(--ds-ink); line-height: 1.1; }
+.card.dark .type-row .spec { color: #e8e0d0; }
+.type-row .spec.serif { font-family: 'EB Garamond', var(--font-serif); font-weight: 500; }
+.type-row .spec.serif-it { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-weight: 400; }
+.type-row .spec.sans { font-family: var(--font-sans); }
+.type-row .spec.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.type-row .spec.eybr { font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink); font-weight: 600; }
+.card.dark .type-row .spec.eybr { color: #e8e0d0; }
+
+.pair-block {
+  border: 1px solid var(--ds-rule-strong);
+  padding: 32px; background: var(--ds-paper);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.card.dark .pair-block { border-color: rgba(232,224,208,0.2); background: var(--ds-dark); }
+.pair-block .ey { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink-mute); font-weight: 600; }
+.card.dark .pair-block .ey { color: rgba(232,224,208,0.55); }
+.pair-block .ttl { font-family: 'EB Garamond', var(--font-serif); font-weight: 500; font-size: 48px; line-height: 1; letter-spacing: -0.015em; color: var(--ds-ink); }
+.card.dark .pair-block .ttl { color: #e8e0d0; }
+.pair-block .ttl em { font-style: italic; color: var(--ds-accent); font-weight: 400; }
+.card.dark .pair-block .ttl em { color: #c8a368; }
+.pair-block .sub { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 18px; color: var(--ds-ink-soft); margin-top: 4px; }
+.card.dark .pair-block .sub { color: rgba(232,224,208,0.68); }
+
+/* ========== Spacing / radii / borders ========== */
+.scale-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
+.scale-row {
+  display: grid; grid-template-columns: 80px 1fr 80px; gap: 20px; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--ds-rule);
+}
+.card.dark .scale-row { border-bottom-color: rgba(232,224,208,0.12); }
+.scale-row:last-child { border-bottom: none; }
+.scale-row .k { font-family: var(--font-mono); font-size: 11px; color: var(--ds-ink); }
+.card.dark .scale-row .k { color: #e8e0d0; }
+.scale-row .bar { height: 16px; background: var(--ds-ink); opacity: 0.9; }
+.card.dark .scale-row .bar { background: #e8e0d0; opacity: 0.75; }
+.scale-row .v { font-family: var(--font-mono); font-size: 11px; color: var(--ds-ink-mute); text-align: right; }
+.card.dark .scale-row .v { color: rgba(232,224,208,0.55); }
+
+.radii-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.radii-row .box { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ds-ink-mute); text-align: center; }
+.card.dark .radii-row .box { color: rgba(232,224,208,0.55); }
+.radii-row .box .sh { width: 80px; height: 80px; background: var(--ds-ink); }
+.card.dark .radii-row .box .sh { background: #e8e0d0; opacity: 0.85; }
+.radii-row .box .k { color: var(--ds-ink); font-weight: 600; }
+.card.dark .radii-row .box .k { color: #e8e0d0; }
+
+.borders-stack { display: flex; flex-direction: column; gap: 16px; }
+.borders-stack .bline {
+  display: grid; grid-template-columns: 160px 1fr auto; gap: 20px; align-items: center;
+  padding: 10px 14px; background: rgba(60,50,40,0.04);
+}
+.card.dark .borders-stack .bline { background: rgba(232,224,208,0.03); }
+.borders-stack .bline .l { font-family: var(--font-mono); font-size: 11px; color: var(--ds-ink); }
+.card.dark .borders-stack .bline .l { color: #e8e0d0; }
+.borders-stack .bline .ex { height: 2px; background: var(--ds-rule); }
+.borders-stack .bline .ex.b2 { background: var(--ds-rule-strong); }
+.borders-stack .bline .ex.b3 { background: var(--ds-ink); }
+.card.dark .borders-stack .bline .ex { background: rgba(232,224,208,0.18); }
+.card.dark .borders-stack .bline .ex.b2 { background: rgba(232,224,208,0.36); }
+.card.dark .borders-stack .bline .ex.b3 { background: #e8e0d0; }
+.borders-stack .bline .v { font-family: var(--font-mono); font-size: 10.5px; color: var(--ds-ink-mute); }
+.card.dark .borders-stack .bline .v { color: rgba(232,224,208,0.55); }
+
+/* ========== Component displays ========== */
+.comp-stage {
+  background: var(--ds-paper); padding: 40px; border: 1px solid var(--ds-rule-strong);
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: flex-start;
+}
+.card.dark .comp-stage { background: var(--ds-dark); border-color: rgba(232,224,208,0.2); }
+
+/* buttons */
+.btn-demo {
+  font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  font-weight: 600; padding: 10px 18px; cursor: pointer;
+  border: 1px solid var(--ds-ink); background: transparent; color: var(--ds-ink);
+  transition: all .15s;
+}
+.btn-demo:hover { background: var(--ds-ink); color: var(--ds-paper); }
+.btn-demo.filled { background: var(--ds-ink); color: var(--ds-paper); }
+.btn-demo.filled:hover { background: transparent; color: var(--ds-ink); }
+.btn-demo.small { font-size: 10px; padding: 7px 12px; letter-spacing: 0.14em; }
+.btn-demo.text { border: none; padding: 10px 0; letter-spacing: 0.14em; font-size: 10.5px; position: relative; }
+.btn-demo.text::after { content: ""; position: absolute; left: 0; right: 0; bottom: 6px; height: 1px; background: var(--ds-ink); }
+.btn-demo.text:hover { background: transparent; color: var(--ds-ink-mute); }
+.btn-demo.text:hover::after { background: var(--ds-ink-mute); }
+.card.dark .btn-demo { border-color: #e8e0d0; color: #e8e0d0; }
+.card.dark .btn-demo:hover { background: #e8e0d0; color: var(--ds-dark); }
+.card.dark .btn-demo.filled { background: #e8e0d0; color: var(--ds-dark); }
+.card.dark .btn-demo.filled:hover { background: transparent; color: #e8e0d0; }
+.card.dark .btn-demo.text::after { background: #e8e0d0; }
+
+/* chips */
+.chip-demo {
+  font-family: var(--font-sans); font-size: 12px; color: var(--ds-ink-mute);
+  padding: 6px 12px; border: 1px solid var(--ds-rule-strong); cursor: pointer;
+  background: transparent; letter-spacing: 0.02em; transition: all .15s;
+}
+.chip-demo:hover { color: var(--ds-ink); border-color: var(--ds-ink); }
+.chip-demo.sel { color: var(--ds-ink); border-color: var(--ds-ink); font-weight: 600; }
+.card.dark .chip-demo { color: rgba(232,224,208,0.55); border-color: rgba(232,224,208,0.36); }
+.card.dark .chip-demo:hover, .card.dark .chip-demo.sel { color: #e8e0d0; border-color: #e8e0d0; }
+
+/* inputs */
+.input-demo {
+  width: 280px; font-family: 'EB Garamond', var(--font-serif); font-size: 17px;
+  color: var(--ds-ink); background: transparent;
+  border: none; border-bottom: 1px solid var(--ds-rule-strong); padding: 4px 0 6px;
+  outline: none;
+}
+.input-demo::placeholder { color: var(--ds-ink-faint); font-style: italic; }
+.input-demo:focus { border-bottom-color: var(--ds-ink); }
+.card.dark .input-demo { color: #e8e0d0; border-bottom-color: rgba(232,224,208,0.36); }
+.card.dark .input-demo::placeholder { color: rgba(232,224,208,0.35); }
+.card.dark .input-demo:focus { border-bottom-color: #e8e0d0; }
+
+/* pieces */
+.pc-demo { width: 56px; height: 56px; border-radius: 50%; border: 1.5px solid #1a1a1a; box-shadow: 2px 2px 3px rgba(0,0,0,0.25); display: inline-block; }
+.pc-demo.white { background: radial-gradient(circle at 40% 38%, #f2ead8, #c8bfad); }
+.pc-demo.black { background: radial-gradient(circle at 40% 38%, #232323, #131313); border-color: #555; }
+.pc-demo.king { width: 56px; height: 56px; background: transparent; position: relative; overflow: hidden; }
+.pc-demo.king::before { content:""; position:absolute; inset:-3px; background: conic-gradient(from 315deg at 50% 50%, #f2ead8 0deg, #ddd2c0 90deg, #b0a48e 180deg, #ddd2c0 270deg, #f2ead8 360deg); filter: blur(2px); z-index: -1; }
+.pc-demo.king svg { width: 100%; height: 100%; }
+
+/* specimen frames for patterns */
+.frame { background: #0a0a0a; border-radius: 3px; padding: 1px; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+.win { aspect-ratio: 16 / 10; overflow: hidden; border-radius: 2px; position: relative; }
+.stage-scale { position: absolute; top: 0; left: 0; width: 1200px; height: 750px; transform-origin: top left; display: flex; flex-direction: column; }
+
+/* wordmark demo */
+.wm-demo {
+  font-family: 'EB Garamond', var(--font-serif); font-style: italic;
+  font-size: 40px; color: var(--ds-ink); letter-spacing: 0.005em;
+}
+.wm-demo em { font-style: normal; font-weight: 500; }
+.card.dark .wm-demo { color: #e8e0d0; }
+
+/* footer */
+footer {
+  max-width: 1200px; margin: 0 auto; padding: 48px;
+  font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(232,224,208,0.4); display: flex; justify-content: space-between;
+}
+footer em { font-style: italic; text-transform: none; letter-spacing: 0; font-family: 'EB Garamond', var(--font-serif); font-size: 14px; color: rgba(232,224,208,0.6); }
+
+/* small screen fallback */
+@media (max-width: 900px) {
+  .card { grid-template-columns: 1fr; }
+  .card .lbl { border-right: none; border-bottom: 1px solid var(--ds-rule); }
+  .toc { grid-template-columns: repeat(2, 1fr); }
+  .sec-head { grid-template-columns: 1fr; gap: 12px; }
+  .mast h1 { font-size: 54px; }
+}
+
+/* ========== App preview (iframe-like) ========== */
+.app-prev { display: flex; flex-direction: column; background: var(--ds-paper); color: #3c3228; font-family: var(--font-sans); height: 100%; }
+.app-prev.dark { background: var(--ds-dark); color: #e8e0d0; }
+.app-prev .top {
+  display:grid; grid-template-columns: 1fr auto 1fr; align-items:center;
+  padding: 14px 32px; border-bottom: 1px solid rgba(60,50,40,0.18);
+}
+.app-prev.dark .top { border-bottom-color: rgba(232,224,208,0.16); }
+.app-prev .top .wm { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 20px; letter-spacing: 0.005em; }
+.app-prev .top .wm em { font-style: normal; font-weight: 500; }
+.app-prev .top nav { justify-self: center; display: flex; gap: 28px; font-size: 13px; color: rgba(60,50,40,0.55); }
+.app-prev .top nav a.active { color: #3c3228; border-bottom: 1px solid #3c3228; padding-bottom: 2px; }
+.app-prev.dark .top nav { color: rgba(232,224,208,0.5); }
+.app-prev.dark .top nav a.active { color: #e8e0d0; border-bottom-color: #e8e0d0; }
+.app-prev .top .tools { justify-self: end; font-size: 13px; color: rgba(60,50,40,0.55); }
+.app-prev.dark .top .tools { color: rgba(232,224,208,0.5); }
+.app-prev .home { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 56px 64px 48px; gap: 44px; }
+.app-prev .hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.app-prev .hero .ey { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(60,50,40,0.55); }
+.app-prev.dark .hero .ey { color: rgba(232,224,208,0.5); }
+.app-prev .hero h1 { font-family: 'EB Garamond', var(--font-serif); font-weight: 500; font-size: 72px; line-height: 0.95; letter-spacing: -0.015em; margin: 0; }
+.app-prev .hero h1 em { font-style: italic; color: #8c6f42; font-weight: 400; }
+.app-prev.dark .hero h1 em { color: #c8a368; }
+.app-prev .hero .rule { display: flex; align-items: center; gap: 10px; width: 120px; margin: 2px 0; }
+.app-prev .hero .rule .h { flex: 1; height: 1px; background: rgba(60,50,40,0.4); }
+.app-prev.dark .hero .rule .h { background: rgba(232,224,208,0.36); }
+.app-prev .hero .rule .d { width: 3px; height: 3px; border-radius: 50%; background: #8c6f42; }
+.app-prev.dark .hero .rule .d { background: #c8a368; }
+.app-prev .hero p { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 19px; color: rgba(60,50,40,0.72); margin: 0; }
+.app-prev.dark .hero p { color: rgba(232,224,208,0.72); }
+.app-prev .entries { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 100%; max-width: 780px; }
+.app-prev .entries a { display: flex; flex-direction: column; border: 1px solid rgba(60,50,40,0.4); background: var(--ds-paper); overflow: hidden; text-decoration: none; color: inherit; }
+.app-prev.dark .entries a { background: rgba(255,255,255,0.02); border-color: rgba(232,224,208,0.36); }
+.app-prev .entries a .body { flex: 1; padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 6px; }
+.app-prev .entries a .lbl { font-family: 'EB Garamond', var(--font-serif); font-size: 24px; font-weight: 500; line-height: 1.1; }
+.app-prev .entries a .sub { font-size: 11.5px; color: rgba(60,50,40,0.55); line-height: 1.45; }
+.app-prev.dark .entries a .sub { color: rgba(232,224,208,0.5); }
+.app-prev .entries a .foot { display: flex; justify-content: space-between; padding: 10px 20px; border-top: 1px solid rgba(60,50,40,0.18); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 500; background: rgba(60,50,40,0.05); }
+.app-prev.dark .entries a .foot { border-top-color: rgba(232,224,208,0.16); background: rgba(232,224,208,0.05); }
+.app-prev .entries a .arr { font-family: 'EB Garamond', var(--font-serif); font-style: italic; font-size: 18px; letter-spacing: 0; text-transform: none; }
+
+/* mini token recap at bottom */
+.recap {
+  max-width: 1200px; margin: 0 auto; padding: 56px 48px 72px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: rgba(232,224,208,0.55); line-height: 1.8;
+  white-space: pre; overflow-x: auto;
+  border-top: 1px solid rgba(232,224,208,0.08);
+}
+.recap .c { color: rgba(232,224,208,0.3); }
+.recap .k { color: #c8a368; }
+.recap .v { color: var(--color-warm-100); }
+
+</style>
+</head>
+<body>
+
+<!-- ========================================================================
+     MASTHEAD
+     ======================================================================== -->
+<header class="mast">
+  <div class="sup">The Hnefatafl design system · v1.0</div>
+  <h1>A system for <em>Hnefatafl</em></h1>
+  <p class="lede">Spare. Classical. A touch archaic. A dual-mode system — paper and dark — rooted in Garamond display, Inter UI, JetBrains Mono for clocks and notation. Hairline rules instead of filled panels. Gradients only on the pieces and the gilded king.</p>
+  <div class="meta-row">
+    <span><span class="k">3 families</span> Garamond · Inter · Mono</span>
+    <span><span class="k">2 modes</span> Paper · Dark</span>
+    <span><span class="k">1 accent</span> Capture red, used rarely</span>
+  </div>
+</header>
+
+<!-- ========================================================================
+     TABLE OF CONTENTS
+     ======================================================================== -->
+<nav class="toc">
+  <a href="#voice"><span class="n">I.</span><span class="t">Voice</span><span class="c">Tone · copy · do & don't</span></a>
+  <a href="#color"><span class="n">II.</span><span class="t">Color</span><span class="c">Primitives · semantic · board</span></a>
+  <a href="#type"><span class="n">III.</span><span class="t">Type</span><span class="c">Three families · scale · pairs</span></a>
+  <a href="#space"><span class="n">IV.</span><span class="t">Space &amp; Rule</span><span class="c">Scale · radii · borders</span></a>
+  <a href="#pieces"><span class="n">V.</span><span class="t">The Pieces</span><span class="c">Brand anchor</span></a>
+  <a href="#components"><span class="n">VI.</span><span class="t">Components</span><span class="c">Buttons · chips · input · card</span></a>
+  <a href="#patterns"><span class="n">VII.</span><span class="t">Patterns</span><span class="c">Hero · modal · entries · ledger</span></a>
+  <a href="#screens"><span class="n">VIII.</span><span class="t">Screens</span><span class="c">Home · New game · Game</span></a>
+</nav>
+
+<!-- ========================================================================
+     I. VOICE
+     ======================================================================== -->
+<section id="voice">
+  <div class="sec-head">
+    <div class="num">I</div>
+    <div class="ttl">
+      <span class="eybr">Section one</span>
+      <h2>On <em>voice</em></h2>
+      <p class="prose">Status lines read like log entries, not announcements. Single-clause sentences, archaic when it helps, functional when it doesn't. No cheer. No exclamation marks.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Do</span>
+      <h3>Write like a <em>ledger</em></h3>
+      <div class="desc">Factual, terminal, terse. The verb does the work.</div>
+    </div>
+    <div class="body">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 28px;">
+        <div style="border-left: 2px solid var(--ds-ink); padding-left: 18px; display:flex; flex-direction:column; gap: 12px;">
+          <div style="font-family: 'EB Garamond', serif; font-size: 20px; color: var(--ds-ink); line-height: 1.3;">Black to move.</div>
+          <div style="font-family: 'EB Garamond', serif; font-size: 20px; color: var(--ds-ink); line-height: 1.3;">White wins — King escaped.</div>
+          <div style="font-family: 'EB Garamond', serif; font-size: 20px; color: var(--ds-ink); line-height: 1.3;">Waiting for opponent.</div>
+          <div style="font-family: 'EB Garamond', serif; font-size: 20px; color: var(--ds-ink); line-height: 1.3; font-style: italic;">King and kin against the siege.</div>
+        </div>
+        <div style="border-left: 2px solid var(--ds-capture); padding-left: 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-family: var(--font-sans); font-size: 13px; color: var(--ds-ink-mute); text-decoration: line-through;">It's Black's turn! 🎉</div>
+          <div style="font-family: var(--font-sans); font-size: 13px; color: var(--ds-ink-mute); text-decoration: line-through;">Great job — you won!</div>
+          <div style="font-family: var(--font-sans); font-size: 13px; color: var(--ds-ink-mute); text-decoration: line-through;">Hang tight, your opponent is thinking…</div>
+          <div style="font-family: var(--font-sans); font-size: 13px; color: var(--ds-ink-mute); text-decoration: line-through;">Ready to play? Let's go!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Lexicon</span>
+      <h3>Words we <em>use</em></h3>
+      <div class="desc">The game has vocabulary. Use it.</div>
+    </div>
+    <div class="body">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid rgba(232,224,208,0.2);">
+        <div style="padding: 18px 20px; border-right: 1px solid rgba(232,224,208,0.12); border-bottom: 1px solid rgba(232,224,208,0.12);"><div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,224,208,0.5); margin-bottom: 6px;">Sides</div><div style="font-family: 'EB Garamond', serif; font-size: 19px; color: #e8e0d0;">Attackers · Defenders</div></div>
+        <div style="padding: 18px 20px; border-right: 1px solid rgba(232,224,208,0.12); border-bottom: 1px solid rgba(232,224,208,0.12);"><div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,224,208,0.5); margin-bottom: 6px;">Pieces</div><div style="font-family: 'EB Garamond', serif; font-size: 19px; color: #e8e0d0;">King · Defender · Attacker</div></div>
+        <div style="padding: 18px 20px; border-bottom: 1px solid rgba(232,224,208,0.12);"><div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,224,208,0.5); margin-bottom: 6px;">Game</div><div style="font-family: 'EB Garamond', serif; font-size: 19px; color: #e8e0d0;">Move · Capture · Resign · Draw</div></div>
+        <div style="padding: 18px 20px; border-right: 1px solid rgba(232,224,208,0.12);"><div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,224,208,0.5); margin-bottom: 6px;">Status</div><div style="font-family: 'EB Garamond', serif; font-size: 19px; color: #e8e0d0;">Your move · Waiting · Escape · Siege</div></div>
+        <div style="padding: 18px 20px; border-right: 1px solid rgba(232,224,208,0.12);"><div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,224,208,0.5); margin-bottom: 6px;">Flourish</div><div style="font-family: 'EB Garamond', serif; font-style: italic; font-size: 19px; color: #c8a368;">kin · siege · the board</div></div>
+        <div style="padding: 18px 20px;"><div style="font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(232,224,208,0.5); margin-bottom: 6px;">Avoid</div><div style="font-family: var(--font-sans); font-size: 13px; color: rgba(232,224,208,0.5);"><span style="text-decoration: line-through;">player, user, hero, victory, awesome</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================
+     II. COLOR
+     ======================================================================== -->
+<section id="color">
+  <div class="sec-head">
+    <div class="num">II</div>
+    <div class="ttl">
+      <span class="eybr">Section two</span>
+      <h2>On <em>color</em></h2>
+      <p class="prose">A paper mode and a dark mode. Warm ivory carries both. Wood only on the board. One accent — capture-red — kept in reserve.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Neutrals · paper</span>
+      <h3>Warm <em>ivory</em></h3>
+      <div class="desc">The paper surface and the ivory pieces share the same five-step warm ramp.</div>
+      <ul class="rules">
+        <li>Page surface: warm-100</li>
+        <li>Secondary text on dark: warm-200</li>
+        <li>Ivory piece gradient: warm-100 → warm-400</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="swatch-grid">
+        <div class="sw"><div class="chip" style="background: #f2ead8;"></div><div class="info"><span class="nm">Warm 100</span><span class="hex">#f2ead8</span><span class="tok">--color-warm-100</span></div></div>
+        <div class="sw"><div class="chip" style="background: #e8e0d0;"></div><div class="info"><span class="nm">Warm 200</span><span class="hex">#e8e0d0</span><span class="tok">--color-warm-200</span></div></div>
+        <div class="sw"><div class="chip" style="background: #ddd2c0;"></div><div class="info"><span class="nm">Warm 300</span><span class="hex">#ddd2c0</span><span class="tok">--color-warm-300</span></div></div>
+        <div class="sw"><div class="chip" style="background: #c8bfad;"></div><div class="info"><span class="nm">Warm 400</span><span class="hex">#c8bfad</span><span class="tok">--color-warm-400</span></div></div>
+        <div class="sw"><div class="chip" style="background: #b0a48e;"></div><div class="info"><span class="nm">Warm 500</span><span class="hex">#b0a48e</span><span class="tok">--color-warm-500</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Neutrals · dark</span>
+      <h3><em>Ash</em></h3>
+      <div class="desc">Surfaces stack lighter as they layer. Never introduce a darker-than-page surface.</div>
+      <ul class="rules">
+        <li>Page: gray-900</li>
+        <li>Topbar: gray-850</li>
+        <li>Surface: gray-750</li>
+        <li>Inset: gray-700</li>
+        <li>Control: gray-600</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="swatch-grid">
+        <div class="sw"><div class="chip" style="background: #1a1a1a;"></div><div class="info"><span class="nm">Gray 900</span><span class="hex">#1a1a1a</span><span class="tok">--color-gray-900</span></div></div>
+        <div class="sw"><div class="chip" style="background: #222;"></div><div class="info"><span class="nm">Gray 850</span><span class="hex">#222222</span><span class="tok">--color-gray-850</span></div></div>
+        <div class="sw"><div class="chip" style="background: #252525;"></div><div class="info"><span class="nm">Gray 750</span><span class="hex">#252525</span><span class="tok">--color-gray-750</span></div></div>
+        <div class="sw"><div class="chip" style="background: #2e2e2e;"></div><div class="info"><span class="nm">Gray 700</span><span class="hex">#2e2e2e</span><span class="tok">--color-gray-700</span></div></div>
+        <div class="sw"><div class="chip" style="background: #333;"></div><div class="info"><span class="nm">Gray 600</span><span class="hex">#333333</span><span class="tok">--color-gray-600</span></div></div>
+        <div class="sw"><div class="chip" style="background: #383838;"></div><div class="info"><span class="nm">Gray 550</span><span class="hex">#383838</span><span class="tok">--color-gray-550</span></div></div>
+        <div class="sw"><div class="chip" style="background: #3a3a3a;"></div><div class="info"><span class="nm">Gray 500</span><span class="hex">#3a3a3a</span><span class="tok">--color-gray-500</span></div></div>
+        <div class="sw"><div class="chip" style="background: #444;"></div><div class="info"><span class="nm">Gray 450</span><span class="hex">#444444</span><span class="tok">--color-gray-450</span></div></div>
+        <div class="sw"><div class="chip" style="background: #555;"></div><div class="info"><span class="nm">Gray 400</span><span class="hex">#555555</span><span class="tok">--color-gray-400</span></div></div>
+        <div class="sw"><div class="chip" style="background: #666;"></div><div class="info"><span class="nm">Gray 350</span><span class="hex">#666666</span><span class="tok">--color-gray-350</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Wood</span>
+      <h3>Board <em>only</em></h3>
+      <div class="desc">Wood is reserved. The palette does not travel to chrome, text, or controls.</div>
+    </div>
+    <div class="body">
+      <div class="swatch-grid">
+        <div class="sw"><div class="chip" style="background: #5c4f3a;"></div><div class="info"><span class="nm">Wood 100</span><span class="hex">#5c4f3a</span><span class="tok">--color-wood-100</span></div></div>
+        <div class="sw"><div class="chip" style="background: #554833;"></div><div class="info"><span class="nm">Wood 200</span><span class="hex">#554833</span><span class="tok">--color-wood-200</span></div></div>
+        <div class="sw"><div class="chip" style="background: #4a3f2f;"></div><div class="info"><span class="nm">Wood 300</span><span class="hex">#4a3f2f</span><span class="tok">--color-wood-300</span></div></div>
+        <div class="sw"><div class="chip" style="background: #3d3526;"></div><div class="info"><span class="nm">Wood 400</span><span class="hex">#3d3526</span><span class="tok">--color-wood-400</span></div></div>
+        <div class="sw"><div class="chip" style="background: #3a3020;"></div><div class="info"><span class="nm">Wood 500</span><span class="hex">#3a3020</span><span class="tok">--color-wood-500</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Accent</span>
+      <h3>Capture <em>red</em></h3>
+      <div class="desc">One accent. Used for capture flashes, resign confirmation, error states. Nothing else.</div>
+      <ul class="rules">
+        <li>Never on buttons, links, or chrome</li>
+        <li>Never as a tint or wash</li>
+        <li>Piece gilding uses warm, not red</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div style="display: flex; gap: 20px; align-items: stretch;">
+        <div class="sw" style="width: 180px; flex-shrink: 0;"><div class="chip" style="background: #6b1a12; height: 120px;"></div><div class="info"><span class="nm">Capture</span><span class="hex">#6b1a12</span><span class="tok">--color-capture</span></div></div>
+        <div style="flex: 1; padding: 24px; border: 1px solid rgba(232,224,208,0.2); display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+          <div style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: #6b1a12; font-weight: 700;">Resign game</div>
+          <div style="font-family: 'EB Garamond', serif; font-size: 22px; color: #e8e0d0; font-style: italic;">Forfeit the match?</div>
+          <div style="font-family: var(--font-sans); font-size: 12px; color: rgba(232,224,208,0.6); line-height: 1.5;">Capture-red marks the only irreversible action in the app. It earns its brightness by being rare.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Semantic mapping</span>
+      <h3>Tokens that <em>travel</em></h3>
+      <div class="desc">Semantic names consume primitives. Screens should never reach past semantics.</div>
+    </div>
+    <div class="body">
+      <div class="semantic-grid">
+        <div class="semrow"><span class="dot" style="background: #1a1a1a;"></span><span class="lab">--bg-page</span><span class="use">Page surface</span></div>
+        <div class="semrow"><span class="dot" style="background: #222;"></span><span class="lab">--bg-topbar</span><span class="use">Top chrome band</span></div>
+        <div class="semrow"><span class="dot" style="background: #252525;"></span><span class="lab">--bg-surface</span><span class="use">Card · modal body</span></div>
+        <div class="semrow"><span class="dot" style="background: #2e2e2e;"></span><span class="lab">--bg-inset</span><span class="use">Move list · chat panel</span></div>
+        <div class="semrow"><span class="dot" style="background: #333;"></span><span class="lab">--bg-control</span><span class="use">Button default</span></div>
+        <div class="semrow"><span class="dot" style="background: #444;"></span><span class="lab">--bg-control-hover</span><span class="use">Button hover</span></div>
+        <div class="semrow"><span class="dot" style="background: #e8e0d0;"></span><span class="lab">--text-primary</span><span class="use">Body · titles</span></div>
+        <div class="semrow"><span class="dot" style="background: #888;"></span><span class="lab">--text-secondary</span><span class="use">Captions · meta</span></div>
+        <div class="semrow"><span class="dot" style="background: #666;"></span><span class="lab">--text-muted</span><span class="use">Placeholder · hint</span></div>
+        <div class="semrow"><span class="dot" style="background: #2e2e2e;"></span><span class="lab">--border-subtle</span><span class="use">Row dividers</span></div>
+        <div class="semrow"><span class="dot" style="background: #383838;"></span><span class="lab">--border-control</span><span class="use">Input · chip border</span></div>
+        <div class="semrow"><span class="dot" style="background: #555;"></span><span class="lab">--border-strong</span><span class="use">Selected · focus</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================
+     III. TYPE
+     ======================================================================== -->
+<section id="type">
+  <div class="sec-head">
+    <div class="num">III</div>
+    <div class="ttl">
+      <span class="eybr">Section three</span>
+      <h2>On <em>type</em></h2>
+      <p class="prose">Three families, no more. Garamond for display and status prose. Inter for buttons, labels, and meta. JetBrains Mono for clocks and move notation.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">The pair</span>
+      <h3>Serif &amp; <em>sans</em></h3>
+      <div class="desc">Every serif title wants an Inter eyebrow above it. The archaic display is grounded by functional UI.</div>
+    </div>
+    <div class="body">
+      <div class="pair-block">
+        <div class="ey">The Viking board game of strategy</div>
+        <div class="ttl">Hnefa<em>tafl</em></div>
+        <div style="width: 120px; display: flex; align-items: center; gap: 10px; margin: 6px 0;"><span style="flex:1; height:1px; background: var(--ds-rule-strong);"></span><span style="width: 3px; height: 3px; border-radius: 50%; background: var(--ds-accent);"></span><span style="flex:1; height:1px; background: var(--ds-rule-strong);"></span></div>
+        <div class="sub">King and kin against the siege.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Families</span>
+      <h3>Three <em>voices</em></h3>
+      <div class="desc">Garamond is the voice of the book. Inter is the voice of the UI. Mono is the voice of the clock.</div>
+      <ul class="rules">
+        <li>No other families, ever</li>
+        <li>EB Garamond or Cormorant — interchangeable</li>
+        <li>Mono strictly for tabular numbers</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="type-spec">
+        <div class="type-row">
+          <div class="meta"><span class="k">Display</span>EB Garamond<span class="m">500 · 48–72 / 0.95 / -0.015em</span></div>
+          <div class="spec serif" style="font-size: 52px;">Hnefatafl</div>
+        </div>
+        <div class="type-row">
+          <div class="meta"><span class="k">Display italic</span>EB Garamond<span class="m">400 italic · 48–72</span></div>
+          <div class="spec serif-it" style="font-size: 52px;">of the book</div>
+        </div>
+        <div class="type-row">
+          <div class="meta"><span class="k">Section title</span>EB Garamond<span class="m">500 · 24–30 / 1.1 / -0.01em</span></div>
+          <div class="spec serif" style="font-size: 28px;">Against AI</div>
+        </div>
+        <div class="type-row">
+          <div class="meta"><span class="k">Status prose</span>EB Garamond italic<span class="m">400 italic · 16–22 / 1.4</span></div>
+          <div class="spec serif-it" style="font-size: 19px;">King and kin against the siege.</div>
+        </div>
+        <div class="type-row">
+          <div class="meta"><span class="k">Body / UI</span>Inter<span class="m">400 · 13–14 / 1.55</span></div>
+          <div class="spec sans" style="font-size: 14px;">Two players, one device. Name each and pass the screen.</div>
+        </div>
+        <div class="type-row">
+          <div class="meta"><span class="k">Eyebrow</span>Inter<span class="m">600 · 10–11 · 0.22em · UPPER</span></div>
+          <div class="spec eybr">New game · Against AI</div>
+        </div>
+        <div class="type-row">
+          <div class="meta"><span class="k">Button</span>Inter<span class="m">600 · 11 · 0.16em · UPPER</span></div>
+          <div class="spec eybr" style="letter-spacing: 0.16em;">Begin game</div>
+        </div>
+        <div class="type-row">
+          <div class="meta"><span class="k">Clock / notation</span>JetBrains Mono<span class="m">400 · 14–22 · tabular</span></div>
+          <div class="spec mono" style="font-size: 22px;">05:07 · a4–c4</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Ratios</span>
+      <h3>The <em>scale</em></h3>
+      <div class="desc">Inter and Garamond ride different scales. Never mix the sans scale into display type.</div>
+    </div>
+    <div class="body">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+        <div>
+          <div style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink-mute); margin-bottom: 12px; font-weight: 600;">UI sans · Inter</div>
+          <div class="type-spec">
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">xs</span><span class="m">12 / 0.75</span></div>
+              <div class="spec sans" style="font-size: 12px;">Meta caption</div>
+            </div>
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">sm</span><span class="m">13 / 0.81</span></div>
+              <div class="spec sans" style="font-size: 13px;">Nav and chip</div>
+            </div>
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">base</span><span class="m">14 / 0.87</span></div>
+              <div class="spec sans" style="font-size: 14px;">Body, button, card</div>
+            </div>
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">lg</span><span class="m">16 / 1.0</span></div>
+              <div class="spec sans" style="font-size: 16px;">Sub-header</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink-mute); margin-bottom: 12px; font-weight: 600;">Display serif · Garamond</div>
+          <div class="type-spec">
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">sm</span><span class="m">24 / 1.5</span></div>
+              <div class="spec serif" style="font-size: 24px;">Section</div>
+            </div>
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">md</span><span class="m">32 / 2.0</span></div>
+              <div class="spec serif" style="font-size: 32px;">Page</div>
+            </div>
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">lg</span><span class="m">48 / 3.0</span></div>
+              <div class="spec serif" style="font-size: 48px;">Hero</div>
+            </div>
+            <div class="type-row" style="grid-template-columns: 90px 1fr;">
+              <div class="meta"><span class="k">xl</span><span class="m">64–72</span></div>
+              <div class="spec serif" style="font-size: 64px;">Splash</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================
+     IV. SPACING / RULES
+     ======================================================================== -->
+<section id="space">
+  <div class="sec-head">
+    <div class="num">IV</div>
+    <div class="ttl">
+      <span class="eybr">Section four</span>
+      <h2>On <em>space &amp; rule</em></h2>
+      <p class="prose">Spacing stays on a tight grid. Radii are almost invisible — 2 to 4 pixels. Only pieces are circular. No pills. No rounded cards.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Spacing</span>
+      <h3>Tight <em>scale</em></h3>
+      <div class="desc">Spacing is measured in single pixels at the low end, rising to 24px. Outside that, prose spacing takes over.</div>
+    </div>
+    <div class="body">
+      <div class="scale-grid">
+        <div class="scale-row"><span class="k">--space-1</span><span class="bar" style="width: 1px;"></span><span class="v">1px</span></div>
+        <div class="scale-row"><span class="k">--space-2</span><span class="bar" style="width: 2px;"></span><span class="v">2px</span></div>
+        <div class="scale-row"><span class="k">--space-3</span><span class="bar" style="width: 3px;"></span><span class="v">3px</span></div>
+        <div class="scale-row"><span class="k">--space-4</span><span class="bar" style="width: 4px;"></span><span class="v">4px</span></div>
+        <div class="scale-row"><span class="k">--space-6</span><span class="bar" style="width: 6px;"></span><span class="v">6px</span></div>
+        <div class="scale-row"><span class="k">--space-8</span><span class="bar" style="width: 8px;"></span><span class="v">8px</span></div>
+        <div class="scale-row"><span class="k">--space-10</span><span class="bar" style="width: 10px;"></span><span class="v">10px</span></div>
+        <div class="scale-row"><span class="k">--space-12</span><span class="bar" style="width: 12px;"></span><span class="v">12px</span></div>
+        <div class="scale-row"><span class="k">--space-14</span><span class="bar" style="width: 14px;"></span><span class="v">14px</span></div>
+        <div class="scale-row"><span class="k">--space-16</span><span class="bar" style="width: 16px;"></span><span class="v">16px</span></div>
+        <div class="scale-row"><span class="k">--space-20</span><span class="bar" style="width: 20px;"></span><span class="v">20px</span></div>
+        <div class="scale-row"><span class="k">--space-24</span><span class="bar" style="width: 24px;"></span><span class="v">24px</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Radii</span>
+      <h3>Barely <em>rounded</em></h3>
+      <div class="desc">Three radii for all rectangular surfaces; 50% for pieces only. Resist the pill-shape urge.</div>
+    </div>
+    <div class="body">
+      <div class="radii-row">
+        <div class="box"><div class="sh" style="border-radius: 2px;"></div><span class="k">--radius-sm</span><span>2px</span></div>
+        <div class="box"><div class="sh" style="border-radius: 3px;"></div><span class="k">--radius-md</span><span>3px</span></div>
+        <div class="box"><div class="sh" style="border-radius: 4px;"></div><span class="k">--radius-lg</span><span>4px</span></div>
+        <div class="box"><div class="sh" style="border-radius: 50%;"></div><span class="k">--radius-full</span><span>Pieces only</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Borders</span>
+      <h3>Three <em>weights</em></h3>
+      <div class="desc">All borders are 1px. Weight is communicated through opacity, not thickness.</div>
+      <ul class="rules">
+        <li>subtle — row dividers</li>
+        <li>control — chip / input rest</li>
+        <li>strong — selected / focus</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="borders-stack">
+        <div class="bline"><span class="l">--border-subtle</span><span class="ex"></span><span class="v">18% ink</span></div>
+        <div class="bline"><span class="l">--border-control</span><span class="ex b2"></span><span class="v">40% ink</span></div>
+        <div class="bline"><span class="l">--border-strong</span><span class="ex b3"></span><span class="v">100% ink</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Shadow</span>
+      <h3>Pieces <em>only</em></h3>
+      <div class="desc">Chrome is flat. The only two shadow tokens both belong to the pieces.</div>
+    </div>
+    <div class="body">
+      <div style="display: flex; gap: 40px; align-items: center; padding: 24px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div class="pc-demo white"></div>
+          <div style="font-family: var(--font-mono); font-size: 10.5px; color: rgba(232,224,208,0.55);">--shadow-piece</div>
+          <div style="font-family: var(--font-mono); font-size: 10px; color: rgba(232,224,208,0.4);">2 2 3 rgba(0,0,0,.25)</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div class="pc-demo black" style="box-shadow: 0 4px 8px rgba(0,0,0,0.5);"></div>
+          <div style="font-family: var(--font-mono); font-size: 10.5px; color: rgba(232,224,208,0.55);">--shadow-piece-lifted</div>
+          <div style="font-family: var(--font-mono); font-size: 10px; color: rgba(232,224,208,0.4);">0 4 8 rgba(0,0,0,.5)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================
+     V. PIECES
+     ======================================================================== -->
+<section id="pieces">
+  <div class="sec-head">
+    <div class="num">V</div>
+    <div class="ttl">
+      <span class="eybr">Section five</span>
+      <h2>The <em>pieces</em></h2>
+      <p class="prose">The pieces are the brand anchor. Ivory, obsidian, and a gilded king. Never flatten them into silhouettes — the physicality is the point.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Anatomy</span>
+      <h3>Three <em>bodies</em></h3>
+      <div class="desc">Defender, attacker, king. Gradients render sphericity; the king's gilding is a conic blur behind a ringed glyph.</div>
+      <ul class="rules">
+        <li>Border 1.5–2px, piece-border token</li>
+        <li>Drop shadow at 2/2/3, 25% black</li>
+        <li>King gilding = conic-gradient of warm ramp</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="padding: 56px; gap: 48px; justify-content: center;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+          <div class="pc-demo white" style="width: 88px; height: 88px;"></div>
+          <div style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink); font-weight: 600;">Defender</div>
+          <div style="font-family: 'EB Garamond', serif; font-style: italic; font-size: 13px; color: var(--ds-ink-mute);">the king's kin</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+          <div class="pc-demo black" style="width: 88px; height: 88px;"></div>
+          <div style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink); font-weight: 600;">Attacker</div>
+          <div style="font-family: 'EB Garamond', serif; font-style: italic; font-size: 13px; color: var(--ds-ink-mute);">the besieging host</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+          <div class="pc-demo king" style="width: 88px; height: 88px;"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="36.9" fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="3"/><circle cx="50" cy="50" r="23.8" fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="3"/><circle cx="50" cy="50" r="10.6" fill="rgba(0,0,0,0.55)"/></svg></div>
+          <div style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink); font-weight: 600;">The King</div>
+          <div style="font-family: 'EB Garamond', serif; font-style: italic; font-size: 13px; color: var(--ds-ink-mute);">three concentric rings</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================
+     VI. COMPONENTS
+     ======================================================================== -->
+<section id="components">
+  <div class="sec-head">
+    <div class="num">VI</div>
+    <div class="ttl">
+      <span class="eybr">Section six</span>
+      <h2>On <em>components</em></h2>
+      <p class="prose">Hairline bordered rectangles. Selected states flip to an ink fill. No gradients, no shadows, no hover lifts — the book stays flat.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Wordmark</span>
+      <h3>Hnefa<em>tafl</em></h3>
+      <div class="desc">Garamond italic with the stressed second syllable in roman. The mark carries both modes unchanged.</div>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="gap: 48px; padding: 36px 40px;">
+        <div class="wm-demo">Hnefa<em>tafl</em></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Buttons</span>
+      <h3>Three <em>weights</em></h3>
+      <div class="desc">Outlined primary flips ink on hover. Filled for irreversible actions. Text buttons carry their own underline.</div>
+      <ul class="rules">
+        <li>Padding 10 · 18, uppercase 0.16em</li>
+        <li>Never more than one filled button per surface</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="comp-stage">
+        <button class="btn-demo">Begin game</button>
+        <button class="btn-demo filled">Confirm resign</button>
+        <button class="btn-demo text">Cancel</button>
+        <button class="btn-demo small">Resume</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Chips</span>
+      <h3>For flat <em>option sets</em></h3>
+      <div class="desc">Chips are for 3–6 mutually-exclusive options. Selection flips the border to full ink.</div>
+      <ul class="rules">
+        <li>Use for side · difficulty · time</li>
+        <li>Never use a dropdown instead</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="gap: 8px;">
+        <a class="chip-demo sel">Attackers</a>
+        <a class="chip-demo">Defenders</a>
+        <a class="chip-demo">Random</a>
+        <div style="width: 100%; height: 0;"></div>
+        <a class="chip-demo">Easy</a>
+        <a class="chip-demo sel">Medium</a>
+        <a class="chip-demo">Hard</a>
+        <div style="width: 100%; height: 0;"></div>
+        <a class="chip-demo sel">Untimed</a>
+        <a class="chip-demo">5 min</a>
+        <a class="chip-demo">10 min</a>
+        <a class="chip-demo">15 min</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Input</span>
+      <h3>Underlined <em>field</em></h3>
+      <div class="desc">Inputs are Garamond, to match body prose. The underline is a hairline that darkens on focus. No filled fields.</div>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="flex-direction: column; align-items: flex-start; gap: 24px;">
+        <input class="input-demo" value="Olaf" />
+        <input class="input-demo" placeholder="6-letter invite from a friend" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Entry card</span>
+      <h3>Action <em>rectangles</em></h3>
+      <div class="desc">The entry card is the workhorse of the home page. Hairline border, Garamond label, ink-washed action row at the foot.</div>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="padding: 32px;">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 100%;">
+          <a style="display: flex; flex-direction: column; border: 1px solid var(--ds-rule-strong); background: var(--ds-paper); text-decoration: none; color: var(--ds-ink); overflow: hidden;">
+            <div style="flex: 1; padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-family: 'EB Garamond', serif; font-size: 24px; font-weight: 500; line-height: 1.1;">Against AI</span>
+              <span style="font-size: 11.5px; color: var(--ds-ink-mute); line-height: 1.45;">Choose side and difficulty. Play untimed or against a clock.</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-top: 1px solid var(--ds-rule); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 500; background: rgba(60,50,40,0.05);">Begin <span style="font-family: 'EB Garamond', serif; font-style: italic; text-transform: none; letter-spacing: 0; font-size: 18px;">→</span></div>
+          </a>
+          <a style="display: flex; flex-direction: column; border: 1px solid var(--ds-rule-strong); background: var(--ds-paper); text-decoration: none; color: var(--ds-ink); overflow: hidden;">
+            <div style="flex: 1; padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-family: 'EB Garamond', serif; font-size: 24px; font-weight: 500; line-height: 1.1;">Hotseat</span>
+              <span style="font-size: 11.5px; color: var(--ds-ink-mute); line-height: 1.45;">Two players, one device. Name each and pass the screen.</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-top: 1px solid var(--ds-rule); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 500; background: rgba(60,50,40,0.05);">Begin <span style="font-family: 'EB Garamond', serif; font-style: italic; text-transform: none; letter-spacing: 0; font-size: 18px;">→</span></div>
+          </a>
+          <a style="display: flex; flex-direction: column; border: 1px solid var(--ds-rule-strong); background: var(--ds-paper); text-decoration: none; color: var(--ds-ink); overflow: hidden;">
+            <div style="flex: 1; padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-family: 'EB Garamond', serif; font-size: 24px; font-weight: 500; line-height: 1.1;">Online</span>
+              <span style="font-size: 11.5px; color: var(--ds-ink-mute); line-height: 1.45;">Invite a friend with a code, or join with one they've sent.</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-top: 1px solid var(--ds-rule); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 500; background: rgba(60,50,40,0.05);">Begin <span style="font-family: 'EB Garamond', serif; font-style: italic; text-transform: none; letter-spacing: 0; font-size: 18px;">→</span></div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================
+     VII. PATTERNS
+     ======================================================================== -->
+<section id="patterns">
+  <div class="sec-head">
+    <div class="num">VII</div>
+    <div class="ttl">
+      <span class="eybr">Section seven</span>
+      <h2>On <em>patterns</em></h2>
+      <p class="prose">Three recurring layouts: the centered hero, the modal with field rows, the ledger. Each is built from the primitives above.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Hero</span>
+      <h3>Centered <em>invocation</em></h3>
+      <div class="desc">Eyebrow, Garamond display with italic stress, hairline rule with a centered dot, italic lede.</div>
+      <ul class="rules">
+        <li>Dot-rule width ≈ 120px, centered</li>
+        <li>Gilded accent reserved for one italic run</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="padding: 64px; justify-content: center;">
+        <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+          <span style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink-mute);">The Viking board game of strategy</span>
+          <h1 style="font-family: 'EB Garamond', serif; font-weight: 500; font-size: 72px; line-height: 0.95; letter-spacing: -0.015em; margin: 0; color: var(--ds-ink);">Hnefa<em style="font-style: italic; color: var(--ds-accent); font-weight: 400;">tafl</em></h1>
+          <div style="display: flex; align-items: center; gap: 10px; width: 120px; margin: 2px 0;"><span style="flex: 1; height: 1px; background: var(--ds-rule-strong);"></span><span style="width: 3px; height: 3px; border-radius: 50%; background: var(--ds-accent);"></span><span style="flex: 1; height: 1px; background: var(--ds-rule-strong);"></span></div>
+          <p style="font-family: 'EB Garamond', serif; font-style: italic; font-size: 19px; color: var(--ds-ink-soft); margin: 0;">King and kin against the siege.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card dark">
+    <div class="lbl">
+      <span class="ey">Modal</span>
+      <h3>Field <em>rows</em></h3>
+      <div class="desc">Header with eyebrow + serif title + italic sub. Each body row is label · control, separated by hairlines. Actions are right-aligned, hairline-topped.</div>
+      <ul class="rules">
+        <li>Label column 92px, uppercase tracking 0.18</li>
+        <li>Never center a modal title</li>
+      </ul>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="padding: 40px; justify-content: center;">
+        <div style="width: 480px; background: var(--ds-dark); color: #e8e0d0; border: 1px solid rgba(232,224,208,0.36); font-family: var(--font-sans);">
+          <div style="padding: 26px 30px 18px; border-bottom: 1px solid rgba(232,224,208,0.16);">
+            <div style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(232,224,208,0.5); margin-bottom: 6px;">New game</div>
+            <h2 style="font-family: 'EB Garamond', serif; font-weight: 500; font-size: 30px; letter-spacing: -0.01em; margin: 0 0 4px; line-height: 1.05;">Against <em style="font-style: italic; color: #c8a368; font-weight: 400;">AI</em></h2>
+            <div style="font-family: 'EB Garamond', serif; font-style: italic; font-size: 14px; color: rgba(232,224,208,0.5); line-height: 1.35;">Pick your side and the depth of the search.</div>
+          </div>
+          <div style="padding: 4px 30px 6px;">
+            <div style="display: grid; grid-template-columns: 92px 1fr; align-items: baseline; column-gap: 16px; padding: 16px 0; border-bottom: 1px solid rgba(232,224,208,0.36);">
+              <span style="font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(232,224,208,0.5); padding-top: 5px; font-weight: 500;">Side</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <a style="font-size: 12px; color: #e8e0d0; padding: 6px 12px; border: 1px solid #e8e0d0; font-weight: 600;">Attackers</a>
+                <a style="font-size: 12px; color: rgba(232,224,208,0.55); padding: 6px 12px; border: 1px solid rgba(232,224,208,0.36);">Defenders</a>
+                <a style="font-size: 12px; color: rgba(232,224,208,0.55); padding: 6px 12px; border: 1px solid rgba(232,224,208,0.36);">Random</a>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 92px 1fr; align-items: baseline; column-gap: 16px; padding: 16px 0;">
+              <span style="font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(232,224,208,0.5); padding-top: 5px; font-weight: 500;">Difficulty</span>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <a style="font-size: 12px; color: rgba(232,224,208,0.55); padding: 6px 12px; border: 1px solid rgba(232,224,208,0.36);">Easy</a>
+                <a style="font-size: 12px; color: #e8e0d0; padding: 6px 12px; border: 1px solid #e8e0d0; font-weight: 600;">Medium</a>
+                <a style="font-size: 12px; color: rgba(232,224,208,0.55); padding: 6px 12px; border: 1px solid rgba(232,224,208,0.36);">Hard</a>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 10px; align-items: center; padding: 16px 30px; border-top: 1px solid rgba(232,224,208,0.16);">
+            <button style="font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; padding: 10px 18px; border: 1px solid #e8e0d0; background: transparent; color: #e8e0d0;">Cancel</button>
+            <button style="font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; padding: 10px 18px; border: 1px solid #e8e0d0; background: #e8e0d0; color: var(--ds-dark);">Begin game</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">
+      <span class="ey">Ledger</span>
+      <h3>In-progress &amp; <em>recent</em></h3>
+      <div class="desc">Two sections with distinct weight. In-progress sits under a thick rule with a Resume button per row. Recent sits under a hairline with results only.</div>
+    </div>
+    <div class="body">
+      <div class="comp-stage" style="padding: 32px; flex-direction: column; align-items: stretch; gap: 24px;">
+        <section>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 1.5px solid var(--ds-ink);"><span style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink); font-weight: 600;">In progress</span><span style="font-size: 11px; color: var(--ds-ink-mute);">2 games</span></div>
+          <div style="display: grid; grid-template-columns: 14px minmax(0,1fr) auto auto; column-gap: 18px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--ds-rule);">
+            <span style="width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 40% 38%, #232323, #131313); border: 1px solid #555;"></span>
+            <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'EB Garamond', serif; font-size: 18px; line-height: 1.1;">vs Guest</span><span style="font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ds-ink-mute);">14 moves · 2 min ago</span></div>
+            <span style="font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ds-accent); font-weight: 600;">Your move</span>
+            <a style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; padding: 8px 16px; color: var(--ds-ink); font-weight: 500; border: 1px solid var(--ds-ink);">Resume</a>
+          </div>
+          <div style="display: grid; grid-template-columns: 14px minmax(0,1fr) auto auto; column-gap: 18px; align-items: center; padding: 14px 0;">
+            <span style="width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 40% 38%, #f2ead8, #c8bfad); border: 1px solid #1a1a1a;"></span>
+            <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-family: 'EB Garamond', serif; font-size: 18px; line-height: 1.1;">vs AI <em style="font-style: italic; color: var(--ds-ink-mute);">medium</em></span><span style="font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ds-ink-mute);">8 moves · 1 hr ago</span></div>
+            <span style="font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ds-ink-mute);">Waiting</span>
+            <a style="font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; padding: 8px 16px; color: var(--ds-ink); font-weight: 500; border: 1px solid var(--ds-ink);">Resume</a>
+          </div>
+        </section>
+
+        <section>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 1px solid var(--ds-rule-strong);"><span style="font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ds-ink-mute); font-weight: 500;">Recent</span><span style="font-size: 11px; color: var(--ds-ink-mute);">last 30 days</span></div>
+          <div style="display: grid; grid-template-columns: 12px minmax(0,1fr) auto auto; column-gap: 16px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--ds-rule);">
+            <span style="width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 40% 38%, #f2ead8, #c8bfad); border: 1px solid #1a1a1a;"></span>
+            <span style="font-family: 'EB Garamond', serif; font-size: 15px; color: var(--ds-ink-soft);">vs Guest</span>
+            <span style="font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ds-ink); font-weight: 600;">White wins</span>
+            <span style="font-size: 10.5px; color: var(--ds-ink-faint);">Yesterday</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 12px minmax(0,1fr) auto auto; column-gap: 16px; align-items: center; padding: 10px 0;">
+            <span style="width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 40% 38%, #232323, #131313); border: 1px solid #555;"></span>
+            <span style="font-family: 'EB Garamond', serif; font-size: 15px; color: var(--ds-ink-soft);">vs AI <em style="font-style: italic; color: var(--ds-ink-mute);">hard</em></span>
+            <span style="font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ds-ink-mute);">Black wins</span>
+            <span style="font-size: 10.5px; color: var(--ds-ink-faint);">3 days ago</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================
+     VIII. SCREENS
+     ======================================================================== -->
+<section id="screens">
+  <div class="sec-head">
+    <div class="num">VIII</div>
+    <div class="ttl">
+      <span class="eybr">Section eight</span>
+      <h2>Screens <em>in situ</em></h2>
+      <p class="prose">The system composed. Paper and dark, side by side.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div>
+      <div style="font-family: var(--font-sans); color: rgba(232,224,208,0.7); font-size: 12px; margin-bottom: 10px; display: flex; gap: 10px; align-items: baseline;">
+        <span style="font-family: 'EB Garamond', serif; font-style: italic; color: #c8a368; font-size: 15px;">a</span>
+        <span>Home — paper</span>
+      </div>
+      <div class="frame"><div class="win"><div class="stage-scale" id="home-l"></div></div></div>
+    </div>
+    <div>
+      <div style="font-family: var(--font-sans); color: rgba(232,224,208,0.7); font-size: 12px; margin-bottom: 10px; display: flex; gap: 10px; align-items: baseline;">
+        <span style="font-family: 'EB Garamond', serif; font-style: italic; color: #c8a368; font-size: 15px;">b</span>
+        <span>Home — dark</span>
+      </div>
+      <div class="frame"><div class="win"><div class="stage-scale" id="home-d"></div></div></div>
+    </div>
+  </div>
+
+  <p style="margin-top: 32px; text-align: center; font-family: 'EB Garamond', serif; font-style: italic; font-size: 15px; color: rgba(232,224,208,0.55);">Full component and screen catalog lives in <code style="font-family: var(--font-mono); font-style: normal; font-size: 12px; color: #c8a368;">preview/aesthetic-system.html</code> and <code style="font-family: var(--font-mono); font-style: normal; font-size: 12px; color: #c8a368;">ui_kits/frontend/</code>.</p>
+</section>
+
+<!-- ========================================================================
+     TOKEN RECAP
+     ======================================================================== -->
+<div class="recap">
+<span class="c">/* colors_and_type.css — semantic tokens */</span>
+<span class="c">/* --------------------------------------------------------- */</span>
+
+<span class="k">--bg-page        </span> <span class="v">#1a1a1a</span>   <span class="c">/* gray-900 */</span>
+<span class="k">--bg-topbar      </span> <span class="v">#222222</span>   <span class="c">/* gray-850 */</span>
+<span class="k">--bg-surface     </span> <span class="v">#252525</span>   <span class="c">/* gray-750 */</span>
+<span class="k">--bg-inset       </span> <span class="v">#2e2e2e</span>   <span class="c">/* gray-700 */</span>
+<span class="k">--bg-control     </span> <span class="v">#333333</span>   <span class="c">/* gray-600 */</span>
+<span class="k">--text-primary   </span> <span class="v">#e8e0d0</span>   <span class="c">/* warm-200 */</span>
+<span class="k">--text-secondary </span> <span class="v">#888888</span>   <span class="c">/* gray-300 */</span>
+<span class="k">--text-muted     </span> <span class="v">#666666</span>   <span class="c">/* gray-350 */</span>
+<span class="k">--border-subtle  </span> <span class="v">#2e2e2e</span>
+<span class="k">--border-control </span> <span class="v">#383838</span>
+<span class="k">--border-strong  </span> <span class="v">#555555</span>
+<span class="k">--color-capture  </span> <span class="v">#6b1a12</span>   <span class="c">/* sole accent */</span>
+
+<span class="k">--font-serif     </span> <span class="v">"EB Garamond", "Cormorant Garamond", serif</span>
+<span class="k">--font-sans      </span> <span class="v">"Inter", system-ui, sans-serif</span>
+<span class="k">--font-mono      </span> <span class="v">"JetBrains Mono", monospace</span>
+</div>
+
+<footer>
+  <span>Hnefatafl · Design System · v1.0</span>
+  <em>Of the book.</em>
+  <span>April 2026</span>
+</footer>
+
+<!-- ========================================================================
+     Screen mounting
+     ======================================================================== -->
+<script>
+function homeMarkup(dark) {
+  const klass = dark ? 'app-prev dark' : 'app-prev';
+  return `
+    <div class="${klass}">
+      <div class="top">
+        <div class="wm">Hnefa<em>tafl</em></div>
+        <nav><a class="active">Home</a><a>Play</a><a>Learn</a></nav>
+        <div class="tools">Settings</div>
+      </div>
+      <div class="home">
+        <div class="hero">
+          <span class="ey">The Viking board game of strategy</span>
+          <h1>Hnefa<em>tafl</em></h1>
+          <div class="rule"><span class="h"></span><span class="d"></span><span class="h"></span></div>
+          <p>King and kin against the siege.</p>
+        </div>
+        <div class="entries">
+          <a><div class="body"><span class="lbl">Against AI</span><span class="sub">Choose side and difficulty.</span></div><div class="foot">Begin <span class="arr">→</span></div></a>
+          <a><div class="body"><span class="lbl">Hotseat</span><span class="sub">Two players, one device.</span></div><div class="foot">Begin <span class="arr">→</span></div></a>
+          <a><div class="body"><span class="lbl">Online</span><span class="sub">Invite a friend with a code.</span></div><div class="foot">Begin <span class="arr">→</span></div></a>
+        </div>
+      </div>
+    </div>`;
+}
+
+document.getElementById('home-l').innerHTML = homeMarkup(false);
+document.getElementById('home-d').innerHTML = homeMarkup(true);
+
+function rescale() {
+  document.querySelectorAll('.win').forEach(win => {
+    const stage = win.querySelector('.stage-scale');
+    if (!stage) return;
+    const W = 1200, H = 750;
+    stage.style.width = W + 'px';
+    stage.style.height = H + 'px';
+    const s = Math.min(win.clientWidth / W, win.clientHeight / H);
+    stage.style.transform = `scale(${s})`;
+  });
+}
+rescale();
+window.addEventListener('resize', rescale);
+new ResizeObserver(rescale).observe(document.body);
+</script>
+</body>
+</html>
