@@ -84,12 +84,25 @@
   --space-24: 1.5rem;
 
   /* === Typography === */
-  --font-family-base: system-ui, -apple-system, sans-serif;
-  --font-family-mono: monospace;
+  --font-serif: "EB Garamond", "Cormorant Garamond", serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-family-base: var(--font-sans);
+  --font-family-mono: var(--font-mono);
   --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-base: 0.875rem;
   --text-lg: 1rem;
+
+  /* === Book Theme (dark) === */
+  --bk-ink: #e8e0d0;
+  --bk-rule: rgba(232, 224, 208, 0.16);
+  --bk-rule-strong: rgba(232, 224, 208, 0.36);
+  --bk-ink-soft: rgba(232, 224, 208, 0.72);
+  --bk-ink-mute: rgba(232, 224, 208, 0.5);
+  --bk-ink-faint: rgba(232, 224, 208, 0.32);
+  --bk-wash: rgba(232, 224, 208, 0.05);
+  --bk-accent: #c8a368;
 
   /* === Radii === */
   --radius-sm: 0.125rem;

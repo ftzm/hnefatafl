@@ -35,7 +35,7 @@ export default function MoveHistory() {
   });
 
   const formatMove = (move: Move): string =>
-    `${indexToAlgebraic(move.from)}-${indexToAlgebraic(move.to)}`;
+    `${indexToAlgebraic(move.from)}\u2013${indexToAlgebraic(move.to)}`;
 
   return (
     <div class="move-history" ref={scrollRef}>

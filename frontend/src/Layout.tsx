@@ -1,26 +1,22 @@
 import { A } from "@solidjs/router";
 import type { ParentProps } from "solid-js";
-import Button from "./components/ui/Button";
-import GearIcon from "./components/ui/icons/GearIcon";
 
 export default function Layout(props: ParentProps) {
   return (
     <>
       <div class="top-bar">
-        <A href="/" class="logo">
-          HNEFATAFL
+        <A href="/" class="wm">
+          Hnefatafl
         </A>
-        <nav class="nav-links">
+        <nav>
           <A href="/" activeClass="active" end>
             Home
           </A>
+          <a>Play</a>
+          <a>Learn</a>
         </nav>
-        <div class="nav-right">
-          <A href="/settings">
-            <Button variant="ghost" aria-label="Settings">
-              <GearIcon />
-            </Button>
-          </A>
+        <div class="tools">
+          <A href="/settings">Settings</A>
         </div>
       </div>
       <div class="page-content">{props.children}</div>

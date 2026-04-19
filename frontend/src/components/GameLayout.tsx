@@ -6,10 +6,8 @@ import { useToasts } from "../toast-context";
 import AiInfoPanel from "./AiInfoPanel";
 import Board from "./Board";
 import Chat from "./Chat";
-import Controls from "./Controls";
 import GameStatus from "./GameStatus";
 import MoveHistory from "./MoveHistory";
-import PlayerBar from "./PlayerBar";
 import BottomSheet from "./ui/BottomSheet";
 import Button from "./ui/Button";
 import BalanceIcon from "./ui/icons/BalanceIcon";
@@ -22,7 +20,6 @@ import PrevIcon from "./ui/icons/PrevIcon";
 import SkipBackIcon from "./ui/icons/SkipBackIcon";
 import SkipForwardIcon from "./ui/icons/SkipForwardIcon";
 import UndoIcon from "./ui/icons/UndoIcon";
-import Panel from "./ui/Panel";
 import Toolbar from "./ui/Toolbar";
 
 interface ToolbarDef {
@@ -31,6 +28,18 @@ interface ToolbarDef {
   onClick: () => void;
   disabled: () => boolean;
 }
+
+interface ActionDef {
+  label: string;
+  onClick: () => void;
+  disabled: () => boolean;
+}
+
+const modeActions: Record<GameMode, string[]> = {
+  hotseat: ["undo"],
+  ai: ["undo", "resign"],
+  online: ["resign", "draw"],
+};
 
 const modeButtons: Record<GameMode, string[]> = {
   hotseat: ["newGame", "undo"],
@@ -66,6 +75,24 @@ export default function GameLayout(props: GameLayoutProps) {
 
   const gameActive = () => !game.store.game.gameOver;
 
+  const actionDefs: Record<string, ActionDef> = {
+    undo: {
+      label: "Undo",
+      onClick: () => props.onUndo?.(),
+      disabled: () => !gameActive() || game.store.game.moveHistory.length === 0,
+    },
+    resign: {
+      label: "Resign",
+      onClick: () => props.onResign?.(),
+      disabled: () => !gameActive(),
+    },
+    draw: {
+      label: "Draw",
+      onClick: () => props.onDraw?.(),
+      disabled: () => !gameActive(),
+    },
+  };
+
   const toolbarDefs: Record<string, ToolbarDef> = {
     newGame: {
       icon: <HomeIcon />,
@@ -93,8 +120,13 @@ export default function GameLayout(props: GameLayoutProps) {
     },
   };
 
+  const activeActions = () => modeActions[props.mode] || modeActions.hotseat;
   const activeButtons = () => modeButtons[props.mode] || modeButtons.hotseat;
   const hasSecondPanel = () => props.mode === "online" || props.mode === "ai";
+
+  const blackName = () => game.store.game.players?.black || "Black";
+  const whiteName = () => game.store.game.players?.white || "White";
+  const moveCount = () => game.store.game.moveHistory.length;
 
   return (
     <div class="main-layout">
@@ -124,45 +156,101 @@ export default function GameLayout(props: GameLayoutProps) {
         </For>
       </div>
 
+      {/* Left column — players, captures, actions (desktop) */}
+      <div class="col-left desktop-only">
+        <div
+          class={`ply black${isBlackActive() ? " active" : ""}${!isBlackActive() ? " opp" : ""}`}
+        >
+          <span class="nm">{blackName()}</span>
+          <span class="hr" />
+          <span class="ck">7:28</span>
+        </div>
+        <div class="caps-row top w">
+          <For
+            each={Array.from({ length: game.capturedPieces().white })}
+          >
+            {() => <span class="d" />}
+          </For>
+        </div>
+        <div class="ply-gap" />
+        <div class="caps-row bot b">
+          <For
+            each={Array.from({ length: game.capturedPieces().black })}
+          >
+            {() => <span class="d" />}
+          </For>
+        </div>
+        <div
+          class={`ply white${isWhiteActive() ? " active" : ""}${!isWhiteActive() ? " opp" : ""}`}
+        >
+          <span class="nm">{whiteName()}</span>
+          <span class="hr" />
+          <span class="ck">7:28</span>
+        </div>
+        <div class="side-acts">
+          <For each={activeActions()}>
+            {(key) => {
+              const def = actionDefs[key];
+              return (
+                <a
+                  classList={{ disabled: def.disabled() }}
+                  onClick={() => !def.disabled() && def.onClick()}
+                >
+                  {def.label}
+                </a>
+              );
+            }}
+          </For>
+        </div>
+      </div>
+
+      {/* Center — board */}
+      <div class="board-col">
+        <Board onMove={props.onMove} />
+      </div>
+
+      {/* Right column — moves (desktop) */}
+      <div class="col-right desktop-only">
+        <GameStatus />
+        <div class="mv-head">
+          <span>Moves</span>
+          <span class="ct">{moveCount()}</span>
+        </div>
+        <MoveHistory />
+        <div class="mv-nav">
+          <a
+            classList={{ disabled: !game.canViewPrev() }}
+            onClick={() => game.canViewPrev() && game.viewStart()}
+          >
+            &laquo;
+          </a>
+          <a
+            classList={{ disabled: !game.canViewPrev() }}
+            onClick={() => game.canViewPrev() && game.viewPrev()}
+          >
+            &lsaquo;
+          </a>
+          <a
+            classList={{ disabled: !game.canViewNext() }}
+            onClick={() => game.canViewNext() && game.viewNext()}
+          >
+            &rsaquo;
+          </a>
+          <a
+            classList={{ disabled: !game.canViewNext() }}
+            onClick={() => game.canViewNext() && game.viewEnd()}
+          >
+            &raquo;
+          </a>
+        </div>
+      </div>
+
+      {/* Mobile status */}
       <div class="mobile-only mobile-status">
         <GameStatus />
       </div>
 
-      <div class="board-section">
-        <PlayerBar
-          color="black"
-          name={game.store.game.players?.black}
-          capturedCount={game.capturedPieces().white}
-          active={isBlackActive()}
-        />
-        <Board onMove={props.onMove} />
-        <PlayerBar
-          color="white"
-          name={game.store.game.players?.white}
-          capturedCount={game.capturedPieces().black}
-          active={isWhiteActive()}
-        />
-      </div>
-
-      <div class="right-column desktop-only">
-        <Panel>
-          <Controls
-            mode={props.mode}
-            onResign={props.onResign}
-            onUndo={props.onUndo}
-            onDraw={props.onDraw}
-          />
-        </Panel>
-        <Switch>
-          <Match when={props.mode === "online"}>
-            <Chat />
-          </Match>
-          <Match when={props.mode === "ai"}>
-            <AiInfoPanel />
-          </Match>
-        </Switch>
-      </div>
-
+      {/* Mobile toolbar */}
       <nav class="mobile-only mobile-toolbar">
         <For each={activeButtons()}>
           {(key) => {

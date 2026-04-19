@@ -1,11 +1,12 @@
 import { Dialog } from "@kobalte/core/dialog";
-import type { ParentProps } from "solid-js";
-import CloseIcon from "./icons/CloseIcon";
+import type { JSX, ParentProps } from "solid-js";
 
 interface ModalProps extends ParentProps {
-  title: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  eyebrow: string;
+  title: JSX.Element;
+  subtitle?: string;
 }
 
 export default function Modal(props: ModalProps) {
@@ -14,14 +15,17 @@ export default function Modal(props: ModalProps) {
       <Dialog.Portal>
         <Dialog.Overlay class="modal-overlay" />
         <Dialog.Content class="modal-content">
-          <Dialog.Title class="modal-title">{props.title}</Dialog.Title>
+          <span class="modal-close" onClick={() => props.onOpenChange(false)}>
+            &times;
+          </span>
+          <div class="modal-hd">
+            <div class="modal-ey">{props.eyebrow}</div>
+            <Dialog.Title class="modal-title">{props.title}</Dialog.Title>
+            {props.subtitle && (
+              <div class="modal-sub">{props.subtitle}</div>
+            )}
+          </div>
           {props.children}
-          <Dialog.CloseButton
-            class="btn btn-ghost modal-close"
-            aria-label="Close"
-          >
-            <CloseIcon />
-          </Dialog.CloseButton>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog>

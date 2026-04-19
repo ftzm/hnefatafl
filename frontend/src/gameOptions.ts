@@ -1,16 +1,20 @@
 import type { SelectOption } from "./components/ui/types";
 
 export const sideOptions: SelectOption[] = [
-  { value: "black", label: "Black" },
+  { value: "black", label: "Attackers" },
+  { value: "white", label: "Defenders" },
   { value: "random", label: "Random" },
-  { value: "white", label: "White" },
+];
+
+export const difficultyOptions: SelectOption[] = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
 ];
 
 export const timeOptions: SelectOption[] = [
-  { value: "none", label: "None" },
+  { value: "none", label: "Untimed" },
   { value: "5+0", label: "5 min" },
-  { value: "5+3", label: "5 | 3" },
   { value: "10+0", label: "10 min" },
-  { value: "10+5", label: "10 | 5" },
-  { value: "15+10", label: "15 | 10" },
+  { value: "15+0", label: "15 min" },
 ];
