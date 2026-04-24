@@ -396,7 +396,7 @@ spawnEngineSearch sessionVar gameId humanColor moves = do
         $(logTM) ErrorS $ ls @Text ("Engine search failed: " <> show ex)
         MVar.withMVar sessionVar $
           sendToPlayer
-            (encode $ WsError EngineSearchFailed ("Engine search failed: " <> show ex))
+            (encode $ WsError EngineSearchFailed ("Engine search failed: " <> show ex) False)
  where
   doSearch = do
     let board = currentBoard moves

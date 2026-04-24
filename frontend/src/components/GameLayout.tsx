@@ -2,7 +2,6 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import type { Move } from "../board-logic";
 import { type GameMode, useGame } from "../game-context";
-import { useToasts } from "../toast-context";
 import AiInfoPanel from "./AiInfoPanel";
 import Board from "./Board";
 import Chat from "./Chat";
@@ -59,7 +58,6 @@ interface GameLayoutProps {
 export default function GameLayout(props: GameLayoutProps) {
   const navigate = useNavigate();
   const game = useGame();
-  const { toasts, dismiss } = useToasts();
 
   const [movesSheetOpen, setMovesSheetOpen] = createSignal(false);
   const [chatSheetOpen, setChatSheetOpen] = createSignal(false);
@@ -139,22 +137,6 @@ export default function GameLayout(props: GameLayoutProps) {
         </div>
       </Show>
 
-      <div class="toast-stack">
-        <For each={toasts()}>
-          {(toast) => (
-            <div class="error-toast">
-              <span class="error-toast__message">{toast.error.message}</span>
-              <button
-                type="button"
-                class="error-toast__close"
-                onClick={() => dismiss(toast.id)}
-              >
-                &times;
-              </button>
-            </div>
-          )}
-        </For>
-      </div>
 
       {/* Left column — players, captures, actions (desktop) */}
       <div class="col-left desktop-only">
@@ -211,12 +193,14 @@ export default function GameLayout(props: GameLayoutProps) {
 
       {/* Right column — moves (desktop) */}
       <div class="col-right desktop-only">
-        <GameStatus />
         <div class="mv-head">
           <span>Moves</span>
           <span class="ct">{moveCount()}</span>
         </div>
-        <MoveHistory />
+        <div class="mv-scroll">
+          <MoveHistory />
+        </div>
+        <GameStatus />
         <div class="mv-nav">
           <a
             classList={{ disabled: !game.canViewPrev() }}

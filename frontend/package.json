@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:visual": "playwright test e2e/visual.test.ts",
+    "test:visual:update": "playwright test e2e/visual.test.ts --update-snapshots",
     "generate:types": "openapi-typescript ../backend/openapi.json -o src/api/generated/rest.ts"
   },
   "dependencies": {

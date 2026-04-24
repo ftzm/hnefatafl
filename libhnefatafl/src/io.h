@@ -17,7 +17,7 @@ void as_notation(u8 position, char *output);
 
 board read_board(const char *string);
 
-extern const char base[577];
+extern const char base[578];
 
 void fmt_board(board board, char *input);
 

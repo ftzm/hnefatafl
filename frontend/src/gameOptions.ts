@@ -6,12 +6,6 @@ export const sideOptions: SelectOption[] = [
   { value: "random", label: "Random" },
 ];
 
-export const difficultyOptions: SelectOption[] = [
-  { value: "easy", label: "Easy" },
-  { value: "medium", label: "Medium" },
-  { value: "hard", label: "Hard" },
-];
-
 export const timeOptions: SelectOption[] = [
   { value: "none", label: "Untimed" },
   { value: "5+0", label: "5 min" },

@@ -35,7 +35,7 @@ describe("MoveHistory", () => {
     ctx.applyMove({ from: 59, to: 57 });
     const currentEls = container.querySelectorAll(".current");
     expect(currentEls.length).toBe(1);
-    expect(currentEls[0].textContent).toContain("e6-c6");
+    expect(currentEls[0].textContent).toContain("e6\u2013c6");
   });
 
   it("navigating backward updates which move has the 'current' class", async () => {

@@ -1,10 +1,7 @@
-import { Show } from "solid-js";
 import { useGame } from "../game-context";
 
 export default function GameStatus() {
   const game = useGame();
-
-  const gameActive = () => !game.store.game.gameOver;
 
   const statusText = () => {
     if (game.store.game.gameOver) {
@@ -18,16 +15,5 @@ export default function GameStatus() {
     return `${player} to move`;
   };
 
-  return (
-    <div class="game-status">
-      {statusText()}
-      <Show when={gameActive()}>
-        <span class="thinking-dots">
-          <span>.</span>
-          <span>.</span>
-          <span>.</span>
-        </span>
-      </Show>
-    </div>
-  );
+  return <div class="game-status">{statusText()}</div>;
 }

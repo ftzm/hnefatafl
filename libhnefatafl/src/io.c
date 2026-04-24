@@ -110,7 +110,7 @@ board read_board(const char *string) {
   return board;
 }
 
-const char base[577] = "\n     +---------------------------------+\n"
+const char base[578] = "\n     +---------------------------------+\n"
                        " 11  | .  .  .  .  .  .  .  .  .  .  . |\n"
                        " 10  | .  .  .  .  .  .  .  .  .  .  . |\n"
                        "  9  | .  .  .  .  .  .  .  .  .  .  . |\n"

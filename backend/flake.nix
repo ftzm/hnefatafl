@@ -13,7 +13,12 @@
   };
 
   inputs = {
-    haskellNix.url = "github:input-output-hk/haskell.nix";
+    haskellNix.url = "github:input-output-hk/haskell.nix/4725218269bb7fb5be6b805e9d4e0d00769271ac";
+    hackage = {
+      url = "github:input-output-hk/hackage.nix";
+      flake = false;
+    };
+    haskellNix.inputs.hackage.follows = "hackage";
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     git-hooks.url = "github:cachix/git-hooks.nix";
@@ -25,6 +30,7 @@
     flake-utils,
     haskellNix,
     git-hooks,
+    ...
   }:
     flake-utils.lib.eachSystem ["x86_64-linux"] (
       system: let

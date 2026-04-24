@@ -1,6 +1,7 @@
 export interface ServerError {
   code: string;
   message: string;
+  fatal: boolean;
 }
 
 export interface GameWebSocket {
@@ -39,16 +40,30 @@ export function createGameWebSocket<TServerMsg>(config: {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data as string) as
         | TServerMsg
-        | { type: "error"; code: string; message: string };
+        | { type: "error"; code: string; message: string; fatal: boolean };
       if (
         typeof data === "object" &&
         data !== null &&
         "type" in data &&
         data.type === "error"
       ) {
-        const err = data as { type: "error"; code: string; message: string };
+        const err = data as {
+          type: "error";
+          code: string;
+          message: string;
+          fatal: boolean;
+        };
         console.error("WebSocket error:", err);
-        config.onError?.({ code: err.code, message: err.message });
+        if (err.fatal) {
+          closedByClient = true;
+          cancelRetry();
+          ws?.close();
+        }
+        config.onError?.({
+          code: err.code,
+          message: err.message,
+          fatal: err.fatal,
+        });
         return;
       }
       config.onMessage(data as TServerMsg);

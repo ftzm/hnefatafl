@@ -2,7 +2,8 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, type Setter } from "solid-js";
 import { useAiGame } from "../api/contexts";
 import type { PlayerColor } from "../board-logic";
-import { difficultyOptions, sideOptions, timeOptions } from "../gameOptions";
+import { sideOptions, timeOptions } from "../gameOptions";
+import { useToasts } from "../toast-context";
 import ChipGrid from "./ui/ChipGrid";
 import Modal from "./ui/Modal";
 
@@ -14,8 +15,8 @@ interface AiSetupModalProps {
 export default function AiSetupModal(props: AiSetupModalProps) {
   const navigate = useNavigate();
   const ai = useAiGame();
+  const { pushError } = useToasts();
   const [side, setSide] = createSignal("black");
-  const [difficulty, setDifficulty] = createSignal("medium");
   const [timeControl, setTimeControl] = createSignal("none");
 
   const startGame = async () => {
@@ -25,9 +26,13 @@ export default function AiSetupModal(props: AiSetupModalProps) {
           ? "black"
           : "white"
         : (side() as PlayerColor);
-    const { token } = await ai.createGame({ playerColor: chosenSide });
-    props.onOpenChange(false);
-    navigate(`/game/ai/${token}`);
+    try {
+      const { token } = await ai.createGame({ playerColor: chosenSide });
+      props.onOpenChange(false);
+      navigate(`/game/ai/${token}`);
+    } catch {
+      pushError({ code: "connection_error", message: "Server unreachable", fatal: false });
+    }
   };
 
   return (
@@ -40,13 +45,12 @@ export default function AiSetupModal(props: AiSetupModalProps) {
           Against <em>AI</em>
         </>
       }
-      subtitle="Pick your side and the depth of the search."
+      subtitle="Pick your side and time control."
     >
       <div class="modal-bd">
         <div class="modal-bd-inner">
           <div class="modal-bd-labels">
             <span class="modal-field-k">Side</span>
-            <span class="modal-field-k">Difficulty</span>
             <span class="modal-field-k">Time</span>
           </div>
           <div class="modal-bd-values">
@@ -55,13 +59,6 @@ export default function AiSetupModal(props: AiSetupModalProps) {
                 options={sideOptions}
                 value={side()}
                 onChange={setSide}
-              />
-            </div>
-            <div class="modal-field-v">
-              <ChipGrid
-                options={difficultyOptions}
-                value={difficulty()}
-                onChange={setDifficulty}
               />
             </div>
             <div class="modal-field-v">

@@ -260,14 +260,16 @@ export const GameProvider: ParentComponent = (props) => {
       const moveIndex = store.game.moveHistory.length - newCursor - 1;
       const move = store.game.moveHistory[moveIndex];
       const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
-      setStore("game", {
-        historyCursor: newCursor,
-        boardRep: newBoard,
-      });
       setPendingAnimation({
         from: move.from,
         to: move.to,
         captures: move.captures || [],
+        applyState: () => {
+          setStore("game", {
+            historyCursor: newCursor,
+            boardRep: newBoard,
+          });
+        },
       });
     });
   }

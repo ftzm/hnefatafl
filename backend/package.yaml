@@ -19,6 +19,7 @@ default-extensions:
   - MultilineStrings
 
 ghc-options:
+  - -optl-no-pie
   - -Wunused-imports
   - -Wall
   - -Werror

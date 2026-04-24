@@ -2,7 +2,8 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, type Setter } from "solid-js";
 import { useOnlineGame } from "../api/contexts";
 import type { PlayerColor } from "../board-logic";
-import { sideOptions } from "../gameOptions";
+import { sideOptions, timeOptions } from "../gameOptions";
+import { useToasts } from "../toast-context";
 import ChipGrid from "./ui/ChipGrid";
 import Modal from "./ui/Modal";
 
@@ -14,7 +15,9 @@ interface OnlineSetupModalProps {
 export default function OnlineSetupModal(props: OnlineSetupModalProps) {
   const navigate = useNavigate();
   const online = useOnlineGame();
+  const { pushError } = useToasts();
   const [side, setSide] = createSignal("black");
+  const [timeControl, setTimeControl] = createSignal("none");
 
   const startGame = async () => {
     const chosenSide: PlayerColor =
@@ -23,11 +26,15 @@ export default function OnlineSetupModal(props: OnlineSetupModalProps) {
           ? "black"
           : "white"
         : (side() as PlayerColor);
-    const { playerToken } = await online.createGame({
-      creatorColor: chosenSide,
-    });
-    props.onOpenChange(false);
-    navigate(`/game/online/${playerToken}`);
+    try {
+      const { playerToken } = await online.createGame({
+        creatorColor: chosenSide,
+      });
+      props.onOpenChange(false);
+      navigate(`/game/online/${playerToken}`);
+    } catch {
+      pushError({ code: "connection_error", message: "Server unreachable", fatal: false });
+    }
   };
 
   return (
@@ -36,22 +43,15 @@ export default function OnlineSetupModal(props: OnlineSetupModalProps) {
       onOpenChange={props.onOpenChange}
       eyebrow="New game"
       title={<em>Online</em>}
-      subtitle="Send this code to a friend, or join one they've sent you."
+      subtitle="Play against a friend online."
     >
       <div class="modal-bd">
         <div class="modal-bd-inner">
           <div class="modal-bd-labels">
-            <span class="modal-field-k">Your code</span>
             <span class="modal-field-k">Side</span>
-            <span class="modal-field-k">Join code</span>
+            <span class="modal-field-k">Time</span>
           </div>
           <div class="modal-bd-values">
-            <div class="modal-field-v">
-              <div class="modal-code-row">
-                <span class="modal-code">K4N-2BR</span>
-                <span class="modal-copy">Copy</span>
-              </div>
-            </div>
             <div class="modal-field-v">
               <ChipGrid
                 options={sideOptions}
@@ -60,9 +60,10 @@ export default function OnlineSetupModal(props: OnlineSetupModalProps) {
               />
             </div>
             <div class="modal-field-v">
-              <input
-                class="modal-input"
-                placeholder="6-letter invite from a friend"
+              <ChipGrid
+                options={timeOptions}
+                value={timeControl()}
+                onChange={setTimeControl}
               />
             </div>
           </div>

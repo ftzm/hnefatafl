@@ -72,13 +72,13 @@ authenticateWebSocket conn = do
   authMsg <- receiveData conn
   case decodeAuthToken authMsg of
     Nothing -> do
-      sendData conn (encode $ WsError InvalidAuth "invalid auth message")
+      sendData conn (encode $ WsError InvalidAuth "invalid auth message" True)
       pure Nothing
     Just tokenText -> do
       mToken <- runTransaction $ getTokenByText tokenText
       case mToken of
         Nothing -> do
-          sendData conn (encode $ WsError InvalidToken "invalid token")
+          sendData conn (encode $ WsError InvalidToken "invalid token" True)
           pure Nothing
         Just tok -> pure (Just tok)
 
@@ -106,7 +106,7 @@ guardWebSocket conn action =
       Nothing -> do
         logCaughtException ex
         recordSpanException ex
-        sendData conn (encode $ WsError InternalError "internal error")
+        sendData conn (encode $ WsError InternalError "internal error" True)
           `catchSync` \(_ :: SomeException) -> pure ()
 
 -- | Run a single WebSocket receive-loop iteration, absorbing non-fatal
@@ -130,7 +130,7 @@ tryNonFatal connVar action =
       Just (DomainException e) | not (domainFatal e) -> do
         logCaughtException ex
         recordSpanException ex
-        safeSend connVar (encode $ WsError InternalError "internal error")
+        safeSend connVar (encode $ WsError InternalError "internal error" False)
       _ -> throwIO ex
 
 -- | Run a receive loop over a WebSocket connection: read messages, decode
@@ -160,7 +160,7 @@ runMessageLoop connVar handle = do
     case decode raw of
       Nothing -> do
         increaseLabelledCounter wsMessagesTotal "invalid"
-        safeSend connVar (encode $ WsError InvalidMessage "invalid message")
+        safeSend connVar (encode $ WsError InvalidMessage "invalid message" False)
       Just msg -> do
         increaseLabelledCounter wsMessagesTotal "received"
         inSpan "ws.message" $ handle msg

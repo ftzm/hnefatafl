@@ -2,6 +2,7 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, type Setter } from "solid-js";
 import { useHotseatApi } from "../api/contexts";
 import { timeOptions } from "../gameOptions";
+import { useToasts } from "../toast-context";
 import ChipGrid from "./ui/ChipGrid";
 import Modal from "./ui/Modal";
 
@@ -13,12 +14,17 @@ interface HotseatSetupModalProps {
 export default function HotseatSetupModal(props: HotseatSetupModalProps) {
   const navigate = useNavigate();
   const hotseat = useHotseatApi();
+  const { pushError } = useToasts();
   const [timeControl, setTimeControl] = createSignal("none");
 
   const startGame = async () => {
-    const gameId = await hotseat.createGame();
-    props.onOpenChange(false);
-    navigate(`/game/hotseat/${gameId}`);
+    try {
+      const gameId = await hotseat.createGame();
+      props.onOpenChange(false);
+      navigate(`/game/hotseat/${gameId}`);
+    } catch {
+      pushError({ code: "connection_error", message: "Server unreachable", fatal: false });
+    }
   };
 
   return (

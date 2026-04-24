@@ -34,11 +34,11 @@ export default function Home() {
           <div class="body">
             <span class="lbl">Against AI</span>
             <span class="sub">
-              Choose side and difficulty. Play untimed or against a clock.
+              Pick your side and time control, then take on the engine.
             </span>
           </div>
           <div class="foot">
-            Begin <span class="arr">&rarr;</span>
+            Play <span class="arr">&rsaquo;</span>
           </div>
         </a>
         <a onClick={() => setHotseatOpen(true)}>
@@ -49,18 +49,18 @@ export default function Home() {
             </span>
           </div>
           <div class="foot">
-            Begin <span class="arr">&rarr;</span>
+            Play <span class="arr">&rsaquo;</span>
           </div>
         </a>
         <a onClick={() => setOnlineOpen(true)}>
           <div class="body">
             <span class="lbl">Online</span>
             <span class="sub">
-              Invite a friend with a code, or join with one they've sent.
+              Challenge a friend to a match over the internet.
             </span>
           </div>
           <div class="foot">
-            Begin <span class="arr">&rarr;</span>
+            Play <span class="arr">&rsaquo;</span>
           </div>
         </a>
       </div>
@@ -79,22 +79,17 @@ export default function Home() {
               {(game) => (
                 <A href={`/game/${game.mode}/${game.id}`} class="ip-row">
                   <span class={`dot ${game.yourColor}`} />
-                  <div class="who">
-                    <span class="opp">
-                      vs {game.opponent}
-                      <Show when={game.opponentDetail}>
-                        {" "}
-                        <em>{game.opponentDetail}</em>
-                      </Show>
-                    </span>
-                    <span class="meta">
-                      {game.moveCount} moves &middot; {game.lastPlayed}
-                    </span>
-                  </div>
-                  <span class={`badge${game.isYourTurn ? " turn" : ""}`}>
+                  <span class="opp">
+                    vs {game.opponent}
+                    <Show when={game.opponentDetail}>
+                      {" "}
+                      <em>{game.opponentDetail}</em>
+                    </Show>
+                  </span>
+                  <span class="time">{game.lastPlayed}</span>
+                  <span class={`status${game.isYourTurn ? " turn" : ""}`}>
                     {game.status}
                   </span>
-                  <span class="resume">Resume</span>
                 </A>
               )}
             </For>
@@ -118,11 +113,10 @@ export default function Home() {
                       <em>{game.opponentDetail}</em>
                     </Show>
                   </span>
+                  <span class="date">{game.completedAt}</span>
                   <span class={`res${game.isWin ? " win" : ""}`}>
                     {game.result}
                   </span>
-                  <span class="date">{game.completedAt}</span>
-                  <span class="chev">&rsaquo;</span>
                 </A>
               )}
             </For>

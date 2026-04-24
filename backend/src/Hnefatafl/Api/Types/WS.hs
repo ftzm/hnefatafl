@@ -101,17 +101,20 @@ transitionErrorToCode = \case
 
 transitionErrorToWsError :: TransitionError -> WsError
 transitionErrorToWsError err =
-  WsError (transitionErrorToCode err) (show err)
+  WsError (transitionErrorToCode err) (show err) False
 
 -------------------------------------------------------------------------------
 -- Error message (shared across all WebSocket channels)
 
 -- | A WebSocket error message. Shared between AI and Online channels —
--- the wire format is @{"type":"error","code":...,"message":...}@ regardless
--- of which channel it is sent on, so one type covers both.
+-- the wire format is @{"type":"error","code":...,"message":...,"fatal":...}@
+-- regardless of which channel it is sent on, so one type covers both.
+-- When @fatal@ is 'True' the server is about to close the connection and
+-- the client should not attempt to reconnect.
 data WsError = WsError
   { code :: WsErrorCode
   , message :: Text
+  , fatal :: Bool
   }
   deriving (Show, Eq, Generic)
 
@@ -121,13 +124,14 @@ instance ToJSON WsError where
       [ "type" .= ("error" :: Text)
       , "code" .= e.code
       , "message" .= e.message
+      , "fatal" .= e.fatal
       ]
 
 instance FromJSON WsError where
   parseJSON = withObject "WsError" $ \o -> do
     typ <- o .: "type" :: Parser Text
     guard (typ == "error")
-    WsError <$> o .: "code" <*> o .: "message"
+    WsError <$> o .: "code" <*> o .: "message" <*> o .: "fatal"
 
 instance ToSchema WsError where
   declareNamedSchema _ = do
@@ -140,12 +144,13 @@ instance ToSchema WsError where
       NamedSchema (Just "WsError") $
         mempty
           { OpenApi._schemaType = Just OpenApiObject
-          , OpenApi._schemaRequired = ["type", "code", "message"]
+          , OpenApi._schemaRequired = ["type", "code", "message", "fatal"]
           , OpenApi._schemaProperties =
               fromList
                 [ ("type", constTypeField)
                 , ("code", codeRef)
                 , ("message", Inline stringSchema)
+                , ("fatal", Inline $ mempty{OpenApi._schemaType = Just OpenApiBoolean})
                 ]
           }
 

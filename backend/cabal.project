@@ -14,4 +14,5 @@ source-repository-package
   type: git
   location: https://github.com/iand675/hs-opentelemetry
   tag: 894c77f92ae2d429f342522f4cc6f90e9f883f3d
+  --sha256: 0z5vbw6876vhkanw4n9brf3ykglnyv47j2rrs6h1i9g12gw1jcg9
   subdir: instrumentation/wai
