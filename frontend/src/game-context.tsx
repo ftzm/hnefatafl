@@ -151,10 +151,7 @@ export const GameProvider: ParentComponent = (props) => {
     return null;
   });
   const capturedPieces = createMemo(() =>
-    computeCapturesAtCursor(
-      store.game.moveHistory,
-      store.game.historyCursor,
-    ),
+    computeCapturesAtCursor(store.game.moveHistory, store.game.historyCursor),
   );
 
   function applyMove(move: Move): void {

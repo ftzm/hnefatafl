@@ -33,26 +33,6 @@
   --color-capture: #6b1a12;
 
   /* === Semantic Colors === */
-
-  /* Backgrounds */
-  --bg-page: var(--color-gray-900);
-  --bg-topbar: var(--color-gray-850);
-  --bg-surface: var(--color-gray-750);
-  --bg-inset: var(--color-gray-700);
-  --bg-control: var(--color-gray-600);
-  --bg-control-hover: var(--color-gray-450);
-  --bg-highlight: var(--color-gray-550);
-  --bg-active: var(--color-gray-500);
-
-  /* Text */
-  --text-primary: var(--color-warm-200);
-  --text-secondary: var(--color-gray-300);
-  --text-muted: var(--color-gray-350);
-  --text-on-dark: #fff;
-
-  /* Borders */
-  --border-subtle: var(--color-gray-700);
-  --border-control: var(--color-gray-550);
   --border-strong: var(--color-gray-400);
 
   /* Board */
@@ -66,8 +46,18 @@
   --piece-border: var(--color-gray-900);
   --piece-black-start: var(--color-gray-800);
   --piece-black-end: #131313;
+  --piece-black-gradient: radial-gradient(
+    circle at 40% 38%,
+    var(--piece-black-start),
+    var(--piece-black-end)
+  );
   --piece-white-start: var(--color-warm-100);
   --piece-white-end: var(--color-warm-400);
+  --piece-white-gradient: radial-gradient(
+    circle at 40% 38%,
+    var(--piece-white-start),
+    var(--piece-white-end)
+  );
 
   /* === Spacing === */
   --space-1: 0.0625rem;
@@ -80,8 +70,11 @@
   --space-12: 0.75rem;
   --space-14: 0.875rem;
   --space-16: 1rem;
+  --space-18: 1.125rem;
   --space-20: 1.25rem;
+  --space-22: 1.375rem;
   --space-24: 1.5rem;
+  --space-30: 1.875rem;
 
   /* === Typography === */
   --font-serif: "EB Garamond", "Cormorant Garamond", serif;
@@ -95,12 +88,17 @@
   --text-lg: 1rem;
 
   /* === Book Theme (dark) === */
+  --bk-page: var(--color-gray-900);
+  --bk-surface: var(--color-gray-750);
+  --bk-inset: var(--color-gray-700);
+  --bk-control: var(--color-gray-600);
+  --bk-control-hover: var(--color-gray-450);
   --bk-ink: #e8e0d0;
-  --bk-rule: rgba(232, 224, 208, 0.16);
-  --bk-rule-strong: rgba(232, 224, 208, 0.36);
   --bk-ink-soft: rgba(232, 224, 208, 0.72);
   --bk-ink-mute: rgba(232, 224, 208, 0.5);
   --bk-ink-faint: rgba(232, 224, 208, 0.32);
+  --bk-rule: rgba(232, 224, 208, 0.16);
+  --bk-rule-strong: rgba(232, 224, 208, 0.36);
   --bk-wash: rgba(232, 224, 208, 0.05);
   --bk-accent: #c8a368;
 

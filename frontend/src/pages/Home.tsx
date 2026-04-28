@@ -18,9 +18,9 @@ export default function Home() {
           Hnefa<em>tafl</em>
         </h1>
         <div class="dot-rule">
-          <span class="h" />
-          <span class="d" />
-          <span class="h" />
+          <span class="line" />
+          <span class="dot" />
+          <span class="line" />
         </div>
         <p class="lede">King and kin against the siege.</p>
       </div>
@@ -32,35 +32,35 @@ export default function Home() {
       <div class="entries">
         <a onClick={() => setAiOpen(true)}>
           <div class="body">
-            <span class="lbl">Against AI</span>
-            <span class="sub">
+            <span class="title">Against AI</span>
+            <span class="description">
               Pick your side and time control, then take on the engine.
             </span>
           </div>
-          <div class="foot">
-            Play <span class="arr">&rsaquo;</span>
+          <div class="footer">
+            Play <span class="arrow">&rsaquo;</span>
           </div>
         </a>
         <a onClick={() => setHotseatOpen(true)}>
           <div class="body">
-            <span class="lbl">Hotseat</span>
-            <span class="sub">
+            <span class="title">Hotseat</span>
+            <span class="description">
               Two players, one device. Name each and pass the screen.
             </span>
           </div>
-          <div class="foot">
-            Play <span class="arr">&rsaquo;</span>
+          <div class="footer">
+            Play <span class="arrow">&rsaquo;</span>
           </div>
         </a>
         <a onClick={() => setOnlineOpen(true)}>
           <div class="body">
-            <span class="lbl">Online</span>
-            <span class="sub">
+            <span class="title">Online</span>
+            <span class="description">
               Challenge a friend to a match over the internet.
             </span>
           </div>
-          <div class="foot">
-            Play <span class="arr">&rsaquo;</span>
+          <div class="footer">
+            Play <span class="arrow">&rsaquo;</span>
           </div>
         </a>
       </div>
@@ -68,26 +68,29 @@ export default function Home() {
       <div class="recent">
         <Show when={mockInProgressGames.length > 0}>
           <section>
-            <div class="sh">
-              <span class="ey">In progress</span>
-              <span class="ct">
+            <div class="section-header">
+              <span class="eyebrow">In progress</span>
+              <span class="detail">
                 {mockInProgressGames.length}{" "}
                 {mockInProgressGames.length === 1 ? "game" : "games"}
               </span>
             </div>
             <For each={mockInProgressGames}>
               {(game) => (
-                <A href={`/game/${game.mode}/${game.id}`} class="ip-row">
+                <A
+                  href={`/game/${game.mode}/${game.id}`}
+                  class="game-row ip-row"
+                >
                   <span class={`dot ${game.yourColor}`} />
-                  <span class="opp">
+                  <span class="opponent">
                     vs {game.opponent}
                     <Show when={game.opponentDetail}>
                       {" "}
                       <em>{game.opponentDetail}</em>
                     </Show>
                   </span>
-                  <span class="time">{game.lastPlayed}</span>
-                  <span class={`status${game.isYourTurn ? " turn" : ""}`}>
+                  <span class="meta">{game.lastPlayed}</span>
+                  <span class={`tag${game.isYourTurn ? " turn" : ""}`}>
                     {game.status}
                   </span>
                 </A>
@@ -98,23 +101,26 @@ export default function Home() {
 
         <Show when={mockCompletedGames.length > 0}>
           <section class="quiet">
-            <div class="sh">
-              <span class="ey">Recent</span>
-              <span class="ct">last 30 days</span>
+            <div class="section-header">
+              <span class="eyebrow">Recent</span>
+              <span class="detail">last 30 days</span>
             </div>
             <For each={mockCompletedGames}>
               {(game) => (
-                <A href={`/game/${game.mode}/${game.id}`} class="done-row">
+                <A
+                  href={`/game/${game.mode}/${game.id}`}
+                  class="game-row done-row"
+                >
                   <span class={`dot ${game.yourColor}`} />
-                  <span class="opp">
+                  <span class="opponent">
                     vs {game.opponent}
                     <Show when={game.opponentDetail}>
                       {" "}
                       <em>{game.opponentDetail}</em>
                     </Show>
                   </span>
-                  <span class="date">{game.completedAt}</span>
-                  <span class={`res${game.isWin ? " win" : ""}`}>
+                  <span class="meta">{game.completedAt}</span>
+                  <span class={`tag${game.isWin ? " win" : ""}`}>
                     {game.result}
                   </span>
                 </A>

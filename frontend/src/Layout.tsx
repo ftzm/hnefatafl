@@ -1,4 +1,4 @@
-import { A } from "@solidjs/router";
+import { A, useLocation } from "@solidjs/router";
 import { createSignal, For, type ParentProps } from "solid-js";
 import GearIcon from "./components/ui/icons/GearIcon";
 import MoonIcon from "./components/ui/icons/MoonIcon";
@@ -8,6 +8,14 @@ import { useToasts } from "./toast-context";
 export default function Layout(props: ParentProps) {
   const [dark, setDark] = createSignal(false);
   const { toasts, dismiss } = useToasts();
+  const location = useLocation();
+
+  const pageClass = () => {
+    if (location.pathname === "/") return "page-content page-content--home";
+    if (location.pathname.startsWith("/game/"))
+      return "page-content page-content--game";
+    return "page-content";
+  };
 
   const toggleTheme = () => {
     setDark(!dark());
@@ -17,7 +25,7 @@ export default function Layout(props: ParentProps) {
   return (
     <>
       <div class="top-bar">
-        <A href="/" class="wm">
+        <A href="/" class="wordmark">
           Hnefatafl
         </A>
         <div class="tools">
@@ -34,7 +42,7 @@ export default function Layout(props: ParentProps) {
           </A>
         </div>
       </div>
-      <div class="page-content">{props.children}</div>
+      <div class={pageClass()}>{props.children}</div>
       <div class="toast-stack" data-kb-top-layer>
         <For each={toasts()}>
           {(toast) => (

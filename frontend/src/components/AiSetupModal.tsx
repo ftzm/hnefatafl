@@ -4,7 +4,7 @@ import { useAiGame } from "../api/contexts";
 import type { PlayerColor } from "../board-logic";
 import { sideOptions, timeOptions } from "../gameOptions";
 import { useToasts } from "../toast-context";
-import ChipGrid from "./ui/ChipGrid";
+import OptionPicker from "./ui/OptionPicker";
 import Modal from "./ui/Modal";
 
 interface AiSetupModalProps {
@@ -31,7 +31,11 @@ export default function AiSetupModal(props: AiSetupModalProps) {
       props.onOpenChange(false);
       navigate(`/game/ai/${token}`);
     } catch {
-      pushError({ code: "connection_error", message: "Server unreachable", fatal: false });
+      pushError({
+        code: "connection_error",
+        message: "Server unreachable",
+        fatal: false,
+      });
     }
   };
 
@@ -47,28 +51,18 @@ export default function AiSetupModal(props: AiSetupModalProps) {
       }
       subtitle="Pick your side and time control."
     >
-      <div class="modal-bd">
-        <div class="modal-bd-inner">
-          <div class="modal-bd-labels">
-            <span class="modal-field-k">Side</span>
-            <span class="modal-field-k">Time</span>
-          </div>
-          <div class="modal-bd-values">
-            <div class="modal-field-v">
-              <ChipGrid
-                options={sideOptions}
-                value={side()}
-                onChange={setSide}
-              />
-            </div>
-            <div class="modal-field-v">
-              <ChipGrid
-                options={timeOptions}
-                value={timeControl()}
-                onChange={setTimeControl}
-              />
-            </div>
-          </div>
+      <div class="modal-body">
+        <span class="modal-label">Side</span>
+        <div class="modal-value">
+          <OptionPicker options={sideOptions} value={side()} onChange={setSide} />
+        </div>
+        <span class="modal-label">Time</span>
+        <div class="modal-value">
+          <OptionPicker
+            options={timeOptions}
+            value={timeControl()}
+            onChange={setTimeControl}
+          />
         </div>
       </div>
       <div class="modal-actions">

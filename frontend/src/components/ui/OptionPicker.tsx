@@ -1,13 +1,13 @@
-import { For, createEffect, onMount } from "solid-js";
+import { createEffect, For, onMount } from "solid-js";
 import type { SelectOption } from "./types";
 
-interface ChipGridProps {
+interface OptionPickerProps {
   options: SelectOption[];
   value: string;
   onChange: (value: string) => void;
 }
 
-export default function ChipGrid(props: ChipGridProps) {
+export default function OptionPicker(props: OptionPickerProps) {
   let containerRef!: HTMLDivElement;
   let barRef!: HTMLSpanElement;
   const labelRefs = new Map<string, HTMLSpanElement>();
@@ -25,23 +25,26 @@ export default function ChipGrid(props: ChipGridProps) {
   createEffect(updateBar);
 
   return (
-    <div class="chip-grid" role="radiogroup" ref={containerRef}>
+    <div class="option-picker" role="radiogroup" ref={containerRef}>
       <For each={props.options}>
         {(option) => (
           <button
             type="button"
             role="radio"
             aria-checked={props.value === option.value}
-            class={`chip${props.value === option.value ? " selected" : ""}`}
+            class={`option${props.value === option.value ? " selected" : ""}`}
             onClick={() => props.onChange(option.value)}
           >
-            <span class="chip-label" ref={(el) => labelRefs.set(option.value, el)}>
+            <span
+              class="option-label"
+              ref={(el) => labelRefs.set(option.value, el)}
+            >
               {option.label}
             </span>
           </button>
         )}
       </For>
-      <span class="chip-bar" ref={barRef} />
+      <span class="option-picker-bar" ref={barRef} />
     </div>
   );
 }

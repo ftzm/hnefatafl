@@ -3,7 +3,7 @@ import { createSignal, type Setter } from "solid-js";
 import { useHotseatApi } from "../api/contexts";
 import { timeOptions } from "../gameOptions";
 import { useToasts } from "../toast-context";
-import ChipGrid from "./ui/ChipGrid";
+import OptionPicker from "./ui/OptionPicker";
 import Modal from "./ui/Modal";
 
 interface HotseatSetupModalProps {
@@ -23,7 +23,11 @@ export default function HotseatSetupModal(props: HotseatSetupModalProps) {
       props.onOpenChange(false);
       navigate(`/game/hotseat/${gameId}`);
     } catch {
-      pushError({ code: "connection_error", message: "Server unreachable", fatal: false });
+      pushError({
+        code: "connection_error",
+        message: "Server unreachable",
+        fatal: false,
+      });
     }
   };
 
@@ -35,28 +39,22 @@ export default function HotseatSetupModal(props: HotseatSetupModalProps) {
       title={<em>Hotseat</em>}
       subtitle="Two players, one device. Name each and pass the screen."
     >
-      <div class="modal-bd">
-        <div class="modal-bd-inner">
-          <div class="modal-bd-labels">
-            <span class="modal-field-k">Attackers</span>
-            <span class="modal-field-k">Defenders</span>
-            <span class="modal-field-k">Time</span>
-          </div>
-          <div class="modal-bd-values">
-            <div class="modal-field-v">
-              <input class="modal-input" value="Olaf" placeholder="Name" />
-            </div>
-            <div class="modal-field-v">
-              <input class="modal-input" value="Inga" placeholder="Name" />
-            </div>
-            <div class="modal-field-v">
-              <ChipGrid
-                options={timeOptions}
-                value={timeControl()}
-                onChange={setTimeControl}
-              />
-            </div>
-          </div>
+      <div class="modal-body">
+        <span class="modal-label">Attackers</span>
+        <div class="modal-value">
+          <input class="modal-input" value="Olaf" placeholder="Name" />
+        </div>
+        <span class="modal-label">Defenders</span>
+        <div class="modal-value">
+          <input class="modal-input" value="Inga" placeholder="Name" />
+        </div>
+        <span class="modal-label">Time</span>
+        <div class="modal-value">
+          <OptionPicker
+            options={timeOptions}
+            value={timeControl()}
+            onChange={setTimeControl}
+          />
         </div>
       </div>
       <div class="modal-actions">

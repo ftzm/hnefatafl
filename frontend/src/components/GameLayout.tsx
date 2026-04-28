@@ -137,39 +137,34 @@ export default function GameLayout(props: GameLayoutProps) {
         </div>
       </Show>
 
-
       {/* Left column — players, captures, actions (desktop) */}
-      <div class="col-left desktop-only">
+      <div class="sidebar-left desktop-only">
         <div
-          class={`ply black${isBlackActive() ? " active" : ""}${!isBlackActive() ? " opp" : ""}`}
+          class={`player black${isBlackActive() ? " active" : ""}${!isBlackActive() ? " inactive" : ""}`}
         >
-          <span class="nm">{blackName()}</span>
-          <span class="hr" />
-          <span class="ck">7:28</span>
+          <span class="player-name">{blackName()}</span>
+          <span class="player-rule" />
+          <span class="player-clock">7:28</span>
         </div>
-        <div class="caps-row top w">
-          <For
-            each={Array.from({ length: game.capturedPieces().white })}
-          >
-            {() => <span class="d" />}
+        <div class="captures top white">
+          <For each={Array.from({ length: game.capturedPieces().white })}>
+            {() => <span class="pip" />}
           </For>
         </div>
-        <div class="ply-gap" />
-        <div class="caps-row bot b">
-          <For
-            each={Array.from({ length: game.capturedPieces().black })}
-          >
-            {() => <span class="d" />}
+        <div class="player-gap" />
+        <div class="captures bot black">
+          <For each={Array.from({ length: game.capturedPieces().black })}>
+            {() => <span class="pip" />}
           </For>
         </div>
         <div
-          class={`ply white${isWhiteActive() ? " active" : ""}${!isWhiteActive() ? " opp" : ""}`}
+          class={`player white${isWhiteActive() ? " active" : ""}${!isWhiteActive() ? " inactive" : ""}`}
         >
-          <span class="nm">{whiteName()}</span>
-          <span class="hr" />
-          <span class="ck">7:28</span>
+          <span class="player-name">{whiteName()}</span>
+          <span class="player-rule" />
+          <span class="player-clock">7:28</span>
         </div>
-        <div class="side-acts">
+        <div class="game-actions">
           <For each={activeActions()}>
             {(key) => {
               const def = actionDefs[key];
@@ -192,16 +187,16 @@ export default function GameLayout(props: GameLayoutProps) {
       </div>
 
       {/* Right column — moves (desktop) */}
-      <div class="col-right desktop-only">
-        <div class="mv-head">
+      <div class="sidebar-right desktop-only">
+        <div class="moves-header">
           <span>Moves</span>
-          <span class="ct">{moveCount()}</span>
+          <span class="count">{moveCount()}</span>
         </div>
-        <div class="mv-scroll">
+        <div class="moves-scroll">
           <MoveHistory />
         </div>
         <GameStatus />
-        <div class="mv-nav">
+        <div class="moves-nav">
           <a
             classList={{ disabled: !game.canViewPrev() }}
             onClick={() => game.canViewPrev() && game.viewStart()}
