@@ -4,8 +4,8 @@ import { useOnlineGame } from "../api/contexts";
 import type { PlayerColor } from "../board-logic";
 import { sideOptions, timeOptions } from "../gameOptions";
 import { useToasts } from "../toast-context";
-import OptionPicker from "./ui/OptionPicker";
 import Modal from "./ui/Modal";
+import OptionPicker from "./ui/OptionPicker";
 
 interface OnlineSetupModalProps {
   open: boolean;
@@ -52,7 +52,11 @@ export default function OnlineSetupModal(props: OnlineSetupModalProps) {
       <div class="modal-body">
         <span class="modal-label">Side</span>
         <div class="modal-value">
-          <OptionPicker options={sideOptions} value={side()} onChange={setSide} />
+          <OptionPicker
+            options={sideOptions}
+            value={side()}
+            onChange={setSide}
+          />
         </div>
         <span class="modal-label">Time</span>
         <div class="modal-value">

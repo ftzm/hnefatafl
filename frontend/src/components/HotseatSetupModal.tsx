@@ -3,8 +3,8 @@ import { createSignal, type Setter } from "solid-js";
 import { useHotseatApi } from "../api/contexts";
 import { timeOptions } from "../gameOptions";
 import { useToasts } from "../toast-context";
-import OptionPicker from "./ui/OptionPicker";
 import Modal from "./ui/Modal";
+import OptionPicker from "./ui/OptionPicker";
 
 interface HotseatSetupModalProps {
   open: boolean;

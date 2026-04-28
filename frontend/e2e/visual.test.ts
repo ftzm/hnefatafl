@@ -16,6 +16,12 @@ async function makeMove(page: Page, from: number, to: number) {
   await page.locator(`[data-index="${to}"]`).click();
 }
 
+async function enableLightMode(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("theme", "light");
+  });
+}
+
 test.describe("Visual regression", () => {
   test("home page", async ({ page }) => {
     await page.goto("/");
@@ -66,5 +72,30 @@ test.describe("Visual regression", () => {
     await page.goto("/settings");
     await expect(page.locator(".settings-title")).toHaveText("Settings");
     await expect(page).toHaveScreenshot("settings.png");
+  });
+});
+
+test.describe("Visual regression (light mode)", () => {
+  test("home page", async ({ page }) => {
+    await enableLightMode(page);
+    await page.goto("/");
+    await expect(page.locator("h1")).toBeVisible();
+    await expect(page).toHaveScreenshot("home-light.png");
+  });
+
+  test("game board initial state", async ({ page }) => {
+    await enableLightMode(page);
+    await page.goto("/");
+    await page.locator(".entries a").nth(1).click();
+    await page.getByRole("button", { name: "Begin game" }).click();
+    await expect(page.locator(".board")).toBeVisible();
+    await expect(page).toHaveScreenshot("game-board-initial-light.png");
+  });
+
+  test("settings page", async ({ page }) => {
+    await enableLightMode(page);
+    await page.goto("/settings");
+    await expect(page.locator(".settings-title")).toHaveText("Settings");
+    await expect(page).toHaveScreenshot("settings-light.png");
   });
 });

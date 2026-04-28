@@ -35,9 +35,9 @@ interface ActionDef {
 }
 
 const modeActions: Record<GameMode, string[]> = {
-  hotseat: ["undo"],
-  ai: ["undo", "resign"],
-  online: ["resign", "draw"],
+  hotseat: ["newGame", "undo"],
+  ai: ["newGame", "undo", "resign"],
+  online: ["newGame", "resign", "draw"],
 };
 
 const modeButtons: Record<GameMode, string[]> = {
@@ -74,6 +74,11 @@ export default function GameLayout(props: GameLayoutProps) {
   const gameActive = () => !game.store.game.gameOver;
 
   const actionDefs: Record<string, ActionDef> = {
+    newGame: {
+      label: "New",
+      onClick: () => navigate("/"),
+      disabled: () => false,
+    },
     undo: {
       label: "Undo",
       onClick: () => props.onUndo?.(),

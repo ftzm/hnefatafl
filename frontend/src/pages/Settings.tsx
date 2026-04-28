@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 import Card from "../components/ui/Card";
 import Toggle from "../components/ui/Toggle";
+import { isLight, toggleTheme } from "../theme";
 
 export default function Settings() {
   const [soundEnabled, setSoundEnabled] = createSignal(true);
@@ -12,8 +13,11 @@ export default function Settings() {
       <Card class="settings-group">
         <h2 class="settings-group-title">Appearance</h2>
         <div class="setting-row">
-          <span class="setting-name">Theme</span>
-          <span class="setting-value-muted">Dark</span>
+          <Toggle
+            label="Light mode"
+            checked={isLight()}
+            onChange={toggleTheme}
+          />
         </div>
       </Card>
 

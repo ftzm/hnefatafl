@@ -1,12 +1,12 @@
 import { A, useLocation } from "@solidjs/router";
-import { createSignal, For, type ParentProps } from "solid-js";
+import { For, type ParentProps } from "solid-js";
 import GearIcon from "./components/ui/icons/GearIcon";
 import MoonIcon from "./components/ui/icons/MoonIcon";
 import SunIcon from "./components/ui/icons/SunIcon";
+import { isLight, toggleTheme } from "./theme";
 import { useToasts } from "./toast-context";
 
 export default function Layout(props: ParentProps) {
-  const [dark, setDark] = createSignal(false);
   const { toasts, dismiss } = useToasts();
   const location = useLocation();
 
@@ -15,11 +15,6 @@ export default function Layout(props: ParentProps) {
     if (location.pathname.startsWith("/game/"))
       return "page-content page-content--game";
     return "page-content";
-  };
-
-  const toggleTheme = () => {
-    setDark(!dark());
-    document.documentElement.classList.toggle("dark", dark());
   };
 
   return (
@@ -35,7 +30,7 @@ export default function Layout(props: ParentProps) {
             onClick={toggleTheme}
             aria-label="Toggle dark mode"
           >
-            {dark() ? <SunIcon /> : <MoonIcon />}
+            {isLight() ? <MoonIcon /> : <SunIcon />}
           </button>
           <A href="/settings" class="icon-btn" aria-label="Settings">
             <GearIcon />

@@ -254,11 +254,11 @@ body {
   color: var(--bk-ink);
 }
 
-.player.active .nm {
+.player.active .player-name {
   font-weight: 700;
 }
 
-.player.inactive .nm {
+.player.inactive .player-name {
   color: var(--bk-ink-mute);
 }
 
@@ -267,11 +267,11 @@ body {
   background: var(--bk-rule);
 }
 
-.player.active .hr {
+.player.active .player-rule {
   background: var(--bk-ink-soft);
 }
 
-.player.inactive .hr {
+.player.inactive .player-rule {
   background: var(--bk-ink-mute);
 }
 
@@ -286,7 +286,7 @@ body {
   color: var(--bk-ink);
 }
 
-.player.inactive .ck {
+.player.inactive .player-clock {
   color: var(--bk-ink-mute);
   font-size: 1.25rem;
 }
@@ -304,7 +304,7 @@ body {
   margin-top: var(--space-8);
 }
 
-.captures.blackot {
+.captures.bot {
   margin-bottom: var(--space-8);
 }
 
@@ -315,11 +315,11 @@ body {
   border: 0.0625rem solid var(--piece-border);
 }
 
-.captures.white .d {
+.captures.white .pip {
   background: var(--piece-white-gradient);
 }
 
-.captures.black .d {
+.captures.black .pip {
   background: var(--piece-black-gradient);
   border-color: var(--border-strong);
 }
@@ -981,7 +981,7 @@ body.dragging-piece * {
   border-bottom: 0.09375rem solid var(--bk-ink);
 }
 
-.home .recent section.quiet .sh {
+.home .recent section.quiet .section-header {
   border-bottom: 0.0625rem solid var(--bk-rule-strong);
 }
 
@@ -994,7 +994,7 @@ body.dragging-piece * {
   font-weight: 600;
 }
 
-.home .recent section.quiet .sh .ey {
+.home .recent section.quiet .section-header .eyebrow {
   color: var(--bk-ink-mute);
   font-weight: 500;
 }

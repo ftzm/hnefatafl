@@ -2,8 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 
 async function startHotseatGame(page: Page) {
   await page.goto("/");
-  await page.locator(".action-card").first().click();
-  await page.locator(".setup-start-btn").click();
+  // "Hotseat" is the second entry in .entries
+  await page.locator(".entries a").nth(1).click();
+  await page.getByRole("button", { name: "Begin game" }).click();
   await expect(page.locator(".board")).toBeVisible();
 }
 
@@ -24,15 +25,15 @@ test.describe("Navigation", () => {
   test("home page shows game mode options", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("h1")).toHaveText("Hnefatafl");
-    await expect(page.locator(".action-card")).toHaveCount(3);
-    await expect(page.locator(".action-label").nth(0)).toHaveText(
-      "Play Hotseat",
+    await expect(page.locator(".entries a")).toHaveCount(3);
+    await expect(page.locator(".entries a .title").nth(0)).toHaveText(
+      "Against AI",
     );
-    await expect(page.locator(".action-label").nth(1)).toHaveText(
-      "Play vs AI",
+    await expect(page.locator(".entries a .title").nth(1)).toHaveText(
+      "Hotseat",
     );
-    await expect(page.locator(".action-label").nth(2)).toHaveText(
-      "Play Online",
+    await expect(page.locator(".entries a .title").nth(2)).toHaveText(
+      "Online",
     );
   });
 
@@ -100,7 +101,7 @@ test.describe("Hotseat game flow", () => {
     await expect(desktop(page).locator(".game-status")).toContainText(
       "White to move",
     );
-    await desktop(page).getByRole("button", { name: "Undo" }).click();
+    await desktop(page).locator(".game-actions a", { hasText: "Undo" }).click();
     await expect(desktop(page).locator(".game-status")).toContainText(
       "Black to move",
     );
@@ -123,7 +124,9 @@ test.describe("Hotseat game flow", () => {
 
   test("new game button returns to home page", async ({ page }) => {
     await startHotseatGame(page);
-    await desktop(page).getByRole("button", { name: "New Game" }).click();
+    await desktop(page)
+      .locator(".game-actions a", { hasText: "New" })
+      .click();
     await expect(page.locator("h1")).toHaveText("Hnefatafl");
   });
 });
@@ -145,10 +148,8 @@ test.describe("History navigation", () => {
       "White to move",
     );
 
-    const navToolbar = desktop(page).locator(
-      '[aria-label="Move navigation"]',
-    );
-    await navToolbar.locator("button").nth(1).click();
+    const navBar = desktop(page).locator(".moves-nav");
+    await navBar.locator("a").nth(1).click();
 
     // 3rd move (4→3) undone: piece at 3 should be gone, piece at 4 restored
     await expect(page.locator('[data-index="3"] .piece')).toHaveCount(0);
@@ -157,11 +158,9 @@ test.describe("History navigation", () => {
 
   test("forward button restores the current board state", async ({ page }) => {
     await startAndMakeMoves(page);
-    const navToolbar = desktop(page).locator(
-      '[aria-label="Move navigation"]',
-    );
-    const prevBtn = navToolbar.locator("button").nth(1);
-    const nextBtn = navToolbar.locator("button").nth(2);
+    const navBar = desktop(page).locator(".moves-nav");
+    const prevBtn = navBar.locator("a").nth(1);
+    const nextBtn = navBar.locator("a").nth(2);
 
     await prevBtn.click();
     await expect(page.locator('[data-index="3"] .piece')).toHaveCount(0);

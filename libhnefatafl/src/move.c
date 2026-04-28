@@ -775,10 +775,9 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *
  * Binary subtraction propagates borrows towards the MSB (leftward), so we
  * cannot use the simple shift-and-subtract approach from leftward_moves_layer.
- * Instead, pext/pdep remaps each mover to a position just left of its nearest
+ * Instead, pext/pdep remaps each mover to a position 1 bit left of its nearest
  * rightward blocker; subtracting this from the original movers generates the
- * rightward ray via borrow propagation through the gap between them, turning
- * all intermediate 0-bits into 1-bits (destinations).
+ * rightward ray via borrow propagation through the gap between them.
  *
  * The upper half is processed first (rightward carryover flows from _[1]
  * into _[0], the opposite direction of leftward).
@@ -809,7 +808,7 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  * blockers = occ._[1] | file_mask_10._[1]
  *
  *   Column-10 sentinels prevent the pext/pdep mapping from crossing
- *   row boundaries. Each sentinel also serves as the rightward
+ *   row boundaries. Thus each sentinel serves as the rightward
  *   boundary for the row above it: the sentinel at col 10 of row N
  *   is one bit below row (N+1)'s col 0, so a rightward ray in row
  *   N+1 naturally stops there.
@@ -842,10 +841,10 @@ static inline layer leftward_moves_layer(layer movers, layer occ) {
  *   (a) Off-balancing: without it, the deposit mask would have the
  *       same number of set bits as the extraction mask (blockers), so
  *       pdep would map each mover back to its own blocker's shifted
- *       position — useless. The extra bit off-balances the deposit
+ *       position. The extra bit off-balances the deposit
  *       mask: every deposit target is shifted down by one slot in the
  *       ordering. A mover at blocker index k deposits at
- *       (blocker k-1) + 1 instead of (blocker k) + 1. This is
+ *       (blocker j) + 1 instead of (blocker k) + 1. This is
  *       exactly "one left of the nearest rightward blocker."
  *
  *   (b) Row 5 boundary: row 5 is the bottommost row in _[1]. Unlike

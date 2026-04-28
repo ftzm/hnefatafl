@@ -21,7 +21,9 @@ export default function Modal(props: ModalProps) {
           <div class="modal-header">
             <div class="modal-eyebrow">{props.eyebrow}</div>
             <Dialog.Title class="modal-title">{props.title}</Dialog.Title>
-            {props.subtitle && <div class="modal-subtitle">{props.subtitle}</div>}
+            {props.subtitle && (
+              <div class="modal-subtitle">{props.subtitle}</div>
+            )}
           </div>
           {props.children}
         </Dialog.Content>

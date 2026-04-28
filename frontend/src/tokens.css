@@ -108,3 +108,27 @@
   --radius-lg: 0.25rem;
   --radius-full: 50%;
 }
+
+/* === Book Theme (light / paper) === */
+html.light {
+  --bk-page: var(--color-warm-100);
+  --bk-surface: var(--color-warm-200);
+  --bk-inset: var(--color-warm-300);
+  --bk-control: var(--color-warm-400);
+  --bk-control-hover: var(--color-warm-500);
+  --bk-ink: #3c3228;
+  --bk-ink-soft: rgba(60, 50, 40, 0.72);
+  --bk-ink-mute: rgba(60, 50, 40, 0.55);
+  --bk-ink-faint: rgba(60, 50, 40, 0.38);
+  --bk-rule: rgba(60, 50, 40, 0.18);
+  --bk-rule-strong: rgba(60, 50, 40, 0.4);
+  --bk-wash: rgba(60, 50, 40, 0.05);
+  --bk-accent: #8c6f42;
+
+  /* Board — lighter wood for paper background */
+  --board-grid: #8a7757;
+  --board-square: #c9b993;
+  --board-square-inner: #b8a67c;
+  --board-corner-bg: #b8a67c;
+  --board-corner-border: #7a6847;
+}
