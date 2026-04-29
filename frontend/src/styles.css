@@ -1179,7 +1179,8 @@ body.dragging-piece * {
 /* Modal body — field rows */
 .modal-body {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto;
+  justify-content: center;
   padding: var(--space-12) var(--space-30);
   column-gap: var(--space-12);
 }
