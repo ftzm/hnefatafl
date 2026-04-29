@@ -121,7 +121,7 @@ html.light {
   --bk-control-hover: var(--color-warm-500);
   --bk-ink: #3c3228;
   --bk-ink-soft: rgba(60, 50, 40, 0.72);
-  --bk-ink-mute: rgba(60, 50, 40, 0.55);
+  --bk-ink-mute: rgba(60, 50, 40, 0.62);
   --bk-ink-faint: rgba(60, 50, 40, 0.38);
   --bk-rule: rgba(60, 50, 40, 0.18);
   --bk-rule-strong: rgba(60, 50, 40, 0.4);

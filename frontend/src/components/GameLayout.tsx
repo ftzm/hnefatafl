@@ -21,26 +21,16 @@ import SkipForwardIcon from "./ui/icons/SkipForwardIcon";
 import UndoIcon from "./ui/icons/UndoIcon";
 import Toolbar from "./ui/Toolbar";
 
-interface ToolbarDef {
-  icon: JSX.Element;
-  label: string;
-  onClick: () => void;
-  disabled: () => boolean;
-}
-
 interface ActionDef {
   label: string;
+  icon: JSX.Element;
   onClick: () => void;
   disabled: () => boolean;
 }
 
-const modeActions: Record<GameMode, string[]> = {
-  hotseat: ["newGame", "undo"],
-  ai: ["newGame", "undo", "resign"],
-  online: ["newGame", "resign", "draw"],
-};
+type PlayerState = "active" | "idle" | "ended";
 
-const modeButtons: Record<GameMode, string[]> = {
+const modeActions: Record<GameMode, string[]> = {
   hotseat: ["newGame", "undo"],
   ai: ["newGame", "undo", "resign"],
   online: ["newGame", "resign", "draw"],
@@ -62,69 +52,49 @@ export default function GameLayout(props: GameLayoutProps) {
   const [movesSheetOpen, setMovesSheetOpen] = createSignal(false);
   const [chatSheetOpen, setChatSheetOpen] = createSignal(false);
 
-  const isBlackActive = () =>
-    game.store.game.currentPlayer === "black" &&
-    game.store.game.historyCursor === 0 &&
-    !game.store.game.gameOver;
-  const isWhiteActive = () =>
-    game.store.game.currentPlayer === "white" &&
-    game.store.game.historyCursor === 0 &&
-    !game.store.game.gameOver;
+  const playerState = (color: "black" | "white"): PlayerState => {
+    if (game.store.game.gameOver) return "ended";
+    if (
+      game.store.game.currentPlayer === color &&
+      game.store.game.historyCursor === 0
+    ) {
+      return "active";
+    }
+    return "idle";
+  };
 
   const gameActive = () => !game.store.game.gameOver;
 
-  const actionDefs: Record<string, ActionDef> = {
+  // Single source of truth for in-game actions. Drives both the desktop
+  // sidebar (label only) and the mobile toolbar (icon + label).
+  const actions: Record<string, ActionDef> = {
     newGame: {
       label: "New",
-      onClick: () => navigate("/"),
-      disabled: () => false,
-    },
-    undo: {
-      label: "Undo",
-      onClick: () => props.onUndo?.(),
-      disabled: () => !gameActive() || game.store.game.moveHistory.length === 0,
-    },
-    resign: {
-      label: "Resign",
-      onClick: () => props.onResign?.(),
-      disabled: () => !gameActive(),
-    },
-    draw: {
-      label: "Draw",
-      onClick: () => props.onDraw?.(),
-      disabled: () => !gameActive(),
-    },
-  };
-
-  const toolbarDefs: Record<string, ToolbarDef> = {
-    newGame: {
       icon: <HomeIcon />,
-      label: "New",
       onClick: () => navigate("/"),
       disabled: () => false,
     },
     undo: {
-      icon: <UndoIcon />,
       label: "Undo",
+      icon: <UndoIcon />,
       onClick: () => props.onUndo?.(),
       disabled: () => !gameActive() || game.store.game.moveHistory.length === 0,
     },
     resign: {
-      icon: <FlagIcon />,
       label: "Resign",
+      icon: <FlagIcon />,
       onClick: () => props.onResign?.(),
       disabled: () => !gameActive(),
     },
     draw: {
-      icon: <BalanceIcon />,
       label: "Draw",
+      icon: <BalanceIcon />,
       onClick: () => props.onDraw?.(),
       disabled: () => !gameActive(),
     },
   };
 
   const activeActions = () => modeActions[props.mode] || modeActions.hotseat;
-  const activeButtons = () => modeButtons[props.mode] || modeButtons.hotseat;
   const hasSecondPanel = () => props.mode === "online" || props.mode === "ai";
 
   const blackName = () => game.store.game.players?.black || "Black";
@@ -144,9 +114,7 @@ export default function GameLayout(props: GameLayoutProps) {
 
       {/* Left column — players, captures, actions (desktop) */}
       <div class="sidebar-left desktop-only">
-        <div
-          class={`player black${isBlackActive() ? " active" : ""}${!isBlackActive() ? " inactive" : ""}`}
-        >
+        <div class="player black" data-state={playerState("black")}>
           <span class="player-name">{blackName()}</span>
           <span class="player-rule" />
           <span class="player-clock">7:28</span>
@@ -162,9 +130,7 @@ export default function GameLayout(props: GameLayoutProps) {
             {() => <span class="pip" />}
           </For>
         </div>
-        <div
-          class={`player white${isWhiteActive() ? " active" : ""}${!isWhiteActive() ? " inactive" : ""}`}
-        >
+        <div class="player white" data-state={playerState("white")}>
           <span class="player-name">{whiteName()}</span>
           <span class="player-rule" />
           <span class="player-clock">7:28</span>
@@ -172,14 +138,15 @@ export default function GameLayout(props: GameLayoutProps) {
         <div class="game-actions">
           <For each={activeActions()}>
             {(key) => {
-              const def = actionDefs[key];
+              const def = actions[key];
               return (
-                <a
-                  classList={{ disabled: def.disabled() }}
-                  onClick={() => !def.disabled() && def.onClick()}
+                <button
+                  type="button"
+                  disabled={def.disabled()}
+                  onClick={def.onClick}
                 >
                   {def.label}
-                </a>
+                </button>
               );
             }}
           </For>
@@ -202,30 +169,38 @@ export default function GameLayout(props: GameLayoutProps) {
         </div>
         <GameStatus />
         <div class="moves-nav">
-          <a
-            classList={{ disabled: !game.canViewPrev() }}
-            onClick={() => game.canViewPrev() && game.viewStart()}
+          <button
+            type="button"
+            disabled={!game.canViewPrev()}
+            onClick={game.viewStart}
+            aria-label="Jump to first move"
           >
             &laquo;
-          </a>
-          <a
-            classList={{ disabled: !game.canViewPrev() }}
-            onClick={() => game.canViewPrev() && game.viewPrev()}
+          </button>
+          <button
+            type="button"
+            disabled={!game.canViewPrev()}
+            onClick={game.viewPrev}
+            aria-label="Previous move"
           >
             &lsaquo;
-          </a>
-          <a
-            classList={{ disabled: !game.canViewNext() }}
-            onClick={() => game.canViewNext() && game.viewNext()}
+          </button>
+          <button
+            type="button"
+            disabled={!game.canViewNext()}
+            onClick={game.viewNext}
+            aria-label="Next move"
           >
             &rsaquo;
-          </a>
-          <a
-            classList={{ disabled: !game.canViewNext() }}
-            onClick={() => game.canViewNext() && game.viewEnd()}
+          </button>
+          <button
+            type="button"
+            disabled={!game.canViewNext()}
+            onClick={game.viewEnd}
+            aria-label="Jump to last move"
           >
             &raquo;
-          </a>
+          </button>
         </div>
       </div>
 
@@ -236,9 +211,9 @@ export default function GameLayout(props: GameLayoutProps) {
 
       {/* Mobile toolbar */}
       <nav class="mobile-only mobile-toolbar">
-        <For each={activeButtons()}>
+        <For each={activeActions()}>
           {(key) => {
-            const def = toolbarDefs[key];
+            const def = actions[key];
             return (
               <button
                 type="button"

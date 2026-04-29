@@ -15,9 +15,9 @@ export default function Modal(props: ModalProps) {
       <Dialog.Portal>
         <Dialog.Overlay class="modal-overlay" />
         <Dialog.Content class="modal-content">
-          <span class="modal-close" onClick={() => props.onOpenChange(false)}>
+          <Dialog.CloseButton class="modal-close" aria-label="Close">
             &times;
-          </span>
+          </Dialog.CloseButton>
           <div class="modal-header">
             <div class="modal-eyebrow">{props.eyebrow}</div>
             <Dialog.Title class="modal-title">{props.title}</Dialog.Title>

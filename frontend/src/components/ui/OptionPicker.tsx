@@ -1,4 +1,4 @@
-import { createEffect, For, onMount } from "solid-js";
+import { createEffect, createUniqueId, For, onMount } from "solid-js";
 import type { SelectOption } from "./types";
 
 interface OptionPickerProps {
@@ -11,6 +11,9 @@ export default function OptionPicker(props: OptionPickerProps) {
   let containerRef!: HTMLDivElement;
   let barRef!: HTMLSpanElement;
   const labelRefs = new Map<string, HTMLSpanElement>();
+  // Unique radio-group name so multiple pickers in the same modal don't
+  // share a group (which would let arrow keys jump between unrelated fields).
+  const groupName = `option-picker-${createUniqueId()}`;
 
   const updateBar = () => {
     const el = labelRefs.get(props.value);
@@ -25,24 +28,28 @@ export default function OptionPicker(props: OptionPickerProps) {
   createEffect(updateBar);
 
   return (
-    <div class="option-picker" role="radiogroup" ref={containerRef}>
+    <div class="option-picker" ref={containerRef}>
       <For each={props.options}>
-        {(option) => (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={props.value === option.value}
-            class={`option${props.value === option.value ? " selected" : ""}`}
-            onClick={() => props.onChange(option.value)}
-          >
-            <span
-              class="option-label"
-              ref={(el) => labelRefs.set(option.value, el)}
-            >
-              {option.label}
-            </span>
-          </button>
-        )}
+        {(option) => {
+          const selected = () => props.value === option.value;
+          return (
+            <label class={`option${selected() ? " selected" : ""}`}>
+              <input
+                type="radio"
+                name={groupName}
+                value={option.value}
+                checked={selected()}
+                onChange={() => props.onChange(option.value)}
+              />
+              <span
+                class="option-label"
+                ref={(el) => labelRefs.set(option.value, el)}
+              >
+                {option.label}
+              </span>
+            </label>
+          );
+        }}
       </For>
       <span class="option-picker-bar" ref={barRef} />
     </div>

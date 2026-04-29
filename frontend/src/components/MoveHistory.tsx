@@ -1,6 +1,7 @@
 import { createEffect, For } from "solid-js";
 import { indexToAlgebraic, type Move } from "../board-logic";
 import { useGame } from "../game-context";
+import { toRomanLower } from "../utils/roman";
 
 interface MovePair {
   black: Move;
@@ -27,9 +28,16 @@ export default function MoveHistory() {
   createEffect(() => {
     game.currentViewMoveIndex();
     if (scrollRef) {
-      const currentEl = scrollRef.querySelector(".current");
-      if (currentEl) {
-        currentEl.scrollIntoView({ block: "center", behavior: "smooth" });
+      const currentEl = scrollRef.querySelector<HTMLElement>(".current");
+      if (currentEl && typeof scrollRef.scrollTo === "function") {
+        // Scope the scroll to the list container — using scrollIntoView falls
+        // back to the document scroller on small viewports and shifts the
+        // whole page when a move is jumped to.
+        const top =
+          currentEl.offsetTop -
+          scrollRef.clientHeight / 2 +
+          currentEl.clientHeight / 2;
+        scrollRef.scrollTo({ top, behavior: "smooth" });
       }
     }
   });
@@ -47,7 +55,7 @@ export default function MoveHistory() {
 
           return (
             <div class="move-row">
-              <span class="move-num">{moveNumber}.</span>
+              <span class="move-num">{toRomanLower(moveNumber)}</span>
               <span class="move-black">
                 {pair.black && (
                   <button

@@ -30,8 +30,8 @@ export const mockInProgressGames: InProgressGame[] = [
     mode: "hotseat",
     yourColor: "black",
     moveCount: 14,
-    lastPlayed: "2 min ago",
-    status: "Your move",
+    lastPlayed: "2m",
+    status: "your turn",
     isYourTurn: true,
   },
   {
@@ -41,8 +41,8 @@ export const mockInProgressGames: InProgressGame[] = [
     mode: "ai",
     yourColor: "white",
     moveCount: 8,
-    lastPlayed: "1 hr ago",
-    status: "Waiting",
+    lastPlayed: "1h",
+    status: "waiting",
     isYourTurn: false,
   },
   {
@@ -51,8 +51,8 @@ export const mockInProgressGames: InProgressGame[] = [
     mode: "online",
     yourColor: "white",
     moveCount: 22,
-    lastPlayed: "5 min ago",
-    status: "Your move",
+    lastPlayed: "5m",
+    status: "your turn",
     isYourTurn: true,
   },
   {
@@ -62,8 +62,8 @@ export const mockInProgressGames: InProgressGame[] = [
     mode: "ai",
     yourColor: "black",
     moveCount: 31,
-    lastPlayed: "3 hr ago",
-    status: "Waiting",
+    lastPlayed: "3h",
+    status: "waiting",
     isYourTurn: false,
   },
   {
@@ -72,8 +72,8 @@ export const mockInProgressGames: InProgressGame[] = [
     mode: "online",
     yourColor: "black",
     moveCount: 6,
-    lastPlayed: "Yesterday",
-    status: "Your move",
+    lastPlayed: "1d",
+    status: "your turn",
     isYourTurn: true,
   },
 ];
@@ -87,7 +87,7 @@ export const mockCompletedGames: CompletedGame[] = [
     result: "White wins",
     resultDetail: "King escaped",
     moveCount: 32,
-    completedAt: "Yesterday",
+    completedAt: "1d",
     isWin: true,
   },
   {
@@ -99,7 +99,7 @@ export const mockCompletedGames: CompletedGame[] = [
     result: "Black wins",
     resultDetail: "King surrounded",
     moveCount: 47,
-    completedAt: "3 days ago",
+    completedAt: "3d",
     isWin: false,
   },
   {
@@ -110,7 +110,7 @@ export const mockCompletedGames: CompletedGame[] = [
     result: "White wins",
     resultDetail: "King escaped",
     moveCount: 28,
-    completedAt: "4 days ago",
+    completedAt: "4d",
     isWin: true,
   },
   {
@@ -122,7 +122,7 @@ export const mockCompletedGames: CompletedGame[] = [
     result: "Black wins",
     resultDetail: "King surrounded",
     moveCount: 19,
-    completedAt: "5 days ago",
+    completedAt: "5d",
     isWin: true,
   },
   {
@@ -133,7 +133,7 @@ export const mockCompletedGames: CompletedGame[] = [
     result: "White wins",
     resultDetail: "King escaped",
     moveCount: 41,
-    completedAt: "1 week ago",
+    completedAt: "1w",
     isWin: false,
   },
   {
@@ -144,7 +144,7 @@ export const mockCompletedGames: CompletedGame[] = [
     result: "Black wins",
     resultDetail: "King surrounded",
     moveCount: 55,
-    completedAt: "2 weeks ago",
+    completedAt: "2w",
     isWin: true,
   },
 ];

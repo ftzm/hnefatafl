@@ -30,7 +30,7 @@ export default function Home() {
       <OnlineSetupModal open={onlineOpen()} onOpenChange={setOnlineOpen} />
 
       <div class="entries">
-        <a onClick={() => setAiOpen(true)}>
+        <button type="button" onClick={() => setAiOpen(true)}>
           <div class="body">
             <span class="title">Against AI</span>
             <span class="description">
@@ -40,8 +40,8 @@ export default function Home() {
           <div class="footer">
             Play <span class="arrow">&rsaquo;</span>
           </div>
-        </a>
-        <a onClick={() => setHotseatOpen(true)}>
+        </button>
+        <button type="button" onClick={() => setHotseatOpen(true)}>
           <div class="body">
             <span class="title">Hotseat</span>
             <span class="description">
@@ -51,8 +51,8 @@ export default function Home() {
           <div class="footer">
             Play <span class="arrow">&rsaquo;</span>
           </div>
-        </a>
-        <a onClick={() => setOnlineOpen(true)}>
+        </button>
+        <button type="button" onClick={() => setOnlineOpen(true)}>
           <div class="body">
             <span class="title">Online</span>
             <span class="description">
@@ -62,7 +62,7 @@ export default function Home() {
           <div class="footer">
             Play <span class="arrow">&rsaquo;</span>
           </div>
-        </a>
+        </button>
       </div>
 
       <div class="recent">
@@ -89,10 +89,11 @@ export default function Home() {
                       <em>{game.opponentDetail}</em>
                     </Show>
                   </span>
-                  <span class="meta">{game.lastPlayed}</span>
+                  <span class="leader" aria-hidden="true" />
                   <span class={`tag${game.isYourTurn ? " turn" : ""}`}>
                     {game.status}
                   </span>
+                  <span class="meta">{game.lastPlayed}</span>
                 </A>
               )}
             </For>
@@ -119,10 +120,11 @@ export default function Home() {
                       <em>{game.opponentDetail}</em>
                     </Show>
                   </span>
-                  <span class="meta">{game.completedAt}</span>
+                  <span class="leader" aria-hidden="true" />
                   <span class={`tag${game.isWin ? " win" : ""}`}>
                     {game.result}
                   </span>
+                  <span class="meta">{game.completedAt}</span>
                 </A>
               )}
             </For>
