@@ -69,7 +69,7 @@ export default function Home() {
         <Show when={mockInProgressGames.length > 0}>
           <section>
             <div class="section-header">
-              <span class="eyebrow">In progress</span>
+              <span>In progress</span>
               <span class="detail">
                 {mockInProgressGames.length}{" "}
                 {mockInProgressGames.length === 1 ? "game" : "games"}
@@ -102,7 +102,7 @@ export default function Home() {
         <Show when={mockCompletedGames.length > 0}>
           <section class="quiet">
             <div class="section-header">
-              <span class="eyebrow">Recent</span>
+              <span>Recent</span>
               <span class="detail">last 30 days</span>
             </div>
             <For each={mockCompletedGames}>
