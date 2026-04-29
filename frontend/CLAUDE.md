@@ -145,7 +145,7 @@ type OnlineGameEvent = AiGameEvent
 CSS-only (no CSS-in-JS). Design tokens in `tokens.css`:
 - Color palettes: gray (9 shades), warm (pieces/backgrounds), wood (board)
 - Spacing scale: `--space-1` (0.0625rem) to `--space-24` (1.5rem)
-- Typography: `--text-xs` to `--text-lg`
+- Typography: 6-step type scale `--text-xs` (0.625rem) → `--text-sm` (0.8125rem) → `--text-base` (0.9375rem) → `--text-lg` (1.1875rem) → `--text-xl` (1.875rem) → `--text-2xl` (4.5rem). Pick from these tokens — no hardcoded font-size values.
 - Radius: `--radius-sm/md/lg/full`
 
 Component styles in `styles.css`. BEM-ish naming (`.component-name__element`). Mobile-first responsive with `.mobile-only`/`.desktop-only` classes. Data attributes for board squares: `[data-index]`.
