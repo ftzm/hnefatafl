@@ -11,17 +11,25 @@ interface HotseatSetupModalProps {
   onOpenChange: Setter<boolean>;
 }
 
+const DEFAULT_ATTACKER_NAME = "Olaf";
+const DEFAULT_DEFENDER_NAME = "Inga";
+
 export default function HotseatSetupModal(props: HotseatSetupModalProps) {
   const navigate = useNavigate();
   const hotseat = useHotseatApi();
   const { pushError } = useToasts();
+  const [attackerName, setAttackerName] = createSignal(DEFAULT_ATTACKER_NAME);
+  const [defenderName, setDefenderName] = createSignal(DEFAULT_DEFENDER_NAME);
   const [timeControl, setTimeControl] = createSignal("none");
 
   const startGame = async () => {
     try {
       const gameId = await hotseat.createGame();
+      const black = attackerName().trim() || DEFAULT_ATTACKER_NAME;
+      const white = defenderName().trim() || DEFAULT_DEFENDER_NAME;
+      const query = new URLSearchParams({ black, white }).toString();
       props.onOpenChange(false);
-      navigate(`/game/hotseat/${gameId}`);
+      navigate(`/game/hotseat/${gameId}?${query}`);
     } catch {
       pushError({
         code: "connection_error",
@@ -42,11 +50,21 @@ export default function HotseatSetupModal(props: HotseatSetupModalProps) {
       <div class="modal-body">
         <span class="modal-label">Attackers</span>
         <div class="modal-value">
-          <input class="modal-input" value="Olaf" placeholder="Name" />
+          <input
+            class="modal-input"
+            value={attackerName()}
+            placeholder="Name"
+            onInput={(e) => setAttackerName(e.currentTarget.value)}
+          />
         </div>
         <span class="modal-label">Defenders</span>
         <div class="modal-value">
-          <input class="modal-input" value="Inga" placeholder="Name" />
+          <input
+            class="modal-input"
+            value={defenderName()}
+            placeholder="Name"
+            onInput={(e) => setDefenderName(e.currentTarget.value)}
+          />
         </div>
         <span class="modal-label">Time</span>
         <div class="modal-value">

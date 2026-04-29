@@ -1,4 +1,4 @@
-import { useParams } from "@solidjs/router";
+import { useParams, useSearchParams } from "@solidjs/router";
 import { useHotseatApi } from "../api/contexts";
 import type { Move } from "../board-logic";
 import GameLayout from "../components/GameLayout";
@@ -8,6 +8,7 @@ function HotseatController() {
   const game = useGame();
   const hotseat = useHotseatApi();
   const params = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams<{ black?: string; white?: string }>();
 
   hotseat.getState(params.id).then((state) =>
     game.initGame({
@@ -16,6 +17,10 @@ function HotseatController() {
       moves: state.moves,
       moveHistory: state.moveHistory,
       gameOver: state.gameOver,
+      players: {
+        black: searchParams.black?.trim() || "Black",
+        white: searchParams.white?.trim() || "White",
+      },
     }),
   );
 

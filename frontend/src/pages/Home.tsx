@@ -13,16 +13,11 @@ export default function Home() {
   return (
     <div class="home">
       <div class="hero">
-        <span class="eyebrow">The Viking board game of strategy</span>
-        <h1>
-          Hnefa<em>tafl</em>
-        </h1>
-        <div class="dot-rule">
-          <span class="line" />
-          <span class="dot" />
-          <span class="line" />
+        <div class="title-block">
+          <span class="hero-mark" aria-hidden="true" />
+          <h1>Hnefatafl</h1>
         </div>
-        <p class="lede">King and kin against the siege.</p>
+        <p class="lede">Old Norse game of strategy</p>
       </div>
 
       <HotseatSetupModal open={hotseatOpen()} onOpenChange={setHotseatOpen} />

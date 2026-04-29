@@ -836,6 +836,39 @@ body.dragging-piece * {
   color: var(--bk-ink-mute);
 }
 
+.home .hero .title-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Shrink-wrap to the width of the "Hnefatafl" heading so the
+     hero-mark below can be sized as a percentage of that word. */
+  width: max-content;
+  max-width: 100%;
+  gap: var(--space-4);
+}
+
+.home .hero .title-block h1 {
+  /* Ensure the h1 establishes the block's width without wrapping. */
+  white-space: nowrap;
+}
+
+.home .hero .hero-mark {
+  /* Percentage of the rendered width of "Hnefatafl". */
+  width: 60%;
+  aspect-ratio: 837.33 / 565.33; /* matches extracted.svg viewBox */
+  display: block;
+  opacity: 0.65;
+  background-color: var(--bk-accent);
+  -webkit-mask-image: url("./assets/extracted.svg");
+  mask-image: url("./assets/extracted.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
 .home .hero h1 {
   font-family: var(--font-serif);
   font-weight: 500;
