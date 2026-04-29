@@ -44,7 +44,7 @@
           libhnefatafl-all = libhnefatafl.all;
           libhnefatafl = libhnefatafl.static;
           backend = backend.packages.${system};
-          inherit (frontend.packages.${system}) lint typecheck check-generated-types;
+          frontend = frontend.packages.${system};
           api-specs = backend.packages.${system}.api-specs;
         };
         apps = {

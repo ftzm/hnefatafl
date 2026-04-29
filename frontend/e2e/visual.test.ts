@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 async function startHotseatGame(page: Page) {
   await page.goto("/");
   // "Hotseat" is the second entry in .entries
-  await page.locator(".entries a").nth(1).click();
+  await page.locator(".entries button").nth(1).click();
   await page.getByRole("button", { name: "Begin game" }).click();
   await expect(page.locator(".board")).toBeVisible();
 }
@@ -31,7 +31,7 @@ test.describe("Visual regression", () => {
 
   test("hotseat setup modal", async ({ page }) => {
     await page.goto("/");
-    await page.locator(".entries a").nth(1).click();
+    await page.locator(".entries button").nth(1).click();
     await expect(
       page.getByRole("button", { name: "Begin game" }),
     ).toBeVisible();
@@ -40,7 +40,7 @@ test.describe("Visual regression", () => {
 
   test("ai setup modal", async ({ page }) => {
     await page.goto("/");
-    await page.locator(".entries a").nth(0).click();
+    await page.locator(".entries button").nth(0).click();
     await expect(
       page.getByRole("button", { name: "Begin game" }),
     ).toBeVisible();
@@ -86,7 +86,7 @@ test.describe("Visual regression (light mode)", () => {
   test("game board initial state", async ({ page }) => {
     await enableLightMode(page);
     await page.goto("/");
-    await page.locator(".entries a").nth(1).click();
+    await page.locator(".entries button").nth(1).click();
     await page.getByRole("button", { name: "Begin game" }).click();
     await expect(page.locator(".board")).toBeVisible();
     await expect(page).toHaveScreenshot("game-board-initial-light.png");

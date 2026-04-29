@@ -31,11 +31,8 @@ build_target "backend.\"hnefatafl:lib:hnefatafl\""
 print_header "Running Haskell tests"
 nix run .#test-backend
 
-print_header "Running frontend lint"
-build_target "lint"
-
-print_header "Running frontend typecheck"
-build_target "typecheck"
+print_header "Running frontend checks (lint + typecheck + unit tests)"
+build_target "frontend.check"
 
 print_header "Checking generated frontend types"
-build_target "check-generated-types"
+build_target "frontend.check-generated-types"

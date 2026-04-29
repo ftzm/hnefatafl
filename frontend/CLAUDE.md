@@ -9,6 +9,8 @@ npm install            # install dependencies
 npm run dev            # dev server on http://localhost:3000
 npm run build          # production build
 npm run preview        # preview production build
+npm run check          # lint + typecheck + unit tests (fast feedback during work)
+npm run check:all      # check + e2e (REQUIRED before declaring any FE change done)
 npm run typecheck      # tsc --noEmit
 npm run lint           # biome check src
 npm run lint:fix       # biome check --write src
@@ -16,6 +18,17 @@ npm run test           # vitest (unit tests)
 npm run test:watch     # vitest in watch mode
 npm run test:e2e       # playwright (e2e tests, starts dev server automatically)
 ```
+
+**Run `npm run check:all` before declaring any frontend change done.** No
+exceptions — including small edits. It boots the dev server, runs Playwright
+including visual snapshot diffs, and is the only way to catch UI regressions
+that don't surface in unit tests. Use `npm run check` (no e2e) for fast feedback
+mid-task, but it does NOT count as the final verification.
+
+The same set is exposed as a Nix derivation: `nix build .#check` (called by
+`ci-build-and-test.sh`). The flake mirrors the steps explicitly because
+`importNpmLock` doesn't materialise biome's platform-specific native binary
+optionalDependency — see comments in `frontend/flake.nix`.
 
 ## Project Layout
 

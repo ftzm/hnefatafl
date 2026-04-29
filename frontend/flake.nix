@@ -16,6 +16,8 @@
           "scripts/.*"
           "tsconfig.json"
           "biome.json"
+          "vite.config.ts"
+          "vitest.config.ts"
           "package.json"
           "package-lock.json"
         ];
@@ -40,22 +42,22 @@
           }}/bin/generate-types";
         };
         packages = {
-          lint = pkgs.stdenv.mkDerivation {
-            name = "lint-frontend";
+          # Mirrors `npm run check` from package.json (lint + typecheck + tests),
+          # but uses pkgs.biome directly because importNpmLock doesn't
+          # materialise biome's platform-specific optional native binary.
+          # Keep this list in sync with package.json's `check` script.
+          check = pkgs.stdenv.mkDerivation {
+            name = "check-frontend";
             src = frontendSrc;
-            nativeBuildInputs = [pkgs.biome];
-            buildPhase = ''
-              biome check src
-            '';
-            installPhase = "touch $out";
-          };
-          typecheck = pkgs.stdenv.mkDerivation {
-            name = "typecheck-frontend";
-            src = frontendSrc;
-            nativeBuildInputs = [nodejs pkgs.importNpmLock.hooks.linkNodeModulesHook];
+            nativeBuildInputs = [nodejs pkgs.biome pkgs.importNpmLock.hooks.linkNodeModulesHook];
             npmDeps = nodeModules;
+            # linkNodeModulesHook prepends node_modules/.bin to PATH, which
+            # contains a biome wrapper that fails (see comment above). Invoke
+            # pkgs.biome by absolute path to bypass it.
             buildPhase = ''
+              ${pkgs.biome}/bin/biome check src
               npx tsc --noEmit
+              npx vitest run
             '';
             installPhase = "touch $out";
           };
