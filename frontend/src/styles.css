@@ -187,6 +187,81 @@ body {
   opacity: 1;
 }
 
+/* === Offer Banner === */
+.offer-banner {
+  background: var(--bk-surface);
+  border-left: 0.125rem solid var(--bk-accent);
+  padding: var(--space-12) var(--space-14);
+  margin: var(--space-24) 0 var(--space-10) var(--space-8);
+  font-family: var(--font-serif);
+  color: var(--bk-ink);
+}
+
+.offer-banner__message {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.offer-banner[data-variant="offer"] .offer-banner__message {
+  color: var(--bk-accent);
+}
+
+.offer-banner__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.offer-banner__row .offer-banner__message {
+  flex: 1;
+}
+
+.offer-banner__close {
+  background: none;
+  border: none;
+  color: var(--bk-ink-mute);
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--space-4);
+}
+
+.offer-banner__close:hover {
+  color: var(--bk-ink);
+}
+
+.offer-banner__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--space-6);
+  margin-top: var(--space-12);
+}
+
+.offer-banner__btn,
+.offer-banner__sep {
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  color: var(--bk-ink-mute);
+}
+
+.offer-banner__btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.offer-banner__btn:hover {
+  color: var(--bk-ink);
+}
+
+.offer-banner__sep {
+  user-select: none;
+}
+
 /* === Game columns === */
 .sidebar-left {
   width: 13.75rem;
@@ -358,10 +433,11 @@ body {
   cursor: not-allowed;
 }
 
-/* Side actions */
+/* Side actions — paddings/gap match .moves-nav for consistency, which
+   also gives 4 labels enough room in the narrow sidebar. */
 .game-actions {
   display: flex;
-  gap: var(--space-8);
+  gap: var(--space-4);
   margin-top: var(--space-16);
   padding-top: var(--space-14);
 }
@@ -370,7 +446,7 @@ body {
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   letter-spacing: 0.02em;
-  padding: 0.3125rem 0.75rem;
+  padding: 0.25rem 0;
 }
 
 /* === Move header === */

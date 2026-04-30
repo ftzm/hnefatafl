@@ -33,7 +33,7 @@ type PlayerState = "active" | "idle" | "ended";
 const modeActions: Record<GameMode, string[]> = {
   hotseat: ["newGame", "undo"],
   ai: ["newGame", "undo", "resign"],
-  online: ["newGame", "resign", "draw"],
+  online: ["newGame", "undo", "resign", "draw"],
 };
 
 interface GameLayoutProps {
@@ -43,6 +43,15 @@ interface GameLayoutProps {
   onUndo?: () => void;
   onDraw?: () => void;
   connecting?: boolean;
+  /** Online: a draw offer has been sent and is awaiting opponent response. */
+  outgoingDrawPending?: boolean;
+  /** Online: an undo request has been sent and is awaiting opponent response. */
+  outgoingUndoPending?: boolean;
+  /**
+   * Slot rendered under the top player line on desktop and below the mobile
+   * status line on mobile. Used by the online controller for the offer banner.
+   */
+  banner?: JSX.Element;
 }
 
 export default function GameLayout(props: GameLayoutProps) {
@@ -78,7 +87,10 @@ export default function GameLayout(props: GameLayoutProps) {
       label: "Undo",
       icon: <UndoIcon />,
       onClick: () => props.onUndo?.(),
-      disabled: () => !gameActive() || game.store.game.moveHistory.length === 0,
+      disabled: () =>
+        !gameActive() ||
+        game.store.game.moveHistory.length === 0 ||
+        !!props.outgoingUndoPending,
     },
     resign: {
       label: "Resign",
@@ -90,7 +102,7 @@ export default function GameLayout(props: GameLayoutProps) {
       label: "Draw",
       icon: <BalanceIcon />,
       onClick: () => props.onDraw?.(),
-      disabled: () => !gameActive(),
+      disabled: () => !gameActive() || !!props.outgoingDrawPending,
     },
   };
 
@@ -119,6 +131,7 @@ export default function GameLayout(props: GameLayoutProps) {
           <span class="player-rule" />
           <span class="player-clock">7:28</span>
         </div>
+        {props.banner}
         <div class="captures top white">
           <For each={Array.from({ length: game.capturedPieces().white })}>
             {() => <span class="pip" />}
@@ -207,6 +220,7 @@ export default function GameLayout(props: GameLayoutProps) {
       {/* Mobile status */}
       <div class="mobile-only mobile-status">
         <GameStatus />
+        {props.banner}
       </div>
 
       {/* Mobile toolbar */}
