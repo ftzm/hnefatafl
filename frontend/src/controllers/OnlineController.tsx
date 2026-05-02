@@ -151,10 +151,14 @@ function OnlineController() {
 
   function onMove(move: Move) {
     dismissNotice();
-    // The server cancels any incoming offer we had when we move (the
-    // recipient's action implicitly declines). Mirror locally — the
-    // server doesn't send us a separate event for our own actions.
+    // The server clears the pending-action slot whenever either side
+    // moves, regardless of who placed the offer. Mirror locally for both
+    // directions — the server doesn't echo cancellations of our own
+    // outgoing offers, so without this the UI would think they were
+    // still pending and keep the buttons disabled.
     setIncoming(undefined);
+    setOutgoingDraw(false);
+    setOutgoingUndo(false);
     game.applyMove(move);
     online.sendMove(move);
   }
@@ -164,13 +168,23 @@ function OnlineController() {
     online.resign();
   }
 
+  // The server keeps a single pending-offer slot per game. Sending an
+  // offer (draw or undo) while *any* pending offer exists — ours or the
+  // opponent's — produces `action_already_pending`. The Undo/Draw buttons
+  // are already disabled in that case, but we guard here too so a stale
+  // click event or programmatic call can't slip through.
+  const anyOfferPending = () =>
+    outgoingDraw() || outgoingUndo() || !!incoming();
+
   function onDraw() {
+    if (anyOfferPending()) return;
     dismissNotice();
     online.offerDraw();
     setOutgoingDraw(true);
   }
 
   function onUndo() {
+    if (anyOfferPending()) return;
     dismissNotice();
     online.requestUndo();
     setOutgoingUndo(true);
@@ -204,6 +218,7 @@ function OnlineController() {
       connecting={online.connecting()}
       outgoingDrawPending={outgoingDraw()}
       outgoingUndoPending={outgoingUndo()}
+      incomingOfferPending={!!incoming()}
       banner={
         <OfferBanner
           pendingOffer={incoming()}

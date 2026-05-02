@@ -48,6 +48,13 @@ interface GameLayoutProps {
   /** Online: an undo request has been sent and is awaiting opponent response. */
   outgoingUndoPending?: boolean;
   /**
+   * Online: an offer from the opponent (draw or undo) is currently awaiting
+   * our response. The server allows only one pending action per game from
+   * either side, so we must disable our own offer buttons until this slot is
+   * free. Sending while it is set yields `action_already_pending`.
+   */
+  incomingOfferPending?: boolean;
+  /**
    * Slot rendered under the top player line on desktop and below the mobile
    * status line on mobile. Used by the online controller for the offer banner.
    */
@@ -74,6 +81,15 @@ export default function GameLayout(props: GameLayoutProps) {
 
   const gameActive = () => !game.store.game.gameOver;
 
+  // The server allows only one pending offer per game (from either side).
+  // While *anything* is pending — our outgoing offer, or an incoming one
+  // from the opponent — sending another results in `action_already_pending`.
+  // Gate both offer-style buttons on the union of these states.
+  const anyOfferPending = () =>
+    !!props.outgoingDrawPending ||
+    !!props.outgoingUndoPending ||
+    !!props.incomingOfferPending;
+
   // Single source of truth for in-game actions. Drives both the desktop
   // sidebar (label only) and the mobile toolbar (icon + label).
   const actions: Record<string, ActionDef> = {
@@ -90,7 +106,7 @@ export default function GameLayout(props: GameLayoutProps) {
       disabled: () =>
         !gameActive() ||
         game.store.game.moveHistory.length === 0 ||
-        !!props.outgoingUndoPending,
+        anyOfferPending(),
     },
     resign: {
       label: "Resign",
@@ -102,7 +118,7 @@ export default function GameLayout(props: GameLayoutProps) {
       label: "Draw",
       icon: <BalanceIcon />,
       onClick: () => props.onDraw?.(),
-      disabled: () => !gameActive() || !!props.outgoingDrawPending,
+      disabled: () => !gameActive() || anyOfferPending(),
     },
   };
 
@@ -149,7 +165,6 @@ export default function GameLayout(props: GameLayoutProps) {
           <span class="player-rule" />
           <span class="player-clock">7:28</span>
         </div>
-        {props.banner}
         <div class={`captures top ${bottomColor()}`}>
           <For
             each={Array.from({ length: game.capturedPieces()[bottomColor()] })}
@@ -157,6 +172,7 @@ export default function GameLayout(props: GameLayoutProps) {
             {() => <span class="pip" />}
           </For>
         </div>
+        {props.banner}
         <div class="player-gap" />
         <div class={`captures bot ${topColor()}`}>
           <For each={Array.from({ length: game.capturedPieces()[topColor()] })}>
