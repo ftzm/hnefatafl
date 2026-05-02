@@ -865,6 +865,21 @@
                     },
                     {
                         "properties": {
+                            "type": {
+                                "enum": [
+                                    "drawCancelled"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineDrawCancelled",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "by": {
                                 "$ref": "#/components/schemas/PlayerColor"
                             },
@@ -932,6 +947,21 @@
                             "type"
                         ],
                         "title": "OnlineUndoDeclined",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "enum": [
+                                    "undoCancelled"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type"
+                        ],
+                        "title": "OnlineUndoCancelled",
                         "type": "object"
                     },
                     {
@@ -1091,6 +1121,9 @@
                     "code": {
                         "$ref": "#/components/schemas/WsErrorCode"
                     },
+                    "fatal": {
+                        "type": "boolean"
+                    },
                     "message": {
                         "type": "string"
                     },
@@ -1104,7 +1137,8 @@
                 "required": [
                     "type",
                     "code",
-                    "message"
+                    "message",
+                    "fatal"
                 ],
                 "type": "object"
             },

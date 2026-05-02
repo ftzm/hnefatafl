@@ -113,6 +113,19 @@ export default function GameLayout(props: GameLayoutProps) {
   const whiteName = () => game.store.game.players?.white || "White";
   const moveCount = () => game.store.game.moveHistory.length;
 
+  // Top of the sidebar is the opponent; bottom is the local player. In
+  // hotseat (no playerColor) we keep black on top — black moves first in
+  // Hnefatafl so it's the conventional reading order. Captures swap with
+  // the players: each row shows the pieces that player has captured (the
+  // opposite color's pips), so the count and pip class come from the
+  // *other* side's color.
+  type Side = "black" | "white";
+  const opposite = (c: Side): Side => (c === "black" ? "white" : "black");
+  const topColor = (): Side =>
+    game.store.game.playerColor === "black" ? "white" : "black";
+  const bottomColor = (): Side => opposite(topColor());
+  const playerName = (c: Side) => (c === "black" ? blackName() : whiteName());
+
   return (
     <div class="main-layout">
       <Show when={props.connecting}>
@@ -124,27 +137,37 @@ export default function GameLayout(props: GameLayoutProps) {
         </div>
       </Show>
 
-      {/* Left column — players, captures, actions (desktop) */}
+      {/* Left column — players, captures, actions (desktop). Top row is
+          the opponent (or black in hotseat), bottom row is the local
+          player. */}
       <div class="sidebar-left desktop-only">
-        <div class="player black" data-state={playerState("black")}>
-          <span class="player-name">{blackName()}</span>
+        <div
+          class={`player ${topColor()}`}
+          data-state={playerState(topColor())}
+        >
+          <span class="player-name">{playerName(topColor())}</span>
           <span class="player-rule" />
           <span class="player-clock">7:28</span>
         </div>
         {props.banner}
-        <div class="captures top white">
-          <For each={Array.from({ length: game.capturedPieces().white })}>
+        <div class={`captures top ${bottomColor()}`}>
+          <For
+            each={Array.from({ length: game.capturedPieces()[bottomColor()] })}
+          >
             {() => <span class="pip" />}
           </For>
         </div>
         <div class="player-gap" />
-        <div class="captures bot black">
-          <For each={Array.from({ length: game.capturedPieces().black })}>
+        <div class={`captures bot ${topColor()}`}>
+          <For each={Array.from({ length: game.capturedPieces()[topColor()] })}>
             {() => <span class="pip" />}
           </For>
         </div>
-        <div class="player white" data-state={playerState("white")}>
-          <span class="player-name">{whiteName()}</span>
+        <div
+          class={`player ${bottomColor()}`}
+          data-state={playerState(bottomColor())}
+        >
+          <span class="player-name">{playerName(bottomColor())}</span>
           <span class="player-rule" />
           <span class="player-clock">7:28</span>
         </div>

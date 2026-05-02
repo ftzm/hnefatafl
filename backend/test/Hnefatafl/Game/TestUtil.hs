@@ -83,6 +83,7 @@ applyEvent evt store = case evt of
   DrawDeclined -> store{storedPendingAction = Nothing}
   UndoDeclined -> store{storedPendingAction = Nothing}
   OfferCancelled -> store{storedPendingAction = Nothing}
+  OfferAutoCancelled _ _ -> store{storedPendingAction = Nothing}
 
 applyEvents :: [DomainEvent] -> PersistenceStore -> PersistenceStore
 applyEvents evts store = foldl' (flip applyEvent) store evts

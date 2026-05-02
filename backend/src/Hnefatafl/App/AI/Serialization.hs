@@ -42,6 +42,7 @@ notificationsFor humanColor newState = concatMap $ \case
   UndoRequested _ -> []
   UndoDeclined -> []
   OfferCancelled -> []
+  OfferAutoCancelled _ _ -> []
  where
   engineMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields humanColor newState

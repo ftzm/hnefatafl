@@ -68,7 +68,9 @@ export type OnlineGameEvent =
   | { type: "opponentLeft" }
   | { type: "drawOffer"; by: PlayerColor }
   | { type: "drawDeclined" }
+  | { type: "drawCancelled" }
   | { type: "undoRequest"; by: PlayerColor }
   | { type: "undoAccepted"; moveCount: number }
   | { type: "undoDeclined" }
+  | { type: "undoCancelled" }
   | { type: "chat"; message: string };

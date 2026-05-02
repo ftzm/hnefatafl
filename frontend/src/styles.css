@@ -1362,6 +1362,22 @@ body.dragging-piece * {
   font-style: italic;
 }
 
+/* Modal invite-link display */
+.invite-url {
+  grid-column: 1 / -1;
+  background: var(--bk-inset);
+  border: 0.0625rem solid var(--bk-rule-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-12) var(--space-14);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--bk-ink);
+  word-break: break-all;
+  user-select: all;
+  text-align: center;
+  line-height: 1.4;
+}
+
 /* Modal code row */
 .modal-code-row {
   display: flex;

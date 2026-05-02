@@ -95,7 +95,13 @@ data DomainEvent
   | DrawDeclined
   | UndoRequested PlayerColor
   | UndoDeclined
-  | OfferCancelled
+  | -- | Pending was cleared incidentally to a more specific event in the
+    -- same batch (game end, accept, decline).
+    OfferCancelled
+  | -- | The recipient of an offer implicitly killed it by taking another
+    -- action. Carries the offer type and offerer so consumers can
+    -- distinguish which offer was lost.
+    OfferAutoCancelled PendingActionType PlayerColor
   deriving (Show, Eq)
 
 winner :: Outcome -> Maybe PlayerColor
@@ -129,7 +135,8 @@ cancelPending ::
   (Maybe PendingAction, [DomainEvent])
 cancelPending _ Nothing = (Nothing, [])
 cancelPending byColor (Just pa)
-  | pa.offeredBy == byColor = (Nothing, [OfferCancelled])
+  | pa.offeredBy == byColor =
+      (Nothing, [OfferAutoCancelled pa.actionType pa.offeredBy])
   | otherwise = (Just pa, [])
 
 -- | Unconditionally clear a pending action, returning any domain events.

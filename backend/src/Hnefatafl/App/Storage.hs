@@ -36,6 +36,7 @@ persistEvents gameId time = traverse_ $ \case
   DrawDeclined -> deletePendingAction gameId
   UndoDeclined -> deletePendingAction gameId
   OfferCancelled -> deletePendingAction gameId
+  OfferAutoCancelled _ _ -> deletePendingAction gameId
 
 -- | Recover AppliedMoves (with zobrist hashes) from stored GameMoves
 -- by replaying the move sequence through the C engine.

@@ -82,6 +82,7 @@ recordMetrics mode = traverse_ $ \case
   UndoRequested _ -> pure ()
   UndoDeclined -> pure ()
   OfferCancelled -> pure ()
+  OfferAutoCancelled _ _ -> pure ()
 
 -- | Render an Outcome as a prometheus label value.
 outcomeLabel :: Outcome -> Text

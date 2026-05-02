@@ -731,6 +731,9 @@ export interface components {
             /** @enum {string} */
             type: "drawDeclined";
         } | {
+            /** @enum {string} */
+            type: "drawCancelled";
+        } | {
             by: components["schemas"]["PlayerColor"];
             /** @enum {string} */
             type: "undoRequested";
@@ -745,6 +748,9 @@ export interface components {
         } | {
             /** @enum {string} */
             type: "undoDeclined";
+        } | {
+            /** @enum {string} */
+            type: "undoCancelled";
         } | {
             /** @enum {string} */
             type: "opponentJoined";
@@ -785,6 +791,7 @@ export interface components {
         };
         WsError: {
             code: components["schemas"]["WsErrorCode"];
+            fatal: boolean;
             message: string;
             /** @enum {string} */
             type: "error";

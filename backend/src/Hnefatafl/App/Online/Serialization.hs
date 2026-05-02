@@ -23,7 +23,11 @@ import Hnefatafl.Core.Data (
   PlayerColor (..),
   opponent,
  )
-import Hnefatafl.Game.Common (AppliedMove (..), DomainEvent (..))
+import Hnefatafl.Game.Common (
+  AppliedMove (..),
+  DomainEvent (..),
+  PendingActionType (..),
+ )
 import Hnefatafl.Game.Online qualified as Online
 
 -- | Derive notifications from domain events. Returns (target, message) pairs.
@@ -48,6 +52,10 @@ notificationsFor actor newState = concatMap $ \case
     [(opponent actor, OnlineUndoDeclined)]
   OfferCancelled ->
     []
+  OfferAutoCancelled DrawOffer offerer ->
+    [(offerer, OnlineDrawCancelled)]
+  OfferAutoCancelled UndoRequest offerer ->
+    [(offerer, OnlineUndoCancelled)]
  where
   opponentMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields newState

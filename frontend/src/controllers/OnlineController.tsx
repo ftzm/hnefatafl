@@ -9,8 +9,6 @@ import OfferBanner, {
 } from "../components/OfferBanner";
 import { GameProvider, useGame } from "../game-context";
 
-const NOTICE_AUTO_DISMISS_MS = 4000;
-
 function opponentName(
   by: PlayerColor,
   players: { black: string; white: string } | undefined,
@@ -31,31 +29,11 @@ function OnlineController() {
   const [outgoingUndo, setOutgoingUndo] = createSignal(false);
   const [notice, setNotice] = createSignal<BannerNotice | undefined>();
 
-  // Auto-dismiss the notice after a delay, but only while no incoming offer
-  // is taking the slot. If a new notice replaces an old one, the effect
-  // re-runs and the timer resets to give the new notice its full duration.
-  let dismissTimer: ReturnType<typeof setTimeout> | undefined;
-  const clearDismissTimer = () => {
-    if (dismissTimer !== undefined) {
-      clearTimeout(dismissTimer);
-      dismissTimer = undefined;
-    }
-  };
-
-  createEffect(
-    on(
-      () => [notice(), !!incoming()] as const,
-      ([n, hasOffer]) => {
-        clearDismissTimer();
-        if (n && !hasOffer) {
-          dismissTimer = setTimeout(
-            () => setNotice(undefined),
-            NOTICE_AUTO_DISMISS_MS,
-          );
-        }
-      },
-    ),
-  );
+  // Notices persist until: the user takes a deliberate action, the user
+  // clicks the dismiss button, a new incoming offer claims the slot, or
+  // the game ends. No timer-based auto-dismiss — async play means the
+  // user often isn't watching the screen, and a faded notice is just a
+  // missed event.
 
   function clearAll(): void {
     setIncoming(undefined);
@@ -73,7 +51,6 @@ function OnlineController() {
   });
 
   onCleanup(() => {
-    clearDismissTimer();
     online.disconnect();
   });
 
@@ -138,9 +115,19 @@ function OnlineController() {
           setOutgoingDraw(false);
           pushNotice("Draw declined");
           break;
+        case "drawCancelled":
+          // Server killed our pending draw because the opponent acted
+          // (e.g. moved). Mirror the state locally; no notice — the
+          // accompanying moveMade event already tells the user what
+          // happened.
+          setOutgoingDraw(false);
+          break;
         case "undoDeclined":
           setOutgoingUndo(false);
           pushNotice("Undo declined");
+          break;
+        case "undoCancelled":
+          setOutgoingUndo(false);
           break;
         case "opponentJoined":
           pushNotice("Opponent joined");
@@ -156,26 +143,41 @@ function OnlineController() {
     }),
   );
 
+  // Any deliberate user action clears the current notice (e.g. a stale
+  // "Draw declined" should disappear once the user has moved on).
+  function dismissNotice(): void {
+    setNotice(undefined);
+  }
+
   function onMove(move: Move) {
+    dismissNotice();
+    // The server cancels any incoming offer we had when we move (the
+    // recipient's action implicitly declines). Mirror locally — the
+    // server doesn't send us a separate event for our own actions.
+    setIncoming(undefined);
     game.applyMove(move);
     online.sendMove(move);
   }
 
   function onResign() {
+    dismissNotice();
     online.resign();
   }
 
   function onDraw() {
+    dismissNotice();
     online.offerDraw();
     setOutgoingDraw(true);
   }
 
   function onUndo() {
+    dismissNotice();
     online.requestUndo();
     setOutgoingUndo(true);
   }
 
   function acceptIncoming() {
+    dismissNotice();
     const offer = incoming();
     if (!offer) return;
     if (offer.kind === "draw") online.acceptDraw();
@@ -184,6 +186,7 @@ function OnlineController() {
   }
 
   function declineIncoming() {
+    dismissNotice();
     const offer = incoming();
     if (!offer) return;
     if (offer.kind === "draw") online.declineDraw();
@@ -207,10 +210,7 @@ function OnlineController() {
           notice={notice()}
           onAccept={acceptIncoming}
           onDecline={declineIncoming}
-          onDismissNotice={() => {
-            clearDismissTimer();
-            setNotice(undefined);
-          }}
+          onDismissNotice={dismissNotice}
         />
       }
     />

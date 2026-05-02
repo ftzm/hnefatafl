@@ -72,12 +72,16 @@ function mapServerMessage(msg: OnlineServerMessage): OnlineGameEvent {
       return { type: "drawOffer", by: msg.by };
     case "drawDeclined":
       return { type: "drawDeclined" };
+    case "drawCancelled":
+      return { type: "drawCancelled" };
     case "undoRequested":
       return { type: "undoRequest", by: msg.by };
     case "undoAccepted":
       return { type: "undoAccepted", moveCount: msg.moveCount };
     case "undoDeclined":
       return { type: "undoDeclined" };
+    case "undoCancelled":
+      return { type: "undoCancelled" };
     case "opponentJoined":
       return { type: "opponentJoined" };
     case "opponentLeft":

@@ -76,6 +76,7 @@ data OnlineServerMessage
       { _by :: PlayerColor
       }
   | OnlineDrawDeclined
+  | OnlineDrawCancelled
   | OnlineUndoRequested
       { _by :: PlayerColor
       }
@@ -87,6 +88,7 @@ data OnlineServerMessage
       , _board :: ApiBoard
       }
   | OnlineUndoDeclined
+  | OnlineUndoCancelled
   | OnlineOpponentJoined
   | OnlineOpponentLeft
   deriving (Show, Eq, Generic)
