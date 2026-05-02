@@ -37,7 +37,12 @@ withSharedDB action = do
   close conn
   return result
 
--- | Run storage effects with automatic rollback for test isolation
+-- | Run storage effects with automatic rollback for test isolation.
+-- The 'IO Connection' passed to 'runStorageSQLite' would only run if a
+-- transaction threw 'ConnectionUnrecoverableException' — meaning both
+-- SP cleanup and the escalation 'ROLLBACK' failed. Tests using this
+-- helper don't exercise that path, so the value is an 'error' that
+-- fails loudly if expectations change.
 runStorageSQLiteWithRollback ::
   (IOE :> es, KatipE :> es, Concurrent :> es, Trace :> es, HMetrics :> es, Clock :> es) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
@@ -46,10 +51,16 @@ runStorageSQLiteWithRollback connectionVar action = do
   conn <- liftIO $ MVar.readMVar connectionVar
   liftIO $ execute_ conn "BEGIN TRANSACTION"
   -- Run the action
-  result <- runStorageSQLite connectionVar action
+  result <- runStorageSQLite connectionVar unusedOpenConn action
   -- Always rollback to ensure test isolation
   liftIO $ execute_ conn "ROLLBACK"
   return result
+  where
+    unusedOpenConn =
+      error
+        "runStorageSQLiteWithRollback: connection-replacement openConn \
+        \invoked unexpectedly (ConnectionUnrecoverableException raised \
+        \inside a test wrapped in BEGIN/ROLLBACK)"
 
 -- | Run storage effects in a transaction and roll back.
 -- Catches synchronous exceptions and returns them as Left.

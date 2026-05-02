@@ -140,12 +140,17 @@ runHotseatTest connVar action = do
       . runTraceNoOp
       . runMetricsNoOp
       . runClockIO
-      . runStorageSQLite connVar
+      . runStorageSQLite connVar unusedOpenConn
       . runIdGenUUIDv7
       $ action
   case result of
     Left err -> error $ toText $ "runHotseatTest: " <> err
     Right a -> pure a
+  where
+    unusedOpenConn =
+      error
+        "runHotseatTest: connection-replacement openConn invoked \
+        \unexpectedly (a transaction raised ConnectionUnrecoverableException)"
 
 -- | Run an online/AI test with Storage, Clock, IdGen, Concurrent, WebSocket,
 -- and KatipE effects. Logs are silently dropped via withNoLogEnv.
@@ -174,10 +179,15 @@ runOnlineTest connVar action = do
       . runMetricsNoOp
       . runConcurrent
       . runClockIO
-      . runStorageSQLite connVar
+      . runStorageSQLite connVar unusedOpenConn
       . runIdGenUUIDv7
       . runWebSocketIO
       $ action
   case result of
     Left err -> error $ toText $ "runOnlineTest: " <> err
     Right a -> pure a
+  where
+    unusedOpenConn =
+      error
+        "runOnlineTest: connection-replacement openConn invoked \
+        \unexpectedly (a transaction raised ConnectionUnrecoverableException)"

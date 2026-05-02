@@ -10,6 +10,7 @@ module Hnefatafl.Exception (
   DataIntegrityException (..),
   DatabaseException (..),
   GameInvariantException (..),
+  ConnectionUnrecoverableException (..),
 
   -- * Logging
   logCaughtException,
@@ -129,6 +130,35 @@ instance IsDomainException DatabaseException where
     [("operation", operation), ("entity", dbEntity)]
       <> maybe [] (\i -> [("id", i)]) dbEntityId
       <> [("cause", toText (displayException cause))]
+
+-- | Signals that a transaction's cleanup *and* its escalation 'ROLLBACK'
+-- both failed, so the connection's transaction state cannot be returned
+-- to a known-good shape from inside the transaction interpreter. The
+-- enclosing layer (which owns the connection's lifecycle) catches this
+-- specifically and replaces the connection. Other exceptions leave the
+-- connection in place.
+data ConnectionUnrecoverableException = ConnectionUnrecoverableException
+  { cause :: SomeException
+  }
+
+instance Show ConnectionUnrecoverableException where
+  showsPrec _ (ConnectionUnrecoverableException c) =
+    showString "ConnectionUnrecoverableException {cause = "
+      . showsPrec 0 c
+      . showString "}"
+
+instance Exception ConnectionUnrecoverableException where
+  toException = toException . DomainException
+  fromException se = do
+    DomainException e <- fromException se
+    cast e
+  displayException (ConnectionUnrecoverableException c) =
+    "Database connection unrecoverable: " <> displayException c
+
+instance IsDomainException ConnectionUnrecoverableException where
+  domainErrorLabel _ = "connection_unrecoverable"
+  domainContext (ConnectionUnrecoverableException c) =
+    [("cause", toText (displayException c))]
 
 -------------------------------------------------------------------------------
 -- Game invariant exceptions

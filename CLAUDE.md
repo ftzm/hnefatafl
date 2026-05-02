@@ -58,6 +58,24 @@ python analysis/fit_pst.py stats <db>          # game statistics
 python analysis/fit_pst.py fit <db> --plot      # fit PSTs, generate heatmaps
 ```
 
+## Comment Style
+
+Comments describe what the code **is** and **why it works that way**, in
+present tense. They do not narrate development history, ongoing fixes, or what
+changed. A reader looking at the file in isolation should not need to know any
+prior state of the code or the conversation that produced it.
+
+Avoid:
+- "This fix addresses…"
+- "The original code did X…"
+- "We changed this to…"
+- "On the error path we must…" (running commentary)
+
+Prefer:
+- "X does Y because Z." (state + rationale)
+- "Both must run for the SP to be popped." (contract / invariant)
+- "Failure here means the connection state is unknown." (consequence)
+
 ## Testing Requirements
 
 All tests must pass before work is considered complete. Run the full suite:

@@ -276,7 +276,8 @@ withStandardEffects ::
   IO (Either String a)
 withStandardEffects dbPathOpt eff = do
   let dbPath = fromMaybe "db.db" dbPathOpt
-  conn <- open (toString dbPath)
+      openConn = open (toString dbPath)
+  conn <- openConn
   connectionVar <- newMVar conn
   result <-
     tryAny $
@@ -289,7 +290,7 @@ withStandardEffects dbPathOpt eff = do
           . runTraceNoOp
           . runMetricsNoOp
           . runClockIO
-          . runStorageSQLite connectionVar
+          . runStorageSQLite connectionVar openConn
           . runIdGenUUIDv7
           $ eff
   close conn

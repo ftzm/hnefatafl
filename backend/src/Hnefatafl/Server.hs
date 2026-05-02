@@ -48,7 +48,8 @@ import StmContainers.Map qualified as STMMap
 runServer :: Int -> Severity -> IO ()
 runServer port logLevel = runResourceT $ do
   liftIO $ setBacktraceMechanismState IPEBacktrace True
-  (_, conn) <- allocate (open "db.db") close
+  let openConn = open "db.db"
+  (_, conn) <- allocate openConn close
   (_, logEnv) <- allocate (mkJsonLogEnv "hnefatafl" logLevel) closeLogEnv
   (_, provider) <-
     allocate initializeGlobalTracerProvider shutdownTracerProvider
@@ -69,7 +70,7 @@ runServer port logLevel = runResourceT $ do
       . runTraceOTel tracer
       . runMetricsNoOp
       . runClockIO
-      . runStorageSQLite connectionVar
+                . runStorageSQLite connectionVar openConn
       . runIdGenUUIDv7
       . runSearchLocal qsem
       . runWebSocketIO

@@ -2,23 +2,28 @@
 
 module Hnefatafl.Interpreter.Storage.SQLite (
   runStorageSQLite,
+  withConnectionRecovery,
 ) where
 
 import Chronos (now)
 import Data.Unique (hashUnique, newUnique)
-import Database.SQLite.Simple (Connection, Query (..), execute_)
+import Database.SQLite.Simple (Connection, Query (..), close, execute_)
 import Effectful
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Dispatch.Dynamic
-import Effectful.Exception (catchSync, onException, throwIO)
+import Effectful.Exception (catchSync, throwIO, try)
 import Hnefatafl.Core.Data
 import Hnefatafl.Effect.Storage
 import Chronos (getTimespan)
 import Hnefatafl.Effect.Clock (Clock, stopwatch)
 import Hnefatafl.Metrics (HMetrics, Hs (..), observe)
 import Hnefatafl.Effect.Trace (Trace, addSpanAttribute, inSpan)
-import Hnefatafl.Exception (DatabaseException (..), DomainException)
+import Hnefatafl.Exception (
+  ConnectionUnrecoverableException (..),
+  DatabaseException (..),
+  DomainException,
+ )
 import Hnefatafl.Interpreter.Storage.SQLite.Game (
   createGame,
   deleteGameById,
@@ -37,6 +42,17 @@ import Hnefatafl.Interpreter.Storage.SQLite.Util
 --------------------------------------------------------------------------------
 -- SQLite effect implementation
 
+-- | Run a 'StorageTx' inside a SAVEPOINT and return its result.
+--
+-- On any exception from the action or from the closing RELEASE, the SP
+-- is removed by @ROLLBACK TO sp; RELEASE sp@ and the original exception
+-- propagates. If that local cleanup itself fails, a plain @ROLLBACK@
+-- ends the entire transaction stack — including any outer transaction
+-- the caller may have open — and the original exception still
+-- propagates. If even that escalation @ROLLBACK@ fails, throws
+-- 'ConnectionUnrecoverableException' wrapping the original cause: the
+-- connection's transaction state is then unknown and the caller must
+-- replace the connection before reusing it.
 withSavepoint ::
   (IOE :> es, Trace :> es) =>
   Connection -> StorageTx a -> Eff es a
@@ -53,20 +69,78 @@ withSavepoint conn txAction = do
         wrap "Rollback" . liftIO . execute_ conn $ Query $ "ROLLBACK TO " <> sp
       release =
         wrap "Release" . liftIO . execute_ conn $ Query $ "RELEASE " <> sp
+      -- Plain ROLLBACK ends every transaction on this connection,
+      -- including any outer transaction the caller may have opened.
+      -- The recovery of last resort when the SP can't be popped
+      -- locally via ROLLBACK TO + RELEASE.
+      escalate =
+        wrap "Escalate" . liftIO . execute_ conn $ Query "ROLLBACK"
   savepoint
-  result <- interpretTx conn txAction `onException` rollback
-  release
-  pure result
+  -- The action and the closing RELEASE share one recovery handler: a
+  -- failed RELEASE leaves the SP on the stack with uncommitted writes,
+  -- the same shape as a mid-action failure, and needs the same cleanup.
+  ( do
+      v <- interpretTx conn txAction
+      release
+      pure v
+    )
+    `catchSync` \(originalEx :: SomeException) -> do
+      -- ROLLBACK TO undoes the SP's writes; RELEASE pops it from the
+      -- stack. Both must succeed for the SP to be gone.
+      cleanupOk <-
+        ( rollback >> release >> pure True
+          )
+          `catchSync` \(_ :: SomeException) -> pure False
+      if cleanupOk
+        then throwIO originalEx
+        else do
+          escalateOk <-
+            ( escalate >> pure True
+              )
+              `catchSync` \(_ :: SomeException) -> pure False
+          if escalateOk
+            then throwIO originalEx
+            else
+              throwIO . ConnectionUnrecoverableException $
+                toException originalEx
+
+-- | Run a connection-using action under an 'MVar' connection. If the
+-- action throws 'ConnectionUnrecoverableException', the current
+-- connection is closed (best-effort) and replaced by one obtained from
+-- @openConn@ before the exception is rethrown — the next caller then
+-- observes a fresh connection in autocommit mode. Any other exception
+-- propagates without touching the connection.
+withConnectionRecovery ::
+  (Concurrent :> es, IOE :> es) =>
+  MVar Connection ->
+  IO Connection ->
+  (Connection -> Eff es a) ->
+  Eff es a
+withConnectionRecovery connVar openConn action = do
+  outcome <- MVar.modifyMVar connVar $ \conn -> do
+    res <- try (action conn)
+    case res of
+      Right v -> pure (conn, Right v)
+      Left (e :: SomeException) ->
+        case fromException @ConnectionUnrecoverableException e of
+          Nothing -> pure (conn, Left e)
+          Just _ -> do
+            _ <- try @SomeException (liftIO (close conn))
+            newConn <- liftIO openConn
+            pure (newConn, Left e)
+  case outcome of
+    Right v -> pure v
+    Left e -> throwIO e
 
 runStorageSQLite ::
   (IOE :> es, Concurrent :> es, Trace :> es, HMetrics :> es, Clock :> es) =>
-  MVar Connection -> Eff (Storage : es) a -> Eff es a
-runStorageSQLite connectionVar = interpret $ \_ -> \case
+  MVar Connection -> IO Connection -> Eff (Storage : es) a -> Eff es a
+runStorageSQLite connectionVar openConn = interpret $ \_ -> \case
   RunTransaction txAction ->
     inSpan "db.transaction" $ do
       (elapsed, result) <-
         stopwatch $
-          MVar.withMVar connectionVar $
+          withConnectionRecovery connectionVar openConn $
             \conn -> withSavepoint conn txAction
       let durationSec = fromIntegral (getTimespan elapsed) / 1_000_000_000
       observe dbTransaction durationSec
