@@ -2,7 +2,6 @@ import {
   type Accessor,
   createContext,
   createMemo,
-  createSignal,
   type ParentComponent,
   useContext,
 } from "solid-js";
@@ -12,9 +11,11 @@ import {
   type BoardRep,
   cloneBoardRep,
   computeBoardAtMove,
+  computePiecesAtCursor,
   type GameOverState,
   type Move,
   type MovesMap,
+  type Piece,
   type PlayerColor,
   startBoard,
 } from "./board-logic";
@@ -34,19 +35,16 @@ export interface GameState {
   loading: boolean;
 }
 
-export interface PendingAnimation {
-  from: number;
-  to: number;
-  captures?: number[];
-  restores?: number[];
-  applyState?: () => void;
-}
-
 interface GameContextValue {
   store: { game: GameState };
   capturedPieces: Accessor<{ black: number; white: number }>;
-  pendingAnimation: Accessor<PendingAnimation | null>;
-  setPendingAnimation: (anim: PendingAnimation | null) => void;
+  /**
+   * Pieces visible at the current view cursor, as entities with stable ids.
+   * The renderer keys on `id`, so the same DOM node represents a piece across
+   * moves and history navigation — animation falls out of CSS transitions on
+   * the slot's `transform`.
+   */
+  pieces: Accessor<Piece[]>;
   canViewPrev: Accessor<boolean>;
   canViewNext: Accessor<boolean>;
   movesDisabled: Accessor<boolean>;
@@ -131,9 +129,6 @@ export const GameProvider: ParentComponent = (props) => {
 
   const navigationLock = new AsyncLock();
 
-  const [pendingAnimation, setPendingAnimation] =
-    createSignal<PendingAnimation | null>(null);
-
   const canViewPrev = createMemo(
     () => store.game.historyCursor < store.game.moveHistory.length,
   );
@@ -152,6 +147,9 @@ export const GameProvider: ParentComponent = (props) => {
   });
   const capturedPieces = createMemo(() =>
     computeCapturesAtCursor(store.game.moveHistory, store.game.historyCursor),
+  );
+  const pieces = createMemo(() =>
+    computePiecesAtCursor(store.game.moveHistory, store.game.historyCursor),
   );
 
   function applyMove(move: Move): void {
@@ -175,18 +173,12 @@ export const GameProvider: ParentComponent = (props) => {
     currentPlayer: PlayerColor;
     moves: MovesMap;
   }): void {
-    const move = event.move;
     setStore("game", {
-      moveHistory: [...store.game.moveHistory, move],
+      moveHistory: [...store.game.moveHistory, event.move],
       historyCursor: 0,
       currentPlayer: event.currentPlayer,
       boardRep: event.boardRep,
       moves: event.moves,
-    });
-    setPendingAnimation({
-      from: move.from,
-      to: move.to,
-      captures: move.captures || [],
     });
   }
 
@@ -230,22 +222,16 @@ export const GameProvider: ParentComponent = (props) => {
     setStore("game", { ...initialGameState(), ...config, loading: false });
   }
 
+  // History navigation is just state mutation. Animation is a *consequence*
+  // of state changing (CSS transitions on piece slots in `Board.tsx`), not
+  // something this layer orchestrates. Keep these symmetrical and dumb.
   async function viewPrev(): Promise<void> {
     return navigationLock.withLock(async () => {
       if (store.game.historyCursor >= store.game.moveHistory.length) return;
       const newCursor = store.game.historyCursor + 1;
-      const moveIndex =
-        store.game.moveHistory.length - store.game.historyCursor - 1;
-      const move = store.game.moveHistory[moveIndex];
-      const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
       setStore("game", {
         historyCursor: newCursor,
-        boardRep: newBoard,
-      });
-      setPendingAnimation({
-        from: move.to,
-        to: move.from,
-        restores: move.captures || [],
+        boardRep: boardAtCursor(store.game.moveHistory, newCursor),
       });
     });
   }
@@ -254,19 +240,9 @@ export const GameProvider: ParentComponent = (props) => {
     return navigationLock.withLock(async () => {
       if (store.game.historyCursor <= 0) return;
       const newCursor = store.game.historyCursor - 1;
-      const moveIndex = store.game.moveHistory.length - newCursor - 1;
-      const move = store.game.moveHistory[moveIndex];
-      const newBoard = boardAtCursor(store.game.moveHistory, newCursor);
-      setPendingAnimation({
-        from: move.from,
-        to: move.to,
-        captures: move.captures || [],
-        applyState: () => {
-          setStore("game", {
-            historyCursor: newCursor,
-            boardRep: newBoard,
-          });
-        },
+      setStore("game", {
+        historyCursor: newCursor,
+        boardRep: boardAtCursor(store.game.moveHistory, newCursor),
       });
     });
   }
@@ -307,8 +283,7 @@ export const GameProvider: ParentComponent = (props) => {
   const value: GameContextValue = {
     store,
     capturedPieces,
-    pendingAnimation,
-    setPendingAnimation,
+    pieces,
     canViewPrev,
     canViewNext,
     movesDisabled,

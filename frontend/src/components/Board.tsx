@@ -5,8 +5,15 @@ import {
   For,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js";
-import { type Move, startBoard } from "../board-logic";
+import { createStore, produce } from "solid-js/store";
+import {
+  type Move,
+  type Piece,
+  type PieceKind,
+  startBoard,
+} from "../board-logic";
 import { useGame } from "../game-context";
 
 const corners = new Set([0, 10, 110, 120]);
@@ -16,6 +23,16 @@ const markedSquares = new Set([
   ...startBoard.white,
   center,
 ]);
+
+// How long captured pieces linger in the DOM playing their exit animation.
+// Keep in sync with the longest transition on `.piece-slot.exiting .piece`
+// in `styles.css` (currently `transform 0.4s`).
+const EXIT_DURATION_MS = 400;
+
+// How long the `.entering` class lingers on a restored piece while its
+// fade-in animation plays. Keep in sync with the `piece-restore` keyframe
+// duration in `styles.css`.
+const ENTER_DURATION_MS = 300;
 
 function getArrowPoints(from: number, to: number): string {
   const dx = (to % 11) - (from % 11);
@@ -27,12 +44,34 @@ function getArrowPoints(from: number, to: number): string {
 }
 
 interface DragState {
-  pieceIndex: number;
-  originalPiece: HTMLElement;
+  pieceId: string;
+  fromSquare: number;
+  slotEl: HTMLElement;
+  pieceEl: HTMLElement;
   width: number;
   height: number;
   hasMoved: boolean;
   pointerId: number;
+}
+
+/**
+ * A piece as held by the renderer. Mirrors `Piece` from the game model but
+ * adds animation flags:
+ *
+ *   `exiting`  — keep the piece in the DOM long enough to play its capture
+ *                animation before we remove it.
+ *   `entering` — the piece just appeared as a *restoration* (the user
+ *                navigated backward past a capture move), so the renderer
+ *                should play the fade-in/uncapture animation on it. Cleared
+ *                after the animation finishes; not set on initial population
+ *                or any other reason a piece can appear.
+ */
+interface SlotPiece {
+  id: string;
+  kind: PieceKind;
+  square: number;
+  exiting: boolean;
+  entering: boolean;
 }
 
 interface BoardProps {
@@ -41,16 +80,119 @@ interface BoardProps {
 
 export default function Board(props: BoardProps) {
   const game = useGame();
-  const {
-    store,
-    pendingAnimation,
-    setPendingAnimation,
-    movesDisabled,
-    lastMove,
-  } = game;
+  const { store, movesDisabled, lastMove } = game;
   const [showingMovesFrom, setShowingMovesFrom] = createSignal<number | null>(
     null,
   );
+
+  // === Slot state (renderer-owned) ============================================
+  //
+  // `game.pieces()` is a pure derived view of the game model — every call
+  // produces a *new* array of *new* objects. Solid's `<For>` keys by reference
+  // by default, so feeding it that array directly would tear down and rebuild
+  // every piece DOM node on every move, defeating CSS transitions.
+  //
+  // We instead maintain our own `slots` store: a stable array of mutable
+  // entries keyed by piece id. The reconciliation effect below mutates entries
+  // in place when the game model changes, which is what `<For>` needs to reuse
+  // DOM nodes (so the *same* `.piece-slot` element transitions its transform
+  // when its piece's square changes).
+  //
+  // The `exiting` flag lets us keep a piece in the DOM after the model says
+  // it's gone, so its capture animation can play out. A timer cleans it up.
+  const [slots, setSlots] = createStore<SlotPiece[]>([]);
+  const slotRefs = new Map<string, HTMLElement>();
+
+  // Tracks the previous reconciliation's cursor + history length so we can
+  // tell, when a piece appears in `target`, *why* it appeared:
+  //   - cursor went up while history length was unchanged → backward nav
+  //     (the only case where we play the restore-fade animation)
+  //   - any other delta → initial population, applyMove, undoLastMove,
+  //     initGame, etc. — none of which should animate appearances.
+  let prevCursor = store.game.historyCursor;
+  let prevHistoryLen = store.game.moveHistory.length;
+
+  /** Clear `entering` after the restore animation has finished playing. */
+  const scheduleClearEntering = (id: string) => {
+    setTimeout(() => {
+      setSlots(
+        produce((arr) => {
+          const j = arr.findIndex((x) => x.id === id);
+          if (j !== -1) arr[j].entering = false;
+        }),
+      );
+    }, ENTER_DURATION_MS);
+  };
+
+  createEffect(() => {
+    const target = game.pieces();
+    const cursor = store.game.historyCursor;
+    const historyLen = store.game.moveHistory.length;
+    const isBackwardNav = cursor > prevCursor && historyLen === prevHistoryLen;
+    prevCursor = cursor;
+    prevHistoryLen = historyLen;
+
+    // All store mutations below are deliberately *not* reactive reads of
+    // `slots` — we'd self-trigger if they were. `untrack` makes that explicit.
+    untrack(() => {
+      const targetIds = new Set(target.map((p) => p.id));
+
+      // 1. Update existing slots / append brand-new ones.
+      //    Doing this before the exit-marking pass keeps array indices stable
+      //    for the index-based `setSlots(i, ...)` writes here.
+      for (const t of target) {
+        const idx = slots.findIndex((s) => s.id === t.id);
+        if (idx === -1) {
+          // Piece is appearing. Mark `entering` only when this appearance is
+          // a restoration (backward navigation past a capture).
+          const entering = isBackwardNav;
+          setSlots(
+            produce((arr) => {
+              arr.push({ ...t, exiting: false, entering });
+            }),
+          );
+          if (entering) scheduleClearEntering(t.id);
+        } else {
+          if (slots[idx].square !== t.square) {
+            setSlots(idx, "square", t.square);
+          }
+          // A piece can come "back" while still mid-exit if the user
+          // navigates backward through history during the exit animation
+          // window. Cancel the exit and play the restore-fade if it's a
+          // backward nav.
+          if (slots[idx].exiting) {
+            setSlots(idx, "exiting", false);
+            if (isBackwardNav) {
+              setSlots(idx, "entering", true);
+              scheduleClearEntering(slots[idx].id);
+            }
+          }
+        }
+      }
+
+      // 2. Mark slots whose pieces have left the model as exiting, and
+      //    schedule their removal once the animation finishes.
+      for (let i = 0; i < slots.length; i++) {
+        const s = slots[i];
+        if (!targetIds.has(s.id) && !s.exiting) {
+          setSlots(i, "exiting", true);
+          const id = s.id;
+          setTimeout(() => {
+            setSlots(
+              produce((arr) => {
+                const j = arr.findIndex((x) => x.id === id);
+                // The slot may have been resurrected (exit cancelled) before
+                // the timer fired — only remove if it is *still* exiting.
+                if (j !== -1 && arr[j].exiting) arr.splice(j, 1);
+              }),
+            );
+          }, EXIT_DURATION_MS);
+        }
+      }
+    });
+  });
+
+  // === Drag/drop ============================================================
 
   let drag: DragState | null = null;
   let dragClone: HTMLElement | null = null;
@@ -60,170 +202,53 @@ export default function Board(props: BoardProps) {
   let wrapperRef: HTMLDivElement | undefined;
   const squareRefs: Array<HTMLDivElement | undefined> = [];
 
-  createEffect(() => {
-    const anim = pendingAnimation();
-    if (!anim) return;
-    setPendingAnimation(null);
-
-    const captureClones: HTMLElement[] = [];
-    if (anim.captures && anim.captures.length > 0) {
-      for (const capIdx of anim.captures) {
-        const sq = squareRefs[capIdx];
-        const pieceEl = sq?.querySelector(".piece") as HTMLElement | null;
-        if (pieceEl) {
-          const rect = pieceEl.getBoundingClientRect();
-          const clone = pieceEl.cloneNode(true) as HTMLElement;
-          clone.style.position = "fixed";
-          clone.style.left = `${rect.left}px`;
-          clone.style.top = `${rect.top}px`;
-          clone.style.width = `${rect.width}px`;
-          clone.style.height = `${rect.height}px`;
-          clone.style.zIndex = "999";
-          clone.style.pointerEvents = "none";
-          document.body.appendChild(clone);
-          captureClones.push(clone);
-        }
-      }
-    }
-
-    const fromRect = squareRefs[anim.from]?.getBoundingClientRect();
-
-    if (anim.applyState) anim.applyState();
-
-    const toRect = squareRefs[anim.to]?.getBoundingClientRect();
-    if (fromRect && toRect) {
-      const pieceEl = squareRefs[anim.to]?.querySelector(
-        ".piece",
-      ) as HTMLElement | null;
-      if (pieceEl) {
-        const dx = fromRect.left - toRect.left;
-        const dy = fromRect.top - toRect.top;
-        pieceEl.animate(
-          [
-            { transform: `translate(${dx}px, ${dy}px)` },
-            { transform: "translate(0, 0)" },
-          ],
-          { duration: 200, easing: "ease" },
-        );
-      }
-    }
-
-    for (const clone of captureClones) {
-      clone.addEventListener("transitionend", () => clone.remove(), {
-        once: true,
-      });
-      clone.offsetHeight;
-      clone.classList.add("capture");
-    }
-
-    if (anim.restores && anim.restores.length > 0) {
-      for (const idx of anim.restores) {
-        const pieceEl = squareRefs[idx]?.querySelector(
-          ".piece",
-        ) as HTMLElement | null;
-        if (pieceEl) {
-          pieceEl.animate(
-            [
-              {
-                boxShadow: "inset 0 0 0 50px var(--color-capture)",
-                opacity: 0,
-                transform: "scale(0.85)",
-              },
-              {
-                boxShadow: "inset 0 0 0 0px transparent",
-                opacity: 1,
-                transform: "scale(1)",
-              },
-            ],
-            { duration: 300, easing: "ease" },
-          );
-        }
-      }
-    }
-  });
-
   const highlightedSquares = createMemo(() => {
     const origin = showingMovesFrom();
     if (origin === null || movesDisabled()) return new Set<number>();
     const movesData = store.game.moves[origin];
     if (!movesData) return new Set<number>();
     const destinations = new Set<number>();
-    movesData.forEach((move) => {
-      destinations.add(move.to);
-    });
+    for (const move of movesData) destinations.add(move.to);
     return destinations;
   });
 
-  const getPieceAt = (index: number): "black" | "white" | "king" | null => {
-    if (store.game.boardRep.black.has(index)) return "black";
-    if (store.game.boardRep.white.has(index)) return "white";
-    if (store.game.boardRep.king === index) return "king";
-    return null;
-  };
+  /** Find the live (non-exiting) piece occupying the given square, if any. */
+  const livePieceAt = (square: number): SlotPiece | undefined =>
+    slots.find((s) => !s.exiting && s.square === square);
 
   const getCaptures = (origin: number, destination: number): number[] => {
     const movesData = store.game.moves[origin];
     if (!movesData) return [];
     const move = movesData.find((m) => m.to === destination);
-    if (!move) return [];
-    return move.captures;
+    return move ? move.captures : [];
   };
 
-  const executeMove = (move: Move, { animate = true } = {}) => {
-    const captureClones: HTMLElement[] = [];
-    const fromRect = animate
-      ? squareRefs[move.from]?.getBoundingClientRect()
-      : null;
-
-    if (move.captures && move.captures.length > 0) {
-      for (const capIdx of move.captures) {
-        const sq = squareRefs[capIdx];
-        const pieceEl = sq?.querySelector(".piece") as HTMLElement | null;
-        if (pieceEl) {
-          const rect = pieceEl.getBoundingClientRect();
-          const clone = pieceEl.cloneNode(true) as HTMLElement;
-          clone.style.position = "fixed";
-          clone.style.left = `${rect.left}px`;
-          clone.style.top = `${rect.top}px`;
-          clone.style.width = `${rect.width}px`;
-          clone.style.height = `${rect.height}px`;
-          clone.style.zIndex = "999";
-          clone.style.pointerEvents = "none";
-          document.body.appendChild(clone);
-          captureClones.push(clone);
-        }
-      }
-    }
-
+  /**
+   * Apply a move from a click. The state mutation triggers the reconciliation
+   * effect, which updates the moving piece's `square`. The CSS transition on
+   * `.piece-slot` then animates from old to new position automatically.
+   * Captures vanish via the `exiting` flag + keyframe.
+   */
+  const applyClickMove = (move: Move) => {
+    setShowingMovesFrom(null);
     props.onMove(move);
+  };
 
-    if (animate) {
-      const toRect = squareRefs[move.to]?.getBoundingClientRect();
-      if (fromRect && toRect) {
-        const pieceEl = squareRefs[move.to]?.querySelector(
-          ".piece",
-        ) as HTMLElement | null;
-        if (pieceEl) {
-          const dx = fromRect.left - toRect.left;
-          const dy = fromRect.top - toRect.top;
-          pieceEl.animate(
-            [
-              { transform: `translate(${dx}px, ${dy}px)` },
-              { transform: "translate(0, 0)" },
-            ],
-            { duration: 300, easing: "ease" },
-          );
-        }
-      }
-    }
-
-    for (const clone of captureClones) {
-      clone.addEventListener("transitionend", () => clone.remove(), {
-        once: true,
-      });
-      clone.offsetHeight;
-      clone.classList.add("capture");
-    }
+  /**
+   * Apply a move from a drag-drop. Same as a click move, except we want the
+   * slot to *teleport* to its destination (the user has already visually
+   * dragged it there with the clone) instead of sliding 200ms across the
+   * board. We do that by suppressing the slot's transition for one frame.
+   */
+  const applyDragDropMove = (move: Move, slotEl: HTMLElement) => {
+    // Suppress the upcoming transform change driven by the model update.
+    slotEl.style.transition = "none";
+    setShowingMovesFrom(null);
+    props.onMove(move);
+    // Force the browser to apply the new transform with no transition…
+    void slotEl.offsetHeight;
+    // …then hand control back to the CSS rule for future moves.
+    slotEl.style.transition = "";
   };
 
   const handleSquareClick = (index: number) => {
@@ -233,14 +258,15 @@ export default function Board(props: BoardProps) {
     if (highlighted.has(index)) {
       const origin = showingMovesFrom();
       if (origin === null) return;
-      const captures = getCaptures(origin, index);
-      const move: Move = { from: origin, to: index, captures };
-      setShowingMovesFrom(null);
-      executeMove(move);
+      applyClickMove({
+        from: origin,
+        to: index,
+        captures: getCaptures(origin, index),
+      });
       return;
     }
 
-    const piece = getPieceAt(index);
+    const piece = livePieceAt(index);
     if (piece && store.game.moves[index] && !movesDisabled()) {
       if (selectedOnDown) {
         selectedOnDown = false;
@@ -255,15 +281,14 @@ export default function Board(props: BoardProps) {
   };
 
   const handlePointerDown = (index: number, e: PointerEvent) => {
-    const piece = getPieceAt(index);
+    const piece = livePieceAt(index);
     if (!piece || movesDisabled()) return;
     if (!store.game.moves[index]) return;
 
-    const squareEl = squareRefs[index];
-    if (!squareEl) return;
-    const pieceEl = squareEl.querySelector(".piece") as HTMLElement | null;
+    const slotEl = slotRefs.get(piece.id);
+    if (!slotEl) return;
+    const pieceEl = slotEl.querySelector(".piece") as HTMLElement | null;
     if (!pieceEl) return;
-
     const rect = pieceEl.getBoundingClientRect();
 
     if (showingMovesFrom() !== index) {
@@ -272,8 +297,10 @@ export default function Board(props: BoardProps) {
     }
 
     drag = {
-      pieceIndex: index,
-      originalPiece: pieceEl,
+      pieceId: piece.id,
+      fromSquare: index,
+      slotEl,
+      pieceEl,
       width: rect.width,
       height: rect.height,
       hasMoved: false,
@@ -288,9 +315,13 @@ export default function Board(props: BoardProps) {
     if (!drag.hasMoved) {
       drag.hasMoved = true;
       boardRef?.setPointerCapture(drag.pointerId);
-      drag.originalPiece.style.visibility = "hidden";
+      // Hide the live piece while a clone follows the cursor. The clone is
+      // the "drag avatar" — a position:fixed copy mutated imperatively per
+      // pointermove, deliberately bypassing Solid's reactive system to avoid
+      // re-rendering the board on every mouse delta.
+      drag.pieceEl.style.visibility = "hidden";
 
-      dragClone = drag.originalPiece.cloneNode(true) as HTMLElement;
+      dragClone = drag.pieceEl.cloneNode(true) as HTMLElement;
       dragClone.style.position = "fixed";
       dragClone.style.left = "0";
       dragClone.style.top = "0";
@@ -304,7 +335,7 @@ export default function Board(props: BoardProps) {
       document.body.appendChild(dragClone);
 
       document.body.classList.add("dragging-piece");
-      setShowingMovesFrom(drag.pieceIndex);
+      setShowingMovesFrom(drag.fromSquare);
     }
 
     const x = e.clientX - drag.width / 2;
@@ -319,8 +350,8 @@ export default function Board(props: BoardProps) {
       dragClone.remove();
       dragClone = null;
     }
-    if (drag?.originalPiece) {
-      drag.originalPiece.style.visibility = "";
+    if (drag?.pieceEl) {
+      drag.pieceEl.style.visibility = "";
     }
     if (drag?.hasMoved) {
       boardRef?.releasePointerCapture(drag.pointerId);
@@ -333,20 +364,22 @@ export default function Board(props: BoardProps) {
     e.preventDefault();
 
     const wasDragging = drag.hasMoved;
+    const fromSquare = drag.fromSquare;
+    const slotEl = drag.slotEl;
     cleanupDrag();
 
     if (wasDragging) {
       const targetSquare = getSquareUnderMouse(e);
       if (targetSquare !== null && highlightedSquares().has(targetSquare)) {
-        const captures = getCaptures(drag?.pieceIndex, targetSquare);
-        const move: Move = {
-          from: drag?.pieceIndex,
-          to: targetSquare,
-          captures,
-        };
-        setShowingMovesFrom(null);
+        applyDragDropMove(
+          {
+            from: fromSquare,
+            to: targetSquare,
+            captures: getCaptures(fromSquare, targetSquare),
+          },
+          slotEl,
+        );
         drag = null;
-        executeMove(move, { animate: false });
         return;
       }
       setShowingMovesFrom(null);
@@ -372,19 +405,48 @@ export default function Board(props: BoardProps) {
     return null;
   };
 
-  const updateLineWidth = () => {
-    if (boardRef) {
-      const size = boardRef.offsetWidth;
-      const lineW = Math.max(1, Math.round(size / 11 / 70));
-      boardRef.parentElement?.style.setProperty("--line-w", `${lineW}px`);
-    }
+  /**
+   * Update the two CSS variables that the board geometry depends on:
+   *   --line-w     pixel width of grid lines (visual)
+   *   --cell-size  pixel side-length of one cell (positioning math)
+   *
+   * Piece slots are absolutely positioned relative to the .board's *padding
+   * edge* (inside its border), so we measure the inner width with
+   * `clientWidth`, not `offsetWidth`. `offsetWidth` would include the border
+   * and produce a cell-size that's slightly too large, drifting pieces
+   * down-and-right by `border × col` / `border × row`.
+   *
+   * `--line-w` is still derived from `offsetWidth` because that ratio is just
+   * a scale factor (~1px per 70px of board) and doesn't affect positioning.
+   */
+  /**
+   * Resize causes `--cell-size` to change, which changes every piece slot's
+   * resolved `transform`. Without intervention the `transition: transform`
+   * on `.piece-slot` would happily animate that change too — so every piece
+   * would visibly slide whenever the user resized the window or rotated
+   * their phone. We add `.resizing` while updating the vars, which
+   * suppresses the slot transition for that frame, then drop it on the
+   * next animation frame.
+   */
+  const updateLayoutVars = () => {
+    if (!boardRef) return;
+    const lineW = Math.max(1, Math.round(boardRef.offsetWidth / 11 / 70));
+    boardRef.classList.add("resizing");
+    boardRef.parentElement?.style.setProperty("--line-w", `${lineW}px`);
+    boardRef.style.setProperty("--cell-size", `${boardRef.clientWidth / 11}px`);
+    // Force the browser to commit the new computed transform with the
+    // transition disabled before we hand control back.
+    void boardRef.offsetHeight;
+    requestAnimationFrame(() => {
+      boardRef?.classList.remove("resizing");
+    });
   };
 
   onMount(() => {
     boardRef?.addEventListener("pointermove", handlePointerMove);
     boardRef?.addEventListener("pointerup", handlePointerUp);
-    updateLineWidth();
-    const ro = new ResizeObserver(() => updateLineWidth());
+    updateLayoutVars();
+    const ro = new ResizeObserver(() => updateLayoutVars());
     if (boardRef) ro.observe(boardRef);
     onCleanup(() => {
       boardRef?.removeEventListener("pointermove", handlePointerMove);
@@ -396,15 +458,16 @@ export default function Board(props: BoardProps) {
   return (
     <div class="board-wrapper" ref={wrapperRef}>
       <div class="board" ref={boardRef}>
+        {/* === Squares: grid cells, decorations, highlights, last-move arrow.
+            Pieces are *not* children of squares — they live in the sibling
+            <For each={slots}> below, absolutely positioned over the grid. */}
         <For each={Array.from({ length: 121 }, (_, i) => i)}>
           {(index) => {
-            const piece = () => getPieceAt(index);
             const isValidMove = () => highlightedSquares().has(index);
             const isLastMoveFrom = () => {
               const lm = lastMove();
               return lm && lm.from === index;
             };
-            const isSelected = () => showingMovesFrom() === index && piece();
 
             const squareClass = () => {
               let cls = "square";
@@ -416,19 +479,13 @@ export default function Board(props: BoardProps) {
               return cls;
             };
 
-            const pieceClass = () => {
-              const p = piece();
-              if (!p) return "";
-              let cls = `piece ${p}`;
-              if (isSelected()) cls += " selected";
-              return cls;
-            };
-
             return (
               <div
                 class={squareClass()}
                 data-index={index}
-                ref={(el) => (squareRefs[index] = el)}
+                ref={(el) => {
+                  squareRefs[index] = el;
+                }}
                 onClick={() => handleSquareClick(index)}
                 on:pointerdown={(e) => handlePointerDown(index, e)}
               >
@@ -534,37 +591,76 @@ export default function Board(props: BoardProps) {
                     );
                   })()}
                 </div>
-                {piece() && (
-                  <div class={pieceClass()}>
-                    {piece() === "king" && (
-                      <svg viewBox="0 0 100 100">
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="36.9"
-                          fill="none"
-                          stroke="rgba(0,0,0,0.55)"
-                          stroke-width="2"
-                        />
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="23.8"
-                          fill="none"
-                          stroke="rgba(0,0,0,0.55)"
-                          stroke-width="2"
-                        />
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="10.6"
-                          fill="rgba(0,0,0,0.55)"
-                          stroke="none"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                )}
+              </div>
+            );
+          }}
+        </For>
+
+        {/* === Pieces: a flat keyed list, each absolutely positioned within
+            the board via CSS transforms driven by --col / --row. Movement
+            animation is the CSS `transition: transform` on .piece-slot,
+            applied automatically when those vars change. Capture animation
+            is the `.piece-slot.exiting` keyframe. No JS animation code. */}
+        <For each={slots}>
+          {(slot) => {
+            const col = () => slot.square % 11;
+            const row = () => Math.floor(slot.square / 11);
+            const isSelected = () =>
+              !slot.exiting && showingMovesFrom() === slot.square;
+            const slotClass = () => {
+              let c = "piece-slot";
+              if (slot.exiting) c += " exiting";
+              if (slot.entering) c += " entering";
+              return c;
+            };
+            const pieceClass = () => {
+              let c = `piece ${slot.kind}`;
+              if (isSelected()) c += " selected";
+              return c;
+            };
+            return (
+              <div
+                class={slotClass()}
+                data-piece-id={slot.id}
+                data-square={slot.square}
+                style={{
+                  "--col": `${col()}`,
+                  "--row": `${row()}`,
+                }}
+                ref={(el) => {
+                  slotRefs.set(slot.id, el);
+                  onCleanup(() => slotRefs.delete(slot.id));
+                }}
+              >
+                <div class={pieceClass()}>
+                  {slot.kind === "king" && (
+                    <svg viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="36.9"
+                        fill="none"
+                        stroke="rgba(0,0,0,0.55)"
+                        stroke-width="2"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="23.8"
+                        fill="none"
+                        stroke="rgba(0,0,0,0.55)"
+                        stroke-width="2"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="10.6"
+                        fill="rgba(0,0,0,0.55)"
+                        stroke="none"
+                      />
+                    </svg>
+                  )}
+                </div>
               </div>
             );
           }}
@@ -573,3 +669,6 @@ export default function Board(props: BoardProps) {
     </div>
   );
 }
+
+// `Piece` is re-exported to keep imports tidy for callers that want the type.
+export type { Piece };

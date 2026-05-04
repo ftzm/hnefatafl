@@ -31,9 +31,15 @@ function renderBoard(opts?: { onMove?: (m: Move) => void; init?: () => void }) {
 }
 
 function pieceAt(container: HTMLElement, index: number): string | null {
-  const square = container.querySelector(`[data-index="${index}"]`);
-  if (!square) return null;
-  const piece = square.querySelector(".piece");
+  // Pieces are now rendered as flat siblings of squares, positioned by
+  // CSS transform. Each .piece-slot exposes its current square via the
+  // `data-square` attribute. Exiting (mid-capture) slots are excluded so
+  // tests reason about the *model* state, not animation residue.
+  const slot = container.querySelector(
+    `.piece-slot[data-square="${index}"]:not(.exiting)`,
+  );
+  if (!slot) return null;
+  const piece = slot.querySelector(".piece");
   if (!piece) return null;
   if (piece.classList.contains("black")) return "black";
   if (piece.classList.contains("white")) return "white";

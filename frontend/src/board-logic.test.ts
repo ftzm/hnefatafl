@@ -4,6 +4,7 @@ import {
   applyMoveToBoardRep,
   cloneBoardRep,
   computeBoardAtMove,
+  computePiecesAtCursor,
   indexToAlgebraic,
   startBoard,
 } from "./board-logic";
@@ -110,6 +111,96 @@ describe("cloneBoardRep", () => {
     expect(original.black.has(99)).toBe(false);
     expect(original.white.has(42)).toBe(false);
     expect(original.king).toBe(60);
+  });
+});
+
+describe("computePiecesAtCursor", () => {
+  it("at cursor = history.length (start position), returns the 37 starting pieces", () => {
+    const pieces = computePiecesAtCursor([], 0);
+    expect(pieces).toHaveLength(
+      startBoard.black.size + startBoard.white.size + 1,
+    );
+    const kinds = pieces.reduce(
+      (acc, p) => {
+        acc[p.kind] = (acc[p.kind] ?? 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+    expect(kinds.black).toBe(startBoard.black.size);
+    expect(kinds.white).toBe(startBoard.white.size);
+    expect(kinds.king).toBe(1);
+  });
+
+  it("ids are unique", () => {
+    const pieces = computePiecesAtCursor([], 0);
+    const ids = new Set(pieces.map((p) => p.id));
+    expect(ids.size).toBe(pieces.length);
+  });
+
+  it("after a move, the same piece id is present at the new square", () => {
+    const before = computePiecesAtCursor([], 0);
+    const moverBefore = before.find((p) => p.square === 3);
+    if (!moverBefore) throw new Error("expected a piece at square 3");
+    const after = computePiecesAtCursor([{ from: 3, to: 2 }], 0);
+    const moverAfter = after.find((p) => p.id === moverBefore.id);
+    expect(moverAfter).toBeDefined();
+    expect(moverAfter?.square).toBe(2);
+  });
+
+  it("captured pieces are absent at the post-capture cursor and present beforehand", () => {
+    const moves = [{ from: 44, to: 58, captures: [59] }];
+    const beforeCapture = computePiecesAtCursor(moves, 1); // before move 0
+    const afterCapture = computePiecesAtCursor(moves, 0); // after move 0
+    expect(beforeCapture.some((p) => p.square === 59)).toBe(true);
+    expect(afterCapture.some((p) => p.square === 59)).toBe(false);
+  });
+
+  it("navigating backward past a capture restores the captured piece with its original id", () => {
+    const moves = [{ from: 44, to: 58, captures: [59] }];
+    const initial = computePiecesAtCursor([], 0);
+    const capturedInitial = initial.find((p) => p.square === 59);
+    if (!capturedInitial) throw new Error("expected piece at 59 initially");
+
+    // Forward: after the capture, the piece is gone.
+    const forward = computePiecesAtCursor(moves, 0);
+    expect(forward.find((p) => p.id === capturedInitial.id)).toBeUndefined();
+
+    // Backward: scrubbing back puts the same id back at square 59.
+    const back = computePiecesAtCursor(moves, 1);
+    const restored = back.find((p) => p.id === capturedInitial.id);
+    expect(restored).toBeDefined();
+    expect(restored?.square).toBe(59);
+  });
+
+  it("piece identity is stable across many moves of the same piece", () => {
+    const moves = [
+      { from: 3, to: 2 },
+      { from: 59, to: 57 },
+      { from: 2, to: 1 },
+    ];
+    const start = computePiecesAtCursor([], 0);
+    const tracked = start.find((p) => p.square === 3);
+    if (!tracked) throw new Error("expected piece at square 3 initially");
+
+    const afterAll = computePiecesAtCursor(moves, 0);
+    const found = afterAll.find((p) => p.id === tracked.id);
+    expect(found).toBeDefined();
+    expect(found?.square).toBe(1);
+  });
+
+  it("moving the king preserves the king id", () => {
+    const after = computePiecesAtCursor([{ from: 60, to: 49 }], 0);
+    const king = after.find((p) => p.kind === "king");
+    expect(king).toBeDefined();
+    expect(king?.id).toBe("king");
+    expect(king?.square).toBe(49);
+  });
+
+  it("does not mutate startBoard", () => {
+    const blackBefore = new Set(startBoard.black);
+    computePiecesAtCursor([{ from: 3, to: 2 }], 0);
+    expect(startBoard.black).toEqual(blackBefore);
   });
 });
 

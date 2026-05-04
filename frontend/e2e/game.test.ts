@@ -1,4 +1,22 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "@playwright/test";
+
+/**
+ * Pieces are rendered as flat siblings of the squares grid, positioned by
+ * CSS transform; each piece-slot exposes its current square via the
+ * `data-square` attribute. Captured pieces stay in the DOM briefly while
+ * their exit animation plays — we exclude `.exiting` so assertions reflect
+ * the model state, not animation residue.
+ */
+function pieceAt(page: Page, square: number): Locator {
+  return page.locator(
+    `.piece-slot[data-square="${square}"]:not(.exiting) .piece`,
+  );
+}
+
+/** All currently-live pieces on the board. */
+function livePieces(page: Page): Locator {
+  return page.locator(".piece-slot:not(.exiting) .piece");
+}
 
 async function startHotseatGame(page: Page) {
   await page.goto("/");
@@ -8,7 +26,7 @@ async function startHotseatGame(page: Page) {
   await expect(page.locator(".board")).toBeVisible();
   // Wait for the initial game state to load and pieces to render so any
   // immediate piece-count assertions race against fully-populated DOM.
-  await expect(page.locator(".piece")).toHaveCount(37);
+  await expect(livePieces(page)).toHaveCount(37);
 }
 
 async function makeMove(page: Page, from: number, to: number) {
@@ -54,7 +72,7 @@ test.describe("Hotseat game flow", () => {
   }) => {
     await startHotseatGame(page);
     await expect(page.locator("[data-index]")).toHaveCount(121);
-    await expect(page.locator(".piece")).toHaveCount(37);
+    await expect(livePieces(page)).toHaveCount(37);
   });
 
   test("status shows 'Black to move' at game start", async ({ page }) => {
@@ -88,8 +106,8 @@ test.describe("Hotseat game flow", () => {
     await expect(desktop(page).locator(".game-status")).toContainText(
       "White to move",
     );
-    await expect(page.locator('[data-index="2"] .piece')).toBeVisible();
-    await expect(page.locator('[data-index="3"] .piece')).toHaveCount(0);
+    await expect(pieceAt(page, 2)).toBeVisible();
+    await expect(pieceAt(page, 3)).toHaveCount(0);
   });
 
   test("move appears in history", async ({ page }) => {
@@ -110,20 +128,20 @@ test.describe("Hotseat game flow", () => {
     await expect(desktop(page).locator(".game-status")).toContainText(
       "Black to move",
     );
-    await expect(page.locator('[data-index="3"] .piece')).toBeVisible();
-    await expect(page.locator('[data-index="2"] .piece')).toHaveCount(0);
+    await expect(pieceAt(page, 3)).toBeVisible();
+    await expect(pieceAt(page, 2)).toHaveCount(0);
   });
 
   test("multiple turns of play maintain correct piece count", async ({
     page,
   }) => {
     await startHotseatGame(page);
-    const pieceCountBefore = await page.locator(".piece").count();
+    const pieceCountBefore = await livePieces(page).count();
     await makeMove(page, 7, 18);
     await expect(desktop(page).locator(".game-status")).toContainText(
       "White to move",
     );
-    const pieceCountAfter = await page.locator(".piece").count();
+    const pieceCountAfter = await livePieces(page).count();
     expect(pieceCountAfter).toBe(pieceCountBefore);
   });
 
@@ -157,8 +175,8 @@ test.describe("History navigation", () => {
     await navBar.locator("button").nth(1).click();
 
     // 3rd move (4→3) undone: piece at 3 should be gone, piece at 4 restored
-    await expect(page.locator('[data-index="3"] .piece')).toHaveCount(0);
-    await expect(page.locator('[data-index="4"] .piece')).toBeVisible();
+    await expect(pieceAt(page, 3)).toHaveCount(0);
+    await expect(pieceAt(page, 4)).toBeVisible();
   });
 
   test("forward button restores the current board state", async ({ page }) => {
@@ -168,9 +186,9 @@ test.describe("History navigation", () => {
     const nextBtn = navBar.locator("button").nth(2);
 
     await prevBtn.click();
-    await expect(page.locator('[data-index="3"] .piece')).toHaveCount(0);
+    await expect(pieceAt(page, 3)).toHaveCount(0);
 
     await nextBtn.click();
-    await expect(page.locator('[data-index="3"] .piece')).toBeVisible();
+    await expect(pieceAt(page, 3)).toBeVisible();
   });
 });

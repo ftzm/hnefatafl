@@ -776,16 +776,80 @@ body {
   overflow: hidden;
 }
 
-/* === Pieces === */
+/* === Pieces ===
+ *
+ * Pieces live as siblings of the squares (not children), absolutely
+ * positioned over the .board grid. Each .piece-slot is exactly one cell in
+ * size and translates itself to its target cell via a CSS transform driven
+ * by --col / --row inline custom properties set by the renderer.
+ *
+ * Movement animation is the `transition: transform` on .piece-slot — when
+ * --col / --row change, the browser composites the change on the GPU. There
+ * is intentionally no JS animation code on the move path: no FLIP measuring,
+ * no Web Animations API, no clones. This keeps the cost of a move at "set
+ * one inline style" and lets transitions interrupt cleanly when the user
+ * scrubs history quickly.
+ *
+ * --cell-size is set on .board by Board.tsx (alongside --line-w) and updated
+ * via a ResizeObserver. */
+.piece-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* The slot sizes match a *square's content area*, not its full grid track.
+   * Each square has border-right and border-bottom of `--line-w`
+   * (suppressed on row 11 / column 11) under global `box-sizing: border-box`,
+   * so the content area inside an inner square is
+   *   (cell-size - line-w) × (cell-size - line-w)
+   * with its top-left at the grid-track top-left. The square's inner SVG
+   * decoration uses `inset: 10%`, so it's centered on the *content-area*
+   * center too — `line-w/2` up-and-left of the geometric grid-track center.
+   *
+   * Matching the slot to that content area keeps the piece visually
+   * concentric with the X / arrow decorations beneath it. The discrepancy on
+   * row-11/col-11 squares (which lack one border, so their content area is
+   * one line-w larger in that axis) is at most `line-w/2` — sub-pixel at
+   * typical board sizes, and matches the look of the rest of the board. */
+  width: calc(var(--cell-size, calc(100% / 11)) - var(--line-w, 1px));
+  height: calc(var(--cell-size, calc(100% / 11)) - var(--line-w, 1px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Squares own the pointer events; pieces are visual only. This keeps the
+   * existing event delegation (pointerdown on .square) working uniformly
+   * whether or not a piece happens to be on top. */
+  pointer-events: none;
+  transform: translate(
+    calc(var(--col) * var(--cell-size, calc(100% / 11))),
+    calc(var(--row) * var(--cell-size, calc(100% / 11)))
+  );
+  transition: transform 300ms ease;
+  z-index: 1;
+  will-change: transform;
+}
+
+/* Exiting (captured) pieces drop below live ones so a piece moving over
+ * the capture site renders on top. */
+.piece-slot.exiting {
+  z-index: 0;
+}
+
+/* While the board is being resized, --cell-size changes, which changes
+ * every slot's resolved transform. Suppress the move transition for that
+ * frame so pieces snap to their new positions instead of sliding to them.
+ * The renderer adds `.resizing` in `updateLayoutVars` (Board.tsx) and
+ * removes it on the next animation frame. */
+.board.resizing .piece-slot {
+  transition: none;
+}
+
 .piece {
   width: 65%;
   aspect-ratio: 1;
   border-radius: var(--radius-full);
-  position: absolute;
-  z-index: 1;
+  position: relative;
   box-shadow: calc(var(--line-w) * 2) calc(var(--line-w) * 2)
     calc(var(--line-w) * 3) rgba(0, 0, 0, 0.25);
-  cursor: grab;
   will-change: transform;
 }
 
@@ -804,7 +868,6 @@ body {
   background: transparent;
   border: calc(var(--line-w) * 2) solid var(--piece-border);
   overflow: hidden;
-  will-change: transform;
 }
 
 .piece.king::before {
@@ -855,8 +918,12 @@ body {
   pointer-events: none;
 }
 
-/* === Capture Animation === */
-.piece.capture {
+/* === Capture Animation ===
+ *
+ * Triggered by adding `.exiting` to the slot. The renderer keeps the slot
+ * in the DOM for EXIT_DURATION_MS (see Board.tsx — keep these in sync) so
+ * this animation can play out before removal. */
+.piece-slot.exiting .piece {
   background: var(--color-capture);
   border-color: var(--color-capture);
   opacity: 0;
@@ -866,6 +933,35 @@ body {
     border-color 0.3s ease,
     opacity 0.3s ease 0.1s,
     transform 0.4s ease;
+  pointer-events: none;
+}
+
+/* === Restore (Uncapture) Animation ===
+ *
+ * Plays once when a captured piece reappears because the user navigated
+ * backward past the capture. Reproduces the original Web Animations call:
+ *   pieceEl.animate(
+ *     [{ boxShadow: "inset 0 0 0 50px var(--color-capture)",
+ *        opacity: 0, transform: "scale(0.85)" },
+ *      { boxShadow: "inset 0 0 0 0px transparent",
+ *        opacity: 1, transform: "scale(1)" }],
+ *     { duration: 300, easing: "ease" }
+ *   ); */
+.piece-slot.entering .piece {
+  animation: piece-restore 300ms ease;
+}
+
+@keyframes piece-restore {
+  from {
+    box-shadow: inset 0 0 0 50px var(--color-capture);
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    box-shadow: inset 0 0 0 0 transparent;
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* === Drag State === */
