@@ -327,12 +327,27 @@ export default function Board(props: BoardProps) {
       dragClone.style.top = "0";
       dragClone.style.zIndex = "1000";
       dragClone.style.pointerEvents = "none";
+      // `getBoundingClientRect()` returns border-box dimensions; match that
+      // here so the clone's rendered size equals the original's exactly
+      // (otherwise default content-box would inflate the clone by the
+      // border thickness on each side).
+      dragClone.style.boxSizing = "border-box";
       dragClone.style.width = `${drag.width}px`;
       dragClone.style.height = `${drag.height}px`;
       dragClone.style.visibility = "visible";
       dragClone.style.willChange = "transform";
       dragClone.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.5)";
-      document.body.appendChild(dragClone);
+      // Append to `.board-wrapper` (boardRef.parentElement) rather than
+      // `document.body` so the clone inherits `--line-w` — the CSS custom
+      // property the piece's `border: calc(var(--line-w) * 2) solid …`
+      // depends on. Outside `.board-wrapper` that variable is undefined,
+      // the calc resolves to a guaranteed-invalid value, and the entire
+      // `border` declaration falls back to its initial (none) — i.e. the
+      // border visibly disappears the moment you pick up a piece.
+      // `position: fixed` is unaffected by DOM parent here because
+      // `.board-wrapper` doesn't establish a containing block (no
+      // transform/filter/perspective/contain).
+      (boardRef?.parentElement ?? document.body).appendChild(dragClone);
 
       document.body.classList.add("dragging-piece");
       setShowingMovesFrom(drag.fromSquare);
@@ -418,6 +433,18 @@ export default function Board(props: BoardProps) {
    *
    * `--line-w` is still derived from `offsetWidth` because that ratio is just
    * a scale factor (~1px per 70px of board) and doesn't affect positioning.
+   *
+   * Note: this is intentionally NOT rounded. An earlier `Math.round(...)`
+   * produced visible 1→2px jumps in line thickness at cell-size 105 (board
+   * ~1155px) and 175 (~1925px). Those jumps were especially noticeable at
+   * the mobile↔stacked breakpoint, where the two layouts use different
+   * `--board-fit` formulas and the board itself resizes discontinuously
+   * across the boundary — straddling the `cell = 105` threshold flipped
+   * lineW by 100% in a single frame. With a continuous expression the
+   * transition is proportional and barely perceptible. Sub-pixel borders
+   * anti-alias slightly on 1x DPR but render crisply on high-DPI; for
+   * small boards (cell ≤ 70) the `Math.max(1, …)` clamp keeps lineW at
+   * exactly 1px, preserving a crisp grid where it matters most.
    */
   /**
    * Resize causes `--cell-size` to change, which changes every piece slot's
@@ -430,7 +457,7 @@ export default function Board(props: BoardProps) {
    */
   const updateLayoutVars = () => {
     if (!boardRef) return;
-    const lineW = Math.max(1, Math.round(boardRef.offsetWidth / 11 / 70));
+    const lineW = Math.max(1, boardRef.offsetWidth / 11 / 70);
     boardRef.classList.add("resizing");
     boardRef.parentElement?.style.setProperty("--line-w", `${lineW}px`);
     boardRef.style.setProperty("--cell-size", `${boardRef.clientWidth / 11}px`);

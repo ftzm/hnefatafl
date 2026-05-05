@@ -701,11 +701,15 @@ body {
   --side-w: 13.75rem;
   --side-pad: 1.375rem;
   --outer-pad: 1.875rem;
+  /* Width-bound reservation matches the actual non-board horizontal usage:
+     outer-pad on each side, plus each sidebar's content width + its single
+     inner padding edge. Anything more becomes phantom flex-centering slack
+     between the sidebars and the page edges. */
   --board-fit: min(
     calc(
       100cqw -
       (var(--side-w) * 2) -
-      (var(--side-pad) * 4) -
+      (var(--side-pad) * 2) -
       (var(--outer-pad) * 2)
     ),
     calc(100cqh - 3rem)
@@ -1821,8 +1825,110 @@ body.dragging-piece * {
   cursor: not-allowed;
 }
 
-/* === Mobile Breakpoint === */
-@media (max-width: 48rem) {
+/* === Stacked-Sidebar Breakpoint ===
+ *
+ * Geometry-driven: the board is square and (when not width-bound) fills
+ * the page's full height. So at any moment the horizontal space left for
+ * the sidebars is approximately `vw - vh + K·rem`. Sidebars are sized in
+ * `rem` (fixed physical units), so the threshold for "do the sidebars
+ * fit?" is `vw ≥ vh + K·rem` — not reducible to a constant aspect ratio.
+ * Modern browsers accept `calc()` mixing viewport units and rem inside
+ * media query conditions, which lets us express the condition directly.
+ *
+ * --- Constants ---
+ *   3-col non-board horizontal: 2·outer-pad (3.75) + 2·(side-w + side-pad)
+ *                             = 3.75 + 30.25 = 34rem
+ *   stacked non-board:          3.75 + 15.125 = 18.875rem
+ *   board's height-pad:         3rem
+ *   top-bar real height:        0.875·2 (pad) + 1.75 (icons) + 0.0625 (bord)
+ *                             = 3.5625rem
+ *     (note: NOT the misleading `--top-bar-h: 2.5rem`; the icon row
+ *      pushes it taller)
+ *
+ *   Strict shrink-point threshold:
+ *     stacked  K = 34       - 3 - 3.5625 = 27.4375
+ *     mobile   K = 18.875   - 3 - 3.5625 = 12.3125
+ *
+ * --- The rem-scaling gotcha ---
+ * The html font-size scales with viewport via
+ *   `font-size: clamp(1rem, 0.25rem + 1vw, 1.5rem)`,
+ * so 1rem in CSS rules is 16px → 24px as vw grows past 1200px. But per
+ * Media Queries L4, `rem` *inside a media query* resolves against a
+ * fictional 16px root, NOT the computed html font-size. Layout
+ * reservations therefore grow with vw while a naive `K·rem` threshold
+ * stays frozen at K·16px, and at tall viewports the board starts
+ * shrinking before the breakpoint fires.
+ *
+ * Fix: express the threshold's rem-portion with the *same* clamp
+ * formula as `html { font-size }`, so it scales with the layout. In
+ * MQ, the clamp inputs are all well-defined (`1rem`=16px, `1vw`=1% of
+ * viewport width), and the result is a length whose magnitude tracks
+ * the computed-rem px value at any viewport. */
+@media (max-width: calc(
+  100vh + 27.4375 * clamp(1rem, 0.25rem + 1vw, 1.5rem)
+)) {
+  .main-layout {
+    display: grid;
+    /* Intrinsic-width columns (board's --board-fit + sidebar's natural
+       width) plus `justify-content: center` so the board+sidebar group
+       is centered as a whole within the page. With `1fr` here the board
+       column would expand to fill leftover space and the board would
+       float in the middle of an oversized cell, leaving a visible gap
+       between board and sidebar. */
+    grid-template-columns: auto auto;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+      "board left"
+      "board right";
+    justify-content: center;
+    align-items: stretch;
+  }
+
+  .board-col {
+    grid-area: board;
+  }
+
+  /* In the stacked layout both sidebars sit to the *right* of the board, so
+     the inner gap should be on the side that faces the board (the left
+     edge), not the outer page edge. */
+  .sidebar-left {
+    grid-area: left;
+    padding: var(--space-6) 0 var(--space-6) var(--space-22);
+  }
+
+  .sidebar-right {
+    grid-area: right;
+  }
+
+  /* Only one sidebar's worth of horizontal space is reserved next to the
+     board now, so widen the available board area accordingly. Same
+     "match actual usage" principle as the default formula: one sidebar
+     contributes side-w + a single inner side-pad. */
+  .board {
+    --board-fit: min(
+      calc(
+        100cqw -
+        var(--side-w) -
+        var(--side-pad) -
+        (var(--outer-pad) * 2)
+      ),
+      calc(100cqh - 3rem)
+    );
+  }
+}
+
+/* === Mobile Breakpoint ===
+ *
+ * Triggered when the geometry can't even fit a single sidebar next to a
+ * full-height board. Same approach as the stacked breakpoint above with
+ * one sidebar's worth of reservation, and the same `clamp()` rem-scaling
+ * to track the html font-size clamp. The `max-width: 48rem` clause is an
+ * additional safety net for tiny viewports (e.g. a landscape phone where
+ * the geometric condition might still allow a sidebar but the screen is
+ * too small to be usable as a desktop layout). */
+@media (max-width: calc(
+  100vh + 12.3125 * clamp(1rem, 0.25rem + 1vw, 1.5rem)
+)), (max-width: 48rem) {
   .mobile-only {
     display: flex;
   }

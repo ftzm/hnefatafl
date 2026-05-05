@@ -163,6 +163,20 @@ CSS-only (no CSS-in-JS). Design tokens in `tokens.css`:
 
 Component styles in `styles.css`. BEM-ish naming (`.component-name__element`). Mobile-first responsive with `.mobile-only`/`.desktop-only` classes. Data attributes for board squares: `[data-index]`.
 
+### `rem` in media queries — gotcha
+
+`html { font-size: clamp(1rem, 0.25rem + 1vw, 1.5rem) }` makes 1rem in CSS rules scale from 16px → 24px as `vw` grows past 1200px. **But per Media Queries L4, `rem` *inside* a media query resolves against a fictional 16px root, NOT the html's computed font-size.** That means a naive `@media (max-width: Krem)` is frozen at `K·16px` while the layout's rem-based reservations grow with `vw`, and the breakpoint silently drifts at tall/wide viewports.
+
+When a media query needs to compare against a layout dimension expressed in `rem`, mirror the html clamp inline so the threshold scales with the layout:
+
+```css
+@media (max-width: calc(
+  100vh + 27.4375 * clamp(1rem, 0.25rem + 1vw, 1.5rem)
+)) { ... }
+```
+
+The game-page stacked / mobile breakpoints in `styles.css` are derived this way; see the comment block above them for the full geometric derivation.
+
 ## Code Conventions
 
 - **Formatting/Linting**: Biome (2-space indent, double quotes, 80 columns, trailing commas)
