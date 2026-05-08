@@ -205,6 +205,55 @@ export default function GameLayout(props: GameLayoutProps) {
         </div>
       </div>
 
+      {/* Mobile player header — black left, white right */}
+      <div class="mobile-only mobile-player-header">
+        <div class="mobile-player-side">
+          <div class="captures white">
+            <For
+              each={Array.from({
+                length: game.capturedPieces().white,
+              })}
+            >
+              {() => <span class="pip" />}
+            </For>
+          </div>
+          <div class="mobile-player-info">
+            <span class={`mobile-player-name ${playerState("black")}`}>
+              {blackName()}
+            </span>
+            <span class={`mobile-player-clock ${playerState("black")}`}>
+              7:28
+            </span>
+          </div>
+        </div>
+        <span class="mobile-vs">vs</span>
+        <div class="mobile-player-side">
+          <div class="mobile-player-info">
+            <span class={`mobile-player-name ${playerState("white")}`}>
+              {whiteName()}
+            </span>
+            <span class={`mobile-player-clock ${playerState("white")}`}>
+              7:28
+            </span>
+          </div>
+          <div class="captures black">
+            <For
+              each={Array.from({
+                length: game.capturedPieces().black,
+              })}
+            >
+              {() => <span class="pip" />}
+            </For>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile status + notifications */}
+      <div class="mobile-only mobile-status">
+        <GameStatus />
+        {props.banner}
+      </div>
+
       {/* Center — board */}
       <div class="board-col">
         <Board onMove={props.onMove} />
@@ -254,12 +303,6 @@ export default function GameLayout(props: GameLayoutProps) {
             &raquo;
           </button>
         </div>
-      </div>
-
-      {/* Mobile status */}
-      <div class="mobile-only mobile-status">
-        <GameStatus />
-        {props.banner}
       </div>
 
       {/* Mobile toolbar */}

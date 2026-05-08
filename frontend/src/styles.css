@@ -407,6 +407,73 @@ body {
   min-height: 1.125rem;
 }
 
+/* === Mobile Player Header === */
+.mobile-player-header {
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-16);
+  font-family: var(--font-serif);
+  border-bottom: 0.0625rem solid var(--bk-rule);
+  flex-shrink: 0;
+}
+
+.mobile-player-side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.mobile-player-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mobile-player-name {
+  font-size: var(--text-base);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  color: var(--bk-ink);
+}
+
+.mobile-player-name.active {
+  font-weight: 700;
+}
+
+.mobile-player-name.idle,
+.mobile-player-name.ended {
+  color: var(--bk-ink-mute);
+}
+
+.mobile-player-clock {
+  font-feature-settings:
+    "tnum" 1,
+    "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--text-sm);
+  color: var(--bk-ink);
+}
+
+.mobile-player-clock.idle,
+.mobile-player-clock.ended {
+  color: var(--bk-ink-mute);
+}
+
+.mobile-player-header .captures {
+  justify-content: center;
+}
+
+.mobile-vs {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--bk-ink-faint);
+  align-self: center;
+  padding: 0 var(--space-10);
+}
+
 /* Shared bordered button style */
 .game-actions button,
 .moves-nav button {
@@ -1308,6 +1375,29 @@ body.dragging-piece * {
   color: var(--bk-ink-soft);
 }
 
+/* === Homepage Mobile ===
+ * Stacks the entry cards and recent-games sections into single columns
+ * when the viewport is too narrow for multi-column layout. The
+ * breakpoint uses the same clamp() formula as `html { font-size }` to
+ * track the scaling root so the threshold doesn't drift — see the
+ * rem-scaling comment block above the game-page breakpoints. */
+@media (max-width: calc(48 * clamp(1rem, 0.25rem + 1vw, 1.5rem))) {
+  .home {
+    padding: 2.5rem var(--space-24) 2rem;
+    gap: 2rem;
+  }
+
+  .home .entries {
+    grid-template-columns: 1fr;
+    max-width: 20rem;
+  }
+
+  .home .recent {
+    grid-template-columns: 1fr;
+    gap: 2rem 0;
+  }
+}
+
 /* === Card === */
 .card {
   background: var(--bk-surface);
@@ -1864,9 +1954,7 @@ body.dragging-piece * {
  * MQ, the clamp inputs are all well-defined (`1rem`=16px, `1vw`=1% of
  * viewport width), and the result is a length whose magnitude tracks
  * the computed-rem px value at any viewport. */
-@media (max-width: calc(
-  100vh + 27.4375 * clamp(1rem, 0.25rem + 1vw, 1.5rem)
-)) {
+@media (max-width: calc(100vh + 27.4375 * clamp(1rem, 0.25rem + 1vw, 1.5rem))) {
   .main-layout {
     display: grid;
     /* Intrinsic-width columns (board's --board-fit + sidebar's natural
@@ -1876,7 +1964,7 @@ body.dragging-piece * {
        float in the middle of an oversized cell, leaving a visible gap
        between board and sidebar. */
     grid-template-columns: auto auto;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: auto 1fr;
     grid-template-areas:
       "board left"
       "board right";
@@ -1896,8 +1984,23 @@ body.dragging-piece * {
     padding: var(--space-6) 0 var(--space-6) var(--space-22);
   }
 
+  .player-gap {
+    flex: 0;
+  }
+
+  .sidebar-left .captures.bot {
+    order: 1;
+    margin-bottom: 0;
+    margin-top: var(--space-8);
+  }
+
+  .sidebar-left .game-actions {
+    order: 2;
+  }
+
   .sidebar-right {
     grid-area: right;
+    margin-top: 3em;
   }
 
   /* Only one sidebar's worth of horizontal space is reserved next to the
@@ -1906,12 +2009,7 @@ body.dragging-piece * {
      contributes side-w + a single inner side-pad. */
   .board {
     --board-fit: min(
-      calc(
-        100cqw -
-        var(--side-w) -
-        var(--side-pad) -
-        (var(--outer-pad) * 2)
-      ),
+      calc(100cqw - var(--side-w) - var(--side-pad) - (var(--outer-pad) * 2)),
       calc(100cqh - 3rem)
     );
   }
@@ -1926,9 +2024,8 @@ body.dragging-piece * {
  * additional safety net for tiny viewports (e.g. a landscape phone where
  * the geometric condition might still allow a sidebar but the screen is
  * too small to be usable as a desktop layout). */
-@media (max-width: calc(
-  100vh + 12.3125 * clamp(1rem, 0.25rem + 1vw, 1.5rem)
-)), (max-width: 48rem) {
+@media (max-width: calc(100vh + 12.3125 * clamp(1rem, 0.25rem + 1vw, 1.5rem))),
+  (max-width: 48rem) {
   .mobile-only {
     display: flex;
   }
@@ -1958,18 +2055,22 @@ body.dragging-piece * {
   }
 
   .board {
-    --board-fit: min(100cqw, calc(100cqh - 12rem));
+    --board-fit: min(100cqw, calc(100cqh - 14rem));
   }
 
-  .mobile-toolbar {
-    position: static;
+  .mobile-player-header {
     flex-shrink: 0;
   }
 
   .mobile-status {
     display: block;
-    padding: var(--space-6) var(--space-8);
+    padding: var(--space-4) var(--space-8);
     text-align: center;
+    flex-shrink: 0;
+  }
+
+  .mobile-status .offer-banner {
+    margin: var(--space-4) var(--space-8);
   }
 
   .game-status {
@@ -1980,7 +2081,85 @@ body.dragging-piece * {
     padding: var(--space-4) var(--space-8);
   }
 
+  .mobile-toolbar {
+    position: static;
+    flex-shrink: 0;
+    background: transparent;
+    gap: var(--space-4);
+    padding: var(--space-6) var(--space-8);
+    padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
+  }
+
+  .mobile-toolbar .mobile-toolbar-item {
+    font-family: var(--font-serif);
+    font-size: var(--text-xs);
+    letter-spacing: 0.02em;
+    color: var(--bk-ink-soft);
+    border: 0.0625rem solid var(--bk-rule-strong);
+    padding: var(--space-6) var(--space-4);
+    flex-direction: row;
+    gap: var(--space-6);
+  }
+
+  .mobile-toolbar .mobile-toolbar-item svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
   .bottom-sheet-body .move-section {
     min-height: 12rem;
+  }
+
+  /* Restyle bottom sheet to match the game's serif/bordered aesthetic. */
+  .bottom-sheet-content {
+    background: var(--bk-page);
+  }
+
+  .bottom-sheet-header {
+    font-family: var(--font-serif);
+  }
+
+  .bottom-sheet-title {
+    font-variant-caps: small-caps;
+    letter-spacing: 0.05em;
+    color: var(--bk-ink-soft);
+  }
+
+  .move-section .move-history {
+    font-family: var(--font-serif);
+    padding: var(--space-12) var(--space-16);
+  }
+
+  .move-section .toolbar {
+    background: transparent;
+    border-top: 0.0625rem solid var(--bk-rule);
+    gap: var(--space-4);
+    padding: var(--space-6) var(--space-8);
+  }
+
+  .move-section .toolbar > .btn {
+    border: 0.0625rem solid var(--bk-rule-strong);
+    border-radius: 0;
+    color: var(--bk-ink-soft);
+    font-family: var(--font-serif);
+    padding: var(--space-6) 0;
+  }
+
+  .move-section .toolbar > .btn + .btn {
+    border-left: 0.0625rem solid var(--bk-rule-strong);
+  }
+
+  .move-section .toolbar > .btn:hover {
+    border-color: var(--bk-ink-soft);
+    color: var(--bk-ink);
+    background: transparent;
+  }
+
+  .move-section .toolbar > .btn[data-disabled] {
+    opacity: 0.35;
+  }
+
+  .move-section .toolbar > .btn[data-disabled]:hover {
+    background: transparent;
   }
 }
