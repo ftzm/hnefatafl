@@ -1,6 +1,6 @@
 cabal-version: 2.4
 
--- This file has been generated from package.yaml by hpack version 0.38.1.
+-- This file has been generated from package.yaml by hpack version 0.38.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -441,6 +441,7 @@ test-suite hnefatafl-test
   other-modules:
       Hnefatafl.Api.SpecTest
       Hnefatafl.App.HotseatTest
+      Hnefatafl.App.OnlineCreateTest
       Hnefatafl.App.TestUtil
       Hnefatafl.BindingsTest
       Hnefatafl.ClientTest
@@ -456,6 +457,7 @@ test-suite hnefatafl-test
       Hnefatafl.Interpreter.Storage.SQLite.MoveTest
       Hnefatafl.Interpreter.Storage.SQLite.PendingActionTest
       Hnefatafl.Interpreter.Storage.SQLite.PlayerTest
+      Hnefatafl.Interpreter.Storage.SQLite.TimeControlTest
       Hnefatafl.Interpreter.Storage.SQLite.TokenTest
       Hnefatafl.Interpreter.Storage.SQLite.TransactionTest
       Hnefatafl.Interpreter.Storage.SQLite.Util

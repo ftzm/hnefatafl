@@ -57,6 +57,7 @@ import Hnefatafl.Core.Data (
   GameParticipantToken (..),
   GameParticipantTokenId (..),
   PlayerColor (..),
+  TimeControl,
   opponent,
  )
 import Hnefatafl.Core.Data qualified as Data
@@ -71,6 +72,7 @@ import Hnefatafl.Effect.Storage (
   getPendingAction,
   insertGame,
   runTransaction,
+  setOnlineTimeControl,
  )
 import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
@@ -188,8 +190,9 @@ data CreateGameResult = CreateGameResult
 -- Does NOT create a session in the STMMap (lazy creation on WS connect).
 createGame ::
   (Storage :> es, Clock :> es, IdGen :> es, Trace :> es, HMetrics :> es) =>
+  Maybe TimeControl ->
   Eff es CreateGameResult
-createGame = do
+createGame timeControl = do
   game <- mkGame <$> generateId <*> now
   whiteTokenId <- generateId
   blackTokenId <- generateId
@@ -213,6 +216,7 @@ createGame = do
     insertGame game
     createGameParticipantToken whiteToken
     createGameParticipantToken blackToken
+    for_ timeControl $ setOnlineTimeControl game.gameId
   increaseLabelledCounter gamesCreated "online"
   pure CreateGameResult{game, whiteToken, blackToken}
 

@@ -8,6 +8,7 @@ import Effectful.Error.Static (Error)
 import Effectful.Katip (KatipE, katipAddNamespace)
 import Hnefatafl.Api.Routes.Online (OnlineRoutes (..))
 import Hnefatafl.Api.Types.Online (
+  CreateOnlineGameRequest (..),
   CreateOnlineGameResponse (..),
  )
 import Hnefatafl.App.Online qualified as Online
@@ -46,10 +47,17 @@ onlineServer sessions =
     }
 
 createHandler ::
-  (Storage :> es, Clock :> es, IdGen :> es, KatipE :> es, Trace :> es, HMetrics :> es) =>
+  ( Storage :> es
+  , Clock :> es
+  , IdGen :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  CreateOnlineGameRequest ->
   Eff es CreateOnlineGameResponse
-createHandler = katipAddNamespace "online" $ do
-  result <- Online.createGame
+createHandler req = katipAddNamespace "online" $ do
+  result <- Online.createGame req.timeControl
   pure
     CreateOnlineGameResponse
       { gameId = result.game.gameId
