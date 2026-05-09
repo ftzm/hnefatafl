@@ -38,6 +38,8 @@ module Hnefatafl.Effect.Storage (
   getPendingAction,
   deletePendingAction,
   deleteLastNMoves,
+  setOnlineTimeControl,
+  getOnlineTimeControl,
 
   -- * Effect
   Storage (..),
@@ -81,6 +83,8 @@ data StorageCmd a where
   GetPendingAction :: GameId -> StorageCmd (Maybe PendingAction)
   DeletePendingAction :: GameId -> StorageCmd ()
   DeleteLastNMoves :: GameId -> Int -> StorageCmd ()
+  SetOnlineTimeControl :: GameId -> TimeControl -> StorageCmd ()
+  GetOnlineTimeControl :: GameId -> StorageCmd (Maybe TimeControl)
 
 --------------------------------------------------------------------------------
 -- Transaction monad
@@ -185,6 +189,12 @@ deletePendingAction = liftCmd . DeletePendingAction
 
 deleteLastNMoves :: GameId -> Int -> StorageTx ()
 deleteLastNMoves gid n = liftCmd $ DeleteLastNMoves gid n
+
+setOnlineTimeControl :: GameId -> TimeControl -> StorageTx ()
+setOnlineTimeControl gid tc = liftCmd $ SetOnlineTimeControl gid tc
+
+getOnlineTimeControl :: GameId -> StorageTx (Maybe TimeControl)
+getOnlineTimeControl = liftCmd . GetOnlineTimeControl
 
 --------------------------------------------------------------------------------
 -- Effectful effect

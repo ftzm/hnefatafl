@@ -32,6 +32,7 @@ import Hnefatafl.Interpreter.Storage.SQLite.Game (
   listGamesDb,
   setOutcomeById,
  )
+import Hnefatafl.Interpreter.Storage.SQLite.Game qualified as GameDb
 import Hnefatafl.Interpreter.Storage.SQLite.Move qualified as MoveDb
 import Hnefatafl.Interpreter.Storage.SQLite.PendingAction qualified as PendingDb
 import Hnefatafl.Interpreter.Storage.SQLite.Player
@@ -204,6 +205,10 @@ dispatch = \case
     PendingDb.deletePendingActionDb (fromDomain gameId)
   DeleteLastNMoves gameId n ->
     MoveDb.deleteLastNMoves (fromDomain gameId) n
+  SetOnlineTimeControl gameId tc ->
+    GameDb.setOnlineTimeControl (fromDomain gameId) tc
+  GetOnlineTimeControl gameId ->
+    GameDb.getOnlineTimeControl (fromDomain gameId)
 
 interpretTx ::
   (IOE :> es, Trace :> es) =>
@@ -252,3 +257,5 @@ describeCmd = \case
   GetPendingAction gid -> ("GetPendingAction", "PendingAction", Just $ show gid)
   DeletePendingAction gid -> ("DeletePendingAction", "PendingAction", Just $ show gid)
   DeleteLastNMoves gid n -> ("DeleteLastNMoves", "Move", Just $ show gid <> " last " <> show n)
+  SetOnlineTimeControl gid _ -> ("SetOnlineTimeControl", "TimeControl", Just $ show gid)
+  GetOnlineTimeControl gid -> ("GetOnlineTimeControl", "TimeControl", Just $ show gid)

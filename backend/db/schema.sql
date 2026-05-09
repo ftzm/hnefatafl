@@ -100,7 +100,7 @@ CREATE TABLE online_game (
     white_name TEXT,
     black_player_id TEXT,
     black_name TEXT,
-    game_type TEXT NOT NULL DEFAULT 'online' CHECK (game_type = 'online'),
+    game_type TEXT NOT NULL DEFAULT 'online' CHECK (game_type = 'online'), initial_seconds INTEGER, increment_seconds INTEGER,
     FOREIGN KEY (game_id, game_type) REFERENCES game(id, game_type) ON DELETE CASCADE,
     FOREIGN KEY (white_player_id) REFERENCES player(id),
     FOREIGN KEY (black_player_id) REFERENCES player(id)
@@ -109,4 +109,5 @@ CREATE TABLE online_game (
 INSERT INTO "schema_migrations" (version) VALUES
   ('20251115123657'),
   ('20260330183402'),
-  ('20260401080529');
+  ('20260401080529'),
+  ('20260509205633');

@@ -5,6 +5,8 @@ module Hnefatafl.Interpreter.Storage.SQLite.Game (
   setOutcomeById,
   deleteGameById,
   gameToDb,
+  setOnlineTimeControl,
+  getOnlineTimeControl,
 ) where
 
 import Chronos (Time)
@@ -135,7 +137,8 @@ getGameById gameId conn = do
       SELECT g.id, g.name, g.game_type, g.start_time, g.end_time, g.game_status, g.created_at,
              h.owner_id,
              a.player_id, a.player_color, a.engine_id,
-             o.white_player_id, o.white_name, o.black_player_id, o.black_name
+             o.white_player_id, o.white_name, o.black_player_id, o.black_name,
+             o.initial_seconds, o.increment_seconds
       FROM game g
       LEFT JOIN hotseat_game h ON g.id = h.game_id
       LEFT JOIN ai_game a ON g.id = a.game_id
@@ -154,7 +157,8 @@ listGamesDb conn = do
       SELECT g.id, g.name, g.game_type, g.start_time, g.end_time, g.game_status, g.created_at,
              h.owner_id,
              a.player_id, a.player_color, a.engine_id,
-             o.white_player_id, o.white_name, o.black_player_id, o.black_name
+             o.white_player_id, o.white_name, o.black_player_id, o.black_name,
+             o.initial_seconds, o.increment_seconds
       FROM game g
       LEFT JOIN hotseat_game h ON g.id = h.game_id
       LEFT JOIN ai_game a ON g.id = a.game_id
@@ -177,3 +181,21 @@ deleteGameById =
   execute'
     "DELETE FROM game WHERE id = ?"
     . Only
+
+setOnlineTimeControl :: GameIdDb -> TimeControl -> Connection -> IO ()
+setOnlineTimeControl gameId tc =
+  execute'
+    "UPDATE online_game SET initial_seconds = ?, increment_seconds = ? WHERE game_id = ?"
+    (unSeconds tc.initialTime, unSeconds tc.increment, gameId)
+
+getOnlineTimeControl :: GameIdDb -> Connection -> IO (Maybe TimeControl)
+getOnlineTimeControl gameId =
+  fmap toTimeControl
+    . selectSingle
+      "SELECT initial_seconds, increment_seconds FROM online_game WHERE game_id = ?"
+      (Only gameId)
+ where
+  toTimeControl :: (Maybe Int, Maybe Int) -> Maybe TimeControl
+  toTimeControl (Just initial, Just inc) =
+    Just $ TimeControl (Seconds initial) (Seconds inc)
+  toTimeControl _ = Nothing

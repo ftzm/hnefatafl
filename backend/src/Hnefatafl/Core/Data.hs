@@ -27,6 +27,10 @@ module Hnefatafl.Core.Data (
   opponent,
   GameMove (..),
 
+  -- * Time Control Types
+  Seconds (..),
+  TimeControl (..),
+
   -- * Game Participant Token Types
   GameParticipantTokenId (..),
   GameParticipantToken (..),
@@ -196,6 +200,17 @@ data GameMove = GameMove
   , timestamp :: Time
   }
   deriving (Show, Eq, Generic)
+
+newtype Seconds = Seconds {unSeconds :: Int}
+  deriving (Show, Eq, Generic)
+  deriving newtype (ToJSON, FromJSON, ToSchema)
+
+data TimeControl = TimeControl
+  { initialTime :: Seconds
+  , increment :: Seconds
+  }
+  deriving (Show, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON, ToSchema)
 
 newtype GameParticipantTokenId = GameParticipantTokenId Text
   deriving (Show, Eq)
