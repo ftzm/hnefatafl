@@ -180,7 +180,31 @@ SQLite via `sqlite-simple`. Schema in `db/schema.sql`. Key tables:
 | `game_participant_token` | Auth tokens for game access |
 | `pending_game_action` | Draw offers, undo requests |
 
-Migrations managed via dbmate. Schema version tracked in `schema_migrations`.
+### Migrations (dbmate)
+
+Migrations are managed via [dbmate](https://github.com/amacneil/dbmate). The database URL is configured in `.env` (`sqlite:./db.db`).
+
+**Workflow for adding a migration:**
+
+1. `cd backend && dbmate new <description>` — generates `db/migrations/[TIMESTAMP]_<description>.sql`
+2. Edit the generated file: write SQL in `-- migrate:up` and `-- migrate:down` sections
+3. `dbmate up` — applies pending migrations and auto-regenerates `db/schema.sql`
+4. Commit both the migration file and the updated `db/schema.sql`
+
+**Key commands:**
+
+| Command | Effect |
+|---|---|
+| `dbmate new <name>` | Generate a new migration file with timestamp prefix |
+| `dbmate up` | Create DB if needed, apply pending migrations, dump schema |
+| `dbmate migrate` | Apply pending migrations (DB must exist) |
+| `dbmate rollback` | Revert the most recently applied migration |
+| `dbmate status` | Show applied/pending migrations |
+| `dbmate dump` | Regenerate `db/schema.sql` from current DB state |
+
+**Important:** `db/schema.sql` is a derived artifact — `dbmate up` regenerates it automatically. Tests load this file to create in-memory databases, so it must stay in sync with migrations. Never edit `schema.sql` by hand; always go through the migration workflow.
+
+Schema version tracked in `schema_migrations`.
 
 ## Testing
 

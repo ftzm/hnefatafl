@@ -42,6 +42,20 @@ Runs in order: C library build → C tests → Haskell build → Haskell tests �
 - Pre-commit hooks (via Nix `git-hooks`): no direct commits to master, merge conflict check, commitizen conventional commit format
 - On merge to master: full CI runs automatically
 
+## Change Discipline
+
+All changes follow atomic commit discipline: each commit is one
+coherent idea, ≤200 lines (hard max 400), with tested acceptance
+criteria. Every commit must leave the codebase green — compiles, full
+test suite passes. Full rules live in two skills:
+
+- **`/plan-commits`** — invoke **before starting any implementation
+  work**, even for seemingly single-commit changes. Scope is not
+  always obvious upfront.
+- **`/commit-change`** — invoke when ready to commit. Actively checks
+  diff size, runs the full test suite, and structures the commit
+  message.
+
 ## Cross-Project Changes
 
 When changing the C library's API (`api.h`):
