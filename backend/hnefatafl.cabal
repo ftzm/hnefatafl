@@ -457,6 +457,7 @@ test-suite hnefatafl-test
       Hnefatafl.Interpreter.Storage.SQLite.PendingActionTest
       Hnefatafl.Interpreter.Storage.SQLite.PlayerTest
       Hnefatafl.Interpreter.Storage.SQLite.TokenTest
+      Hnefatafl.Interpreter.Storage.SQLite.TransactionTest
       Hnefatafl.Interpreter.Storage.SQLite.Util
       Hnefatafl.QQ.MoveTest
       Hnefatafl.SearchTest
