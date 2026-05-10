@@ -53,38 +53,35 @@ all tests must pass — not just the new ones.
 
 ## Commit message format
 
-Follow conventional commit format. Structure the message as:
+Follow conventional commit format with labeled sections for
+scannability. Every section after the summary line uses a
+`Section:` label prefix.
 
 ```
-<type>(<scope>): <summary>
+<type>(<scope>): <summary line, under 72 chars>
 
-<contextualization paragraph>
+Context: <what this builds on and what it enables — omit for
+standalone changes>
 
-<acceptance criteria paragraph>
+Changes: <what was done, as a bulleted list>
+
+Tests: <specific tests added and what they cover — or why manual
+verification was used instead>
 ```
 
-### Summary line
+### Rules
 
-Concise description of what changed. Under 72 characters.
-
-### Contextualization paragraph
-
-- If this extends work from a recent commit, **name it** (e.g.,
-  "Builds on the TimeControl storage layer added in the previous
-  commit").
-- State what this enables — the immediate technical next step and/or
-  the broader feature goal (e.g., "This completes the backend data
-  path, enabling the frontend to send time controls in the next
-  step").
-- Omit this paragraph for standalone changes with no surrounding
-  context.
-
-### Acceptance criteria paragraph
-
-- Name the specific tests added (e.g., "Tested by new round-trip
-  tests in OnlineTest.hs covering timed and untimed creation").
-- If manual verification was used, explain **why tests were not
-  feasible** and what was verified.
+- **Summary line**: one sentence, under 72 characters. Present tense.
+- **Context**: only include if this commit extends prior work or
+  enables a specific next step. Name the prior commit or feature
+  goal. Omit entirely for standalone changes.
+- **Changes**: bulleted list of what changed. One bullet per
+  concern/file-group. Terse — a reviewer reading `git log` should
+  parse this in seconds.
+- **Tests**: name the test file(s) and what they exercise. If manual
+  verification was used, explain why tests were infeasible.
+- Keep lines under 72 characters for `git log` readability.
+- No filler, no restating the summary in the body.
 
 ## Process
 
@@ -99,7 +96,13 @@ Concise description of what changed. Under 72 characters.
    git commit -m "$(cat <<'EOF'
    <type>(<scope>): <summary>
 
-   <body>
+   Context: ...
+
+   Changes:
+   - ...
+   - ...
+
+   Tests: ...
 
    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
    EOF
