@@ -2,7 +2,7 @@ import { useNavigate } from "@solidjs/router";
 import { createSignal, Match, type Setter, Switch } from "solid-js";
 import { useOnlineGame } from "../api/contexts";
 import type { PlayerColor } from "../board-logic";
-import { sideOptions, timeOptions } from "../gameOptions";
+import { getTimeControl, sideOptions, timeOptions } from "../gameOptions";
 import { useToasts } from "../toast-context";
 import Modal from "./ui/Modal";
 import OptionPicker from "./ui/OptionPicker";
@@ -53,7 +53,10 @@ export default function OnlineSetupModal(props: OnlineSetupModalProps) {
           : "white"
         : (side() as PlayerColor);
     try {
-      const tokens = await online.createGame({ creatorColor: chosenSide });
+      const tokens = await online.createGame({
+        creatorColor: chosenSide,
+        timeControl: getTimeControl(timeControl()),
+      });
       setPlayerToken(tokens.playerToken);
       setInviteToken(tokens.inviteToken);
       setStep("share");

@@ -404,7 +404,11 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json;charset=utf-8": components["schemas"]["CreateOnlineGameRequest"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -413,6 +417,13 @@ export interface paths {
                     content: {
                         "application/json;charset=utf-8": components["schemas"]["CreateOnlineGameResponse"];
                     };
+                };
+                /** @description Invalid `body` */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -637,6 +648,9 @@ export interface components {
         CreateGameRequest: {
             playerColor: components["schemas"]["PlayerColor"];
         };
+        CreateOnlineGameRequest: {
+            timeControl?: components["schemas"]["TimeControl"];
+        };
         CreateOnlineGameResponse: {
             blackToken: string;
             gameId: components["schemas"]["GameId"];
@@ -780,6 +794,10 @@ export interface components {
             updatedBoard: components["schemas"]["ExternBoard"];
             /** Format: int64 */
             updatedZobristHash: number;
+        };
+        TimeControl: {
+            increment: number;
+            initialTime: number;
         };
         /** @description Valid moves keyed by origin position */
         ValidMovesMap: {

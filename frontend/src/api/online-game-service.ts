@@ -1,6 +1,7 @@
 import type { Accessor } from "solid-js";
 import { createSignal } from "solid-js";
 import type { Move, PlayerColor } from "../board-logic";
+import type { TimeControlValue } from "../gameOptions";
 import { api } from "./client";
 import type { components } from "./generated/rest";
 import {
@@ -18,6 +19,7 @@ type OnlineServerMessage = components["schemas"]["OnlineServerMessage"];
 export interface OnlineGameService {
   createGame(opts: {
     creatorColor: PlayerColor;
+    timeControl: TimeControlValue | null;
   }): Promise<{ playerToken: string; inviteToken: string }>;
   connect(token: string): void;
   disconnect(): void;
@@ -110,7 +112,9 @@ export function createOnlineGameService(opts?: {
 
   return {
     async createGame(opts) {
-      const { data, error } = await api.POST("/online");
+      const { data, error } = await api.POST("/online", {
+        body: { timeControl: opts.timeControl ?? undefined },
+      });
       if (error || !data) throw new Error("Failed to create online game");
       const playerToken =
         opts.creatorColor === "white" ? data.whiteToken : data.blackToken;
