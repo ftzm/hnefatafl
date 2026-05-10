@@ -2,11 +2,12 @@
 
 import { Route, Router } from "@solidjs/router";
 import { render } from "solid-js/web";
-import {
-  AiGameProvider,
-  HotseatApiProvider,
-  OnlineGameProvider,
-} from "./api/providers";
+
+const useMocks = import.meta.env.VITE_USE_MOCKS === "true";
+const { HotseatApiProvider, AiGameProvider, OnlineGameProvider } = useMocks
+  ? await import("./mocks/providers")
+  : await import("./api/providers");
+
 import AiGame from "./controllers/AiController";
 import HotseatGame from "./controllers/HotseatController";
 import OnlineGame from "./controllers/OnlineController";

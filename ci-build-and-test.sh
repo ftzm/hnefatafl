@@ -36,3 +36,6 @@ build_target "frontend.check"
 
 print_header "Checking generated frontend types"
 build_target "frontend.check-generated-types"
+
+print_header "Running frontend e2e tests"
+nix run .#test-e2e

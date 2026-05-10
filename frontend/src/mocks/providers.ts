@@ -15,3 +15,9 @@ export const MockAiGameProvider = aiGameContext.createProvider(
 export const MockOnlineGameProvider = onlineGameContext.createProvider(
   createMockOnlineGameService,
 );
+
+export {
+  MockAiGameProvider as AiGameProvider,
+  MockHotseatApiProvider as HotseatApiProvider,
+  MockOnlineGameProvider as OnlineGameProvider,
+};

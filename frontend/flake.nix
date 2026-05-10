@@ -41,6 +41,35 @@
             '';
           }}/bin/generate-types";
         };
+        apps.test-e2e = let
+          e2eSrc = pkgs.lib.sources.sourceByRegex ./. [
+            "src" "src/.*"
+            "e2e" "e2e/.*"
+            "vite.config.ts"
+            "playwright.config.ts"
+            "tsconfig.json"
+            "package.json"
+            "index.html"
+          ];
+        in {
+          type = "app";
+          program = "${pkgs.writeShellApplication {
+            name = "test-e2e";
+            runtimeInputs = [nodejs];
+            text = ''
+              workdir=$(mktemp -d)
+              trap 'rm -rf "$workdir"' EXIT
+              cp -r ${e2eSrc}/. "$workdir"
+              chmod -R u+w "$workdir"
+              cp -r --reflink=auto ${nodeModules}/node_modules "$workdir/node_modules"
+              chmod -R u+w "$workdir/node_modules"
+              cd "$workdir"
+              export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright-driver.browsers}"
+              export VITE_USE_MOCKS=true
+              npx playwright test
+            '';
+          }}/bin/test-e2e";
+        };
         packages = {
           # Mirrors `npm run check` from package.json (lint + typecheck + tests),
           # but uses pkgs.biome directly because importNpmLock doesn't

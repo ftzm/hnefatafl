@@ -22,5 +22,6 @@ export default defineConfig({
     command: "npm run dev",
     port: 3000,
     reuseExistingServer: !process.env.CI,
+    env: { VITE_USE_MOCKS: "true" },
   },
 });

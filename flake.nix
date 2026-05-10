@@ -19,6 +19,7 @@
     git-hooks.url = "github:cachix/git-hooks.nix";
     backend.url = "./backend";
     frontend.url = "./frontend";
+    frontend.inputs.backend.follows = "backend";
   };
 
   outputs = {
@@ -53,7 +54,7 @@
             type = "app";
             program = backend.apps.${system}."hnefatafl:test:hnefatafl-test".program;
           };
-          inherit (frontend.apps.${system}) generate-types;
+          inherit (frontend.apps.${system}) generate-types test-e2e;
           backend = backend.apps.${system};
         };
         devShells = {
@@ -73,6 +74,7 @@
               ];
               buildInputs = [
                 pythonEnv
+                pkgs.gh
               ];
               inherit shellHook;
             };
