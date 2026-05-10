@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-dimensional code review using parallel sub-agents
-allowed-tools: Read Glob Grep Bash(git:*) Agent Skill
+allowed-tools: Read Glob Grep Bash(git *) Agent Skill
 arguments:
   - name: target
     description: What to review — file paths, a git ref like HEAD~3, a branch name, etc.

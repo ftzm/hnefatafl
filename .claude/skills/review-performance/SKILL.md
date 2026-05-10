@@ -3,7 +3,7 @@ name: review-performance
 description: Review code for performance issues, algorithmic complexity, and resource efficiency
 context: fork
 agent: Explore
-allowed-tools: Read Glob Grep Bash(git:*)
+allowed-tools: Read Glob Grep Bash(git *)
 arguments:
   - name: target
     description: Diff text or file paths to review

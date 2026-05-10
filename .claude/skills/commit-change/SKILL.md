@@ -1,7 +1,7 @@
 ---
 name: commit-change
 description: Create an atomic commit with verified acceptance criteria and a well-structured message. Invoke when ready to commit a change.
-allowed-tools: Read Glob Grep Bash(git:*) Edit
+allowed-tools: Read Glob Grep Bash(git *) Edit
 ---
 
 # Commit an Atomic Change

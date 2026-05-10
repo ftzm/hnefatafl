@@ -1,7 +1,7 @@
 ---
 name: plan-commits
 description: Break a task into atomic, commit-sized steps with acceptance criteria. Invoke before starting ANY implementation work.
-allowed-tools: Read Glob Grep Bash(git:*) Agent
+allowed-tools: Read Glob Grep Bash(git *) Agent
 ---
 
 # Plan Atomic Commits
