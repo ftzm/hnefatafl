@@ -1103,12 +1103,12 @@
                 "properties": {
                     "increment": {
                         "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
+                        "minimum": 0,
                         "type": "integer"
                     },
                     "initialTime": {
                         "maximum": 9223372036854775807,
-                        "minimum": -9223372036854775808,
+                        "minimum": 1,
                         "type": "integer"
                     }
                 },

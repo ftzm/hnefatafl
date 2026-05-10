@@ -7,6 +7,7 @@ import Hnefatafl.Core.Data as CoreData
 import Hnefatafl.Effect.Storage
 import Hnefatafl.Interpreter.Storage.SQLite.Util
 import Optics
+import Refined.Unsafe (reallyUnsafeRefine)
 import Test.Hspec (Spec, around, describe, it)
 
 spec_TimeControl :: Spec
@@ -17,8 +18,10 @@ spec_TimeControl =
         currentTime <- now
         let game =
               baseGame currentTime
-                & #gameId .~ GameId "untimed-game"
-                & #mode .~ Online Nothing Nothing
+                & #gameId
+                .~ GameId "untimed-game"
+                & #mode
+                .~ Online Nothing Nothing
         resultEquals
           ( runTransaction $ do
               insertGame game
@@ -31,9 +34,14 @@ spec_TimeControl =
         currentTime <- now
         let game =
               baseGame currentTime
-                & #gameId .~ GameId "timed-game"
-                & #mode .~ Online Nothing Nothing
-            tc = TimeControl (Seconds 300) (Seconds 3)
+                & #gameId
+                .~ GameId "timed-game"
+                & #mode
+                .~ Online Nothing Nothing
+            tc =
+              TimeControl
+                (reallyUnsafeRefine (Seconds 300))
+                (reallyUnsafeRefine (Seconds 3))
         resultEquals
           ( runTransaction $ do
               insertGame game

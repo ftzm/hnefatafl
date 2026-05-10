@@ -139,6 +139,7 @@ library
     , optparse-applicative
     , prometheus-client
     , prometheus-metrics-ghc
+    , refined
     , relude
     , resourcet
     , safe-exceptions
@@ -227,6 +228,7 @@ library hnefatafl-version
     , optparse-applicative
     , prometheus-client
     , prometheus-metrics-ghc
+    , refined
     , relude
     , resourcet
     , safe-exceptions
@@ -315,6 +317,7 @@ executable cli
     , optparse-applicative
     , prometheus-client
     , prometheus-metrics-ghc
+    , refined
     , relude
     , resourcet
     , safe-exceptions
@@ -403,6 +406,7 @@ executable dump-specs
     , optparse-applicative
     , prometheus-client
     , prometheus-metrics-ghc
+    , refined
     , relude
     , resourcet
     , safe-exceptions
@@ -445,6 +449,7 @@ test-suite hnefatafl-test
       Hnefatafl.App.TestUtil
       Hnefatafl.BindingsTest
       Hnefatafl.ClientTest
+      Hnefatafl.Core.DataTest
       Hnefatafl.ExceptionTest
       Hnefatafl.Game.AITest
       Hnefatafl.Game.HotseatTest
@@ -527,6 +532,7 @@ test-suite hnefatafl-test
     , process
     , prometheus-client
     , prometheus-metrics-ghc
+    , refined
     , relude
     , resourcet
     , safe-exceptions

@@ -51,7 +51,10 @@ import Data.Aeson (
 import Data.Aeson qualified as Aeson
 import Data.Char (toLower)
 import Data.OpenApi (ToSchema (..), genericDeclareNamedSchema)
+import Data.OpenApi qualified as OpenApi
 import Data.OpenApi.SchemaOptions (fromAesonOptions)
+import Language.Haskell.TH.Syntax (Lift)
+import Refined (NonNegative, Positive, Refined)
 import Web.HttpApiData (FromHttpApiData, ToHttpApiData)
 
 newtype PlayerId = PlayerId Text
@@ -183,7 +186,8 @@ playerColorOptions =
     }
 
 instance ToJSON PlayerColor where toJSON = genericToJSON playerColorOptions
-instance FromJSON PlayerColor where parseJSON = genericParseJSON playerColorOptions
+instance FromJSON PlayerColor where
+  parseJSON = genericParseJSON playerColorOptions
 instance ToSchema PlayerColor where
   declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions playerColorOptions)
 
@@ -202,15 +206,28 @@ data GameMove = GameMove
   deriving (Show, Eq, Generic)
 
 newtype Seconds = Seconds {unSeconds :: Int}
-  deriving (Show, Eq, Generic)
-  deriving newtype (ToJSON, FromJSON, ToSchema)
+  deriving (Show, Eq, Ord, Generic, Lift)
+  deriving newtype (Num, ToJSON, FromJSON, ToSchema)
 
 data TimeControl = TimeControl
-  { initialTime :: Seconds
-  , increment :: Seconds
+  { initialTime :: Refined Positive Seconds
+  , increment :: Refined NonNegative Seconds
   }
   deriving (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON, ToSchema)
+  deriving anyclass (ToJSON, FromJSON)
+
+instance ToSchema (Refined Positive Seconds) where
+  declareNamedSchema _ = do
+    schema <- OpenApi._namedSchemaSchema <$> declareNamedSchema (Proxy @Seconds)
+    pure $ OpenApi.NamedSchema Nothing $ schema{OpenApi._schemaMinimum = Just 1}
+
+instance ToSchema (Refined NonNegative Seconds) where
+  declareNamedSchema _ = do
+    schema <- OpenApi._namedSchemaSchema <$> declareNamedSchema (Proxy @Seconds)
+    pure $ OpenApi.NamedSchema Nothing $ schema{OpenApi._schemaMinimum = Just 0}
+
+instance ToSchema TimeControl where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions defaultOptions)
 
 newtype GameParticipantTokenId = GameParticipantTokenId Text
   deriving (Show, Eq)

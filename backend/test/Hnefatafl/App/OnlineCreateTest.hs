@@ -13,6 +13,7 @@ import Hnefatafl.Effect.Storage (
   runTransaction,
  )
 import Hnefatafl.Interpreter.Storage.SQLite.Util (withSharedDB)
+import Refined.Unsafe (reallyUnsafeRefine)
 import Test.Hspec (Spec, around, describe, it, shouldBe)
 
 spec_onlineCreate :: Spec
@@ -26,7 +27,10 @@ spec_onlineCreate = around withSharedDB $ do
 
     it "persists time control when provided" $ \connVar -> do
       runHotseatTest connVar $ do
-        let tc = TimeControl (Seconds 300) (Seconds 3)
+        let tc =
+              TimeControl
+                (reallyUnsafeRefine (Seconds 300))
+                (reallyUnsafeRefine (Seconds 3))
         result <- Online.createGame (Just tc)
         retrieved <- runTransaction $ getOnlineTimeControl result.game.gameId
         liftIO $ retrieved `shouldBe` Just tc

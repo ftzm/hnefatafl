@@ -1,7 +1,7 @@
 -- migrate:up
 
-ALTER TABLE online_game ADD COLUMN initial_seconds INTEGER;
-ALTER TABLE online_game ADD COLUMN increment_seconds INTEGER;
+ALTER TABLE online_game ADD COLUMN initial_seconds INTEGER CHECK (initial_seconds > 0);
+ALTER TABLE online_game ADD COLUMN increment_seconds INTEGER CHECK (increment_seconds >= 0);
 
 -- migrate:down
 

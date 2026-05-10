@@ -16,6 +16,8 @@ import Hnefatafl.Core.Data
 import Hnefatafl.Exception (DataIntegrityException (..))
 import Hnefatafl.Interpreter.Storage.SQLite.Type
 import Hnefatafl.Interpreter.Storage.SQLite.Util
+import Refined (unrefine)
+import Refined.Unsafe (reallyUnsafeRefine)
 
 --------------------------------------------------------------------------------
 -- Helpers
@@ -186,7 +188,7 @@ setOnlineTimeControl :: GameIdDb -> TimeControl -> Connection -> IO ()
 setOnlineTimeControl gameId tc =
   execute'
     "UPDATE online_game SET initial_seconds = ?, increment_seconds = ? WHERE game_id = ?"
-    (unSeconds tc.initialTime, unSeconds tc.increment, gameId)
+    (unSeconds (unrefine tc.initialTime), unSeconds (unrefine tc.increment), gameId)
 
 getOnlineTimeControl :: GameIdDb -> Connection -> IO (Maybe TimeControl)
 getOnlineTimeControl gameId =
@@ -197,5 +199,8 @@ getOnlineTimeControl gameId =
  where
   toTimeControl :: (Maybe Int, Maybe Int) -> Maybe TimeControl
   toTimeControl (Just initial, Just inc) =
-    Just $ TimeControl (Seconds initial) (Seconds inc)
+    Just $
+      TimeControl
+        (reallyUnsafeRefine (Seconds initial))
+        (reallyUnsafeRefine (Seconds inc))
   toTimeControl _ = Nothing
