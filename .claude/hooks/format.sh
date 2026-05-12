@@ -1,5 +1,6 @@
 #!/bin/bash
-FILE_PATH=$(jq -r '.tool_input.file_path' < /dev/stdin)
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
 [ -z "$FILE_PATH" ] || [ ! -f "$FILE_PATH" ] && exit 0
 

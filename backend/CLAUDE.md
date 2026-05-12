@@ -119,6 +119,7 @@ GHC2021 base with these default extensions: `TemplateHaskell`, `OverloadedString
 - **Lenses**: optics library (`^.`, `%~`, etc.)
 - **Warnings**: `-Wall -Werror -Wmissing-export-lists` — every module needs an explicit export list
 - **Formatting**: fourmolu (2-space indent, leading commas, 80-column, trailing arrows, diff-friendly imports)
+- **Type modeling**: Parse, don't validate. Make illegal states unrepresentable. Wrap primitives in newtypes for domain meaning (e.g. `Seconds`, `GameId` — never bare `Int` or `Text`). Use `refined` predicates to encode invariants at the type level. Prefer sum types over booleans or stringly-typed fields. Push validation to the boundary so internal code only handles well-typed values.
 
 ### Common Pitfalls
 
@@ -217,6 +218,8 @@ cabal test --test-option='-p "foo"' # filter by pattern
 
 Test utilities in `test/TestUtil.hs` and `test/Hnefatafl/Game/TestUtil.hs`.
 
-## Don't Change the User's Approach
+## Design Discipline
 
 When implementing solutions, follow the specified approach exactly. If there are issues, fix implementation details rather than changing the approach. Ask before deviating.
+
+Always fix the design, never hack around it. If the types are incomplete, complete them. If the data model doesn't capture the information a function needs, extend the model. Never suggest workarounds that split responsibility, patch state after the fact, or paper over gaps in the type system. There is no "quick option" — there is only the correct fix.

@@ -73,8 +73,12 @@ verification was used instead>
 
 - **Summary line**: one sentence, under 72 characters. Present tense.
 - **Context**: only include if this commit extends prior work or
-  enables a specific next step. Name the prior commit or feature
-  goal. Omit entirely for standalone changes.
+  enables a specific next step. Must be self-contained — a reader
+  seeing only `git log` must understand it without access to any
+  plan document, ticket, or conversation. Never reference plan
+  slice numbers, step IDs, or internal jargon. Describe what
+  this builds on and enables in plain terms. Omit entirely for
+  standalone changes.
 - **Changes**: bulleted list of what changed. One bullet per
   concern/file-group. Terse — a reviewer reading `git log` should
   parse this in seconds.

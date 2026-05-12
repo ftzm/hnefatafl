@@ -25,7 +25,21 @@ Apply your full knowledge of language-specific best practices — don't limit yo
 
 ### Haskell (primary focus)
 
-The core principle: **model logic in pure functions and push effects to the edge.** Business rules, validation, and data transformation should be pure. Effectful code (IO, database, network) should be thin shells that orchestrate pure logic.
+Core principles:
+
+- **Parse, don't validate.** Push validation to boundaries so
+  internal code only handles well-typed values.
+- **Make invalid states unrepresentable.** Use newtypes with hidden
+  constructors + smart constructors, sum types over booleans,
+  refined predicates where appropriate. Scrutinize whether sloppy
+  or overly permissive data modeling: (a) allows constructing
+  invalid data, (b) risks bugs by not imposing invariants that
+  future changes could violate, (c) forces handling "impossible"
+  cases, or (d) obscures intent.
+- **Model logic in pure functions, push effects to the edge.**
+  Business rules, validation, and data transformation should be
+  pure. Effectful code should be thin shells that orchestrate pure
+  logic.
 
 This project uses Effectful for its effect system and optics for record access. Check that usage is consistent with the rest of the codebase.
 

@@ -26,7 +26,7 @@ Capture the diff or file contents — you'll pass this to each sub-reviewer.
 
 ## Step 2: Dispatch sub-reviewers
 
-Spawn **all 6** of these sub-reviewer skills in parallel using the Skill tool, passing the diff/file content as the argument to each:
+Spawn **all 8** of these sub-reviewer skills in parallel using the Skill tool, passing the diff/file content as the argument to each:
 
 1. `/review-correctness`
 2. `/review-security`
@@ -34,6 +34,8 @@ Spawn **all 6** of these sub-reviewer skills in parallel using the Skill tool, p
 4. `/review-style`
 5. `/review-composability`
 6. `/review-best-practices`
+7. `/review-documentation`
+8. `/review-testing`
 
 Each runs in its own isolated sub-agent and returns structured findings.
 
