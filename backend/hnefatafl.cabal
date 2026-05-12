@@ -157,6 +157,7 @@ library
     , temporary
     , text
     , time
+    , torsor
     , transformers
     , uuid-types
     , vty
@@ -246,6 +247,7 @@ library hnefatafl-version
     , temporary
     , text
     , time
+    , torsor
     , transformers
     , uuid-types
     , vty
@@ -335,6 +337,7 @@ executable cli
     , temporary
     , text
     , time
+    , torsor
     , transformers
     , uuid-types
     , vty
@@ -424,6 +427,7 @@ executable dump-specs
     , temporary
     , text
     , time
+    , torsor
     , transformers
     , uuid-types
     , vty
@@ -452,12 +456,14 @@ test-suite hnefatafl-test
       Hnefatafl.Core.DataTest
       Hnefatafl.ExceptionTest
       Hnefatafl.Game.AITest
+      Hnefatafl.Game.ClockTest
       Hnefatafl.Game.HotseatTest
       Hnefatafl.Game.OnlineTest
       Hnefatafl.Game.TestUtil
       Hnefatafl.ImportTest
       Hnefatafl.Interpreter.Search.RemoteTest
       Hnefatafl.Interpreter.Search.TestTest
+      Hnefatafl.Interpreter.Storage.SQLite.ClockStateTest
       Hnefatafl.Interpreter.Storage.SQLite.GameTest
       Hnefatafl.Interpreter.Storage.SQLite.MoveTest
       Hnefatafl.Interpreter.Storage.SQLite.PendingActionTest
@@ -555,6 +561,7 @@ test-suite hnefatafl-test
     , temporary
     , text
     , time
+    , torsor
     , transformers
     , uuid-types
     , vty

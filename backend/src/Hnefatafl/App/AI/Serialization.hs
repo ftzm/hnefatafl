@@ -43,6 +43,7 @@ notificationsFor humanColor newState = concatMap $ \case
   UndoDeclined -> []
   OfferCancelled -> []
   OfferAutoCancelled _ _ -> []
+  ClockUpdated _ -> []
  where
   engineMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields humanColor newState
@@ -71,7 +72,10 @@ gameStateMessage gId humanColor (AI.State board moves phase) =
     { _gameId = gId
     , _playerColor = humanColor
     , _board = boardFromExtern board
-    , _history = map (\am -> historyEntryFromDomain (MoveWithCaptures am.move am.captures) am.side) moves
+    , _history =
+        map
+          (\am -> historyEntryFromDomain (MoveWithCaptures am.move am.captures) am.side)
+          moves
     , _turn = turn'
     , _status = status'
     , _validMoves = validMoves'
@@ -100,7 +104,8 @@ gameStateMessage gId humanColor (AI.State board moves phase) =
       )
 
 -- | Extract common state fields from an AI state.
-activeStateFields :: PlayerColor -> AI.State -> (PlayerColor, ApiGameStatus, ValidMovesMap, ApiBoard)
+activeStateFields ::
+  PlayerColor -> AI.State -> (PlayerColor, ApiGameStatus, ValidMovesMap, ApiBoard)
 activeStateFields humanColor (AI.State board _moves phase) =
   let engineColor = opponent humanColor
    in case phase of

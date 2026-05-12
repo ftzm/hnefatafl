@@ -40,6 +40,7 @@ import Hnefatafl.Bindings (
  )
 import Hnefatafl.Core.Data (
   BlackWinCondition (..),
+  ClockState (..),
   ExternBoard (..),
   GameMove (..),
   Layer (..),
@@ -102,6 +103,7 @@ data DomainEvent
     -- action. Carries the offer type and offerer so consumers can
     -- distinguish which offer was lost.
     OfferAutoCancelled PendingActionType PlayerColor
+  | ClockUpdated ClockState
   deriving (Show, Eq)
 
 winner :: Outcome -> Maybe PlayerColor

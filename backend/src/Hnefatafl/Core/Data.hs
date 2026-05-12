@@ -30,6 +30,14 @@ module Hnefatafl.Core.Data (
   -- * Time Control Types
   Seconds (..),
   TimeControl (..),
+  ClockState (..),
+  RemainingTime,
+  mkRemainingTime,
+  deduct,
+  addIncrement,
+  toTimespan,
+  secondsToRemainingTime,
+  secondsToTimespan,
 
   -- * Game Participant Token Types
   GameParticipantTokenId (..),
@@ -39,7 +47,7 @@ module Hnefatafl.Core.Data (
   DomainMapping (..),
 ) where
 
-import Chronos (Time)
+import Chronos (Time, Timespan (..))
 import Data.Aeson (
   FromJSON (..),
   ToJSON (..),
@@ -54,7 +62,7 @@ import Data.OpenApi (ToSchema (..), genericDeclareNamedSchema)
 import Data.OpenApi qualified as OpenApi
 import Data.OpenApi.SchemaOptions (fromAesonOptions)
 import Language.Haskell.TH.Syntax (Lift)
-import Refined (NonNegative, Positive, Refined)
+import Refined (NonNegative, Positive, Refined, unrefine)
 import Web.HttpApiData (FromHttpApiData, ToHttpApiData)
 
 newtype PlayerId = PlayerId Text
@@ -228,6 +236,47 @@ instance ToSchema (Refined NonNegative Seconds) where
 
 instance ToSchema TimeControl where
   declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions defaultOptions)
+
+-- | Non-negative duration of remaining time. Constructor is hidden;
+-- use 'mkRemainingTime', 'deduct', and 'addIncrement'.
+newtype RemainingTime = RemainingTime Timespan
+  deriving (Show, Eq, Ord)
+
+mkRemainingTime :: Timespan -> Maybe RemainingTime
+mkRemainingTime ts
+  | getTimespan ts >= 0 = Just (RemainingTime ts)
+  | otherwise = Nothing
+
+-- | Subtract elapsed time. Returns Nothing if time expired.
+deduct :: Timespan -> RemainingTime -> Maybe RemainingTime
+deduct elapsed (RemainingTime r)
+  | elapsed > r = Nothing
+  | otherwise =
+      Just (RemainingTime (Timespan (getTimespan r - getTimespan elapsed)))
+
+-- | Add a non-negative increment to remaining time.
+addIncrement :: Refined NonNegative Seconds -> RemainingTime -> RemainingTime
+addIncrement inc (RemainingTime r) = RemainingTime (r <> secondsToTimespan inc)
+
+toTimespan :: RemainingTime -> Timespan
+toTimespan (RemainingTime ts) = ts
+
+secondsToRemainingTime :: Refined Positive Seconds -> RemainingTime
+secondsToRemainingTime = RemainingTime . secondsToTimespan
+
+secondsToTimespan :: Refined p Seconds -> Timespan
+secondsToTimespan s =
+  Timespan (fromIntegral (unSeconds (unrefine s)) * nanosPerSecond)
+
+nanosPerSecond :: Int64
+nanosPerSecond = 1_000_000_000
+
+data ClockState = ClockState
+  { whiteRemaining :: RemainingTime
+  , blackRemaining :: RemainingTime
+  , turnStartedAt :: Time
+  }
+  deriving (Show, Eq, Generic)
 
 newtype GameParticipantTokenId = GameParticipantTokenId Text
   deriving (Show, Eq)

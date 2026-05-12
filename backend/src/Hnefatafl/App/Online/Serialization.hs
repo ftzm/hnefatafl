@@ -32,7 +32,10 @@ import Hnefatafl.Game.Online qualified as Online
 
 -- | Derive notifications from domain events. Returns (target, message) pairs.
 notificationsFor ::
-  PlayerColor -> Online.State -> [DomainEvent] -> [(PlayerColor, OnlineServerMessage)]
+  PlayerColor ->
+  Online.State ->
+  [DomainEvent] ->
+  [(PlayerColor, OnlineServerMessage)]
 notificationsFor actor newState = concatMap $ \case
   MovePlayed am ->
     [(opponent actor, opponentMovedMsg am)]
@@ -56,6 +59,8 @@ notificationsFor actor newState = concatMap $ \case
     [(offerer, OnlineDrawCancelled)]
   OfferAutoCancelled UndoRequest offerer ->
     [(offerer, OnlineUndoCancelled)]
+  ClockUpdated _ ->
+    []
  where
   opponentMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields newState
@@ -84,7 +89,10 @@ gameStateMessage gId playerColor (Online.State board moves phase) =
     { _gameId = gId
     , _playerColor = playerColor
     , _board = boardFromExtern board
-    , _history = map (\am -> historyEntryFromDomain (MoveWithCaptures am.move am.captures) am.side) moves
+    , _history =
+        map
+          (\am -> historyEntryFromDomain (MoveWithCaptures am.move am.captures) am.side)
+          moves
     , _turn = turn'
     , _status = status'
     , _validMoves = validMoves'
@@ -92,7 +100,7 @@ gameStateMessage gId playerColor (Online.State board moves phase) =
     }
  where
   (turn', status', validMoves', pending') = case phase of
-    Online.Active turn validMoves pending ->
+    Online.Active{turn, validMoves, pending} ->
       ( turn
       , gameStatusFromDomain Nothing
       , validMovesMapFromDomain validMoves
@@ -106,10 +114,11 @@ gameStateMessage gId playerColor (Online.State board moves phase) =
       )
 
 -- | Extract common state fields from an Online state.
-activeStateFields :: Online.State -> (PlayerColor, ApiGameStatus, ValidMovesMap, ApiBoard)
+activeStateFields ::
+  Online.State -> (PlayerColor, ApiGameStatus, ValidMovesMap, ApiBoard)
 activeStateFields (Online.State board _moves phase) =
   case phase of
-    Online.Active turn validMoves _pending ->
+    Online.Active{turn, validMoves} ->
       ( turn
       , gameStatusFromDomain Nothing
       , validMovesMapFromDomain validMoves

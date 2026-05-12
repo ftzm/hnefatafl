@@ -16,6 +16,7 @@ import Hnefatafl.Effect.Storage (
   deletePendingAction,
   insertMove,
   insertPendingAction,
+  setOnlineClockState,
   setOutcome,
  )
 import Hnefatafl.Game.Common (
@@ -37,6 +38,7 @@ persistEvents gameId time = traverse_ $ \case
   UndoDeclined -> deletePendingAction gameId
   OfferCancelled -> deletePendingAction gameId
   OfferAutoCancelled _ _ -> deletePendingAction gameId
+  ClockUpdated cs -> setOnlineClockState gameId cs
 
 -- | Recover AppliedMoves (with zobrist hashes) from stored GameMoves
 -- by replaying the move sequence through the C engine.

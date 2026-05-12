@@ -5,7 +5,7 @@ module Hnefatafl.Interpreter.Storage.SQLite (
   withConnectionRecovery,
 ) where
 
-import Chronos (now)
+import Chronos (getTimespan, now)
 import Data.Unique (hashUnique, newUnique)
 import Database.SQLite.Simple (Connection, Query (..), close, execute_)
 import Effectful
@@ -14,10 +14,8 @@ import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Dispatch.Dynamic
 import Effectful.Exception (catchSync, throwIO, try)
 import Hnefatafl.Core.Data
-import Hnefatafl.Effect.Storage
-import Chronos (getTimespan)
 import Hnefatafl.Effect.Clock (Clock, stopwatch)
-import Hnefatafl.Metrics (HMetrics, Hs (..), observe)
+import Hnefatafl.Effect.Storage
 import Hnefatafl.Effect.Trace (Trace, addSpanAttribute, inSpan)
 import Hnefatafl.Exception (
   ConnectionUnrecoverableException (..),
@@ -39,6 +37,7 @@ import Hnefatafl.Interpreter.Storage.SQLite.Player
 import Hnefatafl.Interpreter.Storage.SQLite.Token
 import Hnefatafl.Interpreter.Storage.SQLite.Type ()
 import Hnefatafl.Interpreter.Storage.SQLite.Util
+import Hnefatafl.Metrics (HMetrics, Hs (..), observe)
 
 --------------------------------------------------------------------------------
 -- SQLite effect implementation
@@ -89,15 +88,13 @@ withSavepoint conn txAction = do
       -- ROLLBACK TO undoes the SP's writes; RELEASE pops it from the
       -- stack. Both must succeed for the SP to be gone.
       cleanupOk <-
-        ( rollback >> release >> pure True
-          )
+        (rollback >> release >> pure True)
           `catchSync` \(_ :: SomeException) -> pure False
       if cleanupOk
         then throwIO originalEx
         else do
           escalateOk <-
-            ( escalate >> pure True
-              )
+            (escalate >> pure True)
               `catchSync` \(_ :: SomeException) -> pure False
           if escalateOk
             then throwIO originalEx
@@ -209,6 +206,10 @@ dispatch = \case
     GameDb.setOnlineTimeControl (fromDomain gameId) tc
   GetOnlineTimeControl gameId ->
     GameDb.getOnlineTimeControl (fromDomain gameId)
+  SetOnlineClockState gameId cs ->
+    GameDb.setOnlineClockState (fromDomain gameId) cs
+  GetOnlineClockState gameId ->
+    GameDb.getOnlineClockState (fromDomain gameId)
 
 interpretTx ::
   (IOE :> es, Trace :> es) =>
@@ -259,3 +260,5 @@ describeCmd = \case
   DeleteLastNMoves gid n -> ("DeleteLastNMoves", "Move", Just $ show gid <> " last " <> show n)
   SetOnlineTimeControl gid _ -> ("SetOnlineTimeControl", "TimeControl", Just $ show gid)
   GetOnlineTimeControl gid -> ("GetOnlineTimeControl", "TimeControl", Just $ show gid)
+  SetOnlineClockState gid _ -> ("SetOnlineClockState", "ClockState", Just $ show gid)
+  GetOnlineClockState gid -> ("GetOnlineClockState", "ClockState", Just $ show gid)

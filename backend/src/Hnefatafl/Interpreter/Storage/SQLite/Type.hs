@@ -186,6 +186,9 @@ data GameJoinRow = GameJoinRow
   , onlineBlackName :: Maybe Text
   , onlineInitialSeconds :: Maybe Int
   , onlineIncrementSeconds :: Maybe Int
+  , onlineWhiteRemainingNs :: Maybe Int64
+  , onlineBlackRemainingNs :: Maybe Int64
+  , onlineTurnStartedAt :: Maybe Time
   }
   deriving (Show, Generic, FromRow)
 

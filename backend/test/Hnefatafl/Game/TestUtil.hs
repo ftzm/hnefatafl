@@ -1,6 +1,21 @@
-module Hnefatafl.Game.TestUtil where
+module Hnefatafl.Game.TestUtil (
+  -- * Persistence store
+  PersistenceStore (..),
+  emptyStore,
+  applyEvent,
+  applyEvents,
 
-import Chronos (Time (..))
+  -- * Test data
+  dummyMove,
+  mkMoves,
+
+  -- * Clock test helpers
+  mkTC,
+  mkRemaining,
+  remainingSec,
+) where
+
+import Chronos (Time (..), Timespan (..), getTimespan)
 import Hnefatafl.Bindings (startBoard)
 import Hnefatafl.Core.Data (
   BlackWinCondition (..),
@@ -8,8 +23,14 @@ import Hnefatafl.Core.Data (
   Move (..),
   Outcome (..),
   PlayerColor (..),
+  RemainingTime,
+  Seconds (..),
+  TimeControl (..),
   WhiteWinCondition (..),
+  mkRemainingTime,
+  toTimespan,
  )
+import Refined.Unsafe (reallyUnsafeRefine)
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   DomainEvent (..),
@@ -84,6 +105,25 @@ applyEvent evt store = case evt of
   UndoDeclined -> store{storedPendingAction = Nothing}
   OfferCancelled -> store{storedPendingAction = Nothing}
   OfferAutoCancelled _ _ -> store{storedPendingAction = Nothing}
+  ClockUpdated _ -> store
 
 applyEvents :: [DomainEvent] -> PersistenceStore -> PersistenceStore
 applyEvents evts store = foldl' (flip applyEvent) store evts
+
+-- * Clock test helpers
+
+mkTC :: Int -> Int -> TimeControl
+mkTC initial inc =
+  TimeControl
+    (reallyUnsafeRefine (Seconds initial))
+    (reallyUnsafeRefine (Seconds inc))
+
+mkRemaining :: Int -> RemainingTime
+mkRemaining sec =
+  case mkRemainingTime (Timespan (fromIntegral sec * 1_000_000_000)) of
+    Just r -> r
+    Nothing -> error "mkRemaining: negative"
+
+remainingSec :: RemainingTime -> Int
+remainingSec r =
+  fromIntegral (getTimespan (toTimespan r) `div` 1_000_000_000)

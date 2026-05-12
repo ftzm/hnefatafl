@@ -7,9 +7,11 @@ module Hnefatafl.Interpreter.Storage.SQLite.Game (
   gameToDb,
   setOnlineTimeControl,
   getOnlineTimeControl,
+  setOnlineClockState,
+  getOnlineClockState,
 ) where
 
-import Chronos (Time)
+import Chronos (Time, Timespan (..), getTimespan)
 import Control.Exception (throwIO)
 import Database.SQLite.Simple
 import Hnefatafl.Core.Data
@@ -140,7 +142,8 @@ getGameById gameId conn = do
              h.owner_id,
              a.player_id, a.player_color, a.engine_id,
              o.white_player_id, o.white_name, o.black_player_id, o.black_name,
-             o.initial_seconds, o.increment_seconds
+             o.initial_seconds, o.increment_seconds,
+             o.white_remaining_ns, o.black_remaining_ns, o.turn_started_at
       FROM game g
       LEFT JOIN hotseat_game h ON g.id = h.game_id
       LEFT JOIN ai_game a ON g.id = a.game_id
@@ -160,7 +163,8 @@ listGamesDb conn = do
              h.owner_id,
              a.player_id, a.player_color, a.engine_id,
              o.white_player_id, o.white_name, o.black_player_id, o.black_name,
-             o.initial_seconds, o.increment_seconds
+             o.initial_seconds, o.increment_seconds,
+             o.white_remaining_ns, o.black_remaining_ns, o.turn_started_at
       FROM game g
       LEFT JOIN hotseat_game h ON g.id = h.game_id
       LEFT JOIN ai_game a ON g.id = a.game_id
@@ -204,3 +208,35 @@ getOnlineTimeControl gameId =
         (reallyUnsafeRefine (Seconds initial))
         (reallyUnsafeRefine (Seconds inc))
   toTimeControl _ = Nothing
+
+setOnlineClockState :: GameIdDb -> ClockState -> Connection -> IO ()
+setOnlineClockState gameId cs =
+  execute'
+    """
+    UPDATE online_game
+    SET white_remaining_ns = ?, black_remaining_ns = ?, turn_started_at = ?
+    WHERE game_id = ?
+    """
+    ( getTimespan (toTimespan cs.whiteRemaining)
+    , getTimespan (toTimespan cs.blackRemaining)
+    , cs.turnStartedAt
+    , gameId
+    )
+
+getOnlineClockState :: GameIdDb -> Connection -> IO (Maybe ClockState)
+getOnlineClockState gameId =
+  fmap toClockState
+    . selectSingle
+      """
+      SELECT white_remaining_ns, black_remaining_ns, turn_started_at
+      FROM online_game WHERE game_id = ?
+      """
+      (Only gameId)
+ where
+  toClockState :: (Maybe Int64, Maybe Int64, Maybe Time) -> Maybe ClockState
+  toClockState (Just white, Just black, Just tick) =
+    ClockState
+      <$> mkRemainingTime (Timespan white)
+      <*> mkRemainingTime (Timespan black)
+      <*> pure tick
+  toClockState _ = Nothing

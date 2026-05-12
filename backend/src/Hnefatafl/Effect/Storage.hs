@@ -40,6 +40,8 @@ module Hnefatafl.Effect.Storage (
   deleteLastNMoves,
   setOnlineTimeControl,
   getOnlineTimeControl,
+  setOnlineClockState,
+  getOnlineClockState,
 
   -- * Effect
   Storage (..),
@@ -85,6 +87,8 @@ data StorageCmd a where
   DeleteLastNMoves :: GameId -> Int -> StorageCmd ()
   SetOnlineTimeControl :: GameId -> TimeControl -> StorageCmd ()
   GetOnlineTimeControl :: GameId -> StorageCmd (Maybe TimeControl)
+  SetOnlineClockState :: GameId -> ClockState -> StorageCmd ()
+  GetOnlineClockState :: GameId -> StorageCmd (Maybe ClockState)
 
 --------------------------------------------------------------------------------
 -- Transaction monad
@@ -195,6 +199,12 @@ setOnlineTimeControl gid tc = liftCmd $ SetOnlineTimeControl gid tc
 
 getOnlineTimeControl :: GameId -> StorageTx (Maybe TimeControl)
 getOnlineTimeControl = liftCmd . GetOnlineTimeControl
+
+setOnlineClockState :: GameId -> ClockState -> StorageTx ()
+setOnlineClockState gid cs = liftCmd $ SetOnlineClockState gid cs
+
+getOnlineClockState :: GameId -> StorageTx (Maybe ClockState)
+getOnlineClockState = liftCmd . GetOnlineClockState
 
 --------------------------------------------------------------------------------
 -- Effectful effect
