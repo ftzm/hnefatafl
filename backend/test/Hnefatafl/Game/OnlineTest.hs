@@ -2,7 +2,11 @@ module Hnefatafl.Game.OnlineTest where
 
 import Chronos (Time (..))
 import Hnefatafl.Bindings (startBlackMoves, startBoard)
-import Hnefatafl.Core.Data (MoveWithCaptures (..), Outcome (..), PlayerColor (..))
+import Hnefatafl.Core.Data (
+  MoveWithCaptures (..),
+  Outcome (..),
+  PlayerColor (..),
+ )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
   DomainEvent (..),
@@ -39,16 +43,17 @@ fromStore store =
     store.storedMoves
     store.storedOutcome
     store.storedPendingAction
+    Nothing
 
 mkActiveState :: PlayerColor -> [AppliedMove] -> Maybe PendingAction -> State
 mkActiveState turn moves pending =
   let board = currentBoard moves
       validMoves = validMovesForPosition moves
-   in State board moves (Active turn validMoves pending)
+   in State board moves (Active turn validMoves pending Nothing)
 
 genEvent :: State -> Maybe (Gen Event)
 genEvent (State _ _ (Finished _)) = Nothing
-genEvent (State _ moves (Active turn validMoves pending)) =
+genEvent (State _ moves (Active turn validMoves pending _)) =
   Just $
     frequency $
       concat
@@ -67,7 +72,7 @@ genEvent (State _ moves (Active turn validMoves pending)) =
           , pa.actionType == DrawOffer
           ]
         , [(1, RequestUndo <$> elements [Black, White]) | isNothing pending]
-        , [ (1, pure $ AcceptUndo (opponent pa.offeredBy))
+        , [ (1, pure $ AcceptUndo (opponent pa.offeredBy) (Time 0))
           | Just pa <- [pending]
           , pa.actionType == UndoRequest
           , hasEnoughMoves
@@ -86,7 +91,7 @@ genEvent (State _ moves (Active turn validMoves pending)) =
 
 initialState :: State
 initialState =
-  State startBoard [] (Active Black (toList startBlackMoves) Nothing)
+  State startBoard [] (Active Black (toList startBlackMoves) Nothing Nothing)
 
 genSequence :: State -> Gen [(Event, TransitionResult)]
 genSequence s = case genEvent s of
@@ -125,7 +130,7 @@ test_onlineCancellation =
             move = (head startBlackMoves).move
         case transition st (MakeMove Black move (Time 0)) of
           Right tr -> case tr.newState of
-            State _ _ (Active _ _ p) -> p @?= Nothing
+            State _ _ (Active _ _ p _) -> p @?= Nothing
             other -> fail $ "Expected Active, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     , testCase "Move preserves own draw offer" $ do
@@ -133,7 +138,7 @@ test_onlineCancellation =
             move = (head startBlackMoves).move
         case transition st (MakeMove Black move (Time 0)) of
           Right tr -> case tr.newState of
-            State _ _ (Active _ _ p) -> p @?= Just (PendingAction DrawOffer Black)
+            State _ _ (Active _ _ p _) -> p @?= Just (PendingAction DrawOffer Black)
             other -> fail $ "Expected Active, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     , testCase "Move cancels opponent's undo request" $ do
@@ -141,7 +146,7 @@ test_onlineCancellation =
             move = (head startBlackMoves).move
         case transition st (MakeMove Black move (Time 0)) of
           Right tr -> case tr.newState of
-            State _ _ (Active _ _ p) -> p @?= Nothing
+            State _ _ (Active _ _ p _) -> p @?= Nothing
             other -> fail $ "Expected Active, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     , testCase "Move preserves own undo request" $ do
@@ -149,7 +154,7 @@ test_onlineCancellation =
             move = (head startBlackMoves).move
         case transition st (MakeMove Black move (Time 0)) of
           Right tr -> case tr.newState of
-            State _ _ (Active _ _ p) -> p @?= Just (PendingAction UndoRequest Black)
+            State _ _ (Active _ _ p _) -> p @?= Just (PendingAction UndoRequest Black)
             other -> fail $ "Expected Active, got " <> show other
           Left e -> fail $ "Expected Right, got Left " <> show e
     ]
@@ -171,10 +176,11 @@ test_onlineUndoCount =
                         White
                         (validMovesForPosition moves1)
                         (Just $ PendingAction UndoRequest Black)
+                        Nothing
                     )
-            case transition stateWithUndo (AcceptUndo White) of
+            case transition stateWithUndo (AcceptUndo White (Time 0)) of
               Right tr2 -> case tr2.newState of
-                State _ moves2 (Active turn2 _ _) -> do
+                State _ moves2 (Active turn2 _ _ _) -> do
                   length moves2 @?= 0
                   turn2 @?= Black
                 other -> fail $ "Expected Active, got " <> show other
@@ -184,7 +190,7 @@ test_onlineUndoCount =
         let blackMove = (head startBlackMoves).move
         case transition initialState (MakeMove Black blackMove (Time 0)) of
           Right tr1 -> case tr1.newState of
-            State _ _ (Active _ whiteMoves _) -> do
+            State _ _ (Active _ whiteMoves _ _) -> do
               let whiteMove = case whiteMoves of
                     (mc : _) -> mc.move
                     [] -> error "no white moves"
@@ -199,10 +205,11 @@ test_onlineUndoCount =
                               Black
                               (validMovesForPosition moves2)
                               (Just $ PendingAction UndoRequest Black)
+                              Nothing
                           )
-                  case transition stateWithUndo (AcceptUndo White) of
+                  case transition stateWithUndo (AcceptUndo White (Time 0)) of
                     Right tr3 -> case tr3.newState of
-                      State _ moves3 (Active turn3 _ _) -> do
+                      State _ moves3 (Active turn3 _ _ _) -> do
                         length moves3 @?= 0
                         turn3 @?= Black
                       other -> fail $ "Expected Active, got " <> show other

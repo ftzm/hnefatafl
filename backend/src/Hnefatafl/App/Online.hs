@@ -51,6 +51,7 @@ import Hnefatafl.App.WebSocket (
   withGameContext,
  )
 import Hnefatafl.Core.Data (
+  ClockState (..),
   Game (..),
   GameId (..),
   GameMode (..),
@@ -59,6 +60,7 @@ import Hnefatafl.Core.Data (
   PlayerColor (..),
   TimeControl,
   opponent,
+  secondsToRemainingTime,
  )
 import Hnefatafl.Core.Data qualified as Data
 import Hnefatafl.Effect.Clock (Clock, now)
@@ -69,9 +71,12 @@ import Hnefatafl.Effect.Storage (
   createGameParticipantToken,
   getGame,
   getMovesForGame,
+  getOnlineClockState,
+  getOnlineTimeControl,
   getPendingAction,
   insertGame,
   runTransaction,
+  setOnlineClockState,
   setOnlineTimeControl,
  )
 import Hnefatafl.Effect.Trace (Trace)
@@ -147,7 +152,7 @@ toEvent color time = \case
   OnlineAcceptDraw -> Online.AcceptDraw color
   OnlineDeclineDraw -> Online.DeclineDraw color
   OnlineRequestUndo -> Online.RequestUndo color
-  OnlineAcceptUndo -> Online.AcceptUndo color
+  OnlineAcceptUndo -> Online.AcceptUndo color time
   OnlineDeclineUndo -> Online.DeclineUndo color
 
 -------------------------------------------------------------------------------
@@ -159,14 +164,18 @@ loadOnlineState gameId = do
   game <- getGame gameId
   gameMoves <- getMovesForGame gameId
   pendingAction <- getPendingAction gameId
+  timeControl <- getOnlineTimeControl gameId
+  clockState <- getOnlineClockState gameId
   let appliedMoves = gameMoveToAppliedMoves gameMoves
       board = currentBoard appliedMoves
+      clock = liftA2 (,) timeControl clockState
   pure $
     Online.reconstruct
       board
       appliedMoves
       game.outcome
       pendingAction
+      clock
 
 mkGame :: GameId -> Time -> Game
 mkGame gameId time =
@@ -216,7 +225,11 @@ createGame timeControl = do
     insertGame game
     createGameParticipantToken whiteToken
     createGameParticipantToken blackToken
-    for_ timeControl $ setOnlineTimeControl game.gameId
+    for_ timeControl $ \tc -> do
+      setOnlineTimeControl game.gameId tc
+      let initial = secondsToRemainingTime tc.initialTime
+      setOnlineClockState game.gameId $
+        ClockState initial initial game.startTime
   increaseLabelledCounter gamesCreated "online"
   pure CreateGameResult{game, whiteToken, blackToken}
 
