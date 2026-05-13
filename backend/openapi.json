@@ -411,6 +411,25 @@
                 ],
                 "type": "object"
             },
+            "ClockMs": {
+                "properties": {
+                    "blackMs": {
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "type": "integer"
+                    },
+                    "whiteMs": {
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "whiteMs",
+                    "blackMs"
+                ],
+                "type": "object"
+            },
             "CreateAiGameResponse": {
                 "properties": {
                     "gameId": {
@@ -735,6 +754,9 @@
                             "board": {
                                 "$ref": "#/components/schemas/ApiBoard"
                             },
+                            "clock": {
+                                "$ref": "#/components/schemas/ClockMs"
+                            },
                             "gameId": {
                                 "$ref": "#/components/schemas/GameId"
                             },
@@ -784,6 +806,9 @@
                             "board": {
                                 "$ref": "#/components/schemas/ApiBoard"
                             },
+                            "clock": {
+                                "$ref": "#/components/schemas/ClockMs"
+                            },
                             "move": {
                                 "$ref": "#/components/schemas/ApiMove"
                             },
@@ -820,6 +845,9 @@
                     },
                     {
                         "properties": {
+                            "clock": {
+                                "$ref": "#/components/schemas/ClockMs"
+                            },
                             "status": {
                                 "$ref": "#/components/schemas/ApiGameStatus"
                             },
@@ -910,6 +938,9 @@
                             "board": {
                                 "$ref": "#/components/schemas/ApiBoard"
                             },
+                            "clock": {
+                                "$ref": "#/components/schemas/ClockMs"
+                            },
                             "moveCount": {
                                 "maximum": 9223372036854775807,
                                 "minimum": -9223372036854775808,
@@ -970,6 +1001,33 @@
                             "type"
                         ],
                         "title": "OnlineUndoCancelled",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "blackMs": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "type": {
+                                "enum": [
+                                    "clockUpdated"
+                                ],
+                                "type": "string"
+                            },
+                            "whiteMs": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "whiteMs",
+                            "blackMs",
+                            "type"
+                        ],
+                        "title": "OnlineClockUpdated",
                         "type": "object"
                     },
                     {

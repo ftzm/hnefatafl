@@ -18,7 +18,7 @@ import Hnefatafl.Api.Types (
 import Hnefatafl.Api.Types.WS (
   pendingActionFromDomain,
  )
-import Hnefatafl.Api.Types.WS.Online (OnlineServerMessage (..))
+import Hnefatafl.Api.Types.WS.Online (ClockMs (..), OnlineServerMessage (..))
 import Hnefatafl.Core.Data (
   ClockState (..),
   GameId,
@@ -49,8 +49,7 @@ notificationsFor actor newState = concatMap $ \case
     let msg =
           OnlineGameOver
             { _status = gameStatusFromDomain (Just outcome)
-            , _whiteRemainingMs = whiteMs
-            , _blackRemainingMs = blackMs
+            , _clock = clockMs
             }
      in [(opponent actor, msg), (actor, msg)]
   MovesUndone n ->
@@ -80,7 +79,7 @@ notificationsFor actor newState = concatMap $ \case
       )
     ]
  where
-  (whiteMs, blackMs) = clockMsFields newState
+  clockMs = clockMsFields newState
   opponentMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields newState
      in OnlineMoveMade
@@ -90,8 +89,7 @@ notificationsFor actor newState = concatMap $ \case
           , _status = status'
           , _validMoves = validMoves'
           , _board = board'
-          , _whiteRemainingMs = whiteMs
-          , _blackRemainingMs = blackMs
+          , _clock = clockMs
           }
   undoMsg n =
     let (turn', status', validMoves', board') = activeStateFields newState
@@ -101,8 +99,7 @@ notificationsFor actor newState = concatMap $ \case
           , _status = status'
           , _validMoves = validMoves'
           , _board = board'
-          , _whiteRemainingMs = whiteMs
-          , _blackRemainingMs = blackMs
+          , _clock = clockMs
           }
 
 -- | Serialize the full game state for initial sync on connect.
@@ -120,11 +117,10 @@ gameStateMessage gId playerColor s@(Online.State board moves phase) =
     , _status = status'
     , _validMoves = validMoves'
     , _pendingAction = pending'
-    , _whiteRemainingMs = whiteMs
-    , _blackRemainingMs = blackMs
+    , _clock = clockMs
     }
  where
-  (whiteMs, blackMs) = clockMsFields s
+  clockMs = clockMsFields s
   (turn', status', validMoves', pending') = case phase of
     Online.Active{turn, validMoves, pending} ->
       ( turn
@@ -158,13 +154,14 @@ activeStateFields (Online.State board _moves phase) =
       )
 
 -- | Extract clock millisecond values from game state.
-clockMsFields :: Online.State -> (Maybe Int, Maybe Int)
+clockMsFields :: Online.State -> Maybe ClockMs
 clockMsFields (Online.State _ _ phase) = case phase of
   Online.Active{clock = Just (_, cs)} ->
-    ( Just (remainingToMs cs.whiteRemaining)
-    , Just (remainingToMs cs.blackRemaining)
-    )
-  _ -> (Nothing, Nothing)
+    Just $
+      ClockMs
+        (remainingToMs cs.whiteRemaining)
+        (remainingToMs cs.blackRemaining)
+  _ -> Nothing
 
 -- | Converts nanosecond-precision remaining time to whole milliseconds
 -- for the wire format, which uses integer milliseconds to avoid

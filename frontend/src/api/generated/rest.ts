@@ -641,6 +641,10 @@ export interface components {
             /** @enum {string} */
             type: "auth";
         };
+        ClockMs: {
+            blackMs: number;
+            whiteMs: number;
+        };
         CreateAiGameResponse: {
             gameId: components["schemas"]["GameId"];
             token: string;
@@ -715,6 +719,7 @@ export interface components {
         };
         OnlineServerMessage: {
             board: components["schemas"]["ApiBoard"];
+            clock?: components["schemas"]["ClockMs"];
             gameId: components["schemas"]["GameId"];
             history: components["schemas"]["HistoryEntry"][];
             pendingAction?: components["schemas"]["PendingActionPayload"];
@@ -726,6 +731,7 @@ export interface components {
             validMoves: components["schemas"]["ValidMovesMap"];
         } | {
             board: components["schemas"]["ApiBoard"];
+            clock?: components["schemas"]["ClockMs"];
             move: components["schemas"]["ApiMove"];
             side: components["schemas"]["PlayerColor"];
             status: components["schemas"]["ApiGameStatus"];
@@ -734,6 +740,7 @@ export interface components {
             type: "moveMade";
             validMoves: components["schemas"]["ValidMovesMap"];
         } | {
+            clock?: components["schemas"]["ClockMs"];
             status: components["schemas"]["ApiGameStatus"];
             /** @enum {string} */
             type: "gameOver";
@@ -753,6 +760,7 @@ export interface components {
             type: "undoRequested";
         } | {
             board: components["schemas"]["ApiBoard"];
+            clock?: components["schemas"]["ClockMs"];
             moveCount: number;
             status: components["schemas"]["ApiGameStatus"];
             turn: components["schemas"]["PlayerColor"];
@@ -765,6 +773,11 @@ export interface components {
         } | {
             /** @enum {string} */
             type: "undoCancelled";
+        } | {
+            blackMs: number;
+            /** @enum {string} */
+            type: "clockUpdated";
+            whiteMs: number;
         } | {
             /** @enum {string} */
             type: "opponentJoined";

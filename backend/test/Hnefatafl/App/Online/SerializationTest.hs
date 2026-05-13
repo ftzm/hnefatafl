@@ -1,7 +1,7 @@
 module Hnefatafl.App.Online.SerializationTest where
 
 import Chronos (Time (..), Timespan (..))
-import Hnefatafl.Api.Types.WS.Online (OnlineServerMessage (..))
+import Hnefatafl.Api.Types.WS.Online (ClockMs (..), OnlineServerMessage (..))
 import Hnefatafl.App.Online.Serialization (
   gameStateMessage,
   notificationsFor,
@@ -80,23 +80,20 @@ test_gameStateMessage :: TestTree
 test_gameStateMessage =
   testGroup
     "gameStateMessage clock fields"
-    [ testCase "timed game has Just clock values" $
+    [ testCase "timed game has Just clock" $
         case gameStateMessage testGameId Black timedState of
-          OnlineGameState{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs} -> do
-            whiteMs @?= Just 300_000
-            blackMs @?= Just 250_000
+          OnlineGameState{_clock = c} ->
+            c @?= Just (ClockMs 300_000 250_000)
           other -> fail $ "Expected OnlineGameState, got " <> show other
-    , testCase "untimed game has Nothing clock values" $
+    , testCase "untimed game has Nothing clock" $
         case gameStateMessage testGameId Black untimedState of
-          OnlineGameState{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs} -> do
-            whiteMs @?= Nothing
-            blackMs @?= Nothing
+          OnlineGameState{_clock = c} ->
+            c @?= Nothing
           other -> fail $ "Expected OnlineGameState, got " <> show other
-    , testCase "finished game has Nothing clock values" $
+    , testCase "finished game has Nothing clock" $
         case gameStateMessage testGameId Black finishedState of
-          OnlineGameState{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs} -> do
-            whiteMs @?= Nothing
-            blackMs @?= Nothing
+          OnlineGameState{_clock = c} ->
+            c @?= Nothing
           other -> fail $ "Expected OnlineGameState, got " <> show other
     ]
 
@@ -108,47 +105,41 @@ test_notificationsForClock =
         let am = dummyMove Black
             notifications = notificationsFor Black timedState [MovePlayed am]
         case notifications of
-          [(_, OnlineMoveMade{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs})] -> do
-            whiteMs @?= Just 300_000
-            blackMs @?= Just 250_000
+          [(_, OnlineMoveMade{_clock = c})] ->
+            c @?= Just (ClockMs 300_000 250_000)
           other -> fail $ "Expected one OnlineMoveMade, got " <> show other
     , testCase "MovePlayed on untimed game has Nothing clock" $ do
         let am = dummyMove Black
             notifications = notificationsFor Black untimedState [MovePlayed am]
         case notifications of
-          [(_, OnlineMoveMade{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs})] -> do
-            whiteMs @?= Nothing
-            blackMs @?= Nothing
+          [(_, OnlineMoveMade{_clock = c})] ->
+            c @?= Nothing
           other -> fail $ "Expected one OnlineMoveMade, got " <> show other
     , testCase "GameEnded on timed game includes clock" $ do
         let notifications =
               notificationsFor Black timedState [GameEnded (BlackWins KingCaptured)]
         case notifications of
-          (_, OnlineGameOver{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs}) : _ -> do
-            whiteMs @?= Just 300_000
-            blackMs @?= Just 250_000
+          (_, OnlineGameOver{_clock = c}) : _ ->
+            c @?= Just (ClockMs 300_000 250_000)
           other -> fail $ "Expected OnlineGameOver, got " <> show other
     , testCase "GameEnded on untimed game has Nothing clock" $ do
         let notifications =
               notificationsFor Black untimedState [GameEnded (BlackWins KingCaptured)]
         case notifications of
-          (_, OnlineGameOver{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs}) : _ -> do
-            whiteMs @?= Nothing
-            blackMs @?= Nothing
+          (_, OnlineGameOver{_clock = c}) : _ ->
+            c @?= Nothing
           other -> fail $ "Expected OnlineGameOver, got " <> show other
     , testCase "MovesUndone on timed game includes clock" $ do
         let notifications = notificationsFor Black timedState [MovesUndone 1]
         case notifications of
-          (_, OnlineUndoAccepted{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs}) : _ -> do
-            whiteMs @?= Just 300_000
-            blackMs @?= Just 250_000
+          (_, OnlineUndoAccepted{_clock = c}) : _ ->
+            c @?= Just (ClockMs 300_000 250_000)
           other -> fail $ "Expected OnlineUndoAccepted, got " <> show other
     , testCase "MovesUndone on untimed game has Nothing clock" $ do
         let notifications = notificationsFor Black untimedState [MovesUndone 1]
         case notifications of
-          (_, OnlineUndoAccepted{_whiteRemainingMs = whiteMs, _blackRemainingMs = blackMs}) : _ -> do
-            whiteMs @?= Nothing
-            blackMs @?= Nothing
+          (_, OnlineUndoAccepted{_clock = c}) : _ ->
+            c @?= Nothing
           other -> fail $ "Expected OnlineUndoAccepted, got " <> show other
     , testCase "ClockUpdated sends OnlineClockUpdated to actor" $ do
         let notifications = notificationsFor Black timedState [ClockUpdated timedClock]

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.Api.Types.WS.Online (
+  ClockMs (..),
   OnlineServerMessage (..),
   OnlineClientMessage (..),
   onlineOptions,
@@ -48,6 +49,24 @@ onlineOptions =
     }
 
 -------------------------------------------------------------------------------
+-- Clock
+
+data ClockMs = ClockMs
+  { _whiteMs :: Int
+  , _blackMs :: Int
+  }
+  deriving (Show, Eq, Generic)
+
+instance ToJSON ClockMs where
+  toJSON = genericToJSON defaultOptions{Aeson.fieldLabelModifier = drop 1}
+instance FromJSON ClockMs where
+  parseJSON = genericParseJSON defaultOptions{Aeson.fieldLabelModifier = drop 1}
+instance ToSchema ClockMs where
+  declareNamedSchema =
+    genericDeclareNamedSchema
+      (fromAesonOptions defaultOptions{Aeson.fieldLabelModifier = drop 1})
+
+-------------------------------------------------------------------------------
 -- Server → Client
 
 data OnlineServerMessage
@@ -60,8 +79,7 @@ data OnlineServerMessage
       , _status :: ApiGameStatus
       , _validMoves :: ValidMovesMap
       , _pendingAction :: Maybe PendingActionPayload
-      , _whiteRemainingMs :: Maybe Int
-      , _blackRemainingMs :: Maybe Int
+      , _clock :: Maybe ClockMs
       }
   | OnlineMoveMade
       { _move :: ApiMove
@@ -70,13 +88,11 @@ data OnlineServerMessage
       , _status :: ApiGameStatus
       , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
-      , _whiteRemainingMs :: Maybe Int
-      , _blackRemainingMs :: Maybe Int
+      , _clock :: Maybe ClockMs
       }
   | OnlineGameOver
       { _status :: ApiGameStatus
-      , _whiteRemainingMs :: Maybe Int
-      , _blackRemainingMs :: Maybe Int
+      , _clock :: Maybe ClockMs
       }
   | OnlineDrawOffered
       { _by :: PlayerColor
@@ -92,8 +108,7 @@ data OnlineServerMessage
       , _status :: ApiGameStatus
       , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
-      , _whiteRemainingMs :: Maybe Int
-      , _blackRemainingMs :: Maybe Int
+      , _clock :: Maybe ClockMs
       }
   | OnlineUndoDeclined
   | OnlineUndoCancelled

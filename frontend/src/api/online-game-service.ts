@@ -37,7 +37,9 @@ export interface OnlineGameService {
   connecting: Accessor<boolean>;
 }
 
-function mapServerMessage(msg: OnlineServerMessage): OnlineGameEvent {
+function mapServerMessage(
+  msg: OnlineServerMessage,
+): OnlineGameEvent | undefined {
   switch (msg.type) {
     case "gameState":
       return {
@@ -88,6 +90,8 @@ function mapServerMessage(msg: OnlineServerMessage): OnlineGameEvent {
       return { type: "opponentJoined" };
     case "opponentLeft":
       return { type: "opponentLeft" };
+    case "clockUpdated":
+      return undefined;
   }
 }
 
