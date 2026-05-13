@@ -60,6 +60,8 @@ data OnlineServerMessage
       , _status :: ApiGameStatus
       , _validMoves :: ValidMovesMap
       , _pendingAction :: Maybe PendingActionPayload
+      , _whiteRemainingMs :: Maybe Int
+      , _blackRemainingMs :: Maybe Int
       }
   | OnlineMoveMade
       { _move :: ApiMove
@@ -68,9 +70,13 @@ data OnlineServerMessage
       , _status :: ApiGameStatus
       , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
+      , _whiteRemainingMs :: Maybe Int
+      , _blackRemainingMs :: Maybe Int
       }
   | OnlineGameOver
       { _status :: ApiGameStatus
+      , _whiteRemainingMs :: Maybe Int
+      , _blackRemainingMs :: Maybe Int
       }
   | OnlineDrawOffered
       { _by :: PlayerColor
@@ -86,9 +92,15 @@ data OnlineServerMessage
       , _status :: ApiGameStatus
       , _validMoves :: ValidMovesMap
       , _board :: ApiBoard
+      , _whiteRemainingMs :: Maybe Int
+      , _blackRemainingMs :: Maybe Int
       }
   | OnlineUndoDeclined
   | OnlineUndoCancelled
+  | OnlineClockUpdated
+      { _whiteMs :: Int
+      , _blackMs :: Int
+      }
   | OnlineOpponentJoined
   | OnlineOpponentLeft
   deriving (Show, Eq, Generic)

@@ -1,8 +1,10 @@
 module Hnefatafl.App.Online.Serialization (
   notificationsFor,
   gameStateMessage,
+  remainingToMs,
 ) where
 
+import Chronos (getTimespan)
 import Hnefatafl.Api.Types (
   ApiBoard,
   ApiGameStatus,
@@ -18,10 +20,14 @@ import Hnefatafl.Api.Types.WS (
  )
 import Hnefatafl.Api.Types.WS.Online (OnlineServerMessage (..))
 import Hnefatafl.Core.Data (
+  ClockState (..),
   GameId,
   MoveWithCaptures (..),
   PlayerColor (..),
+  RemainingTime,
+  nanosPerMillisecond,
   opponent,
+  toTimespan,
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
@@ -40,7 +46,12 @@ notificationsFor actor newState = concatMap $ \case
   MovePlayed am ->
     [(opponent actor, opponentMovedMsg am)]
   GameEnded outcome ->
-    let msg = OnlineGameOver{_status = gameStatusFromDomain (Just outcome)}
+    let msg =
+          OnlineGameOver
+            { _status = gameStatusFromDomain (Just outcome)
+            , _whiteRemainingMs = whiteMs
+            , _blackRemainingMs = blackMs
+            }
      in [(opponent actor, msg), (actor, msg)]
   MovesUndone n ->
     let msg = undoMsg n
@@ -59,9 +70,17 @@ notificationsFor actor newState = concatMap $ \case
     [(offerer, OnlineDrawCancelled)]
   OfferAutoCancelled UndoRequest offerer ->
     [(offerer, OnlineUndoCancelled)]
-  ClockUpdated _ ->
-    []
+  ClockUpdated cs ->
+    [
+      ( actor
+      , OnlineClockUpdated
+          { _whiteMs = remainingToMs cs.whiteRemaining
+          , _blackMs = remainingToMs cs.blackRemaining
+          }
+      )
+    ]
  where
+  (whiteMs, blackMs) = clockMsFields newState
   opponentMovedMsg am =
     let (turn', status', validMoves', board') = activeStateFields newState
      in OnlineMoveMade
@@ -71,6 +90,8 @@ notificationsFor actor newState = concatMap $ \case
           , _status = status'
           , _validMoves = validMoves'
           , _board = board'
+          , _whiteRemainingMs = whiteMs
+          , _blackRemainingMs = blackMs
           }
   undoMsg n =
     let (turn', status', validMoves', board') = activeStateFields newState
@@ -80,11 +101,13 @@ notificationsFor actor newState = concatMap $ \case
           , _status = status'
           , _validMoves = validMoves'
           , _board = board'
+          , _whiteRemainingMs = whiteMs
+          , _blackRemainingMs = blackMs
           }
 
 -- | Serialize the full game state for initial sync on connect.
 gameStateMessage :: GameId -> PlayerColor -> Online.State -> OnlineServerMessage
-gameStateMessage gId playerColor (Online.State board moves phase) =
+gameStateMessage gId playerColor s@(Online.State board moves phase) =
   OnlineGameState
     { _gameId = gId
     , _playerColor = playerColor
@@ -97,8 +120,11 @@ gameStateMessage gId playerColor (Online.State board moves phase) =
     , _status = status'
     , _validMoves = validMoves'
     , _pendingAction = pending'
+    , _whiteRemainingMs = whiteMs
+    , _blackRemainingMs = blackMs
     }
  where
+  (whiteMs, blackMs) = clockMsFields s
   (turn', status', validMoves', pending') = case phase of
     Online.Active{turn, validMoves, pending} ->
       ( turn
@@ -107,7 +133,7 @@ gameStateMessage gId playerColor (Online.State board moves phase) =
       , fmap pendingActionFromDomain pending
       )
     Online.Finished outcome ->
-      ( Black
+      ( Black -- Turn is meaningless post-game; placeholder value.
       , gameStatusFromDomain (Just outcome)
       , validMovesMapFromDomain []
       , Nothing
@@ -125,8 +151,23 @@ activeStateFields (Online.State board _moves phase) =
       , boardFromExtern board
       )
     Online.Finished outcome ->
-      ( Black
+      ( Black -- Turn is meaningless post-game; placeholder value.
       , gameStatusFromDomain (Just outcome)
       , validMovesMapFromDomain []
       , boardFromExtern board
       )
+
+-- | Extract clock millisecond values from game state.
+clockMsFields :: Online.State -> (Maybe Int, Maybe Int)
+clockMsFields (Online.State _ _ phase) = case phase of
+  Online.Active{clock = Just (_, cs)} ->
+    ( Just (remainingToMs cs.whiteRemaining)
+    , Just (remainingToMs cs.blackRemaining)
+    )
+  _ -> (Nothing, Nothing)
+
+-- | Converts nanosecond-precision remaining time to whole milliseconds
+-- for the wire format, which uses integer milliseconds to avoid
+-- floating-point precision issues on clients.
+remainingToMs :: RemainingTime -> Int
+remainingToMs rt = fromIntegral (getTimespan (toTimespan rt) `div` nanosPerMillisecond)

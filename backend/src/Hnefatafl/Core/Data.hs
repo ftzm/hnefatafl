@@ -38,6 +38,7 @@ module Hnefatafl.Core.Data (
   toTimespan,
   secondsToRemainingTime,
   secondsToTimespan,
+  nanosPerMillisecond,
 
   -- * Game Participant Token Types
   GameParticipantTokenId (..),
@@ -270,6 +271,9 @@ secondsToTimespan s =
 
 nanosPerSecond :: Int64
 nanosPerSecond = 1_000_000_000
+
+nanosPerMillisecond :: Int64
+nanosPerMillisecond = 1_000_000
 
 data ClockState = ClockState
   { whiteRemaining :: RemainingTime
