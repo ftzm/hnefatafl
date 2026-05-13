@@ -44,8 +44,9 @@ Each runs in its own isolated sub-agent and returns structured findings.
 Once all sub-reviewers return, produce a unified review:
 
 1. **Deduplicate**: if multiple reviewers flagged the same issue, merge into one finding and note which dimensions it touches
-2. **Rank by severity**: Critical > Major > Minor, across all dimensions
-3. **Present the unified report** in this format:
+2. **Include every finding**: every issue from every sub-reviewer must appear in the synthesis. Deduplication merges overlapping findings — it never drops them. If a finding is unique to one reviewer, it still appears.
+3. **Rank by severity**: Critical > Major > Minor, across all dimensions
+4. **Present the unified report** in this format:
 
 ---
 
@@ -67,4 +68,4 @@ Once all sub-reviewers return, produce a unified review:
 
 The `[dimensions]` tag shows which review(s) flagged it, e.g. `[security, correctness]`.
 
-Keep the synthesis concise. Don't pad — if the code is clean, say so briefly.
+Keep each finding concise — one or two sentences. Don't pad — if the code is clean, say so briefly. But never omit a finding for brevity.
