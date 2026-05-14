@@ -21,6 +21,13 @@ import SkipForwardIcon from "./ui/icons/SkipForwardIcon";
 import UndoIcon from "./ui/icons/UndoIcon";
 import Toolbar from "./ui/Toolbar";
 
+export function formatClockMs(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 interface ActionDef {
   label: string;
   icon: JSX.Element;
@@ -141,6 +148,11 @@ export default function GameLayout(props: GameLayoutProps) {
     game.store.game.playerColor === "black" ? "white" : "black";
   const bottomColor = (): Side => opposite(topColor());
   const playerName = (c: Side) => (c === "black" ? blackName() : whiteName());
+  const clockForSide = (c: Side) => {
+    const clock = game.store.game.clock;
+    if (!clock) return null;
+    return c === "white" ? clock.whiteMs : clock.blackMs;
+  };
 
   return (
     <div class="main-layout">
@@ -163,7 +175,11 @@ export default function GameLayout(props: GameLayoutProps) {
         >
           <span class="player-name">{playerName(topColor())}</span>
           <span class="player-rule" />
-          <span class="player-clock">7:28</span>
+          <Show when={clockForSide(topColor()) != null}>
+            <span class="player-clock">
+              {formatClockMs(clockForSide(topColor())!)}
+            </span>
+          </Show>
         </div>
         <div class={`captures top ${bottomColor()}`}>
           <For
@@ -185,7 +201,11 @@ export default function GameLayout(props: GameLayoutProps) {
         >
           <span class="player-name">{playerName(bottomColor())}</span>
           <span class="player-rule" />
-          <span class="player-clock">7:28</span>
+          <Show when={clockForSide(bottomColor()) != null}>
+            <span class="player-clock">
+              {formatClockMs(clockForSide(bottomColor())!)}
+            </span>
+          </Show>
         </div>
         <div class="game-actions">
           <For each={activeActions()}>
@@ -221,9 +241,11 @@ export default function GameLayout(props: GameLayoutProps) {
             <span class={`mobile-player-name ${playerState("black")}`}>
               {blackName()}
             </span>
-            <span class={`mobile-player-clock ${playerState("black")}`}>
-              7:28
-            </span>
+            <Show when={clockForSide("black") != null}>
+              <span class={`mobile-player-clock ${playerState("black")}`}>
+                {formatClockMs(clockForSide("black")!)}
+              </span>
+            </Show>
           </div>
         </div>
         <span class="mobile-vs">vs</span>
@@ -232,9 +254,11 @@ export default function GameLayout(props: GameLayoutProps) {
             <span class={`mobile-player-name ${playerState("white")}`}>
               {whiteName()}
             </span>
-            <span class={`mobile-player-clock ${playerState("white")}`}>
-              7:28
-            </span>
+            <Show when={clockForSide("white") != null}>
+              <span class={`mobile-player-clock ${playerState("white")}`}>
+                {formatClockMs(clockForSide("white")!)}
+              </span>
+            </Show>
           </div>
           <div class="captures black">
             <For
