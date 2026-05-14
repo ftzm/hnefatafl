@@ -49,6 +49,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         type: "gameOver",
         winner: gameOver.winner,
         reason: gameOver.reason,
+        clock: null,
       });
       return;
     }
@@ -67,6 +68,7 @@ export function createMockOnlineGameService(): OnlineGameService {
       boardRep: cloneBoardRep(board),
       currentPlayer,
       moves: nextMoves,
+      clock: null,
     });
 
     const nextGameOver = checkGameOver(board, currentPlayer, nextMoves);
@@ -76,6 +78,7 @@ export function createMockOnlineGameService(): OnlineGameService {
           type: "gameOver",
           winner: nextGameOver.winner,
           reason: nextGameOver.reason,
+          clock: null,
         });
       }, 100);
     }
@@ -116,6 +119,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         moves: initialMoves,
         moveHistory: [],
         gameOver: null,
+        clock: null,
       });
 
       setTimeout(() => emitIfActive({ type: "opponentJoined" }), 300);
@@ -145,6 +149,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         boardRep: cloneBoardRep(board),
         currentPlayer,
         moves: nextMoves,
+        clock: null,
       });
 
       const gameOver = checkGameOver(board, currentPlayer, nextMoves);
@@ -154,6 +159,7 @@ export function createMockOnlineGameService(): OnlineGameService {
             type: "gameOver",
             winner: gameOver.winner,
             reason: gameOver.reason,
+            clock: null,
           });
         }, 100);
         return;
@@ -166,7 +172,12 @@ export function createMockOnlineGameService(): OnlineGameService {
       if (!active) return;
       // The resigning player loses
       const winner = creatorColor === "black" ? "white" : "black";
-      setEvents({ type: "gameOver", winner, reason: "Resignation" });
+      setEvents({
+        type: "gameOver",
+        winner,
+        reason: "Resignation",
+        clock: null,
+      });
     },
 
     offerDraw() {
@@ -177,6 +188,7 @@ export function createMockOnlineGameService(): OnlineGameService {
             type: "gameOver",
             winner: "draw",
             reason: "Draw agreed",
+            clock: null,
           });
         } else {
           emitIfActive({ type: "drawDeclined" });
@@ -186,7 +198,12 @@ export function createMockOnlineGameService(): OnlineGameService {
 
     acceptDraw() {
       if (!active) return;
-      setEvents({ type: "gameOver", winner: "draw", reason: "Draw agreed" });
+      setEvents({
+        type: "gameOver",
+        winner: "draw",
+        reason: "Draw agreed",
+        clock: null,
+      });
     },
 
     declineDraw() {
@@ -197,7 +214,7 @@ export function createMockOnlineGameService(): OnlineGameService {
       if (!active) return;
       setTimeout(() => {
         if (Math.random() < 0.5) {
-          emitIfActive({ type: "undoAccepted", moveCount: 1 });
+          emitIfActive({ type: "undoAccepted", moveCount: 1, clock: null });
         } else {
           emitIfActive({ type: "undoDeclined" });
         }
@@ -213,7 +230,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         board = applyMoveToBoardRep(board, m);
         currentPlayer = currentPlayer === "black" ? "white" : "black";
       }
-      setEvents({ type: "undoAccepted", moveCount: 1 });
+      setEvents({ type: "undoAccepted", moveCount: 1, clock: null });
     },
 
     declineUndo() {

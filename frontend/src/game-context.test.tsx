@@ -277,3 +277,82 @@ describe("game context — derived signals", () => {
     expect(ctx.lastMove()?.to).toBe(blackMove.to);
   });
 });
+
+describe("game context — clock state", () => {
+  it("clock defaults to null", () => {
+    const ctx = setupContext();
+    expect(ctx.store.game.clock).toBeNull();
+  });
+
+  it("initGame with clock sets clock on store", () => {
+    const ctx = setupContext();
+    ctx.initGame({
+      boardRep: {
+        black: new Set(startBoard.black),
+        white: new Set(startBoard.white),
+        king: startBoard.king,
+      },
+      clock: { whiteMs: 300_000, blackMs: 250_000 },
+    });
+    expect(ctx.store.game.clock).toEqual({
+      whiteMs: 300_000,
+      blackMs: 250_000,
+    });
+  });
+
+  it("applyExternalMove with clock updates clock", () => {
+    const ctx = setupContext();
+    ctx.initGame({
+      boardRep: {
+        black: new Set(startBoard.black),
+        white: new Set(startBoard.white),
+        king: startBoard.king,
+      },
+      clock: { whiteMs: 300_000, blackMs: 300_000 },
+    });
+    const board = ctx.store.game.boardRep;
+    ctx.applyExternalMove({
+      move: blackMove,
+      boardRep: board,
+      currentPlayer: "white",
+      moves: {},
+      clock: { whiteMs: 300_000, blackMs: 295_000 },
+    });
+    expect(ctx.store.game.clock).toEqual({
+      whiteMs: 300_000,
+      blackMs: 295_000,
+    });
+  });
+
+  it("applyExternalMove without clock leaves clock unchanged", () => {
+    const ctx = setupContext();
+    ctx.initGame({
+      boardRep: {
+        black: new Set(startBoard.black),
+        white: new Set(startBoard.white),
+        king: startBoard.king,
+      },
+      clock: { whiteMs: 300_000, blackMs: 300_000 },
+    });
+    const board = ctx.store.game.boardRep;
+    ctx.applyExternalMove({
+      move: blackMove,
+      boardRep: board,
+      currentPlayer: "white",
+      moves: {},
+    });
+    expect(ctx.store.game.clock).toEqual({
+      whiteMs: 300_000,
+      blackMs: 300_000,
+    });
+  });
+
+  it("setClock updates clock on store", () => {
+    const ctx = setupContext();
+    ctx.setClock({ whiteMs: 100_000, blackMs: 200_000 });
+    expect(ctx.store.game.clock).toEqual({
+      whiteMs: 100_000,
+      blackMs: 200_000,
+    });
+  });
+});

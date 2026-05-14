@@ -50,6 +50,7 @@ function mapServerMessage(
         moves: mapMoves(msg.validMoves),
         moveHistory: mapHistory(msg.history),
         gameOver: mapGameOver(msg.status),
+        clock: msg.clock ?? null,
       };
     case "moveMade":
       return {
@@ -58,6 +59,7 @@ function mapServerMessage(
         boardRep: mapBoard(msg.board),
         currentPlayer: msg.turn,
         moves: mapMoves(msg.validMoves),
+        clock: msg.clock ?? null,
       };
     case "gameOver":
       if (msg.status.state === "finished") {
@@ -65,12 +67,14 @@ function mapServerMessage(
           type: "gameOver",
           winner: msg.status.winner,
           reason: msg.status.reason,
+          clock: msg.clock ?? null,
         };
       }
       return {
         type: "gameOver",
         winner: "draw",
         reason: "unknown",
+        clock: msg.clock ?? null,
       };
     case "drawOffered":
       return { type: "drawOffer", by: msg.by };
@@ -81,7 +85,11 @@ function mapServerMessage(
     case "undoRequested":
       return { type: "undoRequest", by: msg.by };
     case "undoAccepted":
-      return { type: "undoAccepted", moveCount: msg.moveCount };
+      return {
+        type: "undoAccepted",
+        moveCount: msg.moveCount,
+        clock: msg.clock ?? null,
+      };
     case "undoDeclined":
       return { type: "undoDeclined" };
     case "undoCancelled":
@@ -91,7 +99,10 @@ function mapServerMessage(
     case "opponentLeft":
       return { type: "opponentLeft" };
     case "clockUpdated":
-      return undefined;
+      return {
+        type: "clockUpdated",
+        clock: { whiteMs: msg.whiteMs, blackMs: msg.blackMs },
+      };
   }
 }
 

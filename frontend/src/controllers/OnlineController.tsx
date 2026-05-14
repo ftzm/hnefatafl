@@ -67,6 +67,7 @@ function OnlineController() {
             moveHistory: event.moveHistory,
             playerColor: event.playerColor,
             gameOver: event.gameOver,
+            clock: event.clock,
             players:
               event.playerColor === "black"
                 ? { black: "You", white: "Opponent" }
@@ -80,14 +81,19 @@ function OnlineController() {
           break;
         case "gameOver":
           game.setGameOver({ winner: event.winner, reason: event.reason });
+          game.setClock(event.clock);
           clearAll();
           break;
         case "undoAccepted":
           for (let i = 0; i < event.moveCount; i++) {
             game.undoLastMove();
           }
+          game.setClock(event.clock);
           setOutgoingUndo(false);
           setIncoming(undefined);
+          break;
+        case "clockUpdated":
+          game.setClock(event.clock);
           break;
         case "drawOffer":
           setNotice(undefined); // discard any stale notice

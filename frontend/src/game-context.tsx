@@ -6,6 +6,7 @@ import {
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
+import type { ClockMs } from "./api/types";
 import {
   applyMoveToBoardRep,
   type BoardRep,
@@ -33,6 +34,7 @@ export interface GameState {
   players: { black: string; white: string };
   historyCursor: number;
   loading: boolean;
+  clock: ClockMs | null;
 }
 
 interface GameContextValue {
@@ -56,8 +58,10 @@ interface GameContextValue {
     boardRep: BoardRep;
     currentPlayer: PlayerColor;
     moves: MovesMap;
+    clock?: ClockMs | null;
   }) => void;
   setMoves: (moves: MovesMap) => void;
+  setClock: (clock: ClockMs | null) => void;
   setGameOver: (state: GameOverState | null) => void;
   reconcile: (response: {
     moves: MovesMap;
@@ -91,6 +95,7 @@ function initialGameState(): GameState {
     players: { black: "Black", white: "White" },
     historyCursor: 0,
     loading: true,
+    clock: null,
   };
 }
 
@@ -172,18 +177,25 @@ export const GameProvider: ParentComponent = (props) => {
     boardRep: BoardRep;
     currentPlayer: PlayerColor;
     moves: MovesMap;
+    clock?: ClockMs | null;
   }): void {
-    setStore("game", {
+    const update: Partial<GameState> = {
       moveHistory: [...store.game.moveHistory, event.move],
       historyCursor: 0,
       currentPlayer: event.currentPlayer,
       boardRep: event.boardRep,
       moves: event.moves,
-    });
+    };
+    if ("clock" in event) update.clock = event.clock;
+    setStore("game", update);
   }
 
   function setMovesAction(moves: MovesMap): void {
     setStore("game", "moves", moves);
+  }
+
+  function setClockAction(clock: ClockMs | null): void {
+    setStore("game", "clock", clock);
   }
 
   function setGameOverAction(state: GameOverState | null): void {
@@ -292,6 +304,7 @@ export const GameProvider: ParentComponent = (props) => {
     applyMove,
     applyExternalMove,
     setMoves: setMovesAction,
+    setClock: setClockAction,
     setGameOver: setGameOverAction,
     reconcile: reconcileAction,
     undoLastMove,

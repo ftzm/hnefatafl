@@ -46,6 +46,11 @@ export type AiGameEvent =
       gameOver: GameOverState | null;
     };
 
+export interface ClockMs {
+  whiteMs: number;
+  blackMs: number;
+}
+
 export type OnlineGameEvent =
   | {
       type: "initialState";
@@ -55,6 +60,7 @@ export type OnlineGameEvent =
       moves: MovesMap;
       moveHistory: Move[];
       gameOver: GameOverState | null;
+      clock: ClockMs | null;
     }
   | {
       type: "moveMade";
@@ -62,15 +68,26 @@ export type OnlineGameEvent =
       boardRep: BoardRep;
       currentPlayer: PlayerColor;
       moves: MovesMap;
+      clock: ClockMs | null;
     }
-  | { type: "gameOver"; winner: PlayerColor | "draw"; reason: string }
+  | {
+      type: "gameOver";
+      winner: PlayerColor | "draw";
+      reason: string;
+      clock: ClockMs | null;
+    }
   | { type: "opponentJoined" }
   | { type: "opponentLeft" }
   | { type: "drawOffer"; by: PlayerColor }
   | { type: "drawDeclined" }
   | { type: "drawCancelled" }
   | { type: "undoRequest"; by: PlayerColor }
-  | { type: "undoAccepted"; moveCount: number }
+  | {
+      type: "undoAccepted";
+      moveCount: number;
+      clock: ClockMs | null;
+    }
   | { type: "undoDeclined" }
   | { type: "undoCancelled" }
+  | { type: "clockUpdated"; clock: ClockMs }
   | { type: "chat"; message: string };
