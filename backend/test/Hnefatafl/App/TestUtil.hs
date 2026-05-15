@@ -9,6 +9,7 @@ module Hnefatafl.App.TestUtil (
   clientSendAuth,
   clientRecv,
   clientRecvJSON,
+  expectFrom,
 
   -- * Effect stack runners
   runHotseatTest,
@@ -19,6 +20,7 @@ import Control.Concurrent.MVar qualified as MVar
 import Control.Concurrent.STM (
   TQueue,
   newTQueueIO,
+  orElse,
   readTQueue,
   writeTQueue,
  )
@@ -33,22 +35,23 @@ import Hnefatafl.App.WebSocket (encodeAuthMsg)
 import Hnefatafl.Effect.Clock (Clock)
 import Hnefatafl.Effect.IdGen (IdGen)
 import Hnefatafl.Effect.Storage (Storage)
-import Hnefatafl.Metrics (HMetrics)
 import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
-import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
+import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Interpreter.WebSocket.IO (runWebSocketIO)
 import Hnefatafl.Logging (withNoLogEnv)
+import Hnefatafl.Metrics (HMetrics)
 import Network.WebSockets (
   DataMessage (..),
   Message (..),
   defaultConnectionOptions,
  )
 import Network.WebSockets.Connection (Connection (..))
+import System.Timeout (timeout)
 import Unsafe.Coerce (unsafeCoerce)
 
 -------------------------------------------------------------------------------
@@ -111,6 +114,30 @@ clientRecvJSON tc = do
     Just v -> pure v
     Nothing -> error $ "clientRecvJSON: failed to decode: " <> show bs
 
+-- | Read a message expected on one socket, failing if it arrives on
+-- the other instead. Uses STM 'orElse' to check both without
+-- polling. A 2-second timeout catches bugs where no message arrives
+-- at all.
+expectFrom :: TestConnPair -> TestConnPair -> IO Aeson.Value
+expectFrom expected unexpected = do
+  let readExpected = Left <$> readTQueue expected.serverToClient
+      readUnexpected = Right <$> readTQueue unexpected.serverToClient
+  result <- timeout 2_000_000 $ atomically (readExpected `orElse` readUnexpected)
+  case result of
+    Nothing ->
+      error "expectFrom: timed out waiting for message on either socket"
+    Just (Left msg) -> case msg of
+      DataMessage _ _ _ (Text bs _) ->
+        case Aeson.decode bs of
+          Just v -> pure v
+          Nothing -> error $ "expectFrom: failed to decode: " <> show bs
+      other -> error $ "expectFrom: unexpected message type: " <> show other
+    Just (Right msg) -> case msg of
+      DataMessage _ _ _ (Text bs _) ->
+        error $ "expectFrom: message arrived on wrong socket: " <> show bs
+      other ->
+        error $ "expectFrom: unexpected message on wrong socket: " <> show other
+
 -------------------------------------------------------------------------------
 -- Effect stack runners
 
@@ -146,11 +173,11 @@ runHotseatTest connVar action = do
   case result of
     Left err -> error $ toText $ "runHotseatTest: " <> err
     Right a -> pure a
-  where
-    unusedOpenConn =
-      error
-        "runHotseatTest: connection-replacement openConn invoked \
-        \unexpectedly (a transaction raised ConnectionUnrecoverableException)"
+ where
+  unusedOpenConn =
+    error
+      "runHotseatTest: connection-replacement openConn invoked \
+      \unexpectedly (a transaction raised ConnectionUnrecoverableException)"
 
 -- | Run an online/AI test with Storage, Clock, IdGen, Concurrent, WebSocket,
 -- and KatipE effects. Logs are silently dropped via withNoLogEnv.
@@ -186,8 +213,8 @@ runOnlineTest connVar action = do
   case result of
     Left err -> error $ toText $ "runOnlineTest: " <> err
     Right a -> pure a
-  where
-    unusedOpenConn =
-      error
-        "runOnlineTest: connection-replacement openConn invoked \
-        \unexpectedly (a transaction raised ConnectionUnrecoverableException)"
+ where
+  unusedOpenConn =
+    error
+      "runOnlineTest: connection-replacement openConn invoked \
+      \unexpectedly (a transaction raised ConnectionUnrecoverableException)"

@@ -112,7 +112,7 @@ data GameSession = GameSession
   }
   deriving (Generic)
 
-type GameSessions = STMMap.Map GameId (SessionEntry GameSession)
+type GameSessions = STMMap.Map GameId (SessionEntry (MVar GameSession))
 
 -------------------------------------------------------------------------------
 -- Client message conversion
@@ -236,10 +236,13 @@ connectToGame sessions gameId humanColor uid conn = do
       gameState <- runTransaction $ loadAIState humanColor gameId
       let session = GameSession gameState humanColor (uid, connVar) Nothing
       var <- MVar.newMVar session
-      sessionVar <- STM.atomically $ insertOrAcquire var gameId sessions
+      -- insertOrAcquire is atomic: if another thread raced us and
+      -- inserted first, we acquire their entry instead. Only the
+      -- winner (inserted = True) performs one-time session setup.
+      (sessionVar, inserted) <- STM.atomically $ insertOrAcquire var gameId sessions
       ( do
           -- If engine was thinking (e.g. server restart), re-trigger the search
-          when (sessionVar == var) $
+          when inserted $
             case gameState of
               AI.State _ ms (AI.EngineThinking _) -> do
                 searchAsync <-
@@ -330,7 +333,8 @@ processEvent sessionVar gameId event =
       for_ session.engineAsync Async.cancel
     engineAsync' <-
       if not wasThinking && nowThinking
-        then Just <$> spawnEngineSearch sessionVar gameId session.humanColor newState.moves
+        then
+          Just <$> spawnEngineSearch sessionVar gameId session.humanColor newState.moves
         else pure Nothing
     pure session{gameState = newState, engineAsync = engineAsync'}
 

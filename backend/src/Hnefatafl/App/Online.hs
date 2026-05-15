@@ -2,16 +2,14 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Hnefatafl.App.Online (
-  GameSession (..),
+  -- * Public API
   GameSessions,
   CreateGameResult (..),
-  toEvent,
   createGame,
-  getOrCreateSession,
-  processEvent,
-  connectPlayer,
-  disconnectPlayer,
   handleWebSocket,
+
+  -- * Internals (exported for testing)
+  SessionEvent (..),
 ) where
 
 import Chronos (Time)
@@ -20,12 +18,15 @@ import Data.Aeson (
  )
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent (Concurrent)
+import Effectful.Concurrent.Async qualified as Async
 import Effectful.Concurrent.MVar qualified as MVar
 import Effectful.Concurrent.STM qualified as STM
-import Effectful.Exception (bracket)
+import Effectful.Exception (bracket, catchSync, throwIO)
 import Effectful.Katip (KatipE, katipAddNamespace, logTM)
 import Hnefatafl.Api.Types (Position (..))
 import Hnefatafl.Api.Types.WS (
+  WsError (..),
+  WsErrorCode (..),
   transitionErrorToWsError,
  )
 import Hnefatafl.Api.Types.WS.Online (
@@ -79,8 +80,18 @@ import Hnefatafl.Effect.Storage (
   setOnlineClockState,
   setOnlineTimeControl,
  )
-import Hnefatafl.Effect.Trace (Trace)
+import Hnefatafl.Effect.Trace (
+  Trace,
+  inSpan,
+  inSpanWithLink,
+  recordSpanException,
+ )
 import Hnefatafl.Effect.WebSocket (WebSocket)
+import Hnefatafl.Exception (
+  DomainException (..),
+  IsDomainException (..),
+  logCaughtException,
+ )
 import Hnefatafl.Game.Common (
   currentBoard,
  )
@@ -97,7 +108,9 @@ import Hnefatafl.Metrics (
  )
 import Katip (Severity (..))
 import Network.WebSockets (Connection)
-import Optics ((.~))
+import OpenTelemetry.Context (lookupSpan)
+import OpenTelemetry.Context.ThreadLocal qualified as ThreadLocal
+import OpenTelemetry.Trace.Core qualified as OT (getSpanContext)
 import StmContainers.Map qualified as STMMap
 
 -------------------------------------------------------------------------------
@@ -106,9 +119,18 @@ import StmContainers.Map qualified as STMMap
 newtype ConnectionId = ConnectionId Text
   deriving (Eq)
 
--- | In-memory session for an active online game. Connections are wrapped
--- in MVars to ensure thread-safe sends — only one thread can write to a
--- WebSocket connection at a time.
+-- | Events processed by the session worker loop. All session state
+-- mutations flow through this queue, ensuring sequential processing
+-- without locks.
+data SessionEvent
+  = PlayerMessage PlayerColor Time OnlineClientMessage
+  | PlayerConnected PlayerColor ConnectionId (MVar Connection)
+  | PlayerDisconnected PlayerColor ConnectionId
+
+-- | In-memory session for an active online game. A session exists
+-- while at least one player is connected; the underlying game
+-- persists in the database across sessions. Owned exclusively by the
+-- worker loop, must never be shared.
 data GameSession = GameSession
   { gameState :: Online.State
   , whiteConn :: Maybe (ConnectionId, MVar Connection)
@@ -116,7 +138,7 @@ data GameSession = GameSession
   }
   deriving (Generic)
 
-type GameSessions = STMMap.Map GameId (SessionEntry GameSession)
+type GameSessions = STMMap.Map GameId (SessionEntry (STM.TBQueue SessionEvent))
 
 -- Convenience helpers
 
@@ -138,11 +160,20 @@ getConn :: PlayerColor -> GameSession -> Maybe (ConnectionId, MVar Connection)
 getConn White session = session.whiteConn
 getConn Black session = session.blackConn
 
+eventColor :: SessionEvent -> PlayerColor
+eventColor (PlayerMessage c _ _) = c
+eventColor (PlayerConnected c _ _) = c
+eventColor (PlayerDisconnected c _) = c
+
+isFinished :: Online.State -> Bool
+isFinished (Online.State _ _ (Online.Finished _)) = True
+isFinished _ = False
+
 -------------------------------------------------------------------------------
 -- Client message conversion
 
--- | Convert an API client message to an Online event, adding the player's
--- color and the current time.
+-- | Convert an API client message to an Online event, adding the
+-- player's color and the current time.
 toEvent :: PlayerColor -> Time -> OnlineClientMessage -> Online.Event
 toEvent color time = \case
   OnlineMove (Position from) (Position to) ->
@@ -195,8 +226,8 @@ data CreateGameResult = CreateGameResult
   , blackToken :: GameParticipantToken
   }
 
--- | Create a new online game in the database with tokens for both players.
--- Does NOT create a session in the STMMap (lazy creation on WS connect).
+-- | Create a new online game in the database with tokens for both
+-- players. Does NOT create a session (lazy creation on WS connect).
 createGame ::
   (Storage :> es, Clock :> es, IdGen :> es, Trace :> es, HMetrics :> es) =>
   Maybe TimeControl ->
@@ -236,57 +267,87 @@ createGame timeControl = do
 -------------------------------------------------------------------------------
 -- Session management
 
--- | Get or create a session. If a session already exists in the map,
--- acquires it (fast path, no DB load). Otherwise loads from DB, creates
--- a full MVar, and inserts it. If two threads race on creation, one
--- wins and the other's work is discarded (optimistic concurrency).
+-- | Get or create a session's event queue. If a session already
+-- exists in the map, acquires it (increments refcount). Otherwise
+-- loads from DB, creates a queue, spawns a worker, and inserts.
 getOrCreateSession ::
-  (Storage :> es, Concurrent :> es, Trace :> es) =>
+  ( Storage :> es
+  , Concurrent :> es
+  , IOE :> es
+  , Clock :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
   GameSessions ->
   GameId ->
-  Eff es (MVar GameSession)
+  Eff es (STM.TBQueue SessionEvent)
 getOrCreateSession sessions gameId = do
-  mVar <- STM.atomically $ tryAcquire gameId sessions
-  case mVar of
-    Just var -> pure var
+  existing <- STM.atomically $ tryAcquire gameId sessions
+  case existing of
+    Just queue -> pure queue
     Nothing -> do
       gameState <- runTransaction $ loadOnlineState gameId
-      var <- MVar.newMVar (GameSession gameState Nothing Nothing)
-      STM.atomically $ insertOrAcquire var gameId sessions
-
--- | Register a connection in the session. Wraps the raw Connection in an
--- MVar and returns it alongside the game state for initial send.
-connectPlayer ::
-  Concurrent :> es =>
-  MVar GameSession ->
-  PlayerColor ->
-  ConnectionId ->
-  Connection ->
-  Eff es (MVar Connection, Online.State)
-connectPlayer sessionVar color uid conn = do
-  connVar <- MVar.newMVar conn
-  MVar.modifyMVar sessionVar $ \session ->
-    let session' = setConn color (Just (uid, connVar)) session
-     in pure (session', (connVar, session'.gameState))
-
--- | Unregister a connection from the session. Only clears if the uid
--- matches, so a stale finally from a reconnected player won't remove
--- the new connection. Map lifecycle is handled separately by
--- release in the finally block.
-disconnectPlayer ::
-  Concurrent :> es =>
-  MVar GameSession ->
-  PlayerColor ->
-  ConnectionId ->
-  Eff es ()
-disconnectPlayer sessionVar color uid =
-  MVar.modifyMVar_ sessionVar $ \session ->
-    pure $ clearConn color uid session
+      -- Arbitrary limit: permissive enough to avoid backpressure
+      -- under normal play, small enough to prevent abuse or
+      -- pathological memory growth.
+      -- Two threads can race past the tryAcquire above if neither
+      -- finds an existing entry. Both load state and create a queue,
+      -- but insertOrAcquire is atomic: only one insert wins, the
+      -- other acquires the winner's queue. The Bool distinguishes
+      -- the winner (who must spawn the worker) from the loser
+      -- (whose queue is discarded by insertOrAcquire).
+      (queue, inserted) <- STM.atomically $ do
+        q <- STM.newTBQueue 20
+        insertOrAcquire q gameId sessions
+      when inserted $
+        spawnWorker gameId gameState queue
+      pure queue
 
 -------------------------------------------------------------------------------
--- Event processing
+-- Session worker
 
-processEvent ::
+-- | Spawn the session worker thread. The worker processes all
+-- session events sequentially from the queue, so game state
+-- transitions never race. The worker's root span links back to
+-- the connection that spawned it for traceability.
+spawnWorker ::
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , IOE :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  GameId ->
+  Online.State ->
+  STM.TBQueue SessionEvent ->
+  Eff es ()
+spawnWorker gameId initialState queue = do
+  -- Capture the spawning span's context for the link. The worker
+  -- creates its own root span rather than inheriting the parent,
+  -- since it outlives the spawning connection and serves both players.
+  mSpanCtx <- liftIO $ do
+    ctx <- ThreadLocal.getContext
+    traverse OT.getSpanContext (lookupSpan ctx)
+  void $
+    Async.async $
+      katipAddNamespace "online" $
+        katipAddNamespace "worker" $
+          case mSpanCtx of
+            Just spanCtx ->
+              inSpanWithLink "online.session" spanCtx $
+                workerLoop gameId queue (GameSession initialState Nothing Nothing)
+            Nothing ->
+              inSpan "online.session" $
+                workerLoop gameId queue (GameSession initialState Nothing Nothing)
+
+-- | Process events from the queue until the game is finished and
+-- both players have disconnected.
+workerLoop ::
   ( Storage :> es
   , Clock :> es
   , Concurrent :> es
@@ -295,41 +356,128 @@ processEvent ::
   , Trace :> es
   , HMetrics :> es
   ) =>
-  MVar GameSession ->
+  GameId ->
+  STM.TBQueue SessionEvent ->
+  GameSession ->
+  Eff es ()
+workerLoop gameId queue session = do
+  event <- STM.atomically $ STM.readTBQueue queue
+  session' <- handleSessionEvent gameId session event
+  let noConnections =
+        isNothing session'.whiteConn
+          && isNothing session'.blackConn
+      done = isFinished session'.gameState || noConnections
+  unless done $
+    workerLoop gameId queue session'
+
+-- | Dispatch a session event. Non-fatal domain exceptions are
+-- absorbed (logged + reported to the acting player) so the worker
+-- stays alive. Fatal exceptions propagate and kill the worker.
+handleSessionEvent ::
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  GameId ->
+  GameSession ->
+  SessionEvent ->
+  Eff es GameSession
+handleSessionEvent gameId session event =
+  inSpan "session.event" (dispatchEvent gameId session event)
+    `catchSync` \(ex :: SomeException) ->
+      case fromException @DomainException ex of
+        Just (DomainException e) | not (domainFatal e) -> do
+          logCaughtException ex
+          recordSpanException ex
+          for_ (snd <$> getConn (eventColor event) session) $ \cv ->
+            safeSend cv (encode $ WsError InternalError "internal error" False)
+          pure session
+        _ -> throwIO ex
+
+-- | Route a session event to its handler. Connection events update
+-- the session's connection state and notify the opponent; player
+-- messages drive game state transitions via processGameEvent.
+dispatchEvent ::
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  GameId ->
+  GameSession ->
+  SessionEvent ->
+  Eff es GameSession
+dispatchEvent gameId session = \case
+  PlayerConnected color connId connVar -> do
+    let session' = setConn color (Just (connId, connVar)) session
+    safeSend connVar (encode $ gameStateMessage gameId color session'.gameState)
+    sendToPlayer (opponent color) (encode OnlineOpponentJoined) session'
+    pure session'
+  PlayerDisconnected color connId -> do
+    let session' = clearConn color connId session
+    sendToPlayer (opponent color) (encode OnlineOpponentLeft) session'
+    pure session'
+  PlayerMessage color time clientMsg ->
+    processGameEvent session gameId color time clientMsg
+
+-------------------------------------------------------------------------------
+-- Game event processing
+
+-- | Process a game event from a player. Transitions state, persists
+-- to DB, sends notifications, and records metrics. Not thread-safe.
+processGameEvent ::
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  GameSession ->
   GameId ->
   PlayerColor ->
+  Time ->
   OnlineClientMessage ->
-  Eff es ()
-processEvent sessionVar gameId color clientMsg = do
-  currentTime <- now
+  Eff es GameSession
+processGameEvent session gameId color currentTime clientMsg = do
   let event = toEvent color currentTime clientMsg
-  -- All effects (DB writes, notifications) run under the MVar lock so that
-  -- no concurrent event can observe or act on intermediate state.
-  MVar.modifyMVar_ sessionVar $ \session ->
-    case Online.transition session.gameState event of
-      Left err -> do
-        when (err == Common.InvalidMove) $
-          increaseLabelledCounter invalidMovesTotal "online"
-        sendToPlayer
-          color
-          (encode $ transitionErrorToWsError err)
-          session
-        pure session
-      Right (TransitionResult newState events) -> do
-        runTransaction $ persistEvents gameId currentTime events
-        sendNotifications color newState events session
-        recordMetrics "online" events
-        pure $ session & #gameState .~ newState
+  case Online.transition session.gameState event of
+    Left err -> do
+      when (err == Common.InvalidMove) $
+        increaseLabelledCounter invalidMovesTotal "online"
+      sendToPlayer
+        color
+        (encode $ transitionErrorToWsError err)
+        session
+      pure session
+    Right (TransitionResult newState events) -> do
+      runTransaction $ persistEvents gameId currentTime events
+      sendNotifications color newState events session
+      recordMetrics "online" events
+      pure session{gameState = newState}
 
--- | Send all notifications derived from domain events to the appropriate players.
+-- | Send all notifications derived from domain events to the
+-- appropriate players.
 sendNotifications ::
   (Concurrent :> es, WebSocket :> es) =>
-  PlayerColor -> Online.State -> [Common.DomainEvent] -> GameSession -> Eff es ()
+  PlayerColor ->
+  Online.State ->
+  [Common.DomainEvent] ->
+  GameSession ->
+  Eff es ()
 sendNotifications actor newState events session =
   for_ (notificationsFor actor newState events) $ \(target, msg) ->
     sendToPlayer target (encode msg) session
 
--- | Send a message to a player's WebSocket connection, if connected.
+-- | Send a message to a player's connection, if connected.
 sendToPlayer ::
   (Concurrent :> es, WebSocket :> es) =>
   PlayerColor -> LByteString -> GameSession -> Eff es ()
@@ -359,11 +507,15 @@ handleWebSocket sessions conn =
     authenticateWebSocket conn
       >>= traverse_ (handleAuthenticated sessions conn)
 
--- | Run the online game session for an already-authenticated player. Takes
--- the resolved token, opens the session (incrementing the refcount), and
--- runs the receive loop until the WebSocket exits or errors. 'bracket'
--- ensures the refcount is released on any exit path, including failures
--- during connection setup.
+-- | Run the online game handler for an authenticated player. Gets
+-- the session's event queue and enqueues connect/disconnect/message
+-- events. The session worker processes them sequentially.
+--
+-- Uses 'bracket' (not 'finally') so that a failure during connect
+-- (after getOrCreateSession has incremented the refcount) still
+-- releases the refcount in disconnect. The PlayerDisconnected
+-- enqueue is safe even if PlayerConnected never reached the
+-- worker — clearConn is a no-op when the uid doesn't match.
 handleAuthenticated ::
   ( Storage :> es
   , Clock :> es
@@ -379,13 +531,6 @@ handleAuthenticated ::
   Connection ->
   GameParticipantToken ->
   Eff es ()
--- Game context wraps guardWebSocket so that any exception the outer guard
--- catches is still logged with gameId/player context. 'bracket' (not
--- 'finally') is required so that a failure in the acquire path (e.g.
--- connectPlayer throws after getOrCreateSession has incremented the
--- refcount) still releases the refcount. 'disconnectPlayer' is a no-op
--- when the uid doesn't match the stored connection, so it is safe to
--- call even when connectPlayer never completed.
 handleAuthenticated sessions conn tok =
   withGameContext gameId color $
     guardWebSocket conn $
@@ -394,28 +539,22 @@ handleAuthenticated sessions conn tok =
   gameId = tok.gameId
   color = tok.role
   connect = do
-    sessionVar <- getOrCreateSession sessions gameId
+    queue <- getOrCreateSession sessions gameId
     uid <- generateId
-    (connVar, gameState) <-
-      connectPlayer sessionVar color uid conn
-    safeSend
-      connVar
-      (encode $ gameStateMessage gameId color gameState)
-    -- Notify the opponent that this player has joined
-    MVar.withMVar sessionVar $
-      sendToPlayer (opponent color) (encode OnlineOpponentJoined)
+    connVar <- MVar.newMVar conn
+    STM.atomically $
+      STM.writeTBQueue queue (PlayerConnected color uid connVar)
     incGauge onlineSessions
     $(logTM) InfoS "player connected"
-    pure (sessionVar, uid, connVar)
-  disconnect (sessionVar, uid, _) = do
+    pure (queue, uid, connVar)
+  disconnect (queue, uid, _) = do
     decGauge onlineSessions
     $(logTM) InfoS "player disconnected"
-    disconnectPlayer sessionVar color uid
-    -- Notify the opponent that this player has left
-    MVar.withMVar sessionVar $
-      sendToPlayer (opponent color) (encode OnlineOpponentLeft)
+    STM.atomically $
+      STM.writeTBQueue queue (PlayerDisconnected color uid)
     STM.atomically $ release gameId sessions
-  loop (sessionVar, _, connVar) =
-    runMessageLoop
-      connVar
-      (processEvent sessionVar gameId color)
+  loop (queue, _, connVar) =
+    runMessageLoop connVar $ \clientMsg -> do
+      time <- now
+      STM.atomically $
+        STM.writeTBQueue queue (PlayerMessage color time clientMsg)
