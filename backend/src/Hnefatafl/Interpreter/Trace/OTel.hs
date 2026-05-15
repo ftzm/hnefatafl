@@ -19,6 +19,8 @@ import OpenTelemetry.Context.ThreadLocal (
   getContext,
  )
 import OpenTelemetry.Trace (
+  NewLink (..),
+  SpanArguments (..),
   Tracer,
   addAttribute,
   defaultSpanArguments,
@@ -47,7 +49,11 @@ runTraceOTel ::
 runTraceOTel tracer = interpret $ \env -> \case
   InSpan name action ->
     localSeqUnlift env $ \unlift ->
-      bracket (acquire name) release (use unlift action)
+      bracket (acquire name defaultSpanArguments) release (use unlift action)
+  InSpanWithLink name linkCtx action ->
+    localSeqUnlift env $ \unlift ->
+      let args = defaultSpanArguments{links = [NewLink linkCtx mempty]}
+       in bracket (acquireRoot name args) release (use unlift action)
   AddSpanAttribute k v -> liftIO $ do
     mSpan <- lookupSpan <$> getContext
     for_ mSpan $ addAttribute' k v
@@ -57,11 +63,19 @@ runTraceOTel tracer = interpret $ \env -> \case
  where
   addAttribute' k v sp = addAttribute sp k v
   recordException' e sp = recordException sp mempty Nothing e
-  -- Create the span, push it onto the thread-local context, and remember
-  -- the parent span (if any) so we can restore it on release.
-  acquire name = liftIO $ do
+  -- Create a child span of the current context, push it onto the
+  -- thread-local context, and remember the parent span so we can
+  -- restore it on release.
+  acquire name args = liftIO $ do
     ctx <- getContext
-    sp <- createSpanWithoutCallStack tracer ctx name defaultSpanArguments
+    sp <- createSpanWithoutCallStack tracer ctx name args
+    _ <- attachContext (insertSpan sp ctx)
+    pure (lookupSpan ctx, sp)
+  -- Create a root span (no parent) with the given arguments. The
+  -- empty context ensures no parent-child relationship.
+  acquireRoot name args = liftIO $ do
+    ctx <- getContext
+    sp <- createSpanWithoutCallStack tracer mempty name args
     _ <- attachContext (insertSpan sp ctx)
     pure (lookupSpan ctx, sp)
   -- End the span and restore the parent span (or none) as the active one.

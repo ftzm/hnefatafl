@@ -16,5 +16,7 @@ runTraceNoOp :: Eff (Trace : es) a -> Eff es a
 runTraceNoOp = interpret $ \env -> \case
   InSpan _ action ->
     localSeqUnlift env $ \unlift -> unlift action
+  InSpanWithLink _ _ action ->
+    localSeqUnlift env $ \unlift -> unlift action
   AddSpanAttribute _ _ -> pure ()
   RecordSpanException _ -> pure ()
