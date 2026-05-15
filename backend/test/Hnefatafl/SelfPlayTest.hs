@@ -604,7 +604,6 @@ runAllGamesToCompletion processingState = do
   -- Then process any remaining unprocessed games using the standard gameActor
   gameActor processingState eventChan
 
-  liftIO $ putStrLn "getting chan contents"
   -- Collect all events from the channel
   events <- drainTChan eventChan
 
@@ -659,49 +658,21 @@ spec_round_trip_snapshot_preservation =
                   runLabeled @"new" (runSearchTest (TestSearchConfig testGameNotation)) $
                     runLabeled @"old" (runSearchTest (TestSearchConfig testGameNotation)) $ do
                       -- Path 1: Direct processing
-                      liftIO $ putStrLn "=== Direct Processing Path ==="
                       directState <- atomically createState
-                      directSnapshot <- atomically $ takeSnapshot directState
-                      liftIO $
-                        putStrLn $
-                          "Direct initial state: "
-                            <> show (length directSnapshot.unprocessedGames)
-                            <> " unprocessed, "
-                            <> show (length directSnapshot.completedGames)
-                            <> " completed"
                       (directFinalState, directEvents) <-
                         runAllGamesToCompletion directState
-                      liftIO $
-                        putStrLn $
-                          "Direct path completed " <> show (length directEvents) <> " events"
 
-                      -- Path 2: Snapshot round trip
-                      liftIO $ putStrLn "=== Snapshot Round Trip Path ==="
-                      snapshotState <- atomically createState -- Create identical initial state
+                      snapshotState <- atomically createState
                       initialSnapshot <- atomically $ takeSnapshot snapshotState
 
                       -- Serialize to JSON
                       saveProcessingStateSnapshot snapshotFile initialSnapshot
-                      liftIO $ putStrLn "Snapshot saved to file"
-
-                      -- Deserialize from JSON
                       restoredSnapshot <- loadOrCreateStateSnapshot snapshotFile "dummy_file.txt"
-                      liftIO $ putStrLn "Snapshot loaded from file"
-                      liftIO $
-                        putStrLn $
-                          "Restored snapshot: "
-                            <> show (length restoredSnapshot.unprocessedGames)
-                            <> " unprocessed, "
-                            <> show (length restoredSnapshot.completedGames)
-                            <> " completed"
 
                       -- Process restored state
                       restoredState <- atomically $ mkProcessingState restoredSnapshot
                       (restoredFinalState, restoredEvents) <-
                         runAllGamesToCompletion restoredState
-                      liftIO $
-                        putStrLn $
-                          "Restored path completed " <> show (length restoredEvents) <> " events"
 
                       pure (directFinalState, directEvents, restoredFinalState, restoredEvents)
 
@@ -711,44 +682,8 @@ spec_round_trip_snapshot_preservation =
           case result of
             Left err -> error $ "Round trip test failed: " <> err
             Right (directFinalState, directEvents, restoredFinalState, restoredEvents) -> do
-              liftIO $ putStrLn $ "Direct events count: " <> show (length directEvents)
-              liftIO $ putStrLn $ "Restored events count: " <> show (length restoredEvents)
-              liftIO $
-                putStrLn $
-                  "Final states equal: "
-                    <> show (compareFinalStates directFinalState restoredFinalState)
-              liftIO $
-                putStrLn $
-                  "Event sequences equal: "
-                    <> show (compareEventSequences directEvents restoredEvents)
-
-              -- Find the exact difference
-              let sortedDirect = sort directEvents
-                  sortedRestored = sort restoredEvents
-                  extraInRestored = sortedRestored \\ sortedDirect
-                  missingInRestored = sortedDirect \\ sortedRestored
-              liftIO $
-                putStrLn $
-                  "Extra events in restored: " <> show (length extraInRestored)
-              liftIO $
-                putStrLn $
-                  "Missing events in restored: " <> show (length missingInRestored)
-              unless (null extraInRestored) $
-                liftIO $
-                  putStrLn $
-                    "First extra: " <> show (viaNonEmpty head extraInRestored)
-              unless (null missingInRestored) $
-                liftIO $
-                  putStrLn $
-                    "First missing: " <> show (viaNonEmpty head missingInRestored)
-
-              -- Verify final states are equivalent
               compareFinalStates directFinalState restoredFinalState `shouldBe` True
-
-              -- Verify event sequences are equivalent
               compareEventSequences directEvents restoredEvents `shouldBe` True
-
-              liftIO $ putStrLn "Round trip test completed successfully!"
 
 -- | Generate a test positions file from the known TestTest game at various move counts
 generateTestPositionsFile ::
@@ -780,8 +715,6 @@ spec_single_game_actor :: Spec
 spec_single_game_actor =
   describe "Single game actor test" $ do
     it "should run a single actor and complete one game" $ do
-      liftIO $ putStrLn "=== Testing single game actor ==="
-
       -- Setup
       tempDir <- createTempDirectory "/tmp" "single-actor-test"
       let testPositionsFile = tempDir </> "single_position.txt"
@@ -805,23 +738,13 @@ spec_single_game_actor =
                   processingState <- atomically $ mkProcessingState snapshot
                   eventChan <- atomically newTChan
 
-                  liftIO $ putStrLn "About to run single game actor..."
-
                   gameActor processingState eventChan
-                  liftIO $ putStrLn "Actor run, collecting events..."
                   drainTChan eventChan
 
       removeDirectoryRecursive tempDir
 
       case result of
         Left err -> error $ "Single actor test failed: " <> err
-        Right events -> do
-          liftIO $
-            putStrLn $
-              "Single actor test completed with " <> show (length events) <> " events"
-          length events `shouldSatisfy` (>= 2) -- Should have at least GameClaimed and GameCompleted
-      case result of
-        Left err -> error $ "Test failed: " <> err
         Right events -> do
           -- Verify we got the expected number of events
           let claimedEvents = filter isGameClaimed events
@@ -885,21 +808,10 @@ spec_end_to_end_parallel_self_play :: Spec
 spec_end_to_end_parallel_self_play =
   describe "End-to-end parallel self-play" $ do
     it "should run 4 actors processing 10 test games to completion" $ do
-      liftIO $ putStrLn "=== Starting end-to-end test ==="
-
-      -- Setup: Create temp directory and test files
       tempDir <- createTempDirectory "/tmp" "self-play-test"
-      liftIO $ putStrLn $ "Created temp directory: " <> tempDir
-
       let testPositionsFile = tempDir </> "test_positions.txt"
       runGenerateTestPositionsFile testPositionsFile
-      liftIO $ putStrLn "Generated test positions file"
-
-      -- Run the parallel self-play
       let config = TestSearchConfig{gameNotation = testGameNotation}
-
-      liftIO $ putStrLn "About to start parallel self-play..."
-
       _ <- runEff $
         runErrorNoCallStack @Text $
           runFileSystem $
@@ -907,31 +819,15 @@ spec_end_to_end_parallel_self_play =
               runLabeled @"new" (runSearchTest config) $
                 runLabeled @"old" (runSearchTest config) $ do
                   eventChan <- atomically newTChan
-
-                  -- Start self-play in the background
                   selfPlayAsync <-
                     async $
                       runSelfPlayParallel
-                        4 -- 4 actors
+                        4
                         (VersionId "test-new")
                         (VersionId "test-old")
                         tempDir
                         testPositionsFile
                         eventChan
-
-                  -- Add initial logging
-                  liftIO $ putStrLn "Starting self-play, will wait for completion..."
-
-                  -- Wait for self-play to complete
                   wait selfPlayAsync
-
-                  -- Collect all events now that processing is done
-                  events <- drainTChan eventChan
-
-                  liftIO $
-                    putStrLn $
-                      "Self-play complete. Total events: " <> show (length events)
-                  pure events
-
-      -- Cleanup
+                  drainTChan eventChan
       removeDirectoryRecursive tempDir
