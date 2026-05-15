@@ -45,7 +45,7 @@ Once all sub-reviewers return, produce a unified review:
 
 1. **Deduplicate**: if multiple reviewers flagged the same issue, merge into one finding and note which dimensions it touches
 2. **Include every finding**: every issue from every sub-reviewer must appear in the synthesis. Deduplication merges overlapping findings — it never drops them. If a finding is unique to one reviewer, it still appears.
-3. **Rank by severity**: Critical > Major > Minor, across all dimensions
+3. **Preserve severity**: use the highest severity any sub-reviewer assigned to a finding. Never downgrade a sub-reviewer's severity — if a reviewer calls something Critical, it stays Critical in the synthesis unless merged with another finding that changes the substance
 4. **Present the unified report** in this format:
 
 ---

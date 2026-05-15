@@ -19,6 +19,12 @@ $ARGUMENTS
 
 ## What to look for
 
+Evaluate the code **as it stands now**. The question is always
+"does this code have the documentation it needs?" — not "what
+changed." A missing comment is a finding whether it was never
+there or was removed during this change. Frame findings in terms
+of what the code is, not what it was.
+
 - Code whose purpose is not immediately evident from usage
   should be documented. Emphasize the **why**, not the **what**.
 - Only document **how** the code works if the implementation is
@@ -26,6 +32,12 @@ $ARGUMENTS
   that way.
 - Undocumented non-obvious code is a finding.
 - Redundant comments on self-evident code are also a finding.
+- **Documentation describes what a unit of code IS** — its
+  contract, behavior, preconditions, invariants — never how it
+  is called or what calls it. Each unit must be comprehensible
+  from its signature, documentation, and implementation alone.
+  Comments that reference callers or external context invert
+  the flow of comprehension and are a finding.
 
 ## How to investigate
 

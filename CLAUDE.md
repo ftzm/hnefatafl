@@ -90,6 +90,15 @@ Prefer:
 - "Both must run for the SP to be popped." (contract / invariant)
 - "Failure here means the connection state is unknown." (consequence)
 
+## Decision Authority
+
+The user makes all decisions about what to do, what to skip, and
+what approach to take. Never make these decisions independently.
+Present information, ask, and wait. This applies to everything:
+review findings, implementation approaches, whether something is
+"worth it," whether to leave something as-is. If a decision is
+needed, it is the user's decision to make.
+
 ## Testing Requirements
 
 All tests must pass before work is considered complete. Run the full suite:
