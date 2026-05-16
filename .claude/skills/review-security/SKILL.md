@@ -3,7 +3,7 @@ name: review-security
 description: Review code for security vulnerabilities and safety issues
 context: fork
 agent: Explore
-allowed-tools: Read Glob Grep Bash(git *)
+allowed-tools: Read Glob Grep Bash(git *) Read(//tmp/**) Write(//tmp/**)
 arguments:
   - name: target
     description: Diff text or file paths to review

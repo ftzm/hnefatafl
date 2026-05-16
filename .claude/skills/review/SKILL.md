@@ -1,7 +1,7 @@
 ---
 name: review
 description: Run a multi-dimensional code review using parallel sub-agents
-allowed-tools: Read Glob Grep Bash(git *) Agent Skill
+allowed-tools: Read Glob Grep Bash(git *) Agent
 arguments:
   - name: target
     description: What to review — file paths, a git ref like HEAD~3, a branch name, etc.
@@ -26,18 +26,24 @@ Capture the diff or file contents — you'll pass this to each sub-reviewer.
 
 ## Step 2: Dispatch sub-reviewers
 
-Spawn **all 8** of these sub-reviewer skills in parallel using the Skill tool, passing the diff/file content as the argument to each:
+Spawn **all 8** sub-reviewers **in parallel using the Agent tool** — all 8 Agent calls in a **single message**. This is critical for parallelism; the Agent tool runs concurrently when multiple calls are in one message.
 
-1. `/review-correctness`
-2. `/review-security`
-3. `/review-performance`
-4. `/review-style`
-5. `/review-composability`
-6. `/review-best-practices`
-7. `/review-documentation`
-8. `/review-testing`
+For each agent:
+- Read the corresponding skill file from `.claude/skills/review-*/SKILL.md` to get its full prompt
+- Pass the diff/file content as the `$ARGUMENTS` target
+- Use `subagent_type: "Explore"` (they only need read access)
 
-Each runs in its own isolated sub-agent and returns structured findings.
+The 8 skill files to read and dispatch:
+1. `.claude/skills/review-correctness/SKILL.md`
+2. `.claude/skills/review-security/SKILL.md`
+3. `.claude/skills/review-performance/SKILL.md`
+4. `.claude/skills/review-style/SKILL.md`
+5. `.claude/skills/review-composability/SKILL.md`
+6. `.claude/skills/review-best-practices/SKILL.md`
+7. `.claude/skills/review-documentation/SKILL.md`
+8. `.claude/skills/review-testing/SKILL.md`
+
+Each agent's prompt should be the full content of the skill file (everything after the frontmatter `---`) with `$ARGUMENTS` replaced by the actual diff or description of what to review. Tell the agent to run `git diff --cached` (or whatever command resolves the target) to see the code.
 
 ## Step 3: Synthesize
 

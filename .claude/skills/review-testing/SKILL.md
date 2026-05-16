@@ -3,7 +3,7 @@ name: review-testing
 description: Review code for thorough, well-structured test coverage
 context: fork
 agent: Explore
-allowed-tools: Read Glob Grep Bash(git *)
+allowed-tools: Read Glob Grep Bash(git *) Read(//tmp/**) Write(//tmp/**)
 arguments:
   - name: target
     description: Diff text or file paths to review

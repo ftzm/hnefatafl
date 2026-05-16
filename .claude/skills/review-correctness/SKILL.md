@@ -3,7 +3,7 @@ name: review-correctness
 description: Review code for logic errors, edge cases, and invariant violations
 context: fork
 agent: Explore
-allowed-tools: Read Glob Grep Bash(git *)
+allowed-tools: Read Glob Grep Bash(git *) Read(//tmp/**) Write(//tmp/**)
 arguments:
   - name: target
     description: Diff text or file paths to review

@@ -3,7 +3,7 @@ name: review-best-practices
 description: Review code for language-specific best practices and idiomatic patterns, especially Haskell FP
 context: fork
 agent: Explore
-allowed-tools: Read Glob Grep Bash(git *)
+allowed-tools: Read Glob Grep Bash(git *) Read(//tmp/**) Write(//tmp/**)
 arguments:
   - name: target
     description: Diff text or file paths to review
