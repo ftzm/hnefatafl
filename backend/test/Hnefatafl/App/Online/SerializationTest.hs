@@ -5,7 +5,6 @@ import Hnefatafl.Api.Types.WS.Online (ClockMs (..), OnlineServerMessage (..))
 import Hnefatafl.App.Online.Serialization (
   gameStateMessage,
   notificationsFor,
-  remainingToMs,
  )
 import Hnefatafl.Bindings (startBlackMoves, startBoard)
 import Hnefatafl.Core.Data (
@@ -16,6 +15,7 @@ import Hnefatafl.Core.Data (
   PlayerColor (..),
   WhiteWinCondition (..),
   mkRemainingTime,
+  remainingToMs,
  )
 import Hnefatafl.Game.Common (
   DomainEvent (..),

@@ -54,6 +54,7 @@ library
       Hnefatafl.Game.Online
       Hnefatafl.Import
       Hnefatafl.Interpreter.Clock.IO
+      Hnefatafl.Interpreter.Clock.Test
       Hnefatafl.Interpreter.IdGen.UUIDv7
       Hnefatafl.Interpreter.Metrics.NoOp
       Hnefatafl.Interpreter.Search.Local
@@ -449,7 +450,9 @@ test-suite hnefatafl-test
   other-modules:
       Hnefatafl.Api.SpecTest
       Hnefatafl.App.HotseatTest
+      Hnefatafl.App.Online.SerializationTest
       Hnefatafl.App.OnlineCreateTest
+      Hnefatafl.App.OnlineSessionTest
       Hnefatafl.App.TestUtil
       Hnefatafl.BindingsTest
       Hnefatafl.ClientTest

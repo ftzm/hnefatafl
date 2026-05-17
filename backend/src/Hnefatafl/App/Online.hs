@@ -59,12 +59,14 @@ import Hnefatafl.Core.Data (
   GameParticipantToken (..),
   GameParticipantTokenId (..),
   PlayerColor (..),
+  RemainingTime,
   TimeControl,
   opponent,
+  remainingToMicroseconds,
   secondsToRemainingTime,
  )
 import Hnefatafl.Core.Data qualified as Data
-import Hnefatafl.Effect.Clock (Clock, now)
+import Hnefatafl.Effect.Clock (Clock, delay, now)
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
 import Hnefatafl.Effect.Storage (
   Storage,
@@ -111,6 +113,7 @@ import Network.WebSockets (Connection)
 import OpenTelemetry.Context (lookupSpan)
 import OpenTelemetry.Context.ThreadLocal qualified as ThreadLocal
 import OpenTelemetry.Trace.Core qualified as OT (getSpanContext)
+import Optics ((^.))
 import StmContainers.Map qualified as STMMap
 
 -------------------------------------------------------------------------------
@@ -126,15 +129,18 @@ data SessionEvent
   = PlayerMessage PlayerColor Time OnlineClientMessage
   | PlayerConnected PlayerColor ConnectionId (MVar Connection)
   | PlayerDisconnected PlayerColor ConnectionId
+  | TimeoutFired PlayerColor
 
 -- | In-memory session for an active online game. A session exists
 -- while at least one player is connected; the underlying game
 -- persists in the database across sessions. Owned exclusively by the
 -- worker loop, must never be shared.
 data GameSession = GameSession
-  { gameState :: Online.State
+  { eventQueue :: STM.TBQueue SessionEvent
+  , gameState :: Online.State
   , whiteConn :: Maybe (ConnectionId, MVar Connection)
   , blackConn :: Maybe (ConnectionId, MVar Connection)
+  , timeoutAsync :: Maybe (Async.Async ())
   }
   deriving (Generic)
 
@@ -164,6 +170,7 @@ eventColor :: SessionEvent -> PlayerColor
 eventColor (PlayerMessage c _ _) = c
 eventColor (PlayerConnected c _ _) = c
 eventColor (PlayerDisconnected c _) = c
+eventColor (TimeoutFired c) = c
 
 isFinished :: Online.State -> Bool
 isFinished (Online.State _ _ (Online.Finished _)) = True
@@ -340,10 +347,10 @@ spawnWorker gameId initialState queue = do
           case mSpanCtx of
             Just spanCtx ->
               inSpanWithLink "online.session" spanCtx $
-                workerLoop gameId queue (GameSession initialState Nothing Nothing)
+                workerLoop gameId (GameSession queue initialState Nothing Nothing Nothing)
             Nothing ->
               inSpan "online.session" $
-                workerLoop gameId queue (GameSession initialState Nothing Nothing)
+                workerLoop gameId (GameSession queue initialState Nothing Nothing Nothing)
 
 -- | Process events from the queue until the game is finished and
 -- both players have disconnected.
@@ -357,18 +364,18 @@ workerLoop ::
   , HMetrics :> es
   ) =>
   GameId ->
-  STM.TBQueue SessionEvent ->
   GameSession ->
   Eff es ()
-workerLoop gameId queue session = do
-  event <- STM.atomically $ STM.readTBQueue queue
+workerLoop gameId session = do
+  event <- STM.atomically $ STM.readTBQueue session.eventQueue
   session' <- handleSessionEvent gameId session event
   let noConnections =
         isNothing session'.whiteConn
           && isNothing session'.blackConn
       done = isFinished session'.gameState || noConnections
-  unless done $
-    workerLoop gameId queue session'
+  if done
+    then for_ session'.timeoutAsync Async.cancel
+    else workerLoop gameId session'
 
 -- | Dispatch a session event. Non-fatal domain exceptions are
 -- absorbed (logged + reported to the acting player) so the worker
@@ -425,13 +432,18 @@ dispatchEvent gameId session = \case
     sendToPlayer (opponent color) (encode OnlineOpponentLeft) session'
     pure session'
   PlayerMessage color time clientMsg ->
-    processGameEvent session gameId color time clientMsg
+    processGameEvent session gameId color $
+      toEvent color time clientMsg
+  TimeoutFired color ->
+    processGameEvent session gameId color $
+      Online.Timeout color
 
 -------------------------------------------------------------------------------
 -- Game event processing
 
--- | Process a game event from a player. Transitions state, persists
--- to DB, sends notifications, and records metrics. Not thread-safe.
+-- | Process a domain game event. Transitions state, persists to DB,
+-- sends notifications, records metrics, and manages the timeout
+-- timer. Not thread-safe.
 processGameEvent ::
   ( Storage :> es
   , Clock :> es
@@ -444,11 +456,9 @@ processGameEvent ::
   GameSession ->
   GameId ->
   PlayerColor ->
-  Time ->
-  OnlineClientMessage ->
+  Online.Event ->
   Eff es GameSession
-processGameEvent session gameId color currentTime clientMsg = do
-  let event = toEvent color currentTime clientMsg
+processGameEvent session gameId color event =
   case Online.transition session.gameState event of
     Left err -> do
       when (err == Common.InvalidMove) $
@@ -459,10 +469,70 @@ processGameEvent session gameId color currentTime clientMsg = do
         session
       pure session
     Right (TransitionResult newState events) -> do
+      currentTime <- now
       runTransaction $ persistEvents gameId currentTime events
       sendNotifications color newState events session
       recordMetrics "online" events
-      pure session{gameState = newState}
+      handleTimerEvents events session{gameState = newState}
+
+-------------------------------------------------------------------------------
+-- Timeout timer management
+
+-- | Respond to domain events that affect the timer.
+handleTimerEvents ::
+  (Concurrent :> es, Clock :> es) =>
+  [Common.DomainEvent] ->
+  GameSession ->
+  Eff es GameSession
+handleTimerEvents events session
+  | any isGameEnded events = cancelTimer session
+  | any isClockUpdated events = resetTimer session
+  | otherwise = pure session
+ where
+  isGameEnded (Common.GameEnded _) = True
+  isGameEnded _ = False
+  isClockUpdated (Common.ClockUpdated _) = True
+  isClockUpdated _ = False
+
+cancelTimer :: Concurrent :> es => GameSession -> Eff es GameSession
+cancelTimer session = do
+  for_ session.timeoutAsync Async.cancel
+  pure session{timeoutAsync = Nothing}
+
+resetTimer ::
+  (Concurrent :> es, Clock :> es) =>
+  GameSession ->
+  Eff es GameSession
+resetTimer session = do
+  for_ session.timeoutAsync Async.cancel
+  timer <-
+    traverse
+      (spawnTimeoutTimer session.eventQueue)
+      (activeClockRemaining session.gameState.phase)
+  pure session{timeoutAsync = timer}
+
+-- | Extract the active player's remaining time from the game phase.
+-- Returns Nothing if the game is finished or has no clock.
+activeClockRemaining :: Online.Phase -> Maybe (PlayerColor, RemainingTime)
+activeClockRemaining = \case
+  Online.Active{turn, clock = Just (_, cs)} ->
+    Just (turn, cs ^. Online.remainingFor turn)
+  _ -> Nothing
+
+-- | Spawn an async that sleeps for the given remaining time, then
+-- enqueues a TimeoutFired event.
+spawnTimeoutTimer ::
+  (Concurrent :> es, Clock :> es) =>
+  STM.TBQueue SessionEvent ->
+  (PlayerColor, RemainingTime) ->
+  Eff es (Async.Async ())
+spawnTimeoutTimer queue (color, remaining) =
+  Async.async $ do
+    delay $ remainingToMicroseconds remaining
+    STM.atomically $ STM.writeTBQueue queue $ TimeoutFired color
+
+-------------------------------------------------------------------------------
+-- Notifications
 
 -- | Send all notifications derived from domain events to the
 -- appropriate players.

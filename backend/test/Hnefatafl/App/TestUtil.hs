@@ -3,19 +3,22 @@
 module Hnefatafl.App.TestUtil (
   -- * Test WebSocket connections
   TestConnPair (..),
+  Inbox (..),
   mkTestConnPair,
   clientSend,
   clientSendMsg,
   clientSendAuth,
   clientRecv,
   clientRecvJSON,
-  expectFrom,
+  expectMessages,
 
   -- * Effect stack runners
   runHotseatTest,
   runOnlineTest,
+  runOnlineTestTimed,
 ) where
 
+import Chronos (Time (..))
 import Control.Concurrent.MVar qualified as MVar
 import Control.Concurrent.STM (
   TQueue,
@@ -26,9 +29,11 @@ import Control.Concurrent.STM (
  )
 import Data.Aeson (ToJSON, encode)
 import Data.Aeson qualified as Aeson
+import Data.Aeson.KeyMap qualified as KeyMap
 import Database.SQLite.Simple (Connection)
 import Effectful
 import Effectful.Concurrent (Concurrent, runConcurrent)
+import Effectful.Concurrent.STM qualified as STM
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Katip (KatipE, runKatipE)
 import Hnefatafl.App.WebSocket (encodeAuthMsg)
@@ -38,6 +43,7 @@ import Hnefatafl.Effect.Storage (Storage)
 import Hnefatafl.Effect.Trace (Trace)
 import Hnefatafl.Effect.WebSocket (WebSocket)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
+import Hnefatafl.Interpreter.Clock.Test (runClockTest)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
 import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
@@ -114,29 +120,53 @@ clientRecvJSON tc = do
     Just v -> pure v
     Nothing -> error $ "clientRecvJSON: failed to decode: " <> show bs
 
--- | Read a message expected on one socket, failing if it arrives on
--- the other instead. Uses STM 'orElse' to check both without
--- polling. A 2-second timeout catches bugs where no message arrives
--- at all.
-expectFrom :: TestConnPair -> TestConnPair -> IO Aeson.Value
-expectFrom expected unexpected = do
-  let readExpected = Left <$> readTQueue expected.serverToClient
-      readUnexpected = Right <$> readTQueue unexpected.serverToClient
-  result <- timeout 2_000_000 $ atomically (readExpected `orElse` readUnexpected)
-  case result of
-    Nothing ->
-      error "expectFrom: timed out waiting for message on either socket"
-    Just (Left msg) -> case msg of
-      DataMessage _ _ _ (Text bs _) ->
-        case Aeson.decode bs of
-          Just v -> pure v
-          Nothing -> error $ "expectFrom: failed to decode: " <> show bs
-      other -> error $ "expectFrom: unexpected message type: " <> show other
-    Just (Right msg) -> case msg of
-      DataMessage _ _ _ (Text bs _) ->
-        error $ "expectFrom: message arrived on wrong socket: " <> show bs
-      other ->
-        error $ "expectFrom: unexpected message on wrong socket: " <> show other
+-- | The receive side of a test WebSocket connection.
+newtype Inbox = Inbox (TQueue Message)
+
+-- | Expect specific messages on two inboxes. Each inbox has an
+-- ordered list of expected message types. Reads from both via STM
+-- orElse; when a message arrives it must match the next expected
+-- type for that inbox. Fails immediately on mismatch or if the
+-- 100ms safety timeout expires.
+expectMessages :: Inbox -> [Text] -> Inbox -> [Text] -> IO [Aeson.Value]
+expectMessages (Inbox q1) expected1 (Inbox q2) expected2 = do
+  raw <- replicateM (length expected1 + length expected2) readOne
+  let (from1, from2) = partitionEithers raw
+  checkTypes "inbox1" expected1 from1
+  checkTypes "inbox2" expected2 from2
+  pure (from1 <> from2)
+ where
+  readOne = do
+    result <-
+      timeout 100_000 $
+        atomically ((Left <$> readTQueue q1) `orElse` (Right <$> readTQueue q2))
+    case result of
+      Nothing -> error "expectMessages: timed out waiting for message"
+      Just (Left msg) -> Left <$> decodeMsg "inbox1" msg
+      Just (Right msg) -> Right <$> decodeMsg "inbox2" msg
+  decodeMsg label (DataMessage _ _ _ (Text bs _)) = case Aeson.decode bs of
+    Just v -> pure v
+    Nothing -> error $ "expectMessages: failed to decode on " <> label
+  decodeMsg label _ =
+    error $ "expectMessages: unexpected ws frame on " <> label
+  checkTypes label expected actual =
+    zipWithM_ check expected actual
+   where
+    check e v
+      | msgTypeOf v == e = pure ()
+      | otherwise =
+          error $
+            "expectMessages: "
+              <> label
+              <> " got '"
+              <> msgTypeOf v
+              <> "' but expected '"
+              <> e
+              <> "'"
+  msgTypeOf (Aeson.Object obj) = case KeyMap.lookup "type" obj of
+    Just (Aeson.String t) -> t
+    _ -> error "expectMessages: message has no 'type' field"
+  msgTypeOf _ = error "expectMessages: message is not a JSON object"
 
 -------------------------------------------------------------------------------
 -- Effect stack runners
@@ -217,4 +247,47 @@ runOnlineTest connVar action = do
   unusedOpenConn =
     error
       "runOnlineTest: connection-replacement openConn invoked \
+      \unexpectedly (a transaction raised ConnectionUnrecoverableException)"
+
+-- | Like runOnlineTest but with a controllable test clock.
+-- Returns the TVar so tests can advance time.
+runOnlineTestTimed ::
+  MVar Database.SQLite.Simple.Connection ->
+  ( forall es.
+    ( IOE :> es
+    , Storage :> es
+    , Clock :> es
+    , IdGen :> es
+    , Concurrent :> es
+    , WebSocket :> es
+    , KatipE :> es
+    , Trace :> es
+    , HMetrics :> es
+    ) =>
+    TVar Time ->
+    Eff es a
+  ) ->
+  IO a
+runOnlineTestTimed connVar action = do
+  result <- withNoLogEnv "test" $ \logEnv ->
+    runEff
+      . runErrorNoCallStack @String
+      . runKatipE logEnv
+      . runTraceNoOp
+      . runMetricsNoOp
+      . runConcurrent
+      $ do
+        timeVar <- STM.atomically $ STM.newTVar (Time 0)
+        runClockTest timeVar
+          . runStorageSQLite connVar unusedOpenConn
+          . runIdGenUUIDv7
+          . runWebSocketIO
+          $ action timeVar
+  case result of
+    Left err -> error $ toText $ "runOnlineTestTimed: " <> err
+    Right a -> pure a
+ where
+  unusedOpenConn =
+    error
+      "runOnlineTestTimed: connection-replacement openConn invoked \
       \unexpectedly (a transaction raised ConnectionUnrecoverableException)"

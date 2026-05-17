@@ -1,10 +1,8 @@
 module Hnefatafl.App.Online.Serialization (
   notificationsFor,
   gameStateMessage,
-  remainingToMs,
 ) where
 
-import Chronos (getTimespan)
 import Hnefatafl.Api.Types (
   ApiBoard,
   ApiGameStatus,
@@ -24,10 +22,8 @@ import Hnefatafl.Core.Data (
   GameId,
   MoveWithCaptures (..),
   PlayerColor (..),
-  RemainingTime,
-  nanosPerMillisecond,
   opponent,
-  toTimespan,
+  remainingToMs,
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
@@ -162,9 +158,3 @@ clockMsFields (Online.State _ _ phase) = case phase of
         (remainingToMs cs.whiteRemaining)
         (remainingToMs cs.blackRemaining)
   _ -> Nothing
-
--- | Converts nanosecond-precision remaining time to whole milliseconds
--- for the wire format, which uses integer milliseconds to avoid
--- floating-point precision issues on clients.
-remainingToMs :: RemainingTime -> Int
-remainingToMs rt = fromIntegral (getTimespan (toTimespan rt) `div` nanosPerMillisecond)

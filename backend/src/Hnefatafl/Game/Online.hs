@@ -8,13 +8,13 @@ module Hnefatafl.Game.Online (
   Event (..),
   TransitionResult (..),
   pending,
+  remainingFor,
   updateClock,
   transition,
   reconstruct,
 ) where
 
 import Chronos (Time)
-import Torsor (difference)
 import Hnefatafl.Bindings (nextGameStateWithMovesTrusted)
 import Hnefatafl.Core.Data (
   ClockState (..),
@@ -23,8 +23,8 @@ import Hnefatafl.Core.Data (
   MoveWithCaptures (..),
   Outcome (..),
   PlayerColor (..),
-  TimeControl (..),
   RemainingTime,
+  TimeControl (..),
   addIncrement,
   deduct,
  )
@@ -47,6 +47,7 @@ import Hnefatafl.Game.Common (
   zobristHashes,
  )
 import Optics (AffineTraversal', Lens', gafield, traverseOf, (%), (.~), (?~))
+import Torsor (difference)
 import Prelude hiding (State, state)
 
 data Phase
@@ -107,6 +108,7 @@ mkFinished s pend outcome =
     (s & #phase .~ Finished outcome)
     (clearPending pend <> [GameEnded outcome])
 
+-- | Lens into the remaining time for the given player color.
 remainingFor :: PlayerColor -> Lens' ClockState RemainingTime
 remainingFor White = #whiteRemaining
 remainingFor Black = #blackRemaining
@@ -159,8 +161,8 @@ transition s@(State board moves (Active turn validMoves pend clk)) = \case
             (State applied.boardAfter moves' (Finished outcome))
             ( MovePlayed applied
                 : maybeToList clockEvt
-                <> clearPending pend
-                <> [GameEnded outcome]
+                  <> clearPending pend
+                  <> [GameEnded outcome]
             )
         Nothing ->
           TransitionResult
@@ -172,8 +174,13 @@ transition s@(State board moves (Active turn validMoves pend clk)) = \case
             (MovePlayed applied : maybeToList clockEvt <> cancelEvts)
   Resign color ->
     Right $ mkFinished s pend (ResignedBy color)
-  Timeout color ->
-    Right $ mkFinished s pend (TimedOut color)
+  -- A stale TimeoutFired can arrive if the timer commits its
+  -- enqueue between the start of processing a move (which switches
+  -- turn) and the subsequent Async.cancel in manageTimer. Guard
+  -- against this by rejecting timeouts for the non-active player.
+  Timeout color
+    | color == turn -> Right $ mkFinished s pend (TimedOut color)
+    | otherwise -> Left NotYourTurn
   OfferDraw color
     | isJust pend -> Left ActionAlreadyPending
     | otherwise ->
