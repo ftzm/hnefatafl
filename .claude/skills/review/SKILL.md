@@ -59,16 +59,19 @@ Once all sub-reviewers return, produce a unified review:
 ## Code Review: [target]
 
 ### Critical
-- **file:line** — [dimensions] description — suggested fix
+1. **file:line** — [dimensions] description — suggested fix
 
 ### Major
-- **file:line** — [dimensions] description — suggested fix
+N. **file:line** — [dimensions] description — suggested fix
 
 ### Minor
-- **file:line** — [dimensions] description — suggested fix
+N. **file:line** — [dimensions] description — suggested fix
 
 ### Positive
 - Strengths noted across reviews
+
+Number findings sequentially across all severity levels (1, 2, 3...)
+so they can be referenced by number when addressing them.
 
 ---
 

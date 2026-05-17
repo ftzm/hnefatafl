@@ -95,7 +95,9 @@ verification was used instead>
 3. Run the full test suite (step 4 of the checklist). Read the output.
 4. If any check fails, fix the issue before proceeding.
 5. Write the commit message following the format above.
-6. Create the commit. Use a HEREDOC for the message:
+6. **Present the commit message to the user for review before
+   committing.** Do not run `git commit` until the user approves.
+7. Create the commit. Use a HEREDOC for the message:
    ```bash
    git commit -m "$(cat <<'EOF'
    <type>(<scope>): <summary>
