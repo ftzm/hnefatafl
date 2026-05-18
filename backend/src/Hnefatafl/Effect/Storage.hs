@@ -42,6 +42,9 @@ module Hnefatafl.Effect.Storage (
   getOnlineTimeControl,
   setOnlineClockState,
   getOnlineClockState,
+  listActiveTimedOnlineGames,
+  setTimeoutAt,
+  listExpiredTimeouts,
 
   -- * Effect
   Storage (..),
@@ -89,6 +92,9 @@ data StorageCmd a where
   GetOnlineTimeControl :: GameId -> StorageCmd (Maybe TimeControl)
   SetOnlineClockState :: GameId -> ClockState -> StorageCmd ()
   GetOnlineClockState :: GameId -> StorageCmd (Maybe ClockState)
+  ListActiveTimedOnlineGames :: StorageCmd [GameId]
+  SetTimeoutAt :: GameId -> Maybe Time -> StorageCmd ()
+  ListExpiredTimeouts :: Time -> StorageCmd [GameId]
 
 --------------------------------------------------------------------------------
 -- Transaction monad
@@ -205,6 +211,15 @@ setOnlineClockState gid cs = liftCmd $ SetOnlineClockState gid cs
 
 getOnlineClockState :: GameId -> StorageTx (Maybe ClockState)
 getOnlineClockState = liftCmd . GetOnlineClockState
+
+listActiveTimedOnlineGames :: StorageTx [GameId]
+listActiveTimedOnlineGames = liftCmd ListActiveTimedOnlineGames
+
+setTimeoutAt :: GameId -> Maybe Time -> StorageTx ()
+setTimeoutAt gid t = liftCmd $ SetTimeoutAt gid t
+
+listExpiredTimeouts :: Time -> StorageTx [GameId]
+listExpiredTimeouts = liftCmd . ListExpiredTimeouts
 
 --------------------------------------------------------------------------------
 -- Effectful effect

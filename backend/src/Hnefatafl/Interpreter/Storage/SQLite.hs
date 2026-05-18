@@ -210,6 +210,12 @@ dispatch = \case
     GameDb.setOnlineClockState (fromDomain gameId) cs
   GetOnlineClockState gameId ->
     GameDb.getOnlineClockState (fromDomain gameId)
+  ListActiveTimedOnlineGames ->
+    GameDb.listActiveTimedOnlineGames
+  SetTimeoutAt gameId timeout ->
+    GameDb.setTimeoutAt (fromDomain gameId) timeout
+  ListExpiredTimeouts currentTime ->
+    GameDb.listExpiredTimeouts currentTime
 
 interpretTx ::
   (IOE :> es, Trace :> es) =>
@@ -262,3 +268,6 @@ describeCmd = \case
   GetOnlineTimeControl gid -> ("GetOnlineTimeControl", "TimeControl", Just $ show gid)
   SetOnlineClockState gid _ -> ("SetOnlineClockState", "ClockState", Just $ show gid)
   GetOnlineClockState gid -> ("GetOnlineClockState", "ClockState", Just $ show gid)
+  ListActiveTimedOnlineGames -> ("ListActiveTimedOnlineGames", "Game", Nothing)
+  SetTimeoutAt gid _ -> ("SetTimeoutAt", "TimeoutAt", Just $ show gid)
+  ListExpiredTimeouts _ -> ("ListExpiredTimeouts", "Game", Nothing)

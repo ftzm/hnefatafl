@@ -128,8 +128,9 @@ newtype Inbox = Inbox (TQueue Message)
 -- orElse; when a message arrives it must match the next expected
 -- type for that inbox. Fails immediately on mismatch or if the
 -- 100ms safety timeout expires.
-expectMessages :: Inbox -> [Text] -> Inbox -> [Text] -> IO [Aeson.Value]
-expectMessages (Inbox q1) expected1 (Inbox q2) expected2 = do
+expectMessages ::
+  MonadIO m => Inbox -> [Text] -> Inbox -> [Text] -> m [Aeson.Value]
+expectMessages (Inbox q1) expected1 (Inbox q2) expected2 = liftIO $ do
   raw <- replicateM (length expected1 + length expected2) readOne
   let (from1, from2) = partitionEithers raw
   checkTypes "inbox1" expected1 from1

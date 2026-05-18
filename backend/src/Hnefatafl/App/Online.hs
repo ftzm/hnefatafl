@@ -6,6 +6,7 @@ module Hnefatafl.App.Online (
   GameSessions,
   CreateGameResult (..),
   createGame,
+  sweepExpiredTimeouts,
   handleWebSocket,
 
   -- * Internals (exported for testing)
@@ -61,9 +62,11 @@ import Hnefatafl.Core.Data (
   PlayerColor (..),
   RemainingTime,
   TimeControl,
+  deduct,
   opponent,
   remainingToMicroseconds,
   secondsToRemainingTime,
+  toTimespan,
  )
 import Hnefatafl.Core.Data qualified as Data
 import Hnefatafl.Effect.Clock (Clock, delay, now)
@@ -78,9 +81,11 @@ import Hnefatafl.Effect.Storage (
   getOnlineTimeControl,
   getPendingAction,
   insertGame,
+  listExpiredTimeouts,
   runTransaction,
   setOnlineClockState,
   setOnlineTimeControl,
+  setTimeoutAt,
  )
 import Hnefatafl.Effect.Trace (
   Trace,
@@ -108,13 +113,14 @@ import Hnefatafl.Metrics (
   increaseLabelledCounter,
   recordMetrics,
  )
-import Katip (Severity (..))
+import Katip (Severity (..), ls)
 import Network.WebSockets (Connection)
 import OpenTelemetry.Context (lookupSpan)
 import OpenTelemetry.Context.ThreadLocal qualified as ThreadLocal
 import OpenTelemetry.Trace.Core qualified as OT (getSpanContext)
 import Optics ((^.))
 import StmContainers.Map qualified as STMMap
+import Torsor (add, difference)
 
 -------------------------------------------------------------------------------
 -- Types
@@ -272,6 +278,68 @@ createGame timeControl = do
   pure CreateGameResult{game, whiteToken, blackToken}
 
 -------------------------------------------------------------------------------
+-- Sweeper
+
+-- | Resolve timed games that expired without an active session.
+-- Runs periodically to catch games abandoned after server restart
+-- or player disconnect. Uses the timeout_at column written by
+-- handleTimerEvents.
+sweepExpiredTimeouts ::
+  (Storage :> es, Clock :> es, KatipE :> es) =>
+  Eff es ()
+sweepExpiredTimeouts = do
+  currentTime <- now
+  expired <- runTransaction $ listExpiredTimeouts currentTime
+  for_ expired $ \gameId -> do
+    gameState <- runTransaction $ loadOnlineState gameId
+    case gameState.phase of
+      Online.Active{turn} -> do
+        case Online.transition gameState (Online.Timeout turn) of
+          Right (TransitionResult _ events) -> do
+            runTransaction $ do
+              persistEvents gameId currentTime events
+              setTimeoutAt gameId Nothing
+          Left err ->
+            $(logTM) WarningS $
+              ls @Text $
+                "sweeper: transition failed for "
+                  <> show gameId
+                  <> ": "
+                  <> show err
+      _ ->
+        -- Game already finished, clear stale timeout_at
+        runTransaction $ setTimeoutAt gameId Nothing
+
+-- | Create a session and spawn its worker. Returns the event queue.
+createSessionForGame ::
+  ( Storage :> es
+  , Concurrent :> es
+  , IOE :> es
+  , Clock :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  GameSessions ->
+  GameId ->
+  Online.State ->
+  Eff es (STM.TBQueue SessionEvent)
+createSessionForGame sessions gameId gameState = do
+  -- Arbitrary limit: permissive enough to avoid backpressure
+  -- under normal play, small enough to prevent abuse or
+  -- pathological memory growth.
+  -- Two threads can race into this function for the same game.
+  -- insertOrAcquire is atomic: only one insert wins, the other
+  -- acquires the winner's queue. Only the winner spawns a worker.
+  (queue, inserted) <- STM.atomically $ do
+    q <- STM.newTBQueue 20
+    insertOrAcquire q gameId sessions
+  when inserted $
+    spawnWorker gameId gameState queue
+  pure queue
+
+-------------------------------------------------------------------------------
 -- Session management
 
 -- | Get or create a session's event queue. If a session already
@@ -296,21 +364,7 @@ getOrCreateSession sessions gameId = do
     Just queue -> pure queue
     Nothing -> do
       gameState <- runTransaction $ loadOnlineState gameId
-      -- Arbitrary limit: permissive enough to avoid backpressure
-      -- under normal play, small enough to prevent abuse or
-      -- pathological memory growth.
-      -- Two threads can race past the tryAcquire above if neither
-      -- finds an existing entry. Both load state and create a queue,
-      -- but insertOrAcquire is atomic: only one insert wins, the
-      -- other acquires the winner's queue. The Bool distinguishes
-      -- the winner (who must spawn the worker) from the loser
-      -- (whose queue is discarded by insertOrAcquire).
-      (queue, inserted) <- STM.atomically $ do
-        q <- STM.newTBQueue 20
-        insertOrAcquire q gameId sessions
-      when inserted $
-        spawnWorker gameId gameState queue
-      pure queue
+      createSessionForGame sessions gameId gameState
 
 -------------------------------------------------------------------------------
 -- Session worker
@@ -372,7 +426,9 @@ workerLoop gameId session = do
   let noConnections =
         isNothing session'.whiteConn
           && isNothing session'.blackConn
-      done = isFinished session'.gameState || noConnections
+      done =
+        isFinished session'.gameState
+          || (noConnections && isNothing session'.timeoutAsync)
   if done
     then for_ session'.timeoutAsync Async.cancel
     else workerLoop gameId session'
@@ -426,11 +482,22 @@ dispatchEvent gameId session = \case
     let session' = setConn color (Just (connId, connVar)) session
     safeSend connVar (encode $ gameStateMessage gameId color session'.gameState)
     sendToPlayer (opponent color) (encode OnlineOpponentJoined) session'
-    pure session'
+    -- If reconnecting to a timed game with no active timer,
+    -- check if time has expired and recover the timer.
+    if isNothing session'.timeoutAsync
+      then recoverTimer gameId session'
+      else pure session'
   PlayerDisconnected color connId -> do
     let session' = clearConn color connId session
     sendToPlayer (opponent color) (encode OnlineOpponentLeft) session'
-    pure session'
+    -- Cancel the timer when both players have disconnected. The
+    -- sweeper resolves abandoned games; recoverTimer restarts the
+    -- timer on reconnect.
+    let noConns =
+          isNothing session'.whiteConn && isNothing session'.blackConn
+    if noConns
+      then cancelTimer session'
+      else pure session'
   PlayerMessage color time clientMsg ->
     processGameEvent session gameId color $
       toEvent color time clientMsg
@@ -473,26 +540,43 @@ processGameEvent session gameId color event =
       runTransaction $ persistEvents gameId currentTime events
       sendNotifications color newState events session
       recordMetrics "online" events
-      handleTimerEvents events session{gameState = newState}
+
+      handleTimerEvents gameId events session{gameState = newState}
 
 -------------------------------------------------------------------------------
 -- Timeout timer management
 
--- | Respond to domain events that affect the timer.
+-- | Respond to domain events that affect the timer. Persists the
+-- timeout deadline so the sweeper can resolve abandoned games.
 handleTimerEvents ::
-  (Concurrent :> es, Clock :> es) =>
+  (Storage :> es, Concurrent :> es, Clock :> es) =>
+  GameId ->
   [Common.DomainEvent] ->
   GameSession ->
   Eff es GameSession
-handleTimerEvents events session
-  | any isGameEnded events = cancelTimer session
-  | any isClockUpdated events = resetTimer session
+handleTimerEvents gameId events session
+  | any isGameEnded events = do
+      runTransaction $ setTimeoutAt gameId Nothing
+      cancelTimer session
+  | any isClockUpdated events = do
+      currentTime <- now
+      let deadline = computeDeadline currentTime session.gameState.phase
+      runTransaction $ setTimeoutAt gameId deadline
+      resetTimer session
   | otherwise = pure session
  where
   isGameEnded (Common.GameEnded _) = True
   isGameEnded _ = False
   isClockUpdated (Common.ClockUpdated _) = True
   isClockUpdated _ = False
+
+-- | Compute the absolute deadline for the active player's timeout.
+computeDeadline :: Time -> Online.Phase -> Maybe Time
+computeDeadline currentTime = \case
+  Online.Active{turn, clock = Just (_, cs)} ->
+    let remaining = cs ^. Online.remainingFor turn
+     in Just (add (toTimespan remaining) currentTime)
+  _ -> Nothing
 
 cancelTimer :: Concurrent :> es => GameSession -> Eff es GameSession
 cancelTimer session = do
@@ -510,6 +594,37 @@ resetTimer session = do
       (spawnTimeoutTimer session.eventQueue)
       (activeClockRemaining session.gameState.phase)
   pure session{timeoutAsync = timer}
+
+-- | On reconnect, check if the active player's clock has expired
+-- since turnStartedAt. If expired, apply the timeout transition
+-- directly. If time remains, spawn a timer for the adjusted
+-- duration and persist the deadline for the sweeper.
+recoverTimer ::
+  ( Storage :> es
+  , Clock :> es
+  , Concurrent :> es
+  , WebSocket :> es
+  , KatipE :> es
+  , Trace :> es
+  , HMetrics :> es
+  ) =>
+  GameId ->
+  GameSession ->
+  Eff es GameSession
+recoverTimer gameId session =
+  case session.gameState.phase of
+    Online.Active{turn, clock = Just (_, cs)} -> do
+      currentTime <- now
+      let elapsed = difference currentTime cs.turnStartedAt
+      case deduct elapsed (cs ^. Online.remainingFor turn) of
+        Nothing ->
+          processGameEvent session gameId turn (Online.Timeout turn)
+        Just adjusted -> do
+          let deadline = add (toTimespan adjusted) currentTime
+          runTransaction $ setTimeoutAt gameId (Just deadline)
+          timer <- spawnTimeoutTimer session.eventQueue (turn, adjusted)
+          pure session{timeoutAsync = Just timer}
+    _ -> pure session
 
 -- | Extract the active player's remaining time from the game phase.
 -- Returns Nothing if the game is finished or has no clock.

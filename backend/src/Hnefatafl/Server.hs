@@ -12,16 +12,19 @@ import Control.Exception.Backtrace (
 import Control.Monad.Trans.Resource (allocate, runResourceT)
 import Database.SQLite.Simple (close, open)
 import Effectful (runEff)
-import Effectful.Concurrent (runConcurrent)
+import Effectful.Concurrent (runConcurrent, threadDelay)
+import Effectful.Concurrent.Async qualified as Async
 import Effectful.Error.Static (runErrorNoCallStack)
+import Effectful.Exception (catchSync)
 import Effectful.Katip (logTM, runKatipE)
 import Effectful.Servant (runWarpServerSettingsContext)
 import Hnefatafl.Api.Handlers (server)
 import Hnefatafl.Api.Routes (HnefataflAPI)
+import Hnefatafl.App.Online qualified as Online
 import Hnefatafl.Exception (guardExceptions)
 import Hnefatafl.Interpreter.Clock.IO (runClockIO)
-import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.IdGen.UUIDv7 (runIdGenUUIDv7)
+import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.Search.Local (runSearchLocal)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.Trace.OTel (runTraceOTel, setKatipTraceId)
@@ -70,13 +73,21 @@ runServer port logLevel = runResourceT $ do
       . runTraceOTel tracer
       . runMetricsNoOp
       . runClockIO
-                . runStorageSQLite connectionVar openConn
+      . runStorageSQLite connectionVar openConn
       . runIdGenUUIDv7
       . runSearchLocal qsem
       . runWebSocketIO
       $ do
         $(logTM) InfoS $
           ls @Text ("Starting Hnefatafl server on port " <> show port)
+        -- Hourly sweeper for timed games that expired without an
+        -- active session (e.g. after server restart or disconnect).
+        void $ Async.async $ forever $ do
+          threadDelay (3600 * 1_000_000)
+          Online.sweepExpiredTimeouts
+            `catchSync` \(ex :: SomeException) ->
+              $(logTM) ErrorS $
+                ls @Text ("sweeper failed: " <> show ex)
         runWarpServerSettingsContext @HnefataflAPI
           settings
           ctx

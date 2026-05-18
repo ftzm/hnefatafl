@@ -9,6 +9,9 @@ module Hnefatafl.Interpreter.Storage.SQLite.Game (
   getOnlineTimeControl,
   setOnlineClockState,
   getOnlineClockState,
+  listActiveTimedOnlineGames,
+  setTimeoutAt,
+  listExpiredTimeouts,
 ) where
 
 import Chronos (Time, Timespan (..), getTimespan)
@@ -240,3 +243,33 @@ getOnlineClockState gameId =
       <*> mkRemainingTime (Timespan black)
       <*> pure tick
   toClockState _ = Nothing
+
+-- | Active online games with a clock (time control set, game not
+-- finished).
+listActiveTimedOnlineGames :: Connection -> IO [GameId]
+listActiveTimedOnlineGames conn =
+  map (GameId . fromOnly)
+    <$> query_
+      conn
+      "SELECT og.game_id FROM online_game og \
+      \JOIN game g ON og.game_id = g.id \
+      \WHERE og.white_remaining_ns IS NOT NULL \
+      \AND g.game_status IS NULL"
+
+setTimeoutAt :: GameIdDb -> Maybe Time -> Connection -> IO ()
+setTimeoutAt gameId timeout =
+  execute'
+    "UPDATE online_game SET timeout_at = ? WHERE game_id = ?"
+    (timeout, gameId)
+
+listExpiredTimeouts :: Time -> Connection -> IO [GameId]
+listExpiredTimeouts currentTime conn =
+  map (GameId . fromOnly)
+    <$> query
+      conn
+      "SELECT og.game_id FROM online_game og \
+      \JOIN game g ON og.game_id = g.id \
+      \WHERE og.timeout_at IS NOT NULL \
+      \AND og.timeout_at <= ? \
+      \AND g.game_status IS NULL"
+      (Only currentTime)

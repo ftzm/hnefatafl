@@ -125,6 +125,9 @@ data ConnectedPlayer = ConnectedPlayer
   , wsThread :: Async.Async ()
   }
 
+sendMsg :: MonadIO m => Player -> OnlineClientMessage -> m ()
+sendMsg player msg = liftIO $ player.send msg
+
 -- | Connect a player via the full handleWebSocket path.
 connectPlayer ::
   TestEff es =>
@@ -164,8 +167,7 @@ withBothPlayersTimed action connVar =
     (white, _) <- connectPlayer game game.result.whiteToken
     (black, _) <- connectPlayer game game.result.blackToken
     _ <-
-      liftIO $
-        expectMessages white.player.inbox ["opponentJoined"] black.player.inbox []
+      expectMessages white.player.inbox ["opponentJoined"] black.player.inbox []
     action clock white.player black.player
     disconnectPlayer white
     disconnectPlayer black
@@ -181,8 +183,7 @@ withBothPlayersUsing setup action connVar =
     (white, _) <- connectPlayer game game.result.whiteToken
     (black, _) <- connectPlayer game game.result.blackToken
     _ <-
-      liftIO $
-        expectMessages white.player.inbox ["opponentJoined"] black.player.inbox []
+      expectMessages white.player.inbox ["opponentJoined"] black.player.inbox []
     action white.player black.player
     disconnectPlayer white
     disconnectPlayer black
@@ -214,22 +215,22 @@ spec_onlineSession = around withSharedDB $ do
         disconnectPlayer black
 
     it "delivers move to opponent" $ withBothPlayers $ \white black -> do
-      liftIO $ black.send (validMoves !! 0)
-      _ <- liftIO $ expectMessages white.inbox ["moveMade"] black.inbox []
+      sendMsg black (validMoves !! 0)
+      _ <- expectMessages white.inbox ["moveMade"] black.inbox []
       pass
 
     it "sends error for invalid move without crashing" $
       withBothPlayers $ \white black -> do
-        liftIO $ white.send (validMoves !! 1)
-        _ <- liftIO $ expectMessages white.inbox ["error"] black.inbox []
-        liftIO $ black.send (validMoves !! 0)
-        _ <- liftIO $ expectMessages white.inbox ["moveMade"] black.inbox []
+        sendMsg white (validMoves !! 1)
+        _ <- expectMessages white.inbox ["error"] black.inbox []
+        sendMsg black (validMoves !! 0)
+        _ <- expectMessages white.inbox ["moveMade"] black.inbox []
         pass
 
     it "resign ends the game and notifies both" $
       withBothPlayers $ \white black -> do
-        liftIO $ black.send OnlineResign
-        _ <- liftIO $ expectMessages white.inbox ["gameOver"] black.inbox ["gameOver"]
+        sendMsg black OnlineResign
+        _ <- expectMessages white.inbox ["gameOver"] black.inbox ["gameOver"]
         pass
 
     it "disconnect notifies remaining player" $ \connVar -> do
@@ -254,7 +255,7 @@ spec_onlineSession = around withSharedDB $ do
         _ <-
           liftIO $
             expectMessages white.player.inbox ["opponentJoined"] black.player.inbox []
-        liftIO $ black.player.send (validMoves !! 0)
+        sendMsg black.player (validMoves !! 0)
         _ <-
           liftIO $
             expectMessages white.player.inbox ["moveMade"] black.player.inbox []
@@ -275,17 +276,17 @@ spec_onlineSession = around withSharedDB $ do
 
     it "multiple moves maintain correct turn order" $
       withBothPlayers $ \white black -> do
-        liftIO $ black.send (validMoves !! 0)
-        _ <- liftIO $ expectMessages white.inbox ["moveMade"] black.inbox []
-        liftIO $ white.send (validMoves !! 1)
-        _ <- liftIO $ expectMessages black.inbox ["moveMade"] white.inbox []
-        liftIO $ black.send (validMoves !! 2)
-        _ <- liftIO $ expectMessages white.inbox ["moveMade"] black.inbox []
+        sendMsg black (validMoves !! 0)
+        _ <- expectMessages white.inbox ["moveMade"] black.inbox []
+        sendMsg white (validMoves !! 1)
+        _ <- expectMessages black.inbox ["moveMade"] white.inbox []
+        sendMsg black (validMoves !! 2)
+        _ <- expectMessages white.inbox ["moveMade"] black.inbox []
         pass
 
     it "timeout fires and ends timed game" $
       withBothPlayersTimed $ \clock white black -> do
-        liftIO $ black.send (validMoves !! 0)
+        sendMsg black (validMoves !! 0)
         _ <-
           liftIO $
             expectMessages white.inbox ["moveMade"] black.inbox ["clockUpdated"]
@@ -298,19 +299,19 @@ spec_onlineSession = around withSharedDB $ do
 
     it "move resets timeout timer" $
       withBothPlayersTimed $ \clock white black -> do
-        liftIO $ black.send (validMoves !! 0)
+        sendMsg black (validMoves !! 0)
         _ <-
           liftIO $
             expectMessages white.inbox ["moveMade"] black.inbox ["clockUpdated"]
         -- Advance 800ms (not enough to timeout)
         STM.atomically $ STM.modifyTVar' clock (add (Timespan 800_000_000))
-        liftIO $ white.send (validMoves !! 1)
+        sendMsg white (validMoves !! 1)
         _ <-
           liftIO $
             expectMessages black.inbox ["moveMade"] white.inbox ["clockUpdated"]
         -- Advance another 800ms (1.6s total > 1s, but timer was reset)
         STM.atomically $ STM.modifyTVar' clock (add (Timespan 800_000_000))
-        liftIO $ black.send (validMoves !! 2)
+        sendMsg black (validMoves !! 2)
         _ <-
           liftIO $
             expectMessages white.inbox ["moveMade"] black.inbox ["clockUpdated"]
@@ -318,12 +319,12 @@ spec_onlineSession = around withSharedDB $ do
 
     it "resignation cancels pending timeout" $
       withBothPlayersTimed $ \clock white black -> do
-        liftIO $ black.send (validMoves !! 0)
+        sendMsg black (validMoves !! 0)
         _ <-
           liftIO $
             expectMessages white.inbox ["moveMade"] black.inbox ["clockUpdated"]
         -- White's clock is ticking. Black resigns before timeout.
-        liftIO $ black.send OnlineResign
+        sendMsg black OnlineResign
         _ <-
           liftIO $
             expectMessages white.inbox ["gameOver"] black.inbox ["gameOver"]
@@ -335,14 +336,14 @@ spec_onlineSession = around withSharedDB $ do
 
     it "draw offer does not reset timeout" $
       withBothPlayersTimed $ \clock white black -> do
-        liftIO $ black.send (validMoves !! 0)
+        sendMsg black (validMoves !! 0)
         _ <-
           liftIO $
             expectMessages white.inbox ["moveMade"] black.inbox ["clockUpdated"]
         -- Advance 800ms
         STM.atomically $ STM.modifyTVar' clock (add (Timespan 800_000_000))
         -- White offers a draw (no clock change, timer should NOT reset)
-        liftIO $ white.send OnlineOfferDraw
+        sendMsg white OnlineOfferDraw
         _ <-
           liftIO $
             expectMessages black.inbox ["drawOffered"] white.inbox []
@@ -353,3 +354,75 @@ spec_onlineSession = around withSharedDB $ do
           liftIO $
             expectMessages white.inbox ["gameOver"] black.inbox ["gameOver"]
         pass
+
+    it "reconnect recovers timer for timed game" $ \connVar -> do
+      runOnlineTestTimed connVar $ \clock -> do
+        game <- setupTimedGame
+        (white, _) <- connectPlayer game game.result.whiteToken
+        (black, _) <- connectPlayer game game.result.blackToken
+        _ <-
+          liftIO $
+            expectMessages white.player.inbox ["opponentJoined"] black.player.inbox []
+        sendMsg black.player (validMoves !! 0)
+        _ <-
+          liftIO $
+            expectMessages
+              white.player.inbox
+              ["moveMade"]
+              black.player.inbox
+              ["clockUpdated"]
+        -- Disconnect both to clear the session. The timer is
+        -- cancelled when both players leave; recoverTimer restarts
+        -- it on reconnect.
+        disconnectPlayer white
+        _ <-
+          liftIO $
+            expectMessages black.player.inbox ["opponentLeft"] white.player.inbox []
+        disconnectPlayer black
+        -- Reconnect both — new session, recoverTimer spawns timer
+        (white2, _) <- connectPlayer game game.result.whiteToken
+        (black2, _) <- connectPlayer game game.result.blackToken
+        _ <-
+          liftIO $
+            expectMessages white2.player.inbox ["opponentJoined"] black2.player.inbox []
+        -- Advance clock past timeout
+        STM.atomically $ STM.modifyTVar' clock (add (Timespan 1_200_000_000))
+        -- Should receive gameOver
+        _ <-
+          liftIO $
+            expectMessages white2.player.inbox ["gameOver"] black2.player.inbox ["gameOver"]
+        disconnectPlayer white2
+        disconnectPlayer black2
+
+    it "reconnect fires timeout immediately if time expired" $ \connVar -> do
+      runOnlineTestTimed connVar $ \clock -> do
+        game <- setupTimedGame
+        (white, _) <- connectPlayer game game.result.whiteToken
+        (black, _) <- connectPlayer game game.result.blackToken
+        _ <-
+          liftIO $
+            expectMessages white.player.inbox ["opponentJoined"] black.player.inbox []
+        sendMsg black.player (validMoves !! 0)
+        _ <-
+          liftIO $
+            expectMessages
+              white.player.inbox
+              ["moveMade"]
+              black.player.inbox
+              ["clockUpdated"]
+        -- Disconnect both to clear the session and cancel the
+        -- in-memory timer.
+        disconnectPlayer white
+        _ <-
+          liftIO $
+            expectMessages black.player.inbox ["opponentLeft"] white.player.inbox []
+        disconnectPlayer black
+        -- Advance clock past timeout BEFORE reconnect
+        STM.atomically $ STM.modifyTVar' clock (add (Timespan 2_000_000_000))
+        -- Reconnect — recoverTimer detects expired time and fires
+        -- timeout immediately
+        (white2, _) <- connectPlayer game game.result.whiteToken
+        _ <-
+          liftIO $
+            expectMessages white2.player.inbox ["gameOver"] black.player.inbox []
+        disconnectPlayer white2

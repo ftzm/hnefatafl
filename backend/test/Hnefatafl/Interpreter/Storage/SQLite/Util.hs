@@ -13,15 +13,15 @@ import Effectful
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Katip (KatipE, runKatipE)
 import Hnefatafl.Core.Data as CoreData
-import Hnefatafl.Effect.Storage
 import Hnefatafl.Effect.Clock (Clock)
-import Hnefatafl.Interpreter.Clock.IO (runClockIO)
-import Hnefatafl.Metrics (HMetrics)
+import Hnefatafl.Effect.Storage
 import Hnefatafl.Effect.Trace (Trace)
+import Hnefatafl.Interpreter.Clock.IO (runClockIO)
 import Hnefatafl.Interpreter.Metrics.NoOp (runMetricsNoOp)
 import Hnefatafl.Interpreter.Storage.SQLite (runStorageSQLite)
 import Hnefatafl.Interpreter.Trace.NoOp (runTraceNoOp)
 import Hnefatafl.Logging (withNoLogEnv)
+import Hnefatafl.Metrics (HMetrics)
 import Paths_hnefatafl (getDataFileName)
 import Test.Hspec.Expectations.Pretty
 
@@ -34,7 +34,10 @@ withSharedDB action = do
   SQLite3.exec (connectionHandle conn) schemaSQL
   connectionVar <- MVar.newMVar conn
   result <- action connectionVar
-  close conn
+  -- Take the connection from the MVar before closing, so we don't
+  -- close it while a worker thread has it checked out via modifyMVar.
+  conn' <- MVar.takeMVar connectionVar
+  close conn'
   return result
 
 -- | Run storage effects with automatic rollback for test isolation.
@@ -44,7 +47,13 @@ withSharedDB action = do
 -- helper don't exercise that path, so the value is an 'error' that
 -- fails loudly if expectations change.
 runStorageSQLiteWithRollback ::
-  (IOE :> es, KatipE :> es, Concurrent :> es, Trace :> es, HMetrics :> es, Clock :> es) =>
+  ( IOE :> es
+  , KatipE :> es
+  , Concurrent :> es
+  , Trace :> es
+  , HMetrics :> es
+  , Clock :> es
+  ) =>
   MVar Connection -> Eff (Storage : es) a -> Eff es a
 runStorageSQLiteWithRollback connectionVar action = do
   -- Start transaction
@@ -55,12 +64,12 @@ runStorageSQLiteWithRollback connectionVar action = do
   -- Always rollback to ensure test isolation
   liftIO $ execute_ conn "ROLLBACK"
   return result
-  where
-    unusedOpenConn =
-      error
-        "runStorageSQLiteWithRollback: connection-replacement openConn \
-        \invoked unexpectedly (ConnectionUnrecoverableException raised \
-        \inside a test wrapped in BEGIN/ROLLBACK)"
+ where
+  unusedOpenConn =
+    error
+      "runStorageSQLiteWithRollback: connection-replacement openConn \
+      \invoked unexpectedly (ConnectionUnrecoverableException raised \
+      \inside a test wrapped in BEGIN/ROLLBACK)"
 
 -- | Run storage effects in a transaction and roll back.
 -- Catches synchronous exceptions and returns them as Left.
