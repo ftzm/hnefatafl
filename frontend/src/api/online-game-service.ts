@@ -32,6 +32,7 @@ export interface OnlineGameService {
   acceptUndo(): void;
   declineUndo(): void;
   sendChat(message: string): void;
+  simulateTimeout?(delayMs?: number): void;
   events: Accessor<OnlineGameEvent | undefined>;
   connected: Accessor<boolean>;
   connecting: Accessor<boolean>;

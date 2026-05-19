@@ -31,9 +31,7 @@ async function startHotseatGame(page: Page) {
 
 async function makeMove(page: Page, from: number, to: number) {
   await page.locator(`[data-index="${from}"]`).click();
-  await expect(
-    page.locator(`[data-index="${to}"].valid-move`),
-  ).toBeVisible();
+  await expect(page.locator(`[data-index="${to}"].valid-move`)).toBeVisible();
   await page.locator(`[data-index="${to}"]`).click();
 }
 
@@ -190,5 +188,27 @@ test.describe("History navigation", () => {
 
     await nextBtn.click();
     await expect(pieceAt(page, 3)).toBeVisible();
+  });
+});
+
+test.describe("Online timeout", () => {
+  async function startOnlineGame(page: Page) {
+    await page.goto("/");
+    await page.locator(".entries button").nth(2).click();
+    // Select a time control (first timed option)
+    await page.getByText("5 min", { exact: true }).click();
+    await page.getByRole("button", { name: "Create game" }).click();
+    await page.getByRole("button", { name: "Continue to game" }).click();
+    await expect(page.locator(".board")).toBeVisible();
+    await expect(livePieces(page)).toHaveCount(37);
+  }
+
+  test("timeout displays correct game outcome", async ({ page }) => {
+    await startOnlineGame(page);
+    await page.evaluate(() => (window as any).__simulateTimeout(100));
+    await expect(desktop(page).locator(".game-status")).toContainText(
+      "timeout",
+      { timeout: 2000 },
+    );
   });
 });

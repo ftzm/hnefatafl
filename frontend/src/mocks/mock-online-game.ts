@@ -89,7 +89,7 @@ export function createMockOnlineGameService(): OnlineGameService {
     return creatorColor === "black" ? "white" : "black";
   }
 
-  return {
+  const service: OnlineGameService = {
     createGame(opts) {
       creatorColor = opts.creatorColor;
       playerToken = crypto.randomUUID();
@@ -248,8 +248,27 @@ export function createMockOnlineGameService(): OnlineGameService {
       }, 500);
     },
 
+    simulateTimeout(delayMs = 2000) {
+      if (!active) return;
+      const loser = currentPlayer;
+      const winner = loser === "black" ? "white" : "black";
+      setTimeout(() => {
+        emitIfActive({
+          type: "gameOver",
+          winner,
+          reason: "timeout",
+          clock: null,
+        });
+      }, delayMs);
+    },
+
     events,
     connected,
     connecting,
   };
+
+  // Expose for Playwright and manual browser console use.
+  window.__simulateTimeout = service.simulateTimeout;
+
+  return service;
 }
