@@ -1643,6 +1643,88 @@ void moves_from_layers(
   *_total_out = _local_total;
 }
 
+// -----------------------------------------------------------------------------
+// Ray-peeled extraction
+//
+// A contiguous run of set bits in a half of a move layer is a single ray:
+// movers are excluded from the destination layer, so every ray is bounded
+// below by a gap (its own mover or the next blocker). All destinations in a
+// ray share one origin, so the origin is recovered once per ray rather than
+// once per destination, replacing the per-square nearest-mover search of
+// EXTRACT_FROM_LAYERS_COMMON with a single search per moving piece.
+
+// Leftward rays grow toward higher bits, so the origin is the highest mover
+// at or below the ray's lowest destination.
+#define PEEL_ORIG_LEFTWARD(_mv, _low)                                          \
+  u8 orig = 63 - _lzcnt_u64(_blsmsk_u64(_low) & (_mv));                        \
+  u64 orig_bit = (u64)1 << orig;
+
+// Rightward rays grow toward lower bits, so the origin is the lowest mover at
+// or above the ray's lowest destination.
+#define PEEL_ORIG_RIGHTWARD(_mv, _low)                                         \
+  u64 orig_bit = _blsi_u64((_mv) & -(_low));                                   \
+  u8 orig = _tzcnt_u64(orig_bit);
+
+#define PEEL_FROM_LAYERS_COMMON(_i, _r, _direction, _movers, _peel_orig)       \
+  {                                                                            \
+    u64 dests = layers->_direction##_r._[_i] & HALF_MASK_##_i;                 \
+    const u64 mv = (_movers)._[_i];                                            \
+    while (dests) {                                                            \
+      u64 low = _blsi_u64(dests);                                              \
+      u64 carry = dests + low;     /* clears the lowest contiguous run */      \
+      u64 run = dests & ~carry;    /* isolate that run: one ray */             \
+      dests &= carry;              /* advance past it */                       \
+      _peel_orig(mv, low) OFFSET(orig, _i);                                    \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
+      do {                                                                     \
+        u64 dest_bit = _blsi_u64(run);                                         \
+        u8 dest = _tzcnt_u64(dest_bit);                                        \
+        OFFSET(dest, _i);                                                      \
+        u8 dest_r = ROTATE_DIR(_r)[dest];                                      \
+        BOOKKEEP##_r(_i);                                                      \
+        run -= dest_bit;                                                       \
+      } while (run);                                                           \
+    }                                                                          \
+  }
+
+#define PEEL_FROM_LAYERS_LEFTWARD(_i, _r, _movers)                             \
+  PEEL_FROM_LAYERS_COMMON(_i, _r, leftward, _movers, PEEL_ORIG_LEFTWARD)
+
+#define PEEL_FROM_LAYERS_RIGHTWARD(_i, _r, _movers)                            \
+  PEEL_FROM_LAYERS_COMMON(_i, _r, rightward, _movers, PEEL_ORIG_RIGHTWARD)
+
+void moves_from_layers_peeled(
+    const move_layers *layers,
+    const layer movers,
+    const layer movers_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total) {
+
+  int _local_total = *total;
+  int *_total_out = total;
+  total = &_local_total;
+
+  PEEL_FROM_LAYERS_LEFTWARD(0, , movers);
+  PEEL_FROM_LAYERS_LEFTWARD(1, , movers);
+  EXTRACT_FROM_LAYERS_LEFTWARD_CENTER(, movers);
+
+  PEEL_FROM_LAYERS_LEFTWARD(0, _r, movers_r);
+  PEEL_FROM_LAYERS_LEFTWARD(1, _r, movers_r);
+  EXTRACT_FROM_LAYERS_LEFTWARD_CENTER(_r, movers_r);
+
+  PEEL_FROM_LAYERS_RIGHTWARD(0, , movers);
+  PEEL_FROM_LAYERS_RIGHTWARD(1, , movers);
+  EXTRACT_FROM_LAYERS_RIGHTWARD_CENTER(, movers);
+
+  PEEL_FROM_LAYERS_RIGHTWARD(0, _r, movers_r);
+  PEEL_FROM_LAYERS_RIGHTWARD(1, _r, movers_r);
+  EXTRACT_FROM_LAYERS_RIGHTWARD_CENTER(_r, movers_r);
+
+  *_total_out = _local_total;
+}
+
 /* all black moves, with any illegal repetitions removed */
 move *all_black_moves(board b, position_set *ps, int *total) {
   u64 board_hash = hash_for_board(b, false);

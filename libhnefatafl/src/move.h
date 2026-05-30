@@ -229,6 +229,18 @@ void moves_from_layers(
     layer *ls_r,
     int *total);
 
+/* Ray-peeled variant of moves_from_layers: identical output (same moves and
+   diff layers, in the same order), but recovers each ray's origin once
+   instead of once per destination square. */
+void moves_from_layers_peeled(
+    const move_layers *layers,
+    layer movers,
+    layer movers_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total);
+
 extern const move start_black_moves[116];
 
 // Generator-style move generation types and functions
