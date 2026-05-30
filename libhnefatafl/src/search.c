@@ -621,7 +621,7 @@ i32 quiesce_black(
 
       move ms[100];
       int total = 0;
-      moves_from_layers(
+      moves_from_layers_peeled(
           &escape1_layers,
           b.black,
           b.black_r,
@@ -763,7 +763,7 @@ i32 quiesce_black(
 
     move ms[100];
     int total = 0;
-    moves_from_layers(
+    moves_from_layers_peeled(
         &escape2_layers,
         b.black,
         b.black_r,
@@ -853,7 +853,7 @@ i32 quiesce_black(
       }
       move ms[400];
       int total = 0;
-      moves_from_layers(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
+      moves_from_layers_peeled(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
 
       // iterate
       for (int i = 0; i < total; i++) {
@@ -963,7 +963,7 @@ i32 quiesce_black(
 
     move ms[100];
     int total = 0;
-    moves_from_layers(
+    moves_from_layers_peeled(
         &capture_layers,
         b.black,
         b.black_r,
@@ -1220,7 +1220,7 @@ i32 quiesce_white(
   if (corner_move_count && best_value < (MAX_SCORE - 100)) {
     move ms[400];
     int total = 0;
-    moves_from_layers(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
+    moves_from_layers_peeled(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
 
     // iterate
     for (int i = 0; i < total; i++) {
@@ -1417,7 +1417,7 @@ i32 quiesce_white(
     mask_move_layers(capture_dests, capture_dests_r, &capture_layers);
 
     total = 0;
-    moves_from_layers(
+    moves_from_layers_peeled(
         &capture_layers,
         b.white,
         b.white_r,
@@ -2180,7 +2180,7 @@ i32 search_black(
   {
     move ms[400];
     int total = 0;
-    moves_from_layers(
+    moves_from_layers_peeled(
         &capture_layers,
         b.black,
         b.black_r,
@@ -2269,7 +2269,7 @@ i32 search_black(
 
   move ms[400];
   int total = 0;
-  moves_from_layers(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
+  moves_from_layers_peeled(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
 
   // hacky bounds check
   assert(total < 400);
@@ -2654,7 +2654,7 @@ i32 search_white(
 
     move ms[400];
     int total = 0;
-    moves_from_layers(
+    moves_from_layers_peeled(
         &capture_layers,
         b.white,
         b.white_r,
@@ -2741,7 +2741,7 @@ i32 search_white(
 
   move ms[400];
   int total = 0;
-  moves_from_layers(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
+  moves_from_layers_peeled(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
 
   // hacky bounds check
   assert(total < 400);
