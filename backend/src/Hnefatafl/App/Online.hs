@@ -60,16 +60,14 @@ import Hnefatafl.Core.Data (
   GameParticipantToken (..),
   GameParticipantTokenId (..),
   PlayerColor (..),
-  RemainingTime,
   TimeControl,
   deduct,
   opponent,
-  remainingToMicroseconds,
   secondsToRemainingTime,
   toTimespan,
  )
 import Hnefatafl.Core.Data qualified as Data
-import Hnefatafl.Effect.Clock (Clock, delay, now)
+import Hnefatafl.Effect.Clock (Clock, delayUntil, now)
 import Hnefatafl.Effect.IdGen (IdGen, generateId)
 import Hnefatafl.Effect.Storage (
   Storage,
@@ -502,8 +500,17 @@ dispatchEvent gameId session = \case
     processGameEvent session gameId color $
       toEvent color time clientMsg
   TimeoutFired color ->
-    processGameEvent session gameId color $
-      Online.Timeout color
+    -- A timer can enqueue a TimeoutFired in the window between a move
+    -- switching the turn and resetTimer cancelling that timer;
+    -- Async.cancel cannot un-enqueue an already-written event. Drop a
+    -- timeout for a player who is no longer to move (or a game that has
+    -- ended) rather than routing it through the transition, which would
+    -- reject it and surface a spurious error to that client.
+    case session.gameState.phase of
+      Online.Active{turn}
+        | turn == color ->
+            processGameEvent session gameId color (Online.Timeout color)
+      _ -> pure session
 
 -------------------------------------------------------------------------------
 -- Game event processing
@@ -561,8 +568,8 @@ handleTimerEvents gameId events session
   | any isClockUpdated events = do
       currentTime <- now
       let deadline = computeDeadline currentTime session.gameState.phase
-      runTransaction $ setTimeoutAt gameId deadline
-      resetTimer session
+      runTransaction $ setTimeoutAt gameId (snd <$> deadline)
+      resetTimer deadline session
   | otherwise = pure session
  where
   isGameEnded (Common.GameEnded _) = True
@@ -570,12 +577,13 @@ handleTimerEvents gameId events session
   isClockUpdated (Common.ClockUpdated _) = True
   isClockUpdated _ = False
 
--- | Compute the absolute deadline for the active player's timeout.
-computeDeadline :: Time -> Online.Phase -> Maybe Time
+-- | Compute the active player and the absolute deadline at which
+-- their clock expires. Nothing when the game is finished or untimed.
+computeDeadline :: Time -> Online.Phase -> Maybe (PlayerColor, Time)
 computeDeadline currentTime = \case
   Online.Active{turn, clock = Just (_, cs)} ->
     let remaining = cs ^. Online.remainingFor turn
-     in Just (add (toTimespan remaining) currentTime)
+     in Just (turn, add (toTimespan remaining) currentTime)
   _ -> Nothing
 
 cancelTimer :: Concurrent :> es => GameSession -> Eff es GameSession
@@ -585,14 +593,12 @@ cancelTimer session = do
 
 resetTimer ::
   (Concurrent :> es, Clock :> es) =>
+  Maybe (PlayerColor, Time) ->
   GameSession ->
   Eff es GameSession
-resetTimer session = do
+resetTimer deadline session = do
   for_ session.timeoutAsync Async.cancel
-  timer <-
-    traverse
-      (spawnTimeoutTimer session.eventQueue)
-      (activeClockRemaining session.gameState.phase)
+  timer <- traverse (spawnTimeoutTimer session.eventQueue) deadline
   pure session{timeoutAsync = timer}
 
 -- | On reconnect, check if the active player's clock has expired
@@ -622,28 +628,21 @@ recoverTimer gameId session =
         Just adjusted -> do
           let deadline = add (toTimespan adjusted) currentTime
           runTransaction $ setTimeoutAt gameId (Just deadline)
-          timer <- spawnTimeoutTimer session.eventQueue (turn, adjusted)
+          timer <- spawnTimeoutTimer session.eventQueue (turn, deadline)
           pure session{timeoutAsync = Just timer}
     _ -> pure session
 
--- | Extract the active player's remaining time from the game phase.
--- Returns Nothing if the game is finished or has no clock.
-activeClockRemaining :: Online.Phase -> Maybe (PlayerColor, RemainingTime)
-activeClockRemaining = \case
-  Online.Active{turn, clock = Just (_, cs)} ->
-    Just (turn, cs ^. Online.remainingFor turn)
-  _ -> Nothing
-
--- | Spawn an async that sleeps for the given remaining time, then
--- enqueues a TimeoutFired event.
+-- | Spawn an async that sleeps until the given absolute deadline,
+-- then enqueues a TimeoutFired event. The deadline is captured by
+-- the caller so it cannot drift with the spawned thread's start.
 spawnTimeoutTimer ::
   (Concurrent :> es, Clock :> es) =>
   STM.TBQueue SessionEvent ->
-  (PlayerColor, RemainingTime) ->
+  (PlayerColor, Time) ->
   Eff es (Async.Async ())
-spawnTimeoutTimer queue (color, remaining) =
+spawnTimeoutTimer queue (color, deadline) =
   Async.async $ do
-    delay $ remainingToMicroseconds remaining
+    delayUntil deadline
     STM.atomically $ STM.writeTBQueue queue $ TimeoutFired color
 
 -------------------------------------------------------------------------------

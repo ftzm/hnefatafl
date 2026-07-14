@@ -30,5 +30,9 @@ runClockTest timeVar = interpret $ \env -> \case
     STM.atomically $ do
       current <- STM.readTVar timeVar
       when (current < target) STM.retry
+  DelayUntil target ->
+    STM.atomically $ do
+      current <- STM.readTVar timeVar
+      when (current < target) STM.retry
   Stopwatch action -> localSeqUnliftIO env $ \unlift ->
     liftIO $ C.stopwatch (unlift action)

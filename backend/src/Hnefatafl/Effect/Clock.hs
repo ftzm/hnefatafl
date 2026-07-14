@@ -16,6 +16,8 @@ data Clock :: Effect where
   Now :: Clock m Time
   -- | Block for the given number of microseconds.
   Delay :: Int -> Clock m ()
+  -- | Block until the clock reaches the given absolute time.
+  DelayUntil :: Time -> Clock m ()
   -- | Measure the duration of an action.
   Stopwatch :: m a -> Clock m (Timespan, a)
 
