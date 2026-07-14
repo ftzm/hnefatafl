@@ -41,6 +41,7 @@ module Hnefatafl.Core.Data (
   nanosPerMillisecond,
   remainingToMicroseconds,
   remainingToMs,
+  timeToMs,
 
   -- * Game Participant Token Types
   GameParticipantTokenId (..),
@@ -50,7 +51,7 @@ module Hnefatafl.Core.Data (
   DomainMapping (..),
 ) where
 
-import Chronos (Time, Timespan (..))
+import Chronos (Time, Timespan (..), getTime)
 import Data.Aeson (
   FromJSON (..),
   ToJSON (..),
@@ -286,6 +287,10 @@ remainingToMicroseconds rt =
 remainingToMs :: RemainingTime -> Int
 remainingToMs rt =
   fromIntegral (getTimespan (toTimespan rt) `div` nanosPerMillisecond)
+
+-- | Convert an absolute time to Unix milliseconds.
+timeToMs :: Time -> Int
+timeToMs t = fromIntegral (getTime t `div` nanosPerMillisecond)
 
 data ClockState = ClockState
   { whiteRemaining :: RemainingTime

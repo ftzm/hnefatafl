@@ -418,6 +418,11 @@
                         "minimum": -9223372036854775808,
                         "type": "integer"
                     },
+                    "turnStartedAtMs": {
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "type": "integer"
+                    },
                     "whiteMs": {
                         "maximum": 9223372036854775807,
                         "minimum": -9223372036854775808,
@@ -426,7 +431,8 @@
                 },
                 "required": [
                     "whiteMs",
-                    "blackMs"
+                    "blackMs",
+                    "turnStartedAtMs"
                 ],
                 "type": "object"
             },
@@ -1010,6 +1016,11 @@
                                 "minimum": -9223372036854775808,
                                 "type": "integer"
                             },
+                            "turnStartedAtMs": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
                             "type": {
                                 "enum": [
                                     "clockUpdated"
@@ -1025,6 +1036,7 @@
                         "required": [
                             "whiteMs",
                             "blackMs",
+                            "turnStartedAtMs",
                             "type"
                         ],
                         "title": "OnlineClockUpdated",

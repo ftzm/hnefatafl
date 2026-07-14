@@ -24,6 +24,7 @@ import Hnefatafl.Core.Data (
   PlayerColor (..),
   opponent,
   remainingToMs,
+  timeToMs,
  )
 import Hnefatafl.Game.Common (
   AppliedMove (..),
@@ -71,6 +72,7 @@ notificationsFor actor newState = concatMap $ \case
       , OnlineClockUpdated
           { _whiteMs = remainingToMs cs.whiteRemaining
           , _blackMs = remainingToMs cs.blackRemaining
+          , _turnStartedAtMs = timeToMs cs.turnStartedAt
           }
       )
     ]
@@ -157,4 +159,5 @@ clockMsFields (Online.State _ _ phase) = case phase of
       ClockMs
         (remainingToMs cs.whiteRemaining)
         (remainingToMs cs.blackRemaining)
+        (timeToMs cs.turnStartedAt)
   _ -> Nothing

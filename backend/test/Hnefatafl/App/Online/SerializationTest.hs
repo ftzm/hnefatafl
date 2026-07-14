@@ -34,7 +34,8 @@ timedClock =
   ClockState
     (mkRemaining 300)
     (mkRemaining 250)
-    (Time 0)
+    -- 1.5s past the epoch, so turnStartedAt serializes to 1500 ms.
+    (Time 1_500_000_000)
 
 timedState :: Online.State
 timedState =
@@ -83,7 +84,7 @@ test_gameStateMessage =
     [ testCase "timed game has Just clock" $
         case gameStateMessage testGameId Black timedState of
           OnlineGameState{_clock = c} ->
-            c @?= Just (ClockMs 300_000 250_000)
+            c @?= Just (ClockMs 300_000 250_000 1500)
           other -> fail $ "Expected OnlineGameState, got " <> show other
     , testCase "untimed game has Nothing clock" $
         case gameStateMessage testGameId Black untimedState of
@@ -106,7 +107,7 @@ test_notificationsForClock =
             notifications = notificationsFor Black timedState [MovePlayed am]
         case notifications of
           [(_, OnlineMoveMade{_clock = c})] ->
-            c @?= Just (ClockMs 300_000 250_000)
+            c @?= Just (ClockMs 300_000 250_000 1500)
           other -> fail $ "Expected one OnlineMoveMade, got " <> show other
     , testCase "MovePlayed on untimed game has Nothing clock" $ do
         let am = dummyMove Black
@@ -120,7 +121,7 @@ test_notificationsForClock =
               notificationsFor Black timedState [GameEnded (BlackWins KingCaptured)]
         case notifications of
           (_, OnlineGameOver{_clock = c}) : _ ->
-            c @?= Just (ClockMs 300_000 250_000)
+            c @?= Just (ClockMs 300_000 250_000 1500)
           other -> fail $ "Expected OnlineGameOver, got " <> show other
     , testCase "GameEnded on untimed game has Nothing clock" $ do
         let notifications =
@@ -133,7 +134,7 @@ test_notificationsForClock =
         let notifications = notificationsFor Black timedState [MovesUndone 1]
         case notifications of
           (_, OnlineUndoAccepted{_clock = c}) : _ ->
-            c @?= Just (ClockMs 300_000 250_000)
+            c @?= Just (ClockMs 300_000 250_000 1500)
           other -> fail $ "Expected OnlineUndoAccepted, got " <> show other
     , testCase "MovesUndone on untimed game has Nothing clock" $ do
         let notifications = notificationsFor Black untimedState [MovesUndone 1]
@@ -144,9 +145,17 @@ test_notificationsForClock =
     , testCase "ClockUpdated sends OnlineClockUpdated to actor" $ do
         let notifications = notificationsFor Black timedState [ClockUpdated timedClock]
         case notifications of
-          [(target, OnlineClockUpdated{_whiteMs = whiteMs, _blackMs = blackMs})] -> do
-            target @?= Black
-            whiteMs @?= 300_000
-            blackMs @?= 250_000
+          [ ( target
+              , OnlineClockUpdated
+                  { _whiteMs = whiteMs
+                  , _blackMs = blackMs
+                  , _turnStartedAtMs = turnStartedAtMs
+                  }
+              )
+            ] -> do
+              target @?= Black
+              whiteMs @?= 300_000
+              blackMs @?= 250_000
+              turnStartedAtMs @?= 1500
           other -> fail $ "Expected one OnlineClockUpdated, got " <> show other
     ]

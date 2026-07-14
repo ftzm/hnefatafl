@@ -54,6 +54,7 @@ onlineOptions =
 data ClockMs = ClockMs
   { _whiteMs :: Int
   , _blackMs :: Int
+  , _turnStartedAtMs :: Int
   }
   deriving (Show, Eq, Generic)
 
@@ -115,6 +116,7 @@ data OnlineServerMessage
   | OnlineClockUpdated
       { _whiteMs :: Int
       , _blackMs :: Int
+      , _turnStartedAtMs :: Int
       }
   | OnlineOpponentJoined
   | OnlineOpponentLeft
