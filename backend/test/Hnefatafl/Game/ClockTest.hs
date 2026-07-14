@@ -1,11 +1,24 @@
 module Hnefatafl.Game.ClockTest where
 
 import Chronos (Time (..))
-import Hnefatafl.Core.Data (ClockState (..), PlayerColor (..))
-import Hnefatafl.Game.Online (updateClock)
+import Hnefatafl.Bindings (startBlackMoves, startBoard)
+import Hnefatafl.Core.Data (
+  ClockState (..),
+  MoveWithCaptures (..),
+  PlayerColor (..),
+ )
+import Hnefatafl.Game.Online (
+  Event (..),
+  Phase (..),
+  State (..),
+  TransitionResult (..),
+  transition,
+  updateClock,
+ )
 import Hnefatafl.Game.TestUtil (mkRemaining, mkTC, remainingSec)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
+import Prelude hiding (State)
 
 test_updateClock :: TestTree
 test_updateClock =
@@ -56,4 +69,62 @@ test_updateClock =
         case updateClock (mkTC 300 0) cs Black (Time 0) of
           Just cs' -> remainingSec cs'.blackRemaining @?= 300
           Nothing -> fail "expected Just"
+    ]
+
+-- | A timed game just before its first move: Black to move, both
+-- clocks full, turnStartedAt unset (epoch).
+timedInitial :: State
+timedInitial =
+  let cs = ClockState (mkRemaining 300) (mkRemaining 300) (Time 0)
+   in State
+        startBoard
+        []
+        (Active Black (toList startBlackMoves) Nothing (Just (mkTC 300 0, cs)))
+
+clockOf :: State -> Maybe ClockState
+clockOf (State _ _ (Active _ _ _ clk)) = snd <$> clk
+clockOf _ = Nothing
+
+test_firstMoveClock :: TestTree
+test_firstMoveClock =
+  testGroup
+    "first move clock"
+    [ testCase "first move deducts from neither clock" $
+        case toList startBlackMoves of
+          (vm : _) ->
+            case transition timedInitial (MakeMove Black vm.move (Time 2_000_000_000)) of
+              Right (TransitionResult ns _) -> case clockOf ns of
+                Just cs' -> do
+                  remainingSec cs'.blackRemaining @?= 300
+                  remainingSec cs'.whiteRemaining @?= 300
+                Nothing -> fail "expected a clock on the resulting state"
+              Left e -> fail $ "unexpected transition error: " <> show e
+          [] -> fail "no opening moves for Black"
+    , testCase "first move sets turnStartedAt to the move time" $
+        case toList startBlackMoves of
+          (vm : _) ->
+            case transition timedInitial (MakeMove Black vm.move (Time 2_000_000_000)) of
+              Right (TransitionResult ns _) -> case clockOf ns of
+                Just cs' -> cs'.turnStartedAt @?= Time 2_000_000_000
+                Nothing -> fail "expected a clock on the resulting state"
+              Left e -> fail $ "unexpected transition error: " <> show e
+          [] -> fail "no opening moves for Black"
+    , testCase "second move deducts elapsed from the mover" $
+        case toList startBlackMoves of
+          (bvm : _) ->
+            -- Black opens at t=1s (free); White replies at t=3s, so 2s
+            -- is deducted from White's clock.
+            case transition timedInitial (MakeMove Black bvm.move (Time 1_000_000_000)) of
+              Right (TransitionResult afterBlack _) -> case afterBlack of
+                State _ _ (Active White (wvm : _) _ _) ->
+                  case transition afterBlack (MakeMove White wvm.move (Time 3_000_000_000)) of
+                    Right (TransitionResult afterWhite _) -> case clockOf afterWhite of
+                      Just cs' -> do
+                        remainingSec cs'.whiteRemaining @?= 298
+                        remainingSec cs'.blackRemaining @?= 300
+                      Nothing -> fail "expected a clock on the resulting state"
+                    Left e -> fail $ "White move failed: " <> show e
+                _ -> fail "expected White to move with legal moves"
+              Left e -> fail $ "Black move failed: " <> show e
+          [] -> fail "no opening moves for Black"
     ]

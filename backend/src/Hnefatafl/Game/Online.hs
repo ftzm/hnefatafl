@@ -136,9 +136,13 @@ transition s@(State board moves (Active turn validMoves pend clk)) = \case
     | color /= turn -> Left NotYourTurn
     | move `notElem` map (.move) validMoves -> Left InvalidMove
     | otherwise -> case clk of
-        Just (tc, cs) -> case updateClock tc cs color time of
-          Nothing -> Right $ mkFinished s pend (TimedOut color)
-          Just cs' -> makeMove (Just (tc, cs'))
+        Just (tc, cs)
+          -- First move: clock hasn't started yet. Set turnStartedAt
+          -- so the opponent's clock begins from this point.
+          | null moves -> makeMove (Just (tc, cs{turnStartedAt = time}))
+          | otherwise -> case updateClock tc cs color time of
+              Nothing -> Right $ mkFinished s pend (TimedOut color)
+              Just cs' -> makeMove (Just (tc, cs'))
         Nothing -> makeMove Nothing
    where
     makeMove clk' = do
