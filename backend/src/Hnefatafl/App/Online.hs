@@ -619,17 +619,21 @@ recoverTimer ::
   Eff es GameSession
 recoverTimer gameId session =
   case session.gameState.phase of
-    Online.Active{turn, clock = Just (_, cs)} -> do
-      currentTime <- now
-      let elapsed = difference currentTime cs.turnStartedAt
-      case deduct elapsed (cs ^. Online.remainingFor turn) of
-        Nothing ->
-          processGameEvent session gameId turn (Online.Timeout turn)
-        Just adjusted -> do
-          let deadline = add (toTimespan adjusted) currentTime
-          runTransaction $ setTimeoutAt gameId (Just deadline)
-          timer <- spawnTimeoutTimer session.eventQueue (turn, deadline)
-          pure session{timeoutAsync = Just timer}
+    Online.Active{turn, clock = Just (_, cs)}
+      -- The clock only starts once the first move is played, so a
+      -- game with no moves has no timeout to recover. Arming one here
+      -- would let the first mover flag before their free opening move.
+      | not (null session.gameState.moves) -> do
+          currentTime <- now
+          let elapsed = difference currentTime cs.turnStartedAt
+          case deduct elapsed (cs ^. Online.remainingFor turn) of
+            Nothing ->
+              processGameEvent session gameId turn (Online.Timeout turn)
+            Just adjusted -> do
+              let deadline = add (toTimespan adjusted) currentTime
+              runTransaction $ setTimeoutAt gameId (Just deadline)
+              timer <- spawnTimeoutTimer session.eventQueue (turn, deadline)
+              pure session{timeoutAsync = Just timer}
     _ -> pure session
 
 -- | Spawn an async that sleeps until the given absolute deadline,

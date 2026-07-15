@@ -297,6 +297,19 @@ spec_onlineSession = around withSharedDB $ do
             expectMessages white.inbox ["gameOver"] black.inbox ["gameOver"]
         pass
 
+    it "no timeout before the first move" $
+      withBothPlayersTimed $ \clock white black -> do
+        -- Advance well past the 1-second initial time before anyone
+        -- moves. The clock has not started, so nobody should flag.
+        STM.atomically $ STM.modifyTVar' clock (add (Timespan 3_000_000_000))
+        -- Black's opening move still succeeds: had a timeout fired,
+        -- the game would be finished and the move rejected.
+        sendMsg black (validMoves !! 0)
+        _ <-
+          liftIO $
+            expectMessages white.inbox ["moveMade"] black.inbox ["clockUpdated"]
+        pass
+
     it "move resets timeout timer" $
       withBothPlayersTimed $ \clock white black -> do
         sendMsg black (validMoves !! 0)
