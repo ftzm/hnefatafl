@@ -205,7 +205,7 @@ test.describe("Online timeout", () => {
 
   test("timeout displays correct game outcome", async ({ page }) => {
     await startOnlineGame(page);
-    await page.evaluate(() => (window as any).__simulateTimeout(100));
+    await page.evaluate(() => window.__simulateTimeout?.(100));
     await expect(desktop(page).locator(".game-status")).toContainText(
       "timeout",
       { timeout: 2000 },

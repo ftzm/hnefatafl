@@ -281,7 +281,8 @@ export function createMockOnlineGameService(): OnlineGameService {
   };
 
   // Expose for Playwright and manual browser console use.
-  window.__simulateTimeout = service.simulateTimeout;
+  window.__simulateTimeout = (delayMs?: number) =>
+    service.simulateTimeout?.(delayMs);
 
   return service;
 }
