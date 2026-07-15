@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClockMs, hasUndoableMove } from "./GameLayout";
+import { displayedClockMs, formatClockMs, hasUndoableMove } from "./GameLayout";
 
 describe("formatClockMs", () => {
   it("formats minutes and seconds", () => {
@@ -42,5 +42,35 @@ describe("hasUndoableMove", () => {
   it("hotseat/AI (no player color) can undo any played move", () => {
     expect(hasUndoableMove(null, 0)).toBe(false);
     expect(hasUndoableMove(null, 1)).toBe(true);
+  });
+});
+
+describe("displayedClockMs", () => {
+  const clock = { whiteMs: 300_000, blackMs: 250_000, turnStartedAtMs: 10_000 };
+
+  it("shows the stored bank for the side not to move", () => {
+    // White is running; Black's clock is idle at its bank.
+    expect(displayedClockMs(clock, "black", "white", true, 40_000)).toBe(
+      250_000,
+    );
+  });
+
+  it("counts the side to move down from the turn start", () => {
+    // White to move, 3s elapsed since turnStartedAt (10s → 13s).
+    expect(displayedClockMs(clock, "white", "white", true, 13_000)).toBe(
+      297_000,
+    );
+  });
+
+  it("does not tick before the clock is running", () => {
+    expect(displayedClockMs(clock, "white", "white", false, 999_999)).toBe(
+      300_000,
+    );
+  });
+
+  it("clamps a flagged clock to zero", () => {
+    expect(
+      displayedClockMs(clock, "white", "white", true, 10_000 + 999_999),
+    ).toBe(0);
   });
 });

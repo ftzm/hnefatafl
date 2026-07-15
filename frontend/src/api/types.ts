@@ -49,6 +49,9 @@ export type AiGameEvent =
 export interface ClockMs {
   whiteMs: number;
   blackMs: number;
+  // Unix ms at which the current turn began. The active player's
+  // displayed time is whiteMs/blackMs minus the time elapsed since.
+  turnStartedAtMs: number;
 }
 
 export type OnlineGameEvent =

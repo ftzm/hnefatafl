@@ -1,5 +1,14 @@
 import { useNavigate } from "@solidjs/router";
-import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
+import {
+  createSignal,
+  For,
+  type JSX,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
+import type { ClockMs } from "../api/types";
 import type { Move, PlayerColor } from "../board-logic";
 import { type GameMode, useGame } from "../game-context";
 import AiInfoPanel from "./AiInfoPanel";
@@ -39,6 +48,22 @@ export function hasUndoableMove(
 ): boolean {
   if (playerColor === "white") return historyLength >= 2;
   return historyLength >= 1;
+}
+
+// The time to show for one side. Once the clock is running, the side
+// to move counts down from the turn start (so it stays accurate across
+// reconnects and network delay); every other side shows its stored
+// bank. Clamped at zero.
+export function displayedClockMs(
+  clock: ClockMs,
+  side: PlayerColor,
+  currentPlayer: PlayerColor,
+  running: boolean,
+  nowMs: number,
+): number {
+  const bank = side === "white" ? clock.whiteMs : clock.blackMs;
+  if (!running || currentPlayer !== side) return bank;
+  return Math.max(0, bank - (nowMs - clock.turnStartedAtMs));
 }
 
 interface ActionDef {
@@ -87,6 +112,13 @@ export default function GameLayout(props: GameLayoutProps) {
 
   const [movesSheetOpen, setMovesSheetOpen] = createSignal(false);
   const [chatSheetOpen, setChatSheetOpen] = createSignal(false);
+
+  // Drives the live clock countdown. The stored clock holds
+  // server-authoritative values; the running side's display is
+  // recomputed against the current time on each tick.
+  const [nowMs, setNowMs] = createSignal(Date.now());
+  const clockTimer = setInterval(() => setNowMs(Date.now()), 250);
+  onCleanup(() => clearInterval(clockTimer));
 
   const playerState = (color: "black" | "white"): PlayerState => {
     if (game.store.game.gameOver) return "ended";
@@ -164,10 +196,20 @@ export default function GameLayout(props: GameLayoutProps) {
     game.store.game.playerColor === "black" ? "white" : "black";
   const bottomColor = (): Side => opposite(topColor());
   const playerName = (c: Side) => (c === "black" ? blackName() : whiteName());
-  const clockForSide = (c: Side) => {
+  const clockForSide = (c: Side): number | null => {
     const clock = game.store.game.clock;
     if (!clock) return null;
-    return c === "white" ? clock.whiteMs : clock.blackMs;
+    // The clock only runs once the first move is played, matching the
+    // server, so an unmoved game shows the initial banks statically.
+    const running =
+      !game.store.game.gameOver && game.store.game.moveHistory.length > 0;
+    return displayedClockMs(
+      clock,
+      c,
+      game.store.game.currentPlayer,
+      running,
+      nowMs(),
+    );
   };
 
   return (

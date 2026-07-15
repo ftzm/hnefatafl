@@ -54,28 +54,6 @@ function OnlineController() {
     online.disconnect();
   });
 
-  // Client-side clock tick: decrements the active player's displayed
-  // time by wall-clock elapsed since the last tick. Server-authoritative
-  // values snap the clock on each moveMade/clockUpdated event; this
-  // interval fills the visual gap between server updates.
-  const tickHandle = setInterval(() => {
-    const clock = game.store.game.clock;
-    if (!clock || game.store.game.gameOver) return;
-    const active = game.store.game.currentPlayer;
-    if (active === "white") {
-      game.setClock({
-        whiteMs: Math.max(0, clock.whiteMs - 1000),
-        blackMs: clock.blackMs,
-      });
-    } else {
-      game.setClock({
-        whiteMs: clock.whiteMs,
-        blackMs: Math.max(0, clock.blackMs - 1000),
-      });
-    }
-  }, 1000);
-  onCleanup(() => clearInterval(tickHandle));
-
   createEffect(
     on(online.events, (event) => {
       if (!event) return;

@@ -163,11 +163,12 @@ describe("game context — external undo", () => {
       boardRep: startBoardRep(),
       currentPlayer: "black",
       moves: {},
-      clock: { whiteMs: 300_000, blackMs: 280_000 },
+      clock: { whiteMs: 300_000, blackMs: 280_000, turnStartedAtMs: 0 },
     });
     expect(ctx.store.game.clock).toEqual({
       whiteMs: 300_000,
       blackMs: 280_000,
+      turnStartedAtMs: 0,
     });
   });
 
@@ -374,11 +375,12 @@ describe("game context — clock state", () => {
         white: new Set(startBoard.white),
         king: startBoard.king,
       },
-      clock: { whiteMs: 300_000, blackMs: 250_000 },
+      clock: { whiteMs: 300_000, blackMs: 250_000, turnStartedAtMs: 0 },
     });
     expect(ctx.store.game.clock).toEqual({
       whiteMs: 300_000,
       blackMs: 250_000,
+      turnStartedAtMs: 0,
     });
   });
 
@@ -390,7 +392,7 @@ describe("game context — clock state", () => {
         white: new Set(startBoard.white),
         king: startBoard.king,
       },
-      clock: { whiteMs: 300_000, blackMs: 300_000 },
+      clock: { whiteMs: 300_000, blackMs: 300_000, turnStartedAtMs: 0 },
     });
     const board = ctx.store.game.boardRep;
     ctx.applyExternalMove({
@@ -398,11 +400,12 @@ describe("game context — clock state", () => {
       boardRep: board,
       currentPlayer: "white",
       moves: {},
-      clock: { whiteMs: 300_000, blackMs: 295_000 },
+      clock: { whiteMs: 300_000, blackMs: 295_000, turnStartedAtMs: 0 },
     });
     expect(ctx.store.game.clock).toEqual({
       whiteMs: 300_000,
       blackMs: 295_000,
+      turnStartedAtMs: 0,
     });
   });
 
@@ -414,7 +417,7 @@ describe("game context — clock state", () => {
         white: new Set(startBoard.white),
         king: startBoard.king,
       },
-      clock: { whiteMs: 300_000, blackMs: 300_000 },
+      clock: { whiteMs: 300_000, blackMs: 300_000, turnStartedAtMs: 0 },
     });
     const board = ctx.store.game.boardRep;
     ctx.applyExternalMove({
@@ -426,15 +429,17 @@ describe("game context — clock state", () => {
     expect(ctx.store.game.clock).toEqual({
       whiteMs: 300_000,
       blackMs: 300_000,
+      turnStartedAtMs: 0,
     });
   });
 
   it("setClock updates clock on store", () => {
     const ctx = setupContext();
-    ctx.setClock({ whiteMs: 100_000, blackMs: 200_000 });
+    ctx.setClock({ whiteMs: 100_000, blackMs: 200_000, turnStartedAtMs: 0 });
     expect(ctx.store.game.clock).toEqual({
       whiteMs: 100_000,
       blackMs: 200_000,
+      turnStartedAtMs: 0,
     });
   });
 });

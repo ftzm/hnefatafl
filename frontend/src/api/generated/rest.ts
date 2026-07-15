@@ -643,6 +643,7 @@ export interface components {
         };
         ClockMs: {
             blackMs: number;
+            turnStartedAtMs: number;
             whiteMs: number;
         };
         CreateAiGameResponse: {
@@ -775,6 +776,7 @@ export interface components {
             type: "undoCancelled";
         } | {
             blackMs: number;
+            turnStartedAtMs: number;
             /** @enum {string} */
             type: "clockUpdated";
             whiteMs: number;

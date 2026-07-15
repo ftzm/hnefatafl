@@ -105,7 +105,11 @@ function mapServerMessage(
     case "clockUpdated":
       return {
         type: "clockUpdated",
-        clock: { whiteMs: msg.whiteMs, blackMs: msg.blackMs },
+        clock: {
+          whiteMs: msg.whiteMs,
+          blackMs: msg.blackMs,
+          turnStartedAtMs: msg.turnStartedAtMs,
+        },
       };
   }
 }
