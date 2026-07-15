@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import type { OnlineGameService } from "../api/online-game-service";
-import type { OnlineGameEvent } from "../api/types";
+import type { ClockMs, OnlineGameEvent } from "../api/types";
 import {
   applyMoveToBoardRep,
   type BoardRep,
@@ -9,6 +9,7 @@ import {
   type PlayerColor,
   startBoard,
 } from "../board-logic";
+import type { TimeControlValue } from "../gameOptions";
 import {
   checkGameOver,
   generateLegalMoves,
@@ -32,12 +33,45 @@ export function createMockOnlineGameService(): OnlineGameService {
   let inviteToken: string | null = null;
   let active = false;
 
+  // Clock simulation. When timeControl is null the game is untimed and
+  // every event carries a null clock. Otherwise both banks start at the
+  // initial time and the side to move spends from turnStartedAtMs.
+  let timeControl: TimeControlValue | null = null;
+  let whiteMs = 0;
+  let blackMs = 0;
+  let turnStartedAtMs = 0;
+
   const [events, setEvents] = createSignal<OnlineGameEvent | undefined>();
   const [connected, setConnected] = createSignal(false);
   const [connecting] = createSignal(false);
 
   function emitIfActive(event: OnlineGameEvent) {
     if (active) setEvents(event);
+  }
+
+  function clockSnapshot(): ClockMs | null {
+    if (!timeControl) return null;
+    return { whiteMs, blackMs, turnStartedAtMs };
+  }
+
+  // Update the clock for a completed move by `mover`. The opening move
+  // is free and only starts the opponent's clock; later moves deduct the
+  // elapsed turn time and add the increment.
+  function advanceClock(mover: PlayerColor, firstMove: boolean) {
+    if (!timeControl) return;
+    const now = Date.now();
+    if (firstMove) {
+      turnStartedAtMs = now;
+      return;
+    }
+    const elapsed = now - turnStartedAtMs;
+    const incMs = timeControl.increment * 1000;
+    if (mover === "white") {
+      whiteMs = Math.max(0, whiteMs - elapsed) + incMs;
+    } else {
+      blackMs = Math.max(0, blackMs - elapsed) + incMs;
+    }
+    turnStartedAtMs = now;
   }
 
   function performUndo() {
@@ -56,7 +90,7 @@ export function createMockOnlineGameService(): OnlineGameService {
       boardRep: cloneBoardRep(board),
       currentPlayer,
       moves,
-      clock: null,
+      clock: clockSnapshot(),
     });
   }
 
@@ -69,7 +103,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         type: "gameOver",
         winner: gameOver.winner,
         reason: gameOver.reason,
-        clock: null,
+        clock: clockSnapshot(),
       });
       return;
     }
@@ -77,9 +111,12 @@ export function createMockOnlineGameService(): OnlineGameService {
     const move = pickRandomMove(moves);
     if (!move) return;
 
+    const mover = currentPlayer;
+    const firstMove = moveHistory.length === 0;
     board = applyMoveToBoardRep(board, move);
     moveHistory.push(move);
     currentPlayer = currentPlayer === "black" ? "white" : "black";
+    advanceClock(mover, firstMove);
 
     const nextMoves = generateLegalMoves(board, currentPlayer);
     emitIfActive({
@@ -88,7 +125,7 @@ export function createMockOnlineGameService(): OnlineGameService {
       boardRep: cloneBoardRep(board),
       currentPlayer,
       moves: nextMoves,
-      clock: null,
+      clock: clockSnapshot(),
     });
 
     const nextGameOver = checkGameOver(board, currentPlayer, nextMoves);
@@ -98,7 +135,7 @@ export function createMockOnlineGameService(): OnlineGameService {
           type: "gameOver",
           winner: nextGameOver.winner,
           reason: nextGameOver.reason,
-          clock: null,
+          clock: clockSnapshot(),
         });
       }, 100);
     }
@@ -112,6 +149,7 @@ export function createMockOnlineGameService(): OnlineGameService {
   const service: OnlineGameService = {
     createGame(opts) {
       creatorColor = opts.creatorColor;
+      timeControl = opts.timeControl;
       playerToken = crypto.randomUUID();
       inviteToken = crypto.randomUUID();
       return Promise.resolve({
@@ -127,6 +165,11 @@ export function createMockOnlineGameService(): OnlineGameService {
       moveHistory = [];
       active = true;
       setConnected(true);
+      if (timeControl) {
+        whiteMs = timeControl.initialTime * 1000;
+        blackMs = timeControl.initialTime * 1000;
+        turnStartedAtMs = Date.now();
+      }
 
       const playerColor = resolvePlayerColor(token);
       const initialMoves = generateLegalMoves(board, currentPlayer);
@@ -139,7 +182,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         moves: initialMoves,
         moveHistory: [],
         gameOver: null,
-        clock: null,
+        clock: clockSnapshot(),
       });
 
       setTimeout(() => emitIfActive({ type: "opponentJoined" }), 300);
@@ -158,9 +201,12 @@ export function createMockOnlineGameService(): OnlineGameService {
 
     sendMove(move) {
       if (!active) return;
+      const mover = currentPlayer;
+      const firstMove = moveHistory.length === 0;
       board = applyMoveToBoardRep(board, move);
       moveHistory.push(move);
       currentPlayer = currentPlayer === "black" ? "white" : "black";
+      advanceClock(mover, firstMove);
 
       const nextMoves = generateLegalMoves(board, currentPlayer);
       setEvents({
@@ -169,7 +215,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         boardRep: cloneBoardRep(board),
         currentPlayer,
         moves: nextMoves,
-        clock: null,
+        clock: clockSnapshot(),
       });
 
       const gameOver = checkGameOver(board, currentPlayer, nextMoves);
@@ -179,7 +225,7 @@ export function createMockOnlineGameService(): OnlineGameService {
             type: "gameOver",
             winner: gameOver.winner,
             reason: gameOver.reason,
-            clock: null,
+            clock: clockSnapshot(),
           });
         }, 100);
         return;
@@ -196,7 +242,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         type: "gameOver",
         winner,
         reason: "Resignation",
-        clock: null,
+        clock: clockSnapshot(),
       });
     },
 
@@ -208,7 +254,7 @@ export function createMockOnlineGameService(): OnlineGameService {
             type: "gameOver",
             winner: "draw",
             reason: "Draw agreed",
-            clock: null,
+            clock: clockSnapshot(),
           });
         } else {
           emitIfActive({ type: "drawDeclined" });
@@ -222,7 +268,7 @@ export function createMockOnlineGameService(): OnlineGameService {
         type: "gameOver",
         winner: "draw",
         reason: "Draw agreed",
-        clock: null,
+        clock: clockSnapshot(),
       });
     },
 
@@ -270,7 +316,7 @@ export function createMockOnlineGameService(): OnlineGameService {
           type: "gameOver",
           winner,
           reason: "timeout",
-          clock: null,
+          clock: clockSnapshot(),
         });
       }, delayMs);
     },

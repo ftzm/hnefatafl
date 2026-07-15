@@ -212,3 +212,32 @@ test.describe("Online timeout", () => {
     );
   });
 });
+
+test.describe("Online clock", () => {
+  test("the side to move counts down in a timed game", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".entries button").nth(2).click();
+    // Play as Defenders (White); the mock's Black opponent makes the
+    // free opening move, after which White's clock runs continuously
+    // (the opponent will not move again until we do).
+    await page.getByText("Defenders", { exact: true }).click();
+    await page.getByText("5 min", { exact: true }).click();
+    await page.getByRole("button", { name: "Create game" }).click();
+    await page.getByRole("button", { name: "Continue to game" }).click();
+    await expect(page.locator(".board")).toBeVisible();
+    // White's clock begins at 5:00 and ticks down once Black has opened.
+    await expect(
+      desktop(page).locator(".player.white .player-clock"),
+    ).not.toHaveText("5:00", { timeout: 5000 });
+  });
+
+  test("an untimed game shows no clock", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".entries button").nth(2).click();
+    // Leave the default "Untimed" time control.
+    await page.getByRole("button", { name: "Create game" }).click();
+    await page.getByRole("button", { name: "Continue to game" }).click();
+    await expect(page.locator(".board")).toBeVisible();
+    await expect(desktop(page).locator(".player-clock")).toHaveCount(0);
+  });
+});
