@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClockMs } from "./GameLayout";
+import { formatClockMs, hasUndoableMove } from "./GameLayout";
 
 describe("formatClockMs", () => {
   it("formats minutes and seconds", () => {
@@ -24,5 +24,23 @@ describe("formatClockMs", () => {
 
   it("clamps negative to zero", () => {
     expect(formatClockMs(-1000)).toBe("0:00");
+  });
+});
+
+describe("hasUndoableMove", () => {
+  it("online Black can undo after its own first move", () => {
+    expect(hasUndoableMove("black", 0)).toBe(false);
+    expect(hasUndoableMove("black", 1)).toBe(true);
+  });
+
+  it("online White cannot undo until it has moved", () => {
+    // After Black's opening move (length 1) White has not moved yet.
+    expect(hasUndoableMove("white", 1)).toBe(false);
+    expect(hasUndoableMove("white", 2)).toBe(true);
+  });
+
+  it("hotseat/AI (no player color) can undo any played move", () => {
+    expect(hasUndoableMove(null, 0)).toBe(false);
+    expect(hasUndoableMove(null, 1)).toBe(true);
   });
 });

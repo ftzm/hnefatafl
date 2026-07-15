@@ -1,6 +1,6 @@
 import { useNavigate } from "@solidjs/router";
 import { createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
-import type { Move } from "../board-logic";
+import type { Move, PlayerColor } from "../board-logic";
 import { type GameMode, useGame } from "../game-context";
 import AiInfoPanel from "./AiInfoPanel";
 import Board from "./Board";
@@ -26,6 +26,19 @@ export function formatClockMs(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+// Whether the Undo button has a move this player is allowed to take
+// back. Online play only lets a player undo their own move, and the
+// server rejects a request otherwise: Black moves first so needs at
+// least one move played, White needs two. Hotseat / AI has no player
+// color, so any played move is undoable.
+export function hasUndoableMove(
+  playerColor: PlayerColor | null,
+  historyLength: number,
+): boolean {
+  if (playerColor === "white") return historyLength >= 2;
+  return historyLength >= 1;
 }
 
 interface ActionDef {
@@ -110,10 +123,13 @@ export default function GameLayout(props: GameLayoutProps) {
       label: "Undo",
       icon: <UndoIcon />,
       onClick: () => props.onUndo?.(),
-      disabled: () =>
-        !gameActive() ||
-        game.store.game.moveHistory.length === 0 ||
-        anyOfferPending(),
+      disabled: () => {
+        if (!gameActive() || anyOfferPending()) return true;
+        return !hasUndoableMove(
+          game.store.game.playerColor,
+          game.store.game.moveHistory.length,
+        );
+      },
     },
     resign: {
       label: "Resign",
