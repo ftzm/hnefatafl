@@ -42,26 +42,26 @@ timedState =
   Online.State
     startBoard
     []
-    ( Online.Active
-        Black
-        (toList startBlackMoves)
-        Nothing
-        (Just (mkTC 300 5, timedClock))
-    )
+    (Online.Active Black (toList startBlackMoves) Nothing)
+    (Online.Timed (mkTC 300 5) timedClock)
 
 untimedState :: Online.State
 untimedState =
   Online.State
     startBoard
     []
-    (Online.Active Black (toList startBlackMoves) Nothing Nothing)
+    (Online.Active Black (toList startBlackMoves) Nothing)
+    Online.Untimed
 
+-- A finished timed game keeps its clock configuration but reports no
+-- live clock in messages.
 finishedState :: Online.State
 finishedState =
   Online.State
     startBoard
     []
     (Online.Finished (WhiteWins KingEscaped))
+    (Online.Timed (mkTC 300 5) timedClock)
 
 test_remainingToMs :: TestTree
 test_remainingToMs =

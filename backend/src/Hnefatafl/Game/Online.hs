@@ -5,6 +5,7 @@
 module Hnefatafl.Game.Online (
   Phase (..),
   State (..),
+  GameClock (..),
   Event (..),
   TransitionResult (..),
   pending,
@@ -55,15 +56,24 @@ data Phase
       { turn :: PlayerColor
       , validMoves :: [MoveWithCaptures]
       , pending :: Maybe PendingAction
-      , clock :: Maybe (TimeControl, ClockState)
       }
   | Finished {outcome :: Outcome}
+  deriving (Show, Eq, Generic)
+
+-- | The game's clock. Immutable time-control configuration and the
+-- mutable running state travel together, so "timed" is a single
+-- invariant rather than two independent Maybes. It lives on 'State'
+-- (not 'Phase') because the configuration outlives the active phase.
+data GameClock
+  = Untimed
+  | Timed TimeControl ClockState
   deriving (Show, Eq, Generic)
 
 data State = State
   { board :: ExternBoard
   , moves :: [AppliedMove]
   , phase :: Phase
+  , clock :: GameClock
   }
   deriving (Show, Eq, Generic)
 
@@ -93,13 +103,14 @@ mkActive ::
   ExternBoard ->
   [AppliedMove] ->
   Maybe PendingAction ->
-  Maybe (TimeControl, ClockState) ->
+  GameClock ->
   State
 mkActive board moves pa clk =
   State
     board
     moves
-    (Active (currentTurn moves) (validMovesForPosition moves) pa clk)
+    (Active (currentTurn moves) (validMovesForPosition moves) pa)
+    clk
 
 -- | End the game, clearing any pending actions.
 mkFinished :: State -> Maybe PendingAction -> Outcome -> TransitionResult
@@ -130,20 +141,20 @@ updateClock tc cs mover moveTime =
   update r = addIncrement tc.increment <$> deduct elapsed r
 
 transition :: State -> Event -> Either TransitionError TransitionResult
-transition (State _ _ (Finished _)) = const $ Left GameAlreadyFinished
-transition s@(State board moves (Active turn validMoves pend clk)) = \case
+transition (State _ _ (Finished _) _) = const $ Left GameAlreadyFinished
+transition s@(State board moves (Active turn validMoves pend) clk) = \case
   MakeMove color move time
     | color /= turn -> Left NotYourTurn
     | move `notElem` map (.move) validMoves -> Left InvalidMove
     | otherwise -> case clk of
-        Just (tc, cs)
+        Timed tc cs
           -- First move: clock hasn't started yet. Set turnStartedAt
           -- so the opponent's clock begins from this point.
-          | null moves -> makeMove (Just (tc, cs{turnStartedAt = time}))
+          | null moves -> makeMove (Timed tc cs{turnStartedAt = time})
           | otherwise -> case updateClock tc cs color time of
               Nothing -> Right $ mkFinished s pend (TimedOut color)
-              Just cs' -> makeMove (Just (tc, cs'))
-        Nothing -> makeMove Nothing
+              Just cs' -> makeMove (Timed tc cs')
+        Untimed -> makeMove Untimed
    where
     makeMove clk' = do
       (moveResult, engineStatus, nextValidMoves) <-
@@ -156,13 +167,15 @@ transition s@(State board moves (Active turn validMoves pend clk)) = \case
 
       let applied = mkAppliedMove moveResult time
           moves' = moves <> [applied]
-          clockEvt = ClockUpdated . snd <$> clk'
+          clockEvt = case clk' of
+            Timed _ cs -> Just (ClockUpdated cs)
+            Untimed -> Nothing
           (pending', cancelEvts) = cancelPending (opponent color) pend
 
       Right $ case outcomeFromEngine engineStatus of
         Just outcome ->
           TransitionResult
-            (State applied.boardAfter moves' (Finished outcome))
+            (State applied.boardAfter moves' (Finished outcome) clk')
             ( MovePlayed applied
                 : maybeToList clockEvt
                   <> clearPending pend
@@ -173,7 +186,8 @@ transition s@(State board moves (Active turn validMoves pend clk)) = \case
             ( State
                 applied.boardAfter
                 moves'
-                (Active (opponent turn) nextValidMoves pending' clk')
+                (Active (opponent turn) nextValidMoves pending')
+                clk'
             )
             (MovePlayed applied : maybeToList clockEvt <> cancelEvts)
   Resign color ->
@@ -214,7 +228,9 @@ transition s@(State board moves (Active turn validMoves pend clk)) = \case
     Just pa
       | pa.actionType == UndoRequest && pa.offeredBy /= color ->
           let undoCount = if turn == pa.offeredBy then 2 else 1
-              clk' = clk <&> second (\cs -> cs{turnStartedAt = undoTime})
+              clk' = case clk of
+                Timed tc cs -> Timed tc cs{turnStartedAt = undoTime}
+                Untimed -> Untimed
            in case undoMoves undoCount moves of
                 Nothing -> Left NoMovesToUndo
                 Just moves' ->
@@ -237,9 +253,9 @@ reconstruct ::
   [AppliedMove] ->
   Maybe Outcome ->
   Maybe PendingAction ->
-  Maybe (TimeControl, ClockState) ->
+  GameClock ->
   State
-reconstruct board moves (Just outcome) _ _ =
-  State board moves (Finished outcome)
+reconstruct board moves (Just outcome) _ clk =
+  State board moves (Finished outcome) clk
 reconstruct board moves Nothing pa clk =
   mkActive board moves pa clk

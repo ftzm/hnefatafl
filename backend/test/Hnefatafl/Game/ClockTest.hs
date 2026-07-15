@@ -9,6 +9,7 @@ import Hnefatafl.Core.Data (
  )
 import Hnefatafl.Game.Online (
   Event (..),
+  GameClock (..),
   Phase (..),
   State (..),
   TransitionResult (..),
@@ -79,11 +80,12 @@ timedInitial =
    in State
         startBoard
         []
-        (Active Black (toList startBlackMoves) Nothing (Just (mkTC 300 0, cs)))
+        (Active Black (toList startBlackMoves) Nothing)
+        (Timed (mkTC 300 0) cs)
 
 clockOf :: State -> Maybe ClockState
-clockOf (State _ _ (Active _ _ _ clk)) = snd <$> clk
-clockOf _ = Nothing
+clockOf (State _ _ _ (Timed _ cs)) = Just cs
+clockOf (State _ _ _ Untimed) = Nothing
 
 test_firstMoveClock :: TestTree
 test_firstMoveClock =
@@ -116,7 +118,7 @@ test_firstMoveClock =
             -- is deducted from White's clock.
             case transition timedInitial (MakeMove Black bvm.move (Time 1_000_000_000)) of
               Right (TransitionResult afterBlack _) -> case afterBlack of
-                State _ _ (Active White (wvm : _) _ _) ->
+                State _ _ (Active White (wvm : _) _) _ ->
                   case transition afterBlack (MakeMove White wvm.move (Time 3_000_000_000)) of
                     Right (TransitionResult afterWhite _) -> case clockOf afterWhite of
                       Just cs' -> do

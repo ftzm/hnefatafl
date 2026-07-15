@@ -102,7 +102,7 @@ notificationsFor actor newState = concatMap $ \case
 
 -- | Serialize the full game state for initial sync on connect.
 gameStateMessage :: GameId -> PlayerColor -> Online.State -> OnlineServerMessage
-gameStateMessage gId playerColor s@(Online.State board moves phase) =
+gameStateMessage gId playerColor s@(Online.State board moves phase _) =
   OnlineGameState
     { _gameId = gId
     , _playerColor = playerColor
@@ -136,7 +136,7 @@ gameStateMessage gId playerColor s@(Online.State board moves phase) =
 -- | Extract common state fields from an Online state.
 activeStateFields ::
   Online.State -> (PlayerColor, ApiGameStatus, ValidMovesMap, ApiBoard)
-activeStateFields (Online.State board _moves phase) =
+activeStateFields (Online.State board _moves phase _) =
   case phase of
     Online.Active{turn, validMoves} ->
       ( turn
@@ -151,10 +151,12 @@ activeStateFields (Online.State board _moves phase) =
       , boardFromExtern board
       )
 
--- | Extract clock millisecond values from game state.
+-- | Extract clock millisecond values from game state. Only an active
+-- timed game reports a clock; a finished game reports none even though
+-- its configuration survives on the state.
 clockMsFields :: Online.State -> Maybe ClockMs
-clockMsFields (Online.State _ _ phase) = case phase of
-  Online.Active{clock = Just (_, cs)} ->
+clockMsFields (Online.State _ _ phase clock) = case (phase, clock) of
+  (Online.Active{}, Online.Timed _ cs) ->
     Just $
       ClockMs
         (remainingToMs cs.whiteRemaining)

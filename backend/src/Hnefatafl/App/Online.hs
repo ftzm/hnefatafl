@@ -177,7 +177,7 @@ eventColor (PlayerDisconnected c _) = c
 eventColor (TimeoutFired c) = c
 
 isFinished :: Online.State -> Bool
-isFinished (Online.State _ _ (Online.Finished _)) = True
+isFinished (Online.State _ _ (Online.Finished _) _) = True
 isFinished _ = False
 
 -------------------------------------------------------------------------------
@@ -210,7 +210,9 @@ loadOnlineState gameId = do
   clockState <- getOnlineClockState gameId
   let appliedMoves = gameMoveToAppliedMoves gameMoves
       board = currentBoard appliedMoves
-      clock = liftA2 (,) timeControl clockState
+      clock = case (timeControl, clockState) of
+        (Just tc, Just cs) -> Online.Timed tc cs
+        _ -> Online.Untimed
   pure $
     Online.reconstruct
       board
@@ -567,7 +569,7 @@ handleTimerEvents gameId events session
       cancelTimer session
   | any isClockUpdated events = do
       currentTime <- now
-      let deadline = computeDeadline currentTime session.gameState.phase
+      let deadline = computeDeadline currentTime session.gameState
       runTransaction $ setTimeoutAt gameId (snd <$> deadline)
       resetTimer deadline session
   | otherwise = pure session
@@ -579,9 +581,9 @@ handleTimerEvents gameId events session
 
 -- | Compute the active player and the absolute deadline at which
 -- their clock expires. Nothing when the game is finished or untimed.
-computeDeadline :: Time -> Online.Phase -> Maybe (PlayerColor, Time)
+computeDeadline :: Time -> Online.State -> Maybe (PlayerColor, Time)
 computeDeadline currentTime = \case
-  Online.Active{turn, clock = Just (_, cs)} ->
+  Online.State _ _ Online.Active{turn} (Online.Timed _ cs) ->
     let remaining = cs ^. Online.remainingFor turn
      in Just (turn, add (toTimespan remaining) currentTime)
   _ -> Nothing
@@ -618,12 +620,12 @@ recoverTimer ::
   GameSession ->
   Eff es GameSession
 recoverTimer gameId session =
-  case session.gameState.phase of
-    Online.Active{turn, clock = Just (_, cs)}
+  case session.gameState of
+    Online.State _ moves Online.Active{turn} (Online.Timed _ cs)
       -- The clock only starts once the first move is played, so a
       -- game with no moves has no timeout to recover. Arming one here
       -- would let the first mover flag before their free opening move.
-      | not (null session.gameState.moves) -> do
+      | not (null moves) -> do
           currentTime <- now
           let elapsed = difference currentTime cs.turnStartedAt
           case deduct elapsed (cs ^. Online.remainingFor turn) of
