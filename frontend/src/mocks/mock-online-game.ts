@@ -40,6 +40,26 @@ export function createMockOnlineGameService(): OnlineGameService {
     if (active) setEvents(event);
   }
 
+  function performUndo() {
+    if (moveHistory.length === 0) return;
+    moveHistory.pop();
+    board = cloneBoardRep(startBoard);
+    currentPlayer = "black";
+    for (const m of moveHistory) {
+      board = applyMoveToBoardRep(board, m);
+      currentPlayer = currentPlayer === "black" ? "white" : "black";
+    }
+    const moves = generateLegalMoves(board, currentPlayer);
+    emitIfActive({
+      type: "undoAccepted",
+      moveCount: 1,
+      boardRep: cloneBoardRep(board),
+      currentPlayer,
+      moves,
+      clock: null,
+    });
+  }
+
   function opponentTurn() {
     if (!active) return;
     const moves = generateLegalMoves(board, currentPlayer);
@@ -214,7 +234,7 @@ export function createMockOnlineGameService(): OnlineGameService {
       if (!active) return;
       setTimeout(() => {
         if (Math.random() < 0.5) {
-          emitIfActive({ type: "undoAccepted", moveCount: 1, clock: null });
+          performUndo();
         } else {
           emitIfActive({ type: "undoDeclined" });
         }
@@ -223,14 +243,7 @@ export function createMockOnlineGameService(): OnlineGameService {
 
     acceptUndo() {
       if (!active || moveHistory.length === 0) return;
-      moveHistory.pop();
-      board = cloneBoardRep(startBoard);
-      currentPlayer = "black";
-      for (const m of moveHistory) {
-        board = applyMoveToBoardRep(board, m);
-        currentPlayer = currentPlayer === "black" ? "white" : "black";
-      }
-      setEvents({ type: "undoAccepted", moveCount: 1, clock: null });
+      performUndo();
     },
 
     declineUndo() {

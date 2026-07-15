@@ -106,6 +106,88 @@ describe("game context — state transitions", () => {
   });
 });
 
+function startBoardRep() {
+  return {
+    black: new Set(startBoard.black),
+    white: new Set(startBoard.white),
+    king: startBoard.king,
+  };
+}
+
+describe("game context — external undo", () => {
+  it("trims history by moveCount and applies the authoritative position", () => {
+    const ctx = setupContext();
+    ctx.applyMove(blackMove);
+    ctx.applyMove(whiteMove);
+    expect(ctx.store.game.moveHistory).toHaveLength(2);
+    ctx.applyExternalUndo({
+      moveCount: 2,
+      boardRep: startBoardRep(),
+      currentPlayer: "black",
+      moves: { 3: [{ to: 2, captures: [] }] },
+      clock: null,
+    });
+    expect(ctx.store.game.moveHistory).toHaveLength(0);
+    expect(ctx.store.game.currentPlayer).toBe("black");
+    expect(ctx.store.game.boardRep.black).toEqual(startBoard.black);
+    expect(ctx.store.game.boardRep.white).toEqual(startBoard.white);
+    expect(ctx.store.game.boardRep.king).toBe(startBoard.king);
+  });
+
+  it("repopulates the legal moves map from the server", () => {
+    // undoLastMove alone leaves moves empty; the server's authoritative
+    // move list must be applied so the player can move again.
+    const ctx = setupContext();
+    ctx.applyMove(blackMove);
+    ctx.applyExternalUndo({
+      moveCount: 1,
+      boardRep: startBoardRep(),
+      currentPlayer: "black",
+      moves: {
+        3: [{ to: 2, captures: [] }],
+        5: [{ to: 4, captures: [] }],
+      },
+      clock: null,
+    });
+    expect(ctx.store.game.moves).toEqual({
+      3: [{ to: 2, captures: [] }],
+      5: [{ to: 4, captures: [] }],
+    });
+  });
+
+  it("updates the clock when the event carries one", () => {
+    const ctx = setupContext();
+    ctx.applyMove(blackMove);
+    ctx.applyExternalUndo({
+      moveCount: 1,
+      boardRep: startBoardRep(),
+      currentPlayer: "black",
+      moves: {},
+      clock: { whiteMs: 300_000, blackMs: 280_000 },
+    });
+    expect(ctx.store.game.clock).toEqual({
+      whiteMs: 300_000,
+      blackMs: 280_000,
+    });
+  });
+
+  it("resets historyCursor to the present", async () => {
+    const ctx = setupContext();
+    ctx.applyMove(blackMove);
+    ctx.applyMove(whiteMove);
+    await ctx.viewPrev();
+    expect(ctx.store.game.historyCursor).toBe(1);
+    ctx.applyExternalUndo({
+      moveCount: 1,
+      boardRep: startBoardRep(),
+      currentPlayer: "white",
+      moves: {},
+      clock: null,
+    });
+    expect(ctx.store.game.historyCursor).toBe(0);
+  });
+});
+
 function snapshotBoard(ctx: ReturnType<typeof useGame>) {
   return {
     black: new Set(ctx.store.game.boardRep.black),

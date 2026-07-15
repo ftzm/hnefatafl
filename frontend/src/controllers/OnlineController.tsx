@@ -107,10 +107,7 @@ function OnlineController() {
           clearAll();
           break;
         case "undoAccepted":
-          for (let i = 0; i < event.moveCount; i++) {
-            game.undoLastMove();
-          }
-          game.setClock(event.clock);
+          game.applyExternalUndo(event);
           setOutgoingUndo(false);
           setIncoming(undefined);
           break;

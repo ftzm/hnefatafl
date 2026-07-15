@@ -60,6 +60,13 @@ interface GameContextValue {
     moves: MovesMap;
     clock?: ClockMs | null;
   }) => void;
+  applyExternalUndo: (event: {
+    moveCount: number;
+    boardRep: BoardRep;
+    currentPlayer: PlayerColor;
+    moves: MovesMap;
+    clock?: ClockMs | null;
+  }) => void;
   setMoves: (moves: MovesMap) => void;
   setClock: (clock: ClockMs | null) => void;
   setGameOver: (state: GameOverState | null) => void;
@@ -190,6 +197,31 @@ export const GameProvider: ParentComponent = (props) => {
     setStore("game", update);
   }
 
+  // Apply a server-accepted undo. The server sends the authoritative
+  // post-undo position; moveCount says how many entries to drop from
+  // the local history (the server does not resend the full history).
+  function applyExternalUndo(event: {
+    moveCount: number;
+    boardRep: BoardRep;
+    currentPlayer: PlayerColor;
+    moves: MovesMap;
+    clock?: ClockMs | null;
+  }): void {
+    const newLength = Math.max(
+      0,
+      store.game.moveHistory.length - event.moveCount,
+    );
+    const update: Partial<GameState> = {
+      moveHistory: store.game.moveHistory.slice(0, newLength),
+      historyCursor: 0,
+      currentPlayer: event.currentPlayer,
+      boardRep: event.boardRep,
+      moves: event.moves,
+    };
+    if ("clock" in event) update.clock = event.clock;
+    setStore("game", update);
+  }
+
   function setMovesAction(moves: MovesMap): void {
     setStore("game", "moves", moves);
   }
@@ -303,6 +335,7 @@ export const GameProvider: ParentComponent = (props) => {
     lastMove,
     applyMove,
     applyExternalMove,
+    applyExternalUndo,
     setMoves: setMovesAction,
     setClock: setClockAction,
     setGameOver: setGameOverAction,

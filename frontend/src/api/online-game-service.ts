@@ -89,6 +89,9 @@ function mapServerMessage(
       return {
         type: "undoAccepted",
         moveCount: msg.moveCount,
+        boardRep: mapBoard(msg.board),
+        currentPlayer: msg.turn,
+        moves: mapMoves(msg.validMoves),
         clock: msg.clock ?? null,
       };
     case "undoDeclined":

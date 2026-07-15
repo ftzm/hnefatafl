@@ -85,6 +85,9 @@ export type OnlineGameEvent =
   | {
       type: "undoAccepted";
       moveCount: number;
+      boardRep: BoardRep;
+      currentPlayer: PlayerColor;
+      moves: MovesMap;
       clock: ClockMs | null;
     }
   | { type: "undoDeclined" }
