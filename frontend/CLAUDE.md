@@ -1,6 +1,6 @@
 # Hnefatafl Frontend — SolidJS TypeScript UI
 
-SolidJS single-page app with Vite. Currently runs entirely on mock backends (no real API integration yet).
+SolidJS single-page app with Vite. Talks to the Haskell backend over REST + WebSocket (see `src/api/`). Set `VITE_USE_MOCKS=true` to swap in the in-browser mock backends (`src/mocks/`) instead; without it the real services are used and Vite proxies `/ai`, `/online`, `/hotseat`, `/health`, `/version` to `http://localhost:8080`.
 
 ## Commands
 
@@ -89,7 +89,7 @@ interface GameState {
   boardRep: BoardRep;          // { black: Set<number>, white: Set<number>, king: number }
   moveHistory: Move[];         // { from, to, captures? }[]
   currentPlayer: PlayerColor;  // "black" | "white"
-  moves: MovesMap;             // Record<number, number[][]> — legal moves per square
+  moves: MovesMap;             // Record<number, { to: number; captures: number[] }[]> — legal moves per square
   capturedPieces: { black: number; white: number };
   gameOver: GameOverState | null;
   playerColor: PlayerColor | null;
@@ -124,7 +124,7 @@ Each game mode has a controller component that:
 Same 0-120 index space as the C engine (11x11 grid). `board-logic.ts` contains:
 - `BoardRep` — `{ black: Set<number>, white: Set<number>, king: number }`
 - `Move` — `{ from: number, to: number, captures?: number[] }`
-- `MovesMap` — `Record<number, number[][]>` (legal destinations grouped by square)
+- `MovesMap` — `Record<number, { to: number; captures: number[] }[]>` (legal destinations grouped by square)
 - `indexToAlgebraic()` — converts index to chess-style notation (a1-k11)
 - `startBoard` — initial piece placement (24 black, 12 white, 1 king)
 
