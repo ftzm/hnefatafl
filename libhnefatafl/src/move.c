@@ -1095,280 +1095,6 @@ layer rightward_moves_layer_king(layer movers, layer occ) {
   return output;
 }
 
-/* The idea for this will be to generate the whole struct up front and provide
- * it to search functions. These functions can then mask the portions they need,
- * such as king captures or other tactical moves, and then extract moves from
- * this sub-selection. We'll also calculate the remainder, so that follow-up
- * functions don't revisit explored moves. This paradigm also supports a
- * generator-style approach to extraction that allows stopping before all moves
- * have been extracted, albiet requiring more storage than the existing
- * implementation. */
-
-bool move_state_from_cursor(
-    const move_layers *layers,
-    layer movers,
-    layer movers_r,
-    move_cursor cursor,
-    move_state *result) {
-  layer movers_array[2] = {movers, movers_r};
-  static const u8 movers_rotation_map[12] =
-      {0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1};
-
-  // Handle cursors 0-7 (LOWER/UPPER cases) with direct array access
-  for (move_cursor current_cursor = cursor; current_cursor < CENTER_LEFTWARD;
-       current_cursor++) {
-    u64 part = layers->u64s[current_cursor]
-               & (current_cursor & 1 ? UPPER_HALF_MASK : LOWER_HALF_MASK);
-    if (part != 0) {
-      result->current = part;
-      result->cursor = current_cursor;
-      result->movers = movers_array[movers_rotation_map[current_cursor]]
-                           ._[current_cursor & 1];
-      return true;
-    }
-  }
-
-  // Handle CENTER cases (8-11) with GET_CENTER_ROW
-  for (move_cursor current_cursor =
-           (cursor < CENTER_LEFTWARD ? CENTER_LEFTWARD : cursor);
-       current_cursor <= CENTER_RIGHTWARD_R;
-       current_cursor++) {
-    int center_layer_index = current_cursor - CENTER_LEFTWARD;
-    u64 part = GET_CENTER_ROW(layers->layers[center_layer_index]);
-    if (part != 0) {
-      result->current = part;
-      result->cursor = current_cursor;
-      result->movers =
-          GET_CENTER_ROW(movers_array[movers_rotation_map[current_cursor]]);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-move_state init_move_state(const move_layers *layers, layer movers) {
-  move_state result = {
-      .cursor = LOWER_LEFTWARD,
-      .movers = movers._[0] & LOWER_HALF_MASK,
-      .current = layers->leftward._[0] & LOWER_HALF_MASK};
-  return result;
-}
-
-// -----------------------------------------------------------------------------
-// Move extraction macros and functions
-
-#define LEFTWARD_EXTRACT(_i, _r)                                               \
-  do {                                                                         \
-    u64 dest_bit = _blsi_u64(*dests);                                          \
-    u8 dest = _tzcnt_u64(dest_bit);                                            \
-    OFFSET(dest, _i);                                                          \
-    u8 orig = 63 - _lzcnt_u64(_blsmsk_u64(dest_bit) & movers);                 \
-    __attribute__((unused)) u64 orig_bit = (u64)1 << orig;                     \
-    OFFSET(orig, _i);                                                          \
-    u8 orig_r = ROTATE_DIR(_r)[orig];                                          \
-    u8 dest_r = ROTATE_DIR(_r)[dest];                                          \
-    ASSIGN##_r(_i, orig, dest, orig_r, dest_r, orig_bit, dest_bit, *result);   \
-    *dests -= dest_bit;                                                        \
-  } while (0)
-
-#define ASSIGN(_i, orig, dest, orig_r, dest_r, orig_bit, dest_bit, result)     \
-  (result).m = (move){orig, dest};                                             \
-  (result).l._[_i] = orig_bit | dest_bit;                                      \
-  SET_INDEX((result).l_r, orig_r);                                             \
-  SET_INDEX((result).l_r, dest_r);
-
-#define ASSIGN_r(_i, orig, dest, orig_r, dest_r, orig_bit, dest_bit, result)   \
-  (result).m = (move){orig_r, dest_r};                                         \
-  SET_INDEX((result).l_r, orig);                                               \
-  SET_INDEX((result).l_r, dest);                                               \
-  SET_INDEX((result).l, orig_r);                                               \
-  SET_INDEX((result).l, dest_r);
-
-#define RIGHTWARD_EXTRACT(_i, _r)                                              \
-  do {                                                                         \
-    u64 dest_bit = _blsi_u64(*dests);                                          \
-    u8 dest = _tzcnt_u64(dest_bit);                                            \
-    OFFSET(dest, _i);                                                          \
-    u64 orig_bit = _blsi_u64(movers & -dest_bit);                              \
-    u8 orig = _tzcnt_u64(orig_bit);                                            \
-    OFFSET(orig, _i);                                                          \
-    u8 orig_r = ROTATE_DIR(_r)[orig];                                          \
-    u8 dest_r = ROTATE_DIR(_r)[dest];                                          \
-    ASSIGN##_r(_i, orig, dest, orig_r, dest_r, orig_bit, dest_bit, *result);   \
-    *dests -= dest_bit;                                                        \
-  } while (0)
-
-#define LEFTWARD_CENTER_EXTRACT(_r)                                            \
-  do {                                                                         \
-    u16 dest_bit = *dests & -*dests;                                           \
-    u8 dest = _tzcnt_u16(dest_bit);                                            \
-    dest += 55;                                                                \
-    u8 orig = 15 - __lzcnt16((dest_bit - 1) & movers);                         \
-    orig += 55;                                                                \
-    u8 orig_r = ROTATE_DIR(_r)[orig];                                          \
-    u8 dest_r = ROTATE_DIR(_r)[dest];                                          \
-    ASSIGN_CENTER##_r(orig, dest, orig_r, dest_r, *result);                    \
-    *dests -= dest_bit;                                                        \
-  } while (0)
-
-#define ASSIGN_CENTER(orig, dest, orig_r, dest_r, result)                      \
-  (result).m = (move){orig, dest};                                             \
-  SET_INDEX((result).l, orig);                                                 \
-  SET_INDEX((result).l, dest);                                                 \
-  SET_INDEX((result).l_r, orig_r);                                             \
-  SET_INDEX((result).l_r, dest_r);
-
-#define ASSIGN_CENTER_r(orig, dest, orig_r, dest_r, result)                    \
-  (result).m = (move){orig_r, dest_r};                                         \
-  SET_INDEX((result).l_r, orig);                                               \
-  SET_INDEX((result).l_r, dest);                                               \
-  SET_INDEX((result).l, orig_r);                                               \
-  SET_INDEX((result).l, dest_r);
-
-#define RIGHTWARD_CENTER_EXTRACT(_r)                                           \
-  do {                                                                         \
-    u16 dest_bit = *dests & -*dests;                                           \
-    u8 dest = _tzcnt_u16(dest_bit);                                            \
-    dest += 55;                                                                \
-    u8 orig = _tzcnt_u16(movers & -dest_bit) + 55;                             \
-    u8 orig_r = ROTATE_DIR(_r)[orig];                                          \
-    u8 dest_r = ROTATE_DIR(_r)[dest];                                          \
-    ASSIGN_CENTER##_r(orig, dest, orig_r, dest_r, *result);                    \
-    *dests -= dest_bit;                                                        \
-  } while (0)
-
-void extract_lower_leftward(u64 *dests, u64 movers, move_data *result) {
-  LEFTWARD_EXTRACT(0, );
-}
-
-void extract_upper_leftward(u64 *dests, u64 movers, move_data *result) {
-  LEFTWARD_EXTRACT(1, );
-}
-
-void extract_lower_leftward_r(u64 *dests, u64 movers, move_data *result) {
-  LEFTWARD_EXTRACT(0, _r);
-}
-
-void extract_upper_leftward_r(u64 *dests, u64 movers, move_data *result) {
-  LEFTWARD_EXTRACT(1, _r);
-}
-
-void extract_lower_rightward(u64 *dests, u64 movers, move_data *result) {
-  RIGHTWARD_EXTRACT(0, );
-}
-
-void extract_upper_rightward(u64 *dests, u64 movers, move_data *result) {
-  RIGHTWARD_EXTRACT(1, );
-}
-
-void extract_lower_rightward_r(u64 *dests, u64 movers, move_data *result) {
-  RIGHTWARD_EXTRACT(0, _r);
-}
-
-void extract_upper_rightward_r(u64 *dests, u64 movers, move_data *result) {
-  RIGHTWARD_EXTRACT(1, _r);
-}
-
-void extract_center_leftward(u64 *dests, u64 movers, move_data *result) {
-  LEFTWARD_CENTER_EXTRACT();
-}
-
-void extract_center_leftward_r(u64 *dests, u64 movers, move_data *result) {
-  LEFTWARD_CENTER_EXTRACT(_r);
-}
-
-void extract_center_rightward(u64 *dests, u64 movers, move_data *result) {
-  RIGHTWARD_CENTER_EXTRACT();
-}
-
-void extract_center_rightward_r(u64 *dests, u64 movers, move_data *result) {
-  RIGHTWARD_CENTER_EXTRACT(_r);
-}
-
-void extract_move(
-    move_cursor cursor,
-    u64 *dests,
-    u64 movers,
-    move_data *result) {
-  static void *dispatch_table[12] = {
-      [LOWER_LEFTWARD] = &&lower_leftward,
-      [UPPER_LEFTWARD] = &&upper_leftward,
-      [LOWER_LEFTWARD_R] = &&lower_leftward_r,
-      [UPPER_LEFTWARD_R] = &&upper_leftward_r,
-      [LOWER_RIGHTWARD] = &&lower_rightward,
-      [UPPER_RIGHTWARD] = &&upper_rightward,
-      [LOWER_RIGHTWARD_R] = &&lower_rightward_r,
-      [UPPER_RIGHTWARD_R] = &&upper_rightward_r,
-      [CENTER_LEFTWARD] = &&center_leftward,
-      [CENTER_LEFTWARD_R] = &&center_leftward_r,
-      [CENTER_RIGHTWARD] = &&center_rightward,
-      [CENTER_RIGHTWARD_R] = &&center_rightward_r};
-
-  goto *dispatch_table[cursor];
-
-lower_leftward:
-  LEFTWARD_EXTRACT(0, );
-  return;
-upper_leftward:
-  LEFTWARD_EXTRACT(1, );
-  return;
-lower_leftward_r:
-  LEFTWARD_EXTRACT(0, _r);
-  return;
-upper_leftward_r:
-  LEFTWARD_EXTRACT(1, _r);
-  return;
-lower_rightward:
-  RIGHTWARD_EXTRACT(0, );
-  return;
-upper_rightward:
-  RIGHTWARD_EXTRACT(1, );
-  return;
-lower_rightward_r:
-  RIGHTWARD_EXTRACT(0, _r);
-  return;
-upper_rightward_r:
-  RIGHTWARD_EXTRACT(1, _r);
-  return;
-center_leftward:
-  LEFTWARD_CENTER_EXTRACT();
-  return;
-center_leftward_r:
-  LEFTWARD_CENTER_EXTRACT(_r);
-  return;
-center_rightward:
-  RIGHTWARD_CENTER_EXTRACT();
-  return;
-center_rightward_r:
-  RIGHTWARD_CENTER_EXTRACT(_r);
-  return;
-}
-
-bool next_move_from_layers(
-    const move_layers *layers,
-    layer movers,
-    layer movers_r,
-    move_state *state,
-    move_data *result) {
-  // If current is empty, try to advance to next non-empty state
-  if (state->current == 0) {
-    if (!move_state_from_cursor(
-            layers,
-            movers,
-            movers_r,
-            state->cursor + 1,
-            state)) {
-      return false;
-    }
-  }
-
-  // Extract move using current state (this will update state->current)
-  extract_move(state->cursor, &state->current, state->movers, result);
-
-  return true;
-}
-
 // -----------------------------------------------------------------------------
 // Move count
 
@@ -1638,6 +1364,88 @@ void moves_from_layers(
 
   EXTRACT_FROM_LAYERS_RIGHTWARD(0, _r, movers_r);
   EXTRACT_FROM_LAYERS_RIGHTWARD(1, _r, movers_r);
+  EXTRACT_FROM_LAYERS_RIGHTWARD_CENTER(_r, movers_r);
+
+  *_total_out = _local_total;
+}
+
+// -----------------------------------------------------------------------------
+// Ray-peeled extraction
+//
+// A contiguous run of set bits in a half of a move layer is a single ray:
+// movers are excluded from the destination layer, so every ray is bounded
+// below by a gap (its own mover or the next blocker). All destinations in a
+// ray share one origin, so the origin is recovered once per ray rather than
+// once per destination, replacing the per-square nearest-mover search of
+// EXTRACT_FROM_LAYERS_COMMON with a single search per moving piece.
+
+// Leftward rays grow toward higher bits, so the origin is the highest mover
+// at or below the ray's lowest destination.
+#define PEEL_ORIG_LEFTWARD(_mv, _low)                                          \
+  u8 orig = 63 - _lzcnt_u64(_blsmsk_u64(_low) & (_mv));                        \
+  u64 orig_bit = (u64)1 << orig;
+
+// Rightward rays grow toward lower bits, so the origin is the lowest mover at
+// or above the ray's lowest destination.
+#define PEEL_ORIG_RIGHTWARD(_mv, _low)                                         \
+  u64 orig_bit = _blsi_u64((_mv) & -(_low));                                   \
+  u8 orig = _tzcnt_u64(orig_bit);
+
+#define PEEL_FROM_LAYERS_COMMON(_i, _r, _direction, _movers, _peel_orig)       \
+  {                                                                            \
+    u64 dests = layers->_direction##_r._[_i] & HALF_MASK_##_i;                 \
+    const u64 mv = (_movers)._[_i];                                            \
+    while (dests) {                                                            \
+      u64 low = _blsi_u64(dests);                                              \
+      u64 carry = dests + low;     /* clears the lowest contiguous run */      \
+      u64 run = dests & ~carry;    /* isolate that run: one ray */             \
+      dests &= carry;              /* advance past it */                       \
+      _peel_orig(mv, low) OFFSET(orig, _i);                                    \
+      u8 orig_r = ROTATE_DIR(_r)[orig];                                        \
+      do {                                                                     \
+        u64 dest_bit = _blsi_u64(run);                                         \
+        u8 dest = _tzcnt_u64(dest_bit);                                        \
+        OFFSET(dest, _i);                                                      \
+        u8 dest_r = ROTATE_DIR(_r)[dest];                                      \
+        BOOKKEEP##_r(_i);                                                      \
+        run -= dest_bit;                                                       \
+      } while (run);                                                           \
+    }                                                                          \
+  }
+
+#define PEEL_FROM_LAYERS_LEFTWARD(_i, _r, _movers)                             \
+  PEEL_FROM_LAYERS_COMMON(_i, _r, leftward, _movers, PEEL_ORIG_LEFTWARD)
+
+#define PEEL_FROM_LAYERS_RIGHTWARD(_i, _r, _movers)                            \
+  PEEL_FROM_LAYERS_COMMON(_i, _r, rightward, _movers, PEEL_ORIG_RIGHTWARD)
+
+void moves_from_layers_peeled(
+    const move_layers *layers,
+    const layer movers,
+    const layer movers_r,
+    move *ms,
+    layer *ls,
+    layer *ls_r,
+    int *total) {
+
+  int _local_total = *total;
+  int *_total_out = total;
+  total = &_local_total;
+
+  PEEL_FROM_LAYERS_LEFTWARD(0, , movers);
+  PEEL_FROM_LAYERS_LEFTWARD(1, , movers);
+  EXTRACT_FROM_LAYERS_LEFTWARD_CENTER(, movers);
+
+  PEEL_FROM_LAYERS_LEFTWARD(0, _r, movers_r);
+  PEEL_FROM_LAYERS_LEFTWARD(1, _r, movers_r);
+  EXTRACT_FROM_LAYERS_LEFTWARD_CENTER(_r, movers_r);
+
+  PEEL_FROM_LAYERS_RIGHTWARD(0, , movers);
+  PEEL_FROM_LAYERS_RIGHTWARD(1, , movers);
+  EXTRACT_FROM_LAYERS_RIGHTWARD_CENTER(, movers);
+
+  PEEL_FROM_LAYERS_RIGHTWARD(0, _r, movers_r);
+  PEEL_FROM_LAYERS_RIGHTWARD(1, _r, movers_r);
   EXTRACT_FROM_LAYERS_RIGHTWARD_CENTER(_r, movers_r);
 
   *_total_out = _local_total;

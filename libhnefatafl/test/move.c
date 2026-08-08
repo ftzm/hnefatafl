@@ -2307,38 +2307,27 @@ TEST test_moves_from_layers_white(void) {
 }
 
 // -----------------------------------------------------------------------------
-// test generator-style move generation
+// test moves_from_layers_peeled against the reference generator (move set)
 
 static enum theft_alloc_res
-generator_moves_black_cb(struct theft *t, void *env, void **instance) {
+moves_from_layers_peeled_black_cb(struct theft *t, void *env, void **instance) {
   (void)env;
   board b = theft_create_board(t);
 
-  // Generate moves using reference implementation
+  // orig
   board bs[735];
   move ms[735];
   int total = 0;
   get_team_moves_black(b, &total, ms, bs);
 
-  // Generate moves using generator-style approach
-  move_layers layers = generate_black_move_layers(&b);
-  move_state state = init_move_state(&layers, b.black);
-
+  // to test
   move ms2[735];
+  layer ls[735];
+  layer ls_r[735];
   int total2 = 0;
-  move_data current_move;
 
-  while (next_move_from_layers(
-      &layers,
-      b.black,
-      b.black_r,
-      &state,
-      &current_move)) {
-    if (total2 >= 735)
-      break; // Safety check
-    ms2[total2] = current_move.m;
-    total2++;
-  }
+  move_layers layers = generate_black_move_layers(&b);
+  moves_from_layers_peeled(&layers, b.black, b.black_r, ms2, ls, ls_r, &total2);
 
   qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
   qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
@@ -2351,13 +2340,70 @@ generator_moves_black_cb(struct theft *t, void *env, void **instance) {
   *instance = output;
 
   return THEFT_ALLOC_OK;
-}
+};
 
-TEST test_generator_moves_black(void) {
+TEST test_moves_from_layers_peeled_black(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info info = {
-      .alloc = generator_moves_black_cb,
+      .alloc = moves_from_layers_peeled_black_cb,
+      .free = theft_generic_free_cb,
+      .print = moves_diffs_print_cb,
+      .autoshrink_config = {.enable = false},
+  };
+
+  struct theft_run_config config = {
+      .name = __func__,
+      .prop1 = prop_moves_diffs_empty,
+      .type_info = {&info},
+      .trials = 1000,
+      .seed = seed,
+  };
+
+  enum theft_run_res res = theft_run(&config);
+
+  ASSERT_ENUM_EQm("pass", THEFT_RUN_PASS, res, theft_run_res_str);
+  PASS();
+}
+
+static enum theft_alloc_res
+moves_from_layers_peeled_white_cb(struct theft *t, void *env, void **instance) {
+  (void)env;
+  board b = theft_create_board(t);
+
+  // orig
+  board bs[335];
+  move ms[335];
+  int total = 0;
+  get_team_moves_white(b, &total, ms, bs);
+
+  // to test
+  move ms2[335];
+  layer ls[335];
+  layer ls_r[335];
+  int total2 = 0;
+
+  move_layers layers = generate_white_move_layers(&b);
+  moves_from_layers_peeled(&layers, b.white, b.white_r, ms2, ls, ls_r, &total2);
+
+  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
+  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
+
+  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
+  d.b = b;
+
+  struct moves_diffs *output = malloc(sizeof(d));
+  *output = d;
+  *instance = output;
+
+  return THEFT_ALLOC_OK;
+};
+
+TEST test_moves_from_layers_peeled_white(void) {
+  theft_seed seed = theft_seed_of_time();
+
+  static struct theft_type_info info = {
+      .alloc = moves_from_layers_peeled_white_cb,
       .free = theft_generic_free_cb,
       .print = moves_diffs_print_cb,
       .autoshrink_config = {.enable = false},
@@ -2378,65 +2424,105 @@ TEST test_generator_moves_black(void) {
 }
 
 // -----------------------------------------------------------------------------
-// test generator-style move generation for white
+// test moves_from_layers_peeled produces byte-identical output to
+// moves_from_layers: same move list AND same diff layers, in the same order.
+
+struct peeled_equiv {
+  board b;
+  bool identical;
+};
 
 static enum theft_alloc_res
-generator_moves_white_cb(struct theft *t, void *env, void **instance) {
+moves_from_layers_peeled_equiv_cb(struct theft *t, void *env, void **instance) {
   (void)env;
   board b = theft_create_board(t);
 
-  // Generate moves using reference implementation
-  board bs[335];
-  move ms[335];
-  int total = 0;
-  get_team_moves_white(b, &total, ms, bs);
+  // Exercise both colors so movers/movers_r cover both orientations.
+  move_layers wl = generate_white_move_layers(&b);
+  move_layers bl = generate_black_move_layers(&b);
 
-  // Generate moves using generator-style approach
-  move_layers layers = generate_white_move_layers(&b);
-  move_state state = init_move_state(&layers, b.white);
+  bool identical = true;
+  const struct {
+    move_layers *layers;
+    layer movers, movers_r;
+  } cases[2] = {
+      {&wl, b.white, b.white_r},
+      {&bl, b.black, b.black_r},
+  };
 
-  move ms2[335];
-  int total2 = 0;
-  move_data current_move;
+  for (int c = 0; c < 2; c++) {
+    move ms_old[735], ms_new[735];
+    layer ls_old[735], ls_new[735];
+    layer ls_r_old[735], ls_r_new[735];
+    memset(ls_old, 0, sizeof(ls_old));
+    memset(ls_new, 0, sizeof(ls_new));
+    memset(ls_r_old, 0, sizeof(ls_r_old));
+    memset(ls_r_new, 0, sizeof(ls_r_new));
+    int total_old = 0, total_new = 0;
 
-  while (next_move_from_layers(
-      &layers,
-      b.white,
-      b.white_r,
-      &state,
-      &current_move)) {
-    if (total2 >= 335)
-      break; // Safety check
-    ms2[total2] = current_move.m;
-    total2++;
+    moves_from_layers(
+        cases[c].layers,
+        cases[c].movers,
+        cases[c].movers_r,
+        ms_old,
+        ls_old,
+        ls_r_old,
+        &total_old);
+    moves_from_layers_peeled(
+        cases[c].layers,
+        cases[c].movers,
+        cases[c].movers_r,
+        ms_new,
+        ls_new,
+        ls_r_new,
+        &total_new);
+
+    if (total_old != total_new ||
+        memcmp(ms_old, ms_new, total_old * sizeof(move)) != 0 ||
+        memcmp(ls_old, ls_new, total_old * sizeof(layer)) != 0 ||
+        memcmp(ls_r_old, ls_r_new, total_old * sizeof(layer)) != 0) {
+      identical = false;
+      break;
+    }
   }
 
-  qsort(ms, total, sizeof(move), (ConstCompareListElements)cmp_moves);
-  qsort(ms2, total2, sizeof(move), (ConstCompareListElements)cmp_moves);
-
-  struct moves_diffs d = compare_moves(ms, total, ms2, total2);
-  d.b = b;
-
-  struct moves_diffs *output = malloc(sizeof(d));
-  *output = d;
+  struct peeled_equiv *output = malloc(sizeof(*output));
+  output->b = b;
+  output->identical = identical;
   *instance = output;
 
   return THEFT_ALLOC_OK;
+};
+
+void peeled_equiv_print_cb(FILE *f, const void *instance, void *env) {
+  (void)env;
+  const struct peeled_equiv *d = (const struct peeled_equiv *)instance;
+  char output[strlen(base) + 1];
+  strcpy(output, base);
+  fmt_board(d->b, output);
+  fprintf(f, "%s", output);
 }
 
-TEST test_generator_moves_white(void) {
+static enum theft_trial_res
+prop_peeled_equiv(struct theft *t, void *arg1) {
+  (void)t;
+  struct peeled_equiv *input = (struct peeled_equiv *)arg1;
+  return input->identical ? THEFT_TRIAL_PASS : THEFT_TRIAL_FAIL;
+}
+
+TEST test_moves_from_layers_peeled_equiv(void) {
   theft_seed seed = theft_seed_of_time();
 
   static struct theft_type_info info = {
-      .alloc = generator_moves_white_cb,
+      .alloc = moves_from_layers_peeled_equiv_cb,
       .free = theft_generic_free_cb,
-      .print = moves_diffs_print_cb,
+      .print = peeled_equiv_print_cb,
       .autoshrink_config = {.enable = false},
   };
 
   struct theft_run_config config = {
       .name = __func__,
-      .prop1 = prop_moves_diffs_empty,
+      .prop1 = prop_peeled_equiv,
       .type_info = {&info},
       .trials = 1000,
       .seed = seed,
@@ -2620,11 +2706,12 @@ SUITE(move_suite) {
   RUN_TEST(test_moves_to_layers_correct);
   RUN_TEST(test_moves_from_layers_black);
   RUN_TEST(test_moves_from_layers_white);
+  RUN_TEST(test_moves_from_layers_peeled_black);
+  RUN_TEST(test_moves_from_layers_peeled_white);
+  RUN_TEST(test_moves_from_layers_peeled_equiv);
   RUN_TEST(test_black_moves_count);
   RUN_TEST(test_white_moves_count);
   RUN_TEST(test_king_moves_count);
-  RUN_TEST(test_generator_moves_black);
-  RUN_TEST(test_generator_moves_white);
   RUN_TEST(king_hopover);
   RUN_TEST(test_validate_black_moves);
 }

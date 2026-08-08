@@ -759,6 +759,79 @@ UBENCH_EX(extract, from_layers_white) {
   }
 }
 
+UBENCH_EX(extract, from_layers_peeled_black) {
+  const board b = read_board(sanity_capture_king_string);
+  move_layers layers = generate_black_move_layers(&b);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    layer ls[235] = {0};
+    layer ls_r[235] = {0};
+    int total = 0;
+    moves_from_layers_peeled(&layers, b.black, b.black_r, ms, ls, ls_r, &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(extract, from_layers_peeled_white) {
+  const board b = read_board(sanity_capture_king_string);
+  move_layers layers = generate_white_move_layers(&b);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    layer ls[235] = {0};
+    layer ls_r[235] = {0};
+    int total = 0;
+    moves_from_layers_peeled(&layers, b.white, b.white_r, ms, ls, ls_r, &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+// ls == NULL: only the move list is produced, matching the common search-path
+// usage where diff layers are not needed. Origin recovery dominates here.
+
+UBENCH_EX(extract, from_layers_nols_black) {
+  const board b = read_board(sanity_capture_king_string);
+  move_layers layers = generate_black_move_layers(&b);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    int total = 0;
+    moves_from_layers(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(extract, from_layers_nols_peeled_black) {
+  const board b = read_board(sanity_capture_king_string);
+  move_layers layers = generate_black_move_layers(&b);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    int total = 0;
+    moves_from_layers_peeled(&layers, b.black, b.black_r, ms, NULL, NULL, &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(extract, from_layers_nols_white) {
+  const board b = read_board(sanity_capture_king_string);
+  move_layers layers = generate_white_move_layers(&b);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    int total = 0;
+    moves_from_layers(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
+UBENCH_EX(extract, from_layers_nols_peeled_white) {
+  const board b = read_board(sanity_capture_king_string);
+  move_layers layers = generate_white_move_layers(&b);
+  UBENCH_DO_BENCHMARK() {
+    move ms[235];
+    int total = 0;
+    moves_from_layers_peeled(&layers, b.white, b.white_r, ms, NULL, NULL, &total);
+    UBENCH_DO_NOTHING(ms);
+  }
+}
+
 int bench_king_capture_check(bool (*check)(const board *b)) {
   // this total is just to ensure that the code is not optimized away.
   int total = 0;
