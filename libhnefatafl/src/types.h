@@ -35,6 +35,9 @@ typedef struct move {
   u8 dest;
 } move;
 
+// Upper bound on the number of legal moves for one side in any position.
+#define MAX_MOVES 295
+
 typedef enum game_status {
   status_ongoing,
   status_king_captured,

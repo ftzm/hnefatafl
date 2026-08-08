@@ -28,8 +28,8 @@ const char *sanity_capture_king_string = " .  .  X  .  X  .  .  O  .  .  . "
 UBENCH_EX(foo, gen) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     gen_reference_moves_black(start_board, &total, ms, bs);
     UBENCH_DO_NOTHING(ms);
@@ -40,8 +40,8 @@ UBENCH_EX(foo, gen) {
 UBENCH_EX(foo, orig_black) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     get_team_moves_black(start_board, &total, ms, bs);
     UBENCH_DO_NOTHING(ms);
@@ -51,8 +51,8 @@ UBENCH_EX(foo, orig_black) {
 UBENCH_EX(foo, orig_white) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     get_team_moves_white(start_board, &total, ms, bs);
     UBENCH_DO_NOTHING(ms);
@@ -63,8 +63,8 @@ UBENCH_EX(foo, orig_white) {
 UBENCH_EX(foo2, gen) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     gen_reference_moves_black(start_board, &total, ms, bs);
     UBENCH_DO_NOTHING(ms);
@@ -76,8 +76,8 @@ UBENCH_EX(foo2, gen) {
 UBENCH_EX(foo2, gen2) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     gen_reference_moves_black2(start_board, &total, ms, bs);
     UBENCH_DO_NOTHING(ms);
@@ -88,8 +88,8 @@ UBENCH_EX(foo2, gen2) {
 UBENCH_EX(foo3, gen3_black) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     gen_reference_moves_black3(start_board, &total, ms, bs);
     UBENCH_DO_NOTHING(ms);
@@ -99,8 +99,8 @@ UBENCH_EX(foo3, gen3_black) {
 UBENCH_EX(foo3, gen3_white) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     gen_reference_moves_white3(start_board, &total, ms, bs);
     UBENCH_DO_NOTHING(ms);
@@ -109,9 +109,9 @@ UBENCH_EX(foo3, gen3_white) {
 
 UBENCH_EX(move, mm_black) {
   const board b = read_board(sanity_capture_king_string);
-  board bs[235];
-  move ms[235];
-  dir ds[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
+  dir ds[MAX_MOVES];
   int total = 0;
   move_map mm;
   memset(mm, 0, sizeof(mm));
@@ -138,9 +138,9 @@ UBENCH_EX(move, mm_black) {
 
 UBENCH_EX(move, mm_white) {
   const board b = read_board(sanity_capture_king_string);
-  board bs[235];
-  move ms[235];
-  dir ds[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
+  dir ds[MAX_MOVES];
   int total = 0;
   move_map mm;
   memset(mm, 0, sizeof(mm));
@@ -168,9 +168,9 @@ UBENCH_EX(move, mm_white) {
 UBENCH_EX(foo3, moves_to_black) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    move ms[235];
-    layer ls[235];
-    layer ls_r[235];
+    move ms[MAX_MOVES];
+    layer ls[MAX_MOVES];
+    layer ls_r[MAX_MOVES];
     int total = 0;
     moves_to(
         LAYER_NEG(board_occ(start_board)),
@@ -190,9 +190,9 @@ UBENCH_EX(foo3, moves_to_black) {
 UBENCH_EX(foo3, moves_to_white) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    move ms[235];
-    layer ls[235];
-    layer ls_r[235];
+    move ms[MAX_MOVES];
+    layer ls[MAX_MOVES];
+    layer ls_r[MAX_MOVES];
     int total = 0;
     moves_to(
         LAYER_NEG(board_occ(start_board)),
@@ -212,9 +212,9 @@ UBENCH_EX(foo3, moves_to_white) {
 UBENCH_EX(foo3, moves_to2_black) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    move ms[235];
-    layer ls[235];
-    layer ls_r[235];
+    move ms[MAX_MOVES];
+    layer ls[MAX_MOVES];
+    layer ls_r[MAX_MOVES];
     int total = 0;
     moves_to2(
         LAYER_NEG(board_occ(start_board)),
@@ -234,9 +234,9 @@ UBENCH_EX(foo3, moves_to2_black) {
 UBENCH_EX(foo3, moves_to2_white) {
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    move ms[235];
-    layer ls[235];
-    layer ls_r[235];
+    move ms[MAX_MOVES];
+    layer ls[MAX_MOVES];
+    layer ls_r[MAX_MOVES];
     int total = 0;
     moves_to2(
         LAYER_NEG(board_occ(start_board)),
@@ -258,20 +258,20 @@ UBENCH_EX(triple_nested, gen3_white) {
   int total_total = 0;
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     gen_reference_moves_white3(start_board, &total, ms, bs);
     total_total += total;
     for (int i = 0; i < total; i++) {
-      board bs2[235];
-      move ms2[235];
+      board bs2[MAX_MOVES];
+      move ms2[MAX_MOVES];
       int total2 = 0;
       gen_reference_moves_white3(bs[i], &total2, ms2, bs2);
       total_total += total2;
       for (int j = 0; j < total; j++) {
-        board bs3[235];
-        move ms3[235];
+        board bs3[MAX_MOVES];
+        move ms3[MAX_MOVES];
         int total3 = 0;
         gen_reference_moves_white3(bs2[j], &total3, ms3, bs3);
         total_total += total3;
@@ -286,9 +286,9 @@ UBENCH_EX(triple_nested, gen3_white) {
 UBENCH_EX(triple_nested, mm_white) {
   int total_total = 0;
   const board b = read_board(sanity_capture_king_string);
-  board bs[235];
-  move ms[235];
-  dir ds[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
+  dir ds[MAX_MOVES];
   int total = 0;
   move_map mm_white;
   memset(mm_white, 0, sizeof(mm_white));
@@ -328,9 +328,9 @@ UBENCH_EX(triple_nested, mm_white) {
         apply_westward_move(m.orig, m.dest, mm_white2, mm_black2, mm_king2);
       }
 
-      board bs2[235];
-      move ms2[235];
-      dir ds2[235];
+      board bs2[MAX_MOVES];
+      move ms2[MAX_MOVES];
+      dir ds2[MAX_MOVES];
       int total2 = 0;
 
       layer throne_mask = EMPTY_LAYER;
@@ -361,9 +361,9 @@ UBENCH_EX(triple_nested, mm_white) {
           apply_westward_move(m.orig, m.dest, mm_white3, mm_black3, mm_king3);
         }
 
-        board bs3[235];
-        move ms3[235];
-        dir ds3[235];
+        board bs3[MAX_MOVES];
+        move ms3[MAX_MOVES];
+        dir ds3[MAX_MOVES];
         int total3 = 0;
 
         layer throne_mask = EMPTY_LAYER;
@@ -386,20 +386,20 @@ UBENCH_EX(triple_nested, gen3_black) {
   int total_total = 0;
   const board start_board = read_board(sanity_capture_king_string);
   UBENCH_DO_BENCHMARK() {
-    board bs[235];
-    move ms[235];
+    board bs[MAX_MOVES];
+    move ms[MAX_MOVES];
     int total = 0;
     gen_reference_moves_black3(start_board, &total, ms, bs);
     total_total += total;
     for (int i = 0; i < total; i++) {
-      board bs2[235];
-      move ms2[235];
+      board bs2[MAX_MOVES];
+      move ms2[MAX_MOVES];
       int total2 = 0;
       gen_reference_moves_black3(bs[i], &total2, ms2, bs2);
       total_total += total2;
       for (int j = 0; j < total; j++) {
-        board bs3[235];
-        move ms3[235];
+        board bs3[MAX_MOVES];
+        move ms3[MAX_MOVES];
         int total3 = 0;
         gen_reference_moves_black3(bs2[j], &total3, ms3, bs3);
         total_total += total3;
@@ -414,9 +414,9 @@ UBENCH_EX(triple_nested, gen3_black) {
 UBENCH_EX(triple_nested, mm_black) {
   int total_total = 0;
   const board b = read_board(sanity_capture_king_string);
-  board bs[235];
-  move ms[235];
-  dir ds[235];
+  board bs[MAX_MOVES];
+  move ms[MAX_MOVES];
+  dir ds[MAX_MOVES];
   int total = 0;
   move_map mm_white;
   memset(mm_white, 0, sizeof(mm_white));
@@ -456,9 +456,9 @@ UBENCH_EX(triple_nested, mm_black) {
         apply_westward_move(m.orig, m.dest, mm_black2, mm_white2, mm_king2);
       }
 
-      board bs2[235];
-      move ms2[235];
-      dir ds2[235];
+      board bs2[MAX_MOVES];
+      move ms2[MAX_MOVES];
+      dir ds2[MAX_MOVES];
       int total2 = 0;
 
       layer throne_mask = EMPTY_LAYER;
@@ -489,9 +489,9 @@ UBENCH_EX(triple_nested, mm_black) {
           apply_westward_move(m.orig, m.dest, mm_black3, mm_white3, mm_king3);
         }
 
-        board bs3[235];
-        move ms3[235];
-        dir ds3[235];
+        board bs3[MAX_MOVES];
+        move ms3[MAX_MOVES];
+        dir ds3[MAX_MOVES];
         int total3 = 0;
 
         layer throne_mask = EMPTY_LAYER;
@@ -737,9 +737,9 @@ UBENCH_EX(extract, from_layers_black) {
   const board b = read_board(sanity_capture_king_string);
   move_layers layers = generate_black_move_layers(&b);
   UBENCH_DO_BENCHMARK() {
-    move ms[235];
-    layer ls[235] = {0};
-    layer ls_r[235] = {0};
+    move ms[MAX_MOVES];
+    layer ls[MAX_MOVES] = {0};
+    layer ls_r[MAX_MOVES] = {0};
     int total = 0;
     moves_from_layers(&layers, b.black, b.black_r, ms, ls, ls_r, &total);
     UBENCH_DO_NOTHING(ms);
@@ -750,9 +750,9 @@ UBENCH_EX(extract, from_layers_white) {
   const board b = read_board(sanity_capture_king_string);
   move_layers layers = generate_white_move_layers(&b);
   UBENCH_DO_BENCHMARK() {
-    move ms[235];
-    layer ls[235] = {0};
-    layer ls_r[235] = {0};
+    move ms[MAX_MOVES];
+    layer ls[MAX_MOVES] = {0};
+    layer ls_r[MAX_MOVES] = {0};
     int total = 0;
     moves_from_layers(&layers, b.white, b.white_r, ms, ls, ls_r, &total);
     UBENCH_DO_NOTHING(ms);

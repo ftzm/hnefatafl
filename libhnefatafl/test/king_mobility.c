@@ -172,24 +172,20 @@ void layer_comparison_print_cb(FILE *f, const void *instance, void *env) {
   (void)env;
   struct layer_comparison *d = (struct layer_comparison *)instance;
 
-  // print board
-  char output[strlen(base) + 1];
-  strcpy(output, base);
-  fmt_board(d->b, output);
-  fprintf(f, "%s", output);
+  board_string_t bs = to_board_string(d->b);
+  fprintf(f, "%s", bs._);
 
   if (!LAYERS_EQUAL(d->x, d->y)) {
-    layer_string l = stringify(d->x);
-    fprintf(f, "unrotated:\n%s\n\n", l._);
-    layer_string l2 = stringify(d->y);
-    fprintf(f, "unrotated ref:\n%s\n\n", l2._);
+    layer_string actual = stringify(d->x);
+    layer_string expected = stringify(d->y);
+    fprintf(f, "actual:\n%s\n\nexpected:\n%s\n\n", actual._, expected._);
   }
 
   if (!LAYERS_EQUAL(d->x_r, d->y_r)) {
-    layer_string l = stringify(d->x_r);
-    fprintf(f, "unrotated:\n%s\n\n", l._);
-    layer_string l2 = stringify(d->y_r);
-    fprintf(f, "unrotated ref:\n%s\n\n", l2._);
+    layer_string actual = stringify(d->x_r);
+    layer_string expected = stringify(d->y_r);
+    fprintf(f, "actual (rotated):\n%s\n\nexpected (rotated):\n%s\n\n",
+            actual._, expected._);
   }
 };
 
@@ -231,12 +227,6 @@ bool moves_to_ref(
   {
     layer candidate = EMPTY_LAYER;
     draw_vertical(rank, file, dest_rank, &candidate);
-    // print_layer(occ);
-    // print_layer(candidate);
-    // print_layer(LAYER_OR(ADJACENTS, corners));
-    // printf("rank: %d\n", rank);
-    // printf("file: %d\n", file);
-    // printf("file: %d\n", dest_rank);
     if (IS_EMPTY(LAYER_AND(candidate, occ))) {
       if (NOT_EMPTY(LAYER_AND(candidate, LAYER_OR(ADJACENTS, corners)))) {
         return true;
@@ -254,15 +244,9 @@ bool moves_to_ref(
     layer candidate = EMPTY_LAYER;
     draw_horizontal(rank, file, dest_file, &candidate);
 
-    // print_layer(occ);
-    // print_layer(candidate);
-    // printf("rank: %d\n", rank);
-    // printf("file: %d\n", file);
-    // printf("file: %d\n", dest_rank);
 
     if (IS_EMPTY(LAYER_AND(candidate, occ))) {
       if (NOT_EMPTY(LAYER_AND(candidate, LAYER_OR(ADJACENTS, corners)))) {
-        // printf("escape");
         return true;
       }
       draw_vertical(rank, dest_file, dest_rank, &candidate);
@@ -442,11 +426,8 @@ void moves_2_comparison_print_cb(FILE *f, const void *instance, void *env) {
   (void)env;
   struct moves_2_comparison *input = (struct moves_2_comparison *)instance;
 
-  // print board
-  char output[strlen(base) + 1];
-  strcpy(output, base);
-  fmt_board(input->b, output);
-  fprintf(f, "%s", output);
+  board_string_t bs = to_board_string(input->b);
+  fprintf(f, "%s", bs._);
 
   if (input->x_escape != input->y_escape) {
     fprintf(f, "actual escape: %d\n", input->x_escape);

@@ -405,9 +405,9 @@ TEST assert_pv(
         computed_pv.score,
         MAX_SCORE - SCORE_THRESHOLD_LIKELY);
   } else if (args.score == ANY) {
+    // no score constraint
   } else {
-    printf("you've added a new element you fool");
-    exit(1);
+    FAILm("unhandled result_score enum value in assertion");
   }
 
   for (int i = 0; i < args.stats_assertions.length; i++) {
