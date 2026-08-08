@@ -1,5 +1,6 @@
 #pragma once
 
+#include "quadrant.h"
 #include "stdbool.h"
 #include "types.h"
 
@@ -36,6 +37,7 @@ typedef struct score_weights {
 
 typedef struct score_state {
   corner_guard_state corner_guard;
+  quadrant_counts quadrants;
   i32 score;
 } score_state;
 

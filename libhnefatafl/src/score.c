@@ -349,7 +349,8 @@ score_state init_score_state(score_weights *weights, const board *b) {
               + init_pst_score(&weights->psts, b);
   corner_guard_state cgs =
       init_state_corner_guard(b, weights->corner_guard, &score);
-  return (score_state){cgs, score};
+  quadrant_counts qc = init_quadrant_counts(b);
+  return (score_state){cgs, qc, score};
 }
 
 // -----------------------------------------------------------------------------
@@ -389,6 +390,7 @@ score_state update_score_state_black_move(
       &s.score,
       orig,
       dest);
+  s.quadrants = quadrant_update_black_move(s.quadrants, orig, dest);
   return s;
 }
 
@@ -401,6 +403,7 @@ score_state update_score_state_black_move_and_capture(
   score_state s = update_score_state_black_move(weights, old, orig, dest);
   s.score += pst_capture_handler(&weights->psts.white_pst, captures);
   s.score += pawn_count_capture_adjust(weights->white_pawn, captures);
+  s.quadrants = quadrant_update_black_capture(s.quadrants, captures);
   return s;
 }
 
@@ -411,6 +414,7 @@ score_state update_score_state_white_move(
     int dest) {
   score_state s = *old;
   s.score -= pst_handle_move(&weights->psts.white_pst, orig, dest);
+  s.quadrants = quadrant_update_white_move(s.quadrants, orig, dest);
   return s;
 }
 
@@ -428,6 +432,7 @@ score_state update_score_state_white_move_and_capture(
       captures,
       &s.corner_guard,
       &s.score);
+  s.quadrants = quadrant_update_white_capture(s.quadrants, captures);
   return s;
 }
 
@@ -438,6 +443,7 @@ score_state update_score_state_king_move(
     int dest) {
   score_state s = *old;
   s.score -= pst_handle_move(&weights->psts.king_pst, orig, dest);
+  s.quadrants = quadrant_update_king_move(s.quadrants, orig, dest);
   return s;
 }
 
@@ -455,6 +461,7 @@ score_state update_score_state_king_move_and_capture(
       captures,
       &s.corner_guard,
       &s.score);
+  s.quadrants = quadrant_update_white_capture(s.quadrants, captures);
   return s;
 }
 
